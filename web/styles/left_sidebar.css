@@ -1,6 +1,10 @@
 .left-sidebar-title {
     color: var(--color-text-sidebar-heading);
-    opacity: var(--opacity-sidebar-heading);
+    /* Full opacity so the chosen heading color reads at full
+       strength. --opacity-sidebar-heading-hover matches this, so
+       hover does not dim the heading; the row's own background
+       and shadow give the hover feedback instead. */
+    opacity: 1;
     transition: opacity 140ms linear;
     font-size: inherit;
     font-weight: var(--font-weight-sidebar-heading);
@@ -58,7 +62,7 @@
     grid-area: add-channel;
     display: grid;
     margin: 2px;
-    border-radius: 3px;
+    border-radius: var(--radius-md);
     color: var(--color-sidebar-action);
 
     &:hover {
@@ -323,7 +327,7 @@
         justify-content: center;
         text-decoration: none;
         margin: 2px 0;
-        border-radius: 3px;
+        border-radius: var(--radius-md);
         grid-row: 1 / 1;
 
         &:hover {
@@ -348,7 +352,7 @@
 
     &:hover,
     &.highlighted_row {
-        border-radius: 4px;
+        border-radius: var(--radius-md);
     }
 
     &:hover {
@@ -422,7 +426,7 @@
         width: calc(var(--left-sidebar-vdots-width) - 3px);
         cursor: pointer;
         place-items: center center;
-        border-radius: 3px;
+        border-radius: var(--radius-md);
         margin: 2px 2px 2px 1px;
         color: var(--color-vdots-visible);
 
@@ -507,7 +511,7 @@
     &:hover,
     &:has(.left_sidebar_menu_icon_visible),
     &.highlighted_row {
-        border-radius: 4px;
+        border-radius: var(--radius-md);
     }
 
     &:hover {
@@ -791,11 +795,11 @@
     background-color: var(--color-background-active-narrow-filter);
 
     &#direct-messages-section-header {
-        border-radius: 4px 4px 0 0;
+        border-radius: var(--radius-md) var(--radius-md) 0 0;
     }
 
     #direct-messages-list {
-        border-radius: 0 0 4px 4px;
+        border-radius: 0 0 var(--radius-md) var(--radius-md);
     }
 }
 
@@ -803,7 +807,7 @@
 .bottom_left_row {
     /* Ensure a border radius on any interactive
        state that might show a highlight. */
-    border-radius: 4px;
+    border-radius: var(--radius-md);
 
     /* Always show the box-shadow outline on hover and
        an open left-sidebar menu (vdots) */
@@ -845,10 +849,17 @@
     }
 
     &.active-filter,
-    &.top-left-active-filter,
-    &.active-sub-filter {
+    &.top-left-active-filter {
         &:has(.left_sidebar_menu_icon_visible) {
             background-color: var(--color-background-active-narrow-filter);
+        }
+    }
+
+    /* The active topic row keeps its own, dimmer background step
+       even while its vdots menu is open. See li.active-sub-filter. */
+    &.active-sub-filter {
+        &:has(.left_sidebar_menu_icon_visible) {
+            background-color: var(--color-background-active-topic-row);
         }
     }
 }
@@ -876,7 +887,7 @@
 
     &:not(.active-filter) {
         background-color: var(--color-background-hover-narrow-filter);
-        border-radius: 4px;
+        border-radius: var(--radius-md);
 
         .sidebar-topic-check {
             background-color: var(--color-background-hover-narrow-filter);
@@ -940,7 +951,7 @@
         )
         0;
     padding-left: var(--left-sidebar-toggle-width-offset);
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     text-decoration: none;
 
     &:hover {
@@ -1132,11 +1143,19 @@ li.top-left-active-filter,
 li.active-sub-filter {
     font-weight: 600 !important;
     position: relative;
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     color: var(--color-text-active-narrow-filter);
+
+    .sidebar-topic-name-inner {
+        color: var(--color-text-active-narrow-filter);
+    }
+}
+
+li.active-filter,
+li.top-left-active-filter {
     background-color: var(--color-background-active-narrow-filter);
 
-    /* These hover styles effectively push back on non-active-filter
+    /* This hover style effectively pushes back on non-active-filter
        styles, which would otherwise present the less-intense
        --color-background-hover-narrow-filter colors. */
     &:hover {
@@ -1150,9 +1169,18 @@ li.active-sub-filter {
     .sidebar-topic-check {
         background-color: var(--color-background-active-narrow-filter);
     }
+}
 
-    .sidebar-topic-name-inner {
-        color: var(--color-text-active-narrow-filter);
+/* The active topic row sits under the active nav row and needs a
+   dimmer brand-subtle background step so the two levels read as
+   distinct in both light and dark mode. There is no &:hover rule
+   here: a more specific selector already sets the hover background
+   for this row, so repeating it here would only be dead code. */
+li.active-sub-filter {
+    background-color: var(--color-background-active-topic-row);
+
+    .sidebar-topic-check {
+        background-color: var(--color-background-active-topic-row);
     }
 }
 
@@ -1179,7 +1207,7 @@ li.active-sub-filter {
     .topic-list .filter-topics,
     > .bottom_left_row {
         background-color: var(--color-background-active-narrow-filter);
-        border-radius: 4px;
+        border-radius: var(--radius-md);
 
         &:hover {
             background-color: var(--color-background-hover-narrow-filter);
@@ -1203,13 +1231,18 @@ li.active-sub-filter {
         flex: 1 0 1.625em;
         /* Unset padding from individual top_left items */
         padding: 0;
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         /* Set a positioning context for the unread dot. */
         position: relative;
 
         &:not(.top_left_condensed_unread_marker) {
             .unread_count {
                 position: absolute;
+                /* Lock this to the size the em math below is
+                   calibrated against, independent of the
+                   14px-em/0.9286em size .unread_count uses
+                   elsewhere. */
+                font-size: 12px;
             }
 
             /* Show the same styles when each item is
@@ -1348,7 +1381,7 @@ li.active-sub-filter {
        font-rendering and rounding may cause icons
        to appear out of alignment. This grid feature should
        only apply in the expanded-navigation view. */
-    grid-auto-rows: var(--line-height-sidebar-row);
+    grid-auto-rows: var(--height-sidebar-row);
 
     .left-sidebar-navigation-label-container {
         .left-sidebar-navigation-label {
@@ -1610,7 +1643,7 @@ li.active-sub-filter {
             display: grid;
             /* In the absence of auto rows in the condensed state,
                 we set an explicit height on the active filter. */
-            height: var(--line-height-sidebar-row);
+            height: var(--height-sidebar-row);
         }
     }
 
@@ -1628,7 +1661,7 @@ li.active-sub-filter {
     /* 28px at 16px/1em */
     grid-template-rows: 1.75em;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: var(--radius-md);
 
     &:not(.remove-pointer-for-spectator):hover,
     &:has(.left-sidebar-navigation-menu-icon[aria-expanded="true"]) {
@@ -1681,7 +1714,7 @@ li.active-sub-filter {
            coordinated with those on .sidebar-menu-icon. */
         margin: 2px 2px 2px 1px;
         padding-left: 1px;
-        border-radius: 3px;
+        border-radius: var(--radius-md);
         color: var(--color-vdots-visible);
 
         &:hover {
@@ -1725,6 +1758,7 @@ li.active-sub-filter {
 
 .subscription_block {
     user-select: text;
+    min-height: var(--height-menu-row);
     grid-template-columns:
         var(--left-sidebar-toggle-width-offset) var(
             --left-sidebar-icon-column-width
@@ -1807,7 +1841,7 @@ li.active-sub-filter {
     display: grid;
     grid-template:
         "starting-offset starting-anchor-element icon-content-gap row-content controls markers-and-unreads ending-anchor-element ending-offset" var(
-            --line-height-sidebar-row-prominent
+            --height-sidebar-topic-row
         )
         ".               .                       .                row-content .        .                   .                     .            " auto / 0 var(
             --left-sidebar-icon-column-width
@@ -1839,7 +1873,7 @@ li.active-sub-filter {
 
 .searching-for-more-topics {
     margin-left: var(--left-sidebar-toggle-width-offset);
-    height: var(--line-height-sidebar-row-prominent);
+    height: var(--height-sidebar-topic-row);
 }
 
 .topic-box .zero_count {
@@ -1873,8 +1907,8 @@ li.active-sub-filter {
            we set the top space with padding. But to make the
            line-clamp effect work, we set the bottom space
            with margin. */
-        padding-top: var(--spacing-top-bottom-sidebar-topic-inner);
-        margin: 0 0 var(--spacing-top-bottom-sidebar-topic-inner) 0;
+        padding-top: var(--spacing-top-bottom-sidebar-topic-row-inner);
+        margin: 0 0 var(--spacing-top-bottom-sidebar-topic-row-inner) 0;
     }
 }
 
@@ -1995,7 +2029,7 @@ li.active-sub-filter {
 #more-topics-modal .topic-box {
     grid-template:
         "starting-offset starting-anchor-element icon-content-gap row-content controls markers-and-unreads ending-anchor-element ending-offset"
-        var(--line-height-sidebar-row-prominent)
+        var(--height-sidebar-topic-row)
         ".               .                       .                row-content .        .                   .                     .            "
         auto
         / var(--input-icon-starting-offset) var(
@@ -2048,7 +2082,7 @@ li.active-sub-filter {
 
     &:hover,
     &:focus-visible {
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         text-decoration: none;
         color: var(--color-text-sidebar-action-heading);
     }
@@ -2062,7 +2096,7 @@ li.active-sub-filter {
     justify-content: center;
     color: var(--color-sidebar-action);
     margin: 2px 0;
-    border-radius: 3px;
+    border-radius: var(--radius-md);
 
     &:hover {
         color: var(--color-sidebar-action-hover);
@@ -2106,9 +2140,9 @@ li.active-sub-filter {
        we set the top space with padding. But to make the
        line-clamp effect work, we set the bottom space
        with margin. */
-    padding: var(--spacing-top-bottom-sidebar-topic-inner)
+    padding: var(--spacing-top-bottom-sidebar-topic-row-inner)
         var(--left-sidebar-before-unread-count-padding) 0 0;
-    margin-bottom: var(--spacing-top-bottom-sidebar-topic-inner);
+    margin-bottom: var(--spacing-top-bottom-sidebar-topic-row-inner);
 }
 
 /*
@@ -2132,7 +2166,7 @@ li.active-sub-filter {
        like the nav rows, that use a different
        centering regime for the row. */
     align-self: stretch;
-    border-radius: 3px;
+    border-radius: var(--radius-md);
     /* These margin and padding values should be
        coordinated with those on
        .left-sidebar-navigation-menu-icon. */
@@ -2295,6 +2329,7 @@ li.topic-list-item {
         [action-heading-end] 0 minmax(0, max-content)
         var(--left-sidebar-vdots-width) 0;
     grid-template-rows: [action-heading-start] auto [action-heading-end];
+    min-height: var(--height-menu-row);
 
     .conversation-partners-icon {
         grid-area: starting-anchor-element;
@@ -2361,7 +2396,7 @@ li.topic-list-item {
 
     .subscription_block:focus-visible {
         outline: 2px solid var(--color-outline-focus);
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         background-color: var(--color-background-hover-narrow-filter);
     }
 }
@@ -2561,7 +2596,7 @@ body:not(.spectator-view)
     #left-sidebar-modal-content {
         padding: 0 0 5px 5px;
         background: var(--color-background);
-        border-radius: 6px 6px 0 0;
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     }
 
     .left-sidebar-modal-close-area:focus-visible {

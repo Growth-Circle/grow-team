@@ -14,7 +14,7 @@
            adjacent buttons. */
         min-width: inherit;
         padding: 3px 10px;
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         outline: none;
         /* This is ugly, but necessary to use the
            text + for the compose button. An icon
@@ -54,7 +54,7 @@
         min-width: 0;
 
         /* Button-like styling */
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         background-color: var(
             --color-compose-collapsed-reply-button-area-background
         );
@@ -150,7 +150,7 @@
         min-width: inherit;
         line-height: var(--line-height-compose-buttons);
         padding: 3px 10px;
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         outline: none;
         color: var(--color-text-default);
         background-color: var(--color-background-compose-new-message-button);
@@ -177,8 +177,8 @@
     background-color: var(--color-compose-box-background);
     padding: 4px 4px 6px;
     border: 1px solid var(--color-border-compose-content);
-    border-radius: 9px 9px 0 0;
-    box-shadow: 0 0 0 hsl(236deg 11% 28%);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--box-shadow-raised-card);
     height: 100%;
     display: flex;
     flex-flow: column;
@@ -207,7 +207,7 @@
 
             .main-view-banner-close-button {
                 outline-offset: 0;
-                border-radius: 4px;
+                border-radius: var(--radius-md);
             }
         }
     }
@@ -227,7 +227,7 @@
             }
 
             #compose_select_recipient_widget {
-                border-radius: 4px !important;
+                border-radius: var(--radius-md) !important;
                 /* This height is necessary only for the
                    DM picker, so that it does not stretch
                    open taller with multiple rows of user
@@ -363,7 +363,7 @@
             --composebox-buttons-width
         );
     grid-template-areas: "message-content composebox-buttons";
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     border: 1px solid var(--color-message-content-container-border);
 
     &:has(.new_message_textarea:focus) {
@@ -419,7 +419,7 @@
         aspect-ratio: 1 / 1;
         background-color: var(--color-composebox-button-background);
         color: var(--color-composebox-button);
-        border-radius: 3px;
+        border-radius: var(--radius-md);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -518,7 +518,7 @@
 
 #message-formatting-controls-container {
     grid-area: message-formatting-controls-container;
-    border-radius: 0 0 3px 3px;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
     background-color: var(--color-message-formatting-controls-container);
     /* margin on either side to let the border of
        .message-content-container show through. */
@@ -571,7 +571,7 @@
 .formatting-scroller-backward {
     grid-area: scroller-backward;
     justify-content: flex-start;
-    border-radius: 0 0 0 3px;
+    border-radius: 0 0 0 var(--radius-md);
     background: var(--gradient-compose-scroll-backward);
 
     &:hover {
@@ -591,7 +591,7 @@
 .formatting-scroller-forward {
     grid-area: scroller-forward;
     justify-content: flex-end;
-    border-radius: 0 0 3px;
+    border-radius: 0 0 var(--radius-md);
     background: var(--gradient-compose-scroll-forward);
 
     &:hover {
@@ -661,6 +661,12 @@
     flex-direction: column;
     width: 100%;
     margin: auto;
+    /* #compose is fixed to the viewport bottom with no gap of its
+       own. Without this, the bottom two corners of #compose-content
+       (rounded on all four corners, matching the mockup's floating
+       compose card) have no room to curve and get clipped flush
+       against the window edge. */
+    padding-bottom: 8px;
 }
 
 #compose_top {
@@ -689,7 +695,7 @@
     border: 0;
     /* 3px 7px at 12.5px font size at 14px em */
     padding: 0.24em 0.56em;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     vertical-align: unset;
     text-shadow: none;
 
@@ -718,7 +724,7 @@
     /* This is same spatial value as the 4px of padding around
        the edge of the compose box. */
     margin-bottom: 4px;
-    border-radius: 5px;
+    border-radius: var(--radius-md);
     border: 1px solid;
     display: flex;
     align-items: center;
@@ -765,7 +771,7 @@
     .main-view-banner-action-button,
     .upload_banner_cancel_button {
         border: none;
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         padding: 5px 10px;
         font-weight: 600;
         margin-top: 4.5px;
@@ -1082,7 +1088,7 @@ textarea.new_message_textarea {
     max-height: 22em;
     margin: 0;
     resize: none !important;
-    border-radius: 3px 3px 0 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
     border: none;
     scrollbar-width: thin;
     scrollbar-color: hsl(0deg 0% 50%) transparent;
@@ -1116,7 +1122,7 @@ textarea.new_message_textarea {
     align-items: stretch;
     flex: 1 1 0;
     border: 1px solid var(--color-compose-recipient-box-border-color);
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     background: var(--color-compose-recipient-box-background-color);
 
     &:hover {
@@ -1227,7 +1233,7 @@ textarea.new_message_textarea {
         /* We control the surrounding space through the
            grid on `.dropdown_widget_value`. */
         padding: 0;
-        border-radius: 4px;
+        border-radius: var(--radius-md);
     }
 
     .dropdown_widget_value {
@@ -1389,7 +1395,10 @@ textarea.new_message_textarea {
 }
 
 .compose-send-or-save-button {
-    border-radius: 4px;
+    /* Round only the left edge: the right edge sits flush against
+       #send_later (the vdots button), which rounds its own right
+       edge, so together they read as one pill. */
+    border-radius: var(--radius-pill) 0 0 var(--radius-pill);
     border: 0;
     margin-bottom: 0;
     color: var(--color-compose-send-button-icon-color);
@@ -1491,7 +1500,7 @@ textarea.new_message_textarea {
 
         &:focus-visible {
             background: var(--color-background-hover-popover-menu);
-            border-radius: 4px;
+            border-radius: var(--radius-md);
             outline: 1px solid var(--color-outline-focus) !important;
             outline-offset: -1px;
         }
@@ -1502,7 +1511,7 @@ textarea.new_message_textarea {
             /* Radio buttons scale with height, and here we're just
                matching that to the active font-size. */
             height: 1em;
-            accent-color: hsl(217deg 100% 60%);
+            accent-color: var(--color-text-link);
             grid-area: radio-button;
             align-self: center;
             font-size: inherit;
@@ -1510,8 +1519,8 @@ textarea.new_message_textarea {
             &:checked
                 + .enter_sends_choice_text_container
                 .popover-menu-hotkey-hint {
-                color: hsl(217deg 100% 60%);
-                border: 1px solid hsl(217deg 100% 60% / 50%);
+                color: var(--color-hotkey-hint);
+                border: 1px solid var(--color-hotkey-hint);
             }
         }
     }
@@ -1592,8 +1601,7 @@ textarea.new_message_textarea {
     min-width: 0;
 
     .compose-new-recipient-button {
-        /* Set the border radius smaller, relative to the parent */
-        border-radius: 2px;
+        border-radius: var(--radius-md);
         padding: 6px;
         margin: 1px;
         color: var(--color-compose-embedded-button-text-color);
@@ -1822,7 +1830,7 @@ textarea.new_message_textarea {
     outline: 0;
     padding: 0;
     margin: 0;
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     color: var(--color-compose-send-control-button);
     background-color: var(--color-compose-send-control-button-background);
     font-weight: 450;
@@ -1869,7 +1877,7 @@ textarea.new_message_textarea {
        below, so as to make for a maximum
        clickable vdots area. */
     margin-left: -2px;
-    border-radius: 0 4px 4px 0;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
     /* Flex items respect z-index values;
        this is needed to keep the vdots
        background beneath the send button. */
@@ -1898,7 +1906,7 @@ textarea.new_message_textarea {
            including its top border. */
         height: 25px;
         margin-left: 0;
-        border-radius: 4px;
+        border-radius: var(--radius-md);
     }
 
     .zulip-icon {

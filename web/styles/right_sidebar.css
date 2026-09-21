@@ -88,7 +88,7 @@
            extra pixel of top padding in this area,
            too. */
         padding: 1px 0 0 1px;
-        border-radius: 3px;
+        border-radius: var(--radius-sm);
 
         & .zulip-icon-more-vertical {
             /* 17px at 16px em */
@@ -148,7 +148,7 @@
         white-space: nowrap;
         text-overflow: ellipsis;
         list-style-type: none;
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         padding: 0;
 
         &:hover,
@@ -278,7 +278,7 @@
     top: 0;
     z-index: 1;
     color: var(--color-text-default);
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     margin-right: var(--width-simplebar-scroll-hover);
 
     &:hover {
@@ -546,7 +546,7 @@
 .buddy-list-user-link,
 .invite-user-shortcut {
     margin-right: var(--width-simplebar-scroll-hover);
-    border-radius: 4px;
+    border-radius: var(--radius-md);
 
     &:hover {
         background: var(--color-background-sidebar-action-heading-hover);

@@ -7,12 +7,13 @@
     line-height: 1.25;
     font-size: var(--base-font-size-px);
     font-family: inherit;
-    font-weight: 500;
+    font-weight: 600;
     letter-spacing: 0.02ch;
-    padding: 0.25em 0.625em;
+    padding: 0 0.857em; /* 12px at 14px em */
+    min-height: var(--height-control-md);
     color: var(--color-text-neutral-subtle-action-button);
     background-color: var(--color-background-neutral-subtle-action-button);
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     white-space: nowrap;
     user-select: none;
     border: none;
@@ -34,7 +35,7 @@
         background-color: var(
             --color-background-neutral-subtle-action-button-active
         );
-        clip-path: inset(1px round 4px);
+        clip-path: inset(1px round var(--radius-md));
     }
 
     &:focus {
@@ -55,7 +56,7 @@
                                 var(--outline-offset-button-focus)
                         )
                 )
-                round 4px
+                round var(--radius-md)
         );
     }
 
@@ -422,12 +423,13 @@
     justify-content: center;
     align-items: center;
     aspect-ratio: 1;
+    min-height: var(--height-icon-button);
     font-size: var(--base-font-size-px);
     background-color: transparent; /* Override button default background color */
     padding: 0.375em;
     cursor: pointer;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     clip-path: inset(-1px);
     transition: 0.05s ease-in;
     transition-property: background-color, clip-path;
@@ -439,7 +441,7 @@
     }
 
     &:active {
-        clip-path: inset(1px round 4px);
+        clip-path: inset(1px round var(--radius-md));
     }
 
     &:focus {
@@ -460,7 +462,7 @@
                                 var(--outline-offset-button-focus)
                         )
                 )
-                round 4px
+                round var(--radius-md)
         );
     }
 

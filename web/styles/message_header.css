@@ -19,7 +19,7 @@
         height: 1.8666em; /* 28px at 15px em */
         border: 1px solid var(--color-message-header-contents-border);
         border-bottom-color: var(--color-message-header-contents-border-bottom);
-        border-radius: 7px 7px 0 0;
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     }
 
     &.message_header_stream {
@@ -175,22 +175,25 @@
 
 .message-feed {
     .recipient_row {
-        /* Browser overlaps extra top padding of message header and
-           the bottom border message if this margin is not present. */
-        margin-bottom: 1px;
-        border-radius: 5px;
+        /* This margin keeps the browser from overlapping the extra
+           top padding of the next message header with this row's
+           bottom border, and gives each conversation card the gap
+           the card shape (--radius-xl, drawn by .message_header and
+           .message_row below) needs to read as a separate card from
+           the next one. */
+        margin-bottom: 14px;
 
         .message_row:last-of-type {
             border-radius: var(--last-message-row-border-radius);
             border-bottom: 1px solid var(--color-message-list-border);
 
             .unread-marker-fill {
-                border-radius: 0 0 0 7px;
+                border-radius: 0 0 0 var(--radius-xl);
                 height: calc(100% - 2px);
             }
 
             .messagebox {
-                border-radius: 0 0 7px 7px;
+                border-radius: 0 0 var(--radius-xl) var(--radius-xl);
                 padding-bottom: 4px;
             }
         }

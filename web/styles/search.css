@@ -4,7 +4,7 @@
 
     .navbar-search {
         margin: 0.2187em 0; /* 3.5px at 16px em */
-        border-radius: 5px;
+        border-radius: var(--radius-pill);
         position: absolute;
         overflow: hidden;
         /* We bump the z-index to keep the search box
@@ -47,7 +47,7 @@
         border: none;
         opacity: 0.5;
         line-height: 0;
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         /* Reset iOS button defaults. */
         color: var(--color-search-icons);
         padding: 0;
@@ -99,7 +99,7 @@
         }
 
         .search-input {
-            border-radius: 5px;
+            border-radius: var(--radius-pill);
             color: var(--color-text-search);
             box-shadow: none;
         }
@@ -133,6 +133,13 @@
 
     .navbar-search.expanded {
         width: 100%;
+        /* The typeahead dropdown is appended inside this element
+           (#searchbox_form is .navbar-search itself), so this box
+           can grow tall. A pill radius here would then get clamped
+           to half that height and clip the dropdown into a lozenge;
+           use the fixed panel radius instead, matching the
+           dropdown's own bottom corners below. */
+        border-radius: var(--radius-xl);
         box-shadow:
             0 4px 20px var(--color-search-shadow-wide),
             0 1px 5px var(--color-search-shadow-tight);
@@ -171,7 +178,7 @@
         border-width: 0;
         border-top-width: 1px;
         border-top-color: var(--color-search-dropdown-top-border);
-        border-radius: 0 0 4px 4px;
+        border-radius: 0 0 var(--radius-xl) var(--radius-xl);
 
         .active > a {
             background-color: var(--color-background-search-option-hover);
@@ -321,7 +328,7 @@
             .pill {
                 border: none;
                 /* Match border radius to image */
-                border-radius: 4px;
+                border-radius: var(--radius-pill);
                 max-width: none;
                 /* Set the minimum width on the pill container;
                     this accommodates the avatar, a minimum

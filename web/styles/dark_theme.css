@@ -13,14 +13,14 @@
     #keyboard-shortcuts {
         & kbd {
             border: 1px solid var(--color-hotkey-hint);
-            border-radius: 3px;
+            border-radius: var(--radius-xs);
             color: var(--color-hotkey-hint);
             opacity: 0.8;
         }
     }
 
     .enter_sends_choices {
-        color: hsl(236deg 33% 90%);
+        color: var(--color-text-default);
 
         .enter_sends_minor {
             color: hsl(0deg 0% 80%);
@@ -71,7 +71,7 @@
 
     & select option {
         background-color: var(--color-background);
-        color: hsl(236deg 33% 90%);
+        color: var(--color-text-default);
     }
 
     .pill-container.not-editable-by-user {
@@ -119,7 +119,7 @@
     }
 
     .drafts-container .header-body .delete-drafts-group > *:focus {
-        background-color: hsl(228deg 11% 17%);
+        background-color: var(--color-compose-box-background);
     }
 
     .table-striped tbody tr:nth-child(even) td {
@@ -149,7 +149,7 @@
     }
 
     .alert.home-error-bar {
-        color: hsl(236deg 33% 90%);
+        color: var(--color-text-default);
         background-color: hsl(35deg 84% 62% / 25%);
         border: 1px solid hsl(11deg 46% 54%);
     }
@@ -245,7 +245,7 @@
     }
 
     .collapse-settings-button:hover {
-        color: hsl(200deg 79% 66%);
+        color: var(--color-text-generic-link-interactive);
     }
 
     #loading_older_messages_indicator,

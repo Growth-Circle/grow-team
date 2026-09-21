@@ -207,10 +207,10 @@
     position: relative;
     height: 1.3125em; /* 21px at 16px/1em */
     width: 1.3125em; /* 21px at 16px/1em */
-    border-radius: 4px;
+    border-radius: var(--radius-pill);
 
     .typeahead-image-avatar {
-        border-radius: 4px;
+        border-radius: var(--radius-pill);
         /* Override bootstrap img */
         vertical-align: baseline;
     }
