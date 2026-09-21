@@ -276,16 +276,16 @@ assert.equal(server.persistedEvents(event.event_id), 1);
 
 **Interfaces:** Produce `prepareWorkspace`, `runSandboxedTool`, `stopAttempt`, and `verifyFinalTree`. All accept the frozen attempt descriptor and a current lease guard.
 
-- [ ] Create an independent checkout from the approved base commit, without sharing writable common Git metadata.
-- [ ] Preserve dirty user WIP and validate origin, refs, hooks, filters, submodules, symlinks, and sensitive paths.
-- [ ] Limit mounts, UID, capabilities, CPU, memory, process count, time, and egress in rootless containers.
-- [ ] Keep control/Git/provider secrets outside native agents and repository processes.
-- [ ] Implement bounded read/search/edit/shell tools with argument validation and durable tool IDs.
-- [ ] Stop the entire process tree on cancel, timeout, or lease loss.
-- [ ] Run owner-defined required checks and bind results to the final tree hash.
-- [ ] Produce checksummed diff/output artifacts and retain recoverable workspaces.
-- [ ] Prove cross-path/secret/network denial and grandchild termination with real processes.
-- [ ] Run sandbox/verifier tests and commit the task.
+- [x] Create an independent checkout from the approved base commit, without sharing writable common Git metadata.
+- [x] Preserve dirty user WIP and validate origin, refs, hooks, filters, submodules, symlinks, and sensitive paths.
+- [x] Limit mounts, UID, capabilities, CPU, memory, process count, time, and egress in rootless containers.
+- [x] Keep control/Git/provider secrets outside native agents and repository processes.
+- [x] Implement bounded read/search/edit/shell tools with argument validation and durable tool IDs.
+- [x] Stop the entire process tree on cancel, timeout, or lease loss.
+- [x] Run owner-defined required checks and bind results to the final tree hash.
+- [x] Produce checksummed diff/output artifacts and retain recoverable workspaces.
+- [x] Prove cross-path/secret/network denial and grandchild termination with real processes.
+- [x] Run sandbox/verifier tests and commit the task.
 
 Test example:
 

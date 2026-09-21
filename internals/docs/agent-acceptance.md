@@ -47,7 +47,17 @@ Review akhir lulus. Pemeriksaan controller memverifikasi 1.383 hash berkas paket
 20 paket dependensi, delapan modul hasil build, dan satu tes pemulihan operasi.
 Lihat [tes runner](../../services/grow-agent-runner/test/) dan
 [kontrak runner](../../services/grow-agent-runner/README.md). Paket belum
-menyatakan mode runtime tersertifikasi; sandbox dan eksekusi model belum selesai.
+menyatakan mode runtime tersertifikasi; integrasi eksekusi model belum selesai.
+
+Sandbox pada `968e2ce` lulus review akhir dan 119 tes runner. Suite awal
+memuat 15 tes containment nyata. Setelah koreksi, lima tes terkait watchdog dan
+shell lulus, lalu dua tes penghentian container beku dan ekspor hasil lulus.
+Pemeriksaan controller memastikan isi image sesuai source serta seluruh resource
+uji terkait sudah berhenti. Lihat [kontrak containment](../../services/grow-agent-runner/CONTAINMENT.md)
+dan [tes proses nyata](../../services/grow-agent-runner/test/containment.integration.ts).
+Bukti mencakup WIP pengguna, jaringan, batas resource, child/grandchild, operasi
+berizin, artifact, dan pemeriksaan tree. Integrasi model serta browser belum
+dinyatakan lulus dari hasil komponen ini.
 
 Integrasi backup pada commit `bafbc67` lulus 43 tes dan review independen.
 Lihat [tes file backup](../../zerver/tests/test_agents_backup.py),
@@ -86,20 +96,20 @@ tersebut tidak menyatakan fitur sudah tersedia di produksi atau spesifikasi sele
 | AT-12 | Trigger dikirim ulang | Hanya satu job logis terbentuk. | Sebagian: deduplikasi pesan, receipt, dan job termasuk race PostgreSQL lulus pada `042b620`; retry browser/runner belum diuji. |
 | AT-13 | Crash setelah commit sebelum queue publish | Outbox dipulihkan; job tidak hilang. | Sebagian: rekonsiliasi outbox tanpa notifikasi lulus pada `8c59211`; daemon dan restart nyata belum diuji. |
 | AT-14 | Claim berhasil tetapi respons hilang | Runner menemukan lease yang sama; tidak ada attempt aktif kedua. | Sebagian: retry backend dan journal runner mempertahankan identitas claim pada `deb9e64`; restart dengan proses native belum diuji. |
-| AT-15 | Laptop offline ketika shell berjalan | UI benar, tool baru ditahan, process tree dihentikan sesuai deadline. | Belum diuji. |
+| AT-15 | Laptop offline ketika shell berjalan | UI benar, tool baru ditahan, process tree dihentikan sesuai deadline. | Sebagian: penghentian proses saat lease hilang/expired dan supervisor mati lulus pada `968e2ce`; jalur kontrol server, model, dan UI belum diuji lengkap. |
 | AT-16 | Event attempt lama setelah resume | Ditolak berdasarkan lease epoch. | Sebagian: backend menolak epoch lama dan runner memagari channel attempt lama pada `deb9e64`; proses native belum diuji. |
 | AT-17 | Cancel saat menunggu approval | Approval tidak dipakai; request ACP diberi outcome yang sesuai. | Sebagian: race cancel dan konsumsi approval lulus pada `8c59211`; respons ACP belum diuji. |
-| AT-18 | Process child membuat grandchild | Cancel/timeout menghentikan seluruh tree pada platform yang didukung. | Belum diuji. |
-| AT-19 | Working tree pengguna sudah dirty | WIP tetap utuh; pekerjaan berjalan pada salinan terpisah dari commit terpilih. | Belum diuji. |
-| AT-20 | Symlink atau common Git dir keluar scope | Akses tidak memperluas mount atau izin repository. | Belum diuji. |
+| AT-18 | Process child membuat grandchild | Cancel/timeout menghentikan seluruh tree pada platform yang didukung. | Sebagian: child dan orphaned grandchild yang mengabaikan TERM berhenti pada tes containment `968e2ce`; cancel kedua runtime lengkap belum diuji. |
+| AT-19 | Working tree pengguna sudah dirty | WIP tetap utuh; pekerjaan berjalan pada salinan terpisah dari commit terpilih. | Sebagian: checkout mandiri dan snapshot ekspor menjaga dirty WIP pada `968e2ce`; alur coding kedua runtime belum diuji lengkap. |
+| AT-20 | Symlink atau common Git dir keluar scope | Akses tidak memperluas mount atau izin repository. | Sebagian: batas path, symlink, Git metadata, hooks, dan filter berbahaya diuji pada `968e2ce`; integrasi runtime lengkap belum diuji. |
 | AT-21 | Member kehilangan akses kanal/repo | Pembacaan berikutnya dan publikasi ditolak sesuai scope baru. | Sebagian: pemeriksaan akses terkini pada context, attachment, dan publikasi lulus pada `8c59211`; integrasi runner/browser belum diuji. |
 | AT-22 | Permintaan lintas realm | List, count, detail, event, approval, dan download tidak membocorkan data. | Sebagian: penolakan API job, event, input, approval, dan artifact lintas realm lulus pada `8c59211`; integrasi UI belum diuji. |
 | AT-23 | Topik pindah dari privat ke audiens lebih luas | Hasil ditahan sampai tujuan dan audiens disetujui. | Sebagian: audience binding dan race perubahan akses lulus pada `8c59211`; alur review browser belum diuji. |
 | AT-24 | Diff berubah setelah approval | Approval lama tidak dapat digunakan. | Sebagian: pemeriksaan hash, nonce, tree, expiry, dan grant approval lulus pada `8c59211`; broker Git nyata belum diuji. |
-| AT-25 | Dua keputusan approval bersamaan | Tepat satu konsumsi operasi berhasil. | Sebagian: satu konsumsi durable dari dua konsumen PostgreSQL lulus pada `8c59211`; efek tool runner belum diuji. |
+| AT-25 | Dua keputusan approval bersamaan | Tepat satu konsumsi operasi berhasil. | Sebagian: konsumsi tunggal backend lulus pada `8c59211`; tool broker `968e2ce` menolak consume yang tidak pasti dan ID berulang. Alur approval browser/runtime belum diuji lengkap. |
 | AT-26 | Push/PR berhasil, respons terputus | Remote direkonsiliasi; efek tidak digandakan. | Belum diuji. |
-| AT-27 | Model mengaku tes lulus tanpa proses tes | Completion verifier menolak completed. | Sebagian: penolakan completion tanpa operasi pemeriksaan yang sah lulus pada `8c59211`; proses pemeriksaan runner belum diuji. |
-| AT-28 | Edit setelah tes | Bukti tes yang sudah tidak sesuai tree dinyatakan stale. | Sebagian: penolakan tree stale dan hasil gagal terbaru lulus pada `8c59211`; edit/check melalui runner belum diuji. |
+| AT-27 | Model mengaku tes lulus tanpa proses tes | Completion verifier menolak completed. | Sebagian: verifier backend dan proses check runner `968e2ce` memerlukan operasi sah, exit berhasil, output terbatas, dan tree cocok; completion runtime lengkap belum diuji. |
+| AT-28 | Edit setelah tes | Bukti tes yang sudah tidak sesuai tree dinyatakan stale. | Sebagian: pemeriksaan akhir serta invalidasi sesudah edit lulus pada `968e2ce`; alur edit/check melalui kedua model belum diuji lengkap. |
 | AT-29 | Konteks penuh, ringkasan gagal, atau provider error | Retry terbatas; tugas/checkpoint tetap dapat ditinjau. | Belum diuji. |
 | AT-30 | Titen tidak tersedia | Pekerjaan yang aman dapat berjalan tanpa klaim recall berhasil. | Belum diuji. |
 | AT-31 | Reply akhir diulang karena worker restart | Satu pesan hasil, dengan result message ID yang sama. | Sebagian: publikasi serta receipt atomik saat retry dan race lulus pada `8c59211`; restart worker nyata belum diuji. |
@@ -139,10 +149,10 @@ tersebut tidak menyatakan fitur sudah tersedia di produksi atau spesifikasi sele
 | AF-24 | Dua job pada topik yang sama | Tombol follow-up menulis input ke job yang dipilih saja. | Sebagian: API follow-up memakai job eksplisit dan mention biasa membuat tugas baru pada `042b620`; tombol browser belum diuji. |
 | AF-25 | Input datang saat job berjalan | Input durable dan terlihat pending; diterapkan pada batas turn yang sah. | Sebagian: input terurut dan receipt durable lulus pada `8c59211`; penerapan pada turn runtime dan UI belum diuji. |
 | AF-26 | Ack input hilang atau runtime restart | Input tidak ditandai delivered tanpa bukti; recovery tidak menggandakan efek tool. | Sebagian: journal, retry receipt, dan pemulihan input stopped lulus pada `deb9e64`; restart runtime nyata dan UI belum diuji. |
-| AF-27 | Mode Diskusi mendapat instruksi mengedit/push | Tools mutasi tidak tersedia; pengguna diarahkan membuat tugas coding. | Sebagian: penolakan backend terhadap mutasi pada mode answer lulus pada `8c59211`; pembatasan tools runtime belum diuji. |
+| AF-27 | Mode Diskusi mendapat instruksi mengedit/push | Tools mutasi tidak tersedia; pengguna diarahkan membuat tugas coding. | Sebagian: backend dan tool broker `968e2ce` menolak mutasi pada mode answer; katalog tool kedua runtime dan arahan browser belum diuji. |
 | AF-28 | Native agent menyelesaikan turn tanpa hasil valid | Job tidak completed; UI memberikan sebab dan tindakan lanjut. | Sebagian: penolakan completion yang hanya berdasarkan event model lulus pada `8c59211`; turn native dan pesan UI belum diuji. |
 | AF-29 | Runner gagal sebelum dapat membalas | UI/sistem melaporkan start failure dari record, tanpa membutuhkan output model. | Belum diuji. |
-| AF-30 | Cancel saat permission request menunggu | Approval tidak dapat dipakai; proses berhenti atau tampil belum terkonfirmasi. | Sebagian: otoritas approval saat cancel dan syarat stop lulus pada `8c59211`; process tree, ACP, dan UI belum diuji. |
+| AF-30 | Cancel saat permission request menunggu | Approval tidak dapat dipakai; proses berhenti atau tampil belum terkonfirmasi. | Sebagian: otoritas cancel backend dan penghentian container `968e2ce` lulus; permission request ACP serta UI belum diuji lengkap. |
 | AF-31 | Cancel bersamaan dengan completion | Transisi memakai versi; hanya hasil sah yang menang dan tersimpan. | Sebagian: satu pemenang terminal pada race cancel dan publikasi lulus pada `8c59211`; integrasi proses nyata belum diuji. |
 | AF-32 | Resume setelah operasi remote tidak pasti | Rekonsiliasi dilakukan sebelum retry; approval lama tidak diaktifkan ulang. | Sebagian: penahanan resume untuk outcome remote yang belum pasti lulus pada `8c59211`; rekonsiliasi provider Git nyata belum diuji. |
 | AF-33 | Profil pause saat ada tugas aktif | Kerja baru tertahan; UI tidak mengklaim tugas aktif otomatis berhenti. | Sebagian: pause memerlukan revision saat ini pada `3469f2f`; perilaku job aktif dan status UI belum diuji. |
