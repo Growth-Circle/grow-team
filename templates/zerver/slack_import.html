@@ -2,7 +2,7 @@
 {% set entrypoint = "slack-import" %}
 
 {% block title %}
-<title>{{ _("Import from Slack") }} | Zulip</title>
+<title>{{ _("Import from Slack") }} | Grow Team</title>
 {% endblock %}
 
 {% block portico_content %}
@@ -27,8 +27,8 @@
                         <p class="text-error">
                             {% trans %}
                             An unexpected error occurred during the import process. Please follow the instructions for the
-                            <a href="https://zulip.com/help/import-from-slack#import-your-data-into-zulip">
-                                Zulip Cloud (via support) import process
+                            <a href="/help/import-from-slack#import-your-data-into-zulip">
+                                Grow Team import process
                             </a> to complete your import.
                             {% endtrans %}
                         </p>
@@ -43,7 +43,7 @@
                     <div class="input-box slack-import-extra-info">
                         <div class="not-editable-realm-field">
                             {% trans %}
-                            Follow <a href="https://zulip.com/help//import-from-slack#export-your-slack-data:~:text=Export%20user%20data%20and%20custom%20emoji" rel="noopener noreferrer" target="_blank">these instructions</a> to obtain a <strong>Bot User OAuth Token</strong>.
+                            Follow <a href="/help/import-from-slack#export-your-slack-data" rel="noopener noreferrer" target="_blank">these instructions</a> to obtain a <strong>Bot User OAuth Token</strong>.
                             {% endtrans %}
                         </div>
                     </div>
@@ -76,7 +76,7 @@
                     <label for="slack-import-dashboard" class="inline-block label-title">{{ _('Upload your Slack export file') }}</label>
                     <div class="not-editable-realm-field">
                         {% trans %}
-                        Follow <a href="https://zulip.com/help/import-from-slack#export-your-slack-data" target="_blank" rel="noopener noreferrer">these instructions</a> to obtain your Slack message history export.
+                        Follow <a href="/help/import-from-slack#export-your-slack-data" target="_blank" rel="noopener noreferrer">these instructions</a> to obtain your Slack message history export.
                         {% endtrans %}
                         {% include "zerver/slack_import_file_upload_instruction.html" %}
                     </div>
@@ -102,7 +102,7 @@
                             <br />
                             <span id="email-address-visibility-help-text">
                                 {% trans %}
-                                Users can <a href="https://zulip.com/help/configure-email-visibility" target="_blank">change</a> their email visibility configuration when they log in.
+                                Users can <a href="/help/configure-email-visibility" target="_blank">change</a> their email visibility configuration when they log in.
                                 {% endtrans %}
                             </span>
                         </label>

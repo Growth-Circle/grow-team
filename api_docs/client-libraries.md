@@ -1,11 +1,11 @@
 # Client libraries
 
-These API client libraries make it easy to work with Zulip's REST API
+These API client libraries make it easy to work with Grow Team's compatible REST API
 in your favorite language.
 
 ## Official libraries
 
-These libraries are maintained by members of the Zulip core team.  The
+These upstream Grow Team libraries can work with the Grow Team API protocol. The
 Python library is the most complete and best documented.
 
 * [Python](https://github.com/zulip/python-zulip-api)
@@ -13,9 +13,8 @@ Python library is the most complete and best documented.
 
 ## User maintained libraries
 
-The Zulip core team doesn't have the resources to maintain
-high-quality libraries for every programming language.  We've
-collected a list of user-maintained libraries for popular languages:
+The listed upstream projects include user-maintained libraries for popular
+languages:
 
 * [Clojure](https://github.com/thieman/clojure-zulip)
 * [C#](https://github.com/zulip/zulip-csharp)
@@ -29,22 +28,15 @@ collected a list of user-maintained libraries for popular languages:
 ### Contributing
 
 Contributing to improve language libraries is appreciated, as is
-writing new ones.  If you actively maintain a Zulip language binding
-and would like it to be listed here (or would like to collaborate with
-us in making it an official library), post in [this
-topic][integrations-thread] in
-[the Zulip development community](https://zulip.com/development-community/)
-or submit a pull request [updating this
-page](https://zulip.readthedocs.io/en/latest/documentation/api.html).
-
-[integrations-thread]: https://chat.zulip.org/#narrow/channel/127-integrations/topic/API.20client.20libraries/
+writing new ones. Report Grow Team documentation changes through the
+[Grow Team project](https://github.com/Growth-Circle/grow-team/issues).
 
 ### Outdated
 
 !!! tip ""
 
     The following projects are not actively maintained.  Since
-    Zulip's core APIs have been stable for 5 years, even very
+    The compatible API has been stable for 5 years, so even very
     old libraries can be useful.
 
 * [Lua](https://github.com/deckycoss/zulua)
@@ -56,5 +48,5 @@ page](https://zulip.readthedocs.io/en/latest/documentation/api.html).
 * [Scala](https://github.com/cqfd/zulip-scala)
 * [EventMachine](https://github.com/cqfd/zulip_machine)
 * [Ruby](https://github.com/verg/zulip-rb)
-* [Perl](https://github.com/Stantheman/WebService-Zulip)
+* [Perl](https://github.com/Stantheman/WebService-Grow Team)
 * [.Net](https://github.com/Shayan-To/ZulipClientApi)

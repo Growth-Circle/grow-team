@@ -1,24 +1,23 @@
-# The Zulip API
+# The Grow Team API
 
-Zulip's APIs allow you to integrate other services with Zulip.  This
+Grow Team uses the compatible Grow Team API protocol. These APIs allow you to
+integrate other services with Grow Team. This
 guide should help you find the API you need:
 
-* First, check if the tool you'd like to integrate with Zulip
+* First, check if the tool you'd like to integrate with Grow Team
   [already has a native integration](/integrations/).
 * Next, check if [Zapier](https://zapier.com/apps) or
   [IFTTT](https://ifttt.com/search) has an integration.
-  [Zulip's Zapier integration](/integrations/zapier) and
-  [Zulip's IFTTT integration](/integrations/ifttt) often allow
-  integrating a new service with Zulip without writing any code.
-* If you'd like to send content into Zulip, you can
+  native integrations can often connect a service without writing code.
+* If you'd like to send content into Grow Team, you can
   [write a native incoming webhook integration][incoming-webhooks-overview]
-  or use [Zulip's API for sending messages](/api/send-message).
+  or use the [API for sending messages](/api/send-message).
 * If you're building an interactive bot that reacts to activity inside
-  Zulip, you'll want to look at Zulip's
+  Grow Team, see the
   [Python framework for interactive bots](/help/running-bots) or
-  [Zulip's real-time events API](/api/get-events).
+  [real-time events API](/api/get-events).
 
-And if you still need to build your own integration with Zulip, check out
+To build your own Grow Team integration, check out
 the full [REST API](/api/rest), generally starting with
 [installing the API client bindings](/api/installation-instructions).
 

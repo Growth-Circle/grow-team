@@ -103,89 +103,20 @@ function narrow_to_dm_with_welcome_bot_new_user(
     }
 }
 
-function show_navigation_tour_video(
-    navigation_tour_video_url: string | null,
-    update_recipient_row_attention_level: () => void,
-): void {
+function show_navigation_tour_quickstart(update_recipient_row_attention_level: () => void): void {
     if (ONE_TIME_NOTICES_TO_DISPLAY.has("navigation_tour_video")) {
-        assert(navigation_tour_video_url !== null);
-        const modal_content_html = render_navigation_tour_video_modal({
-            video_src: navigation_tour_video_url,
-            poster_src: "/static/images/navigation-tour-video-thumbnail.png",
-        });
-        let watch_later_clicked = false;
+        const modal_content_html = render_navigation_tour_video_modal();
         dialog_widget.launch({
-            modal_title_html: $t_html({defaultMessage: "Welcome to Zulip!"}),
+            modal_title_html: $t_html({defaultMessage: "Welcome to Grow Team!"}),
             modal_content_html,
             on_click() {
                 // Do nothing
             },
-            modal_submit_button_text: $t({defaultMessage: "Skip video — I'm familiar with Zulip"}),
-            modal_exit_button_text: $t({defaultMessage: "Watch later"}),
+            modal_submit_button_text: $t({defaultMessage: "Get started"}),
+            single_footer_button: true,
             close_on_submit: true,
             id: "navigation-tour-video-modal",
-            footer_minor_text: $t({defaultMessage: "Tip: You can watch this video without sound."}),
             close_on_overlay_click: false,
-            post_render() {
-                const $watch_later_button = $("#navigation-tour-video-modal .dialog_exit_button");
-                $watch_later_button.on("click", (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    // Schedule a reminder message for a few hours from now.
-                    const reminder_delay_seconds = 2 * 60 * 60;
-                    post_onboarding_step_as_read("navigation_tour_video", reminder_delay_seconds);
-                    watch_later_clicked = true;
-                    dialog_widget.close();
-                });
-
-                const $skip_video_button = $("#navigation-tour-video-modal .dialog_submit_button");
-                $skip_video_button
-                    .removeClass("dialog_submit_button")
-                    .addClass("dialog_exit_button");
-                $skip_video_button.css({"margin-left": "12px"});
-
-                const $video = $<HTMLVideoElement>("#navigation-tour-video");
-                $video.on("play", () => {
-                    // Remove the custom play button overlaying the video.
-                    $("#navigation-tour-video-wrapper").addClass("hide-play-button");
-                });
-
-                let skip_video_button_text_updated = false;
-                let video_ended_button_visible = false;
-                $video.on("timeupdate", () => {
-                    const $video_elem = util.the($video);
-                    const current_time = $video_elem.currentTime;
-                    if (!skip_video_button_text_updated && current_time >= 30) {
-                        $skip_video_button.text($t({defaultMessage: "Skip the rest"}));
-                        skip_video_button_text_updated = true;
-                    }
-                    if (video_ended_button_visible && current_time < $video_elem.duration) {
-                        $("#navigation-tour-video-ended-button-wrapper").css(
-                            "visibility",
-                            "hidden",
-                        );
-                        video_ended_button_visible = false;
-                        $video.removeClass("dimmed-background");
-                    }
-                });
-
-                $video.on("ended", () => {
-                    $("#navigation-tour-video-ended-button-wrapper").css("visibility", "visible");
-                    video_ended_button_visible = true;
-                    $video.addClass("dimmed-background");
-                    $skip_video_button.css("visibility", "hidden");
-                    $watch_later_button.css("visibility", "hidden");
-                    // Exit fullscreen to make the 'video-ended-button-wrapper' button visible.
-                    const $video_elem = util.the($video);
-                    if (document.fullscreenElement === $video_elem) {
-                        void document.exitFullscreen();
-                    }
-                });
-
-                $("#navigation-tour-video-ended-button").on("click", () => {
-                    dialog_widget.close();
-                });
-            },
             on_hide() {
                 // `narrow_to_dm_with_welcome_bot_new_user` triggers a focus change from
                 // #compose-channel-recipient to #compose-textarea (see `compose_actions.show_compose_box`
@@ -197,10 +128,7 @@ function show_navigation_tour_video(
                 $("textarea#compose-textarea").trigger("focus");
                 update_recipient_row_attention_level();
 
-                if (!watch_later_clicked) {
-                    // $watch_later_button click handler already calls this function.
-                    post_onboarding_step_as_read("navigation_tour_video");
-                }
+                post_onboarding_step_as_read("navigation_tour_video");
             },
         });
     }
@@ -219,8 +147,5 @@ export function initialize(
     update_onboarding_steps_to_display(params.onboarding_steps);
 
     narrow_to_dm_with_welcome_bot_new_user(params.onboarding_steps, show_message_view);
-    show_navigation_tour_video(
-        params.navigation_tour_video_url,
-        update_recipient_row_attention_level,
-    );
+    show_navigation_tour_quickstart(update_recipient_row_attention_level);
 }

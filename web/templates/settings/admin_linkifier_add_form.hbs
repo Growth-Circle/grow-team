@@ -1,6 +1,6 @@
 <div id="add-linkifier-form">
     <p>
-        {{t "For instance, you can add a linkifier that automatically turns #2468 into a link to the GitHub issue in the Zulip repository with:" }}
+        {{t "For instance, you can add a linkifier that automatically turns #2468 into a link to a GitHub issue in the Grow Team repository with:" }}
     </p>
     <ul>
         <li>
@@ -10,13 +10,13 @@
             {{t "Pattern" }}: <span class="rendered_markdown"><code>#(?P&lt;id&gt;[0-9]+)</code></span>
         </li>
         <li>
-            {{t "URL template" }}: <span class="rendered_markdown"><code>https://github.com/zulip/zulip/issues/{id}</code></span>
+            {{t "URL template" }}: <span class="rendered_markdown"><code>https://github.com/Growth-Circle/grow-team/issues/{id}</code></span>
         </li>
         <li>
             {{t "Auto-convert pasted URLs matching the template to" }}: <span class="rendered_markdown"><code>#{id}</code></span>
         </li>
         <li>
-            {{t "Alternative URL templates for auto-conversion" }}: <span class="rendered_markdown"><code>https://github.com/zulip/zulip/pull/{id}</code></span>
+            {{t "Alternative URL templates for auto-conversion" }}: <span class="rendered_markdown"><code>https://github.com/Growth-Circle/grow-team/pull/{id}</code></span>
         </li>
     </ul>
     <form class="linkifier-add-form modal-form" id="add-linkifier-form-modal">

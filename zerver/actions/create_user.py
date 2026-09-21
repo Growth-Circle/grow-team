@@ -307,7 +307,7 @@ def process_new_human_user(
             internal_send_private_message(
                 get_system_bot(settings.NOTIFICATION_BOT, prereg_user.referred_by.realm_id),
                 prereg_user.referred_by,
-                _("{user} accepted your invitation to join Zulip!").format(
+                _("{user} accepted your invitation to join Grow Team!").format(
                     user=silent_mention_syntax_for_user(user_profile)
                 ),
             )

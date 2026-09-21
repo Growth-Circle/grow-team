@@ -1,12 +1,18 @@
-Generally, we prefer to use SVG assets when possible.
+# Grow Team
 
-However, many websites where you might want to use a Zulip logo do not
-support SVG files. If you need a Zulip logo asset in a different
-format (e.g., a 512px height PNG), you can generate that from one of
-the `.svg` files in this directory.
+Aset pada folder ini memakai identitas Grow Team.
+Nama file lama dipertahankan agar referensi template dan pesan tetap berfungsi.
 
-On Linux, you can generate a PNG of a given height using the following:
+Sumber SVG berada di `static/images/grow-team/`.
+Wordmark menggunakan bentuk huruf Source Sans 3 dari paket `source-sans`.
+Lisensi font tersedia pada paket tersebut.
 
+Bangun ulang salinan SVG dan PNG dari root repositori:
+
+```sh
+pnpm install --frozen-lockfile
+node tools/grow-team/render-brand-assets.mjs
 ```
-rsvg-convert -h 512 static/images/logo/zulip-org-logo.svg -o /tmp/zulip-org-logo-512.png
-```
+
+Saat bentuk ikon berubah, sesuaikan juga `web/templates/favicon.svg.hbs`.
+Template tersebut menampilkan jumlah pesan belum dibaca.

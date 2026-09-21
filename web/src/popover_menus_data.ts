@@ -410,7 +410,7 @@ export function get_gear_menu_content_context(): GearMenuContext {
         is_education_org:
             realm.realm_org_type === settings_config.all_org_type_values.education_nonprofit.code ||
             realm.realm_org_type === settings_config.all_org_type_values.education.code,
-        standard_plan_name: "Zulip Cloud Standard",
+        standard_plan_name: "Standard",
         server_needs_upgrade: realm.server_needs_upgrade,
         version_display_string: gear_menu_util.version_display_string(),
         apps_page_url: page_params.apps_page_url,

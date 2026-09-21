@@ -28,14 +28,62 @@ Gunakan topik untuk memisahkan pekerjaan di dalam setiap channel.
 
 Branch `grow-team` dimulai dari tag upstream `12.2`, commit `1e73e1d754761b73c18135a3f25d0673f31cd8b3`.
 Remote `upstream` menunjuk ke `zulip/zulip`; `origin` menunjuk ke `Growth-Circle/grow-team`.
-Image resmi `ghcr.io/zulip/zulip-server:12.2-0` menjadi runtime awal.
-Semua image dipatok dengan digest dalam `compose.override.yaml`.
+Image resmi `ghcr.io/zulip/zulip-server:12.2-0` menjadi base image runtime.
+Image fork `grow-team/server:12.2-grow-team.1` membawa identitas Grow Team.
+Base image dan image pendukung dipatok dengan digest.
+Image fork dibangun lokal dan mencatat commit sumber pada label serta `build_id`.
 
 Backend email lokal dipasang sebagai modul Python `grow_team.cloudflare_email_backend`.
 Folder deployment dipasang read-only agar pembaruan file terlihat di container.
 Restart proses aplikasi setelah mengubah kode backend.
-Perubahan source aplikasi Zulip membutuhkan image baru dari fork; `git push` saja tidak memperbarui runtime.
-Ikuti [panduan build image Zulip](https://zulip.readthedocs.io/projects/docker/en/latest/how-to/compose-upgrading.html).
+Perubahan source aplikasi membutuhkan image baru dari fork; `git push` saja tidak memperbarui runtime.
+
+## Image fork
+
+Bangun aset dari checkout yang dependensinya sudah terpasang sesuai lockfile.
+Gunakan lingkungan pengembangan Zulip yang sudah diprovisi untuk build lengkap.
+Jalankan `tools/update-prod-static` untuk membangun frontend, emoji, bantuan, dan katalog.
+Periksa hasil build, lalu commit seluruh perubahan sumber.
+
+Paketkan build dari checkout yang bersih:
+
+```bash
+python3 tools/grow-team/package_image.py /tmp/grow-team-image.tar.gz
+git rev-parse HEAD
+```
+
+Script menolak direktori kerja kotor serta source frontend atau bantuan yang lebih baru dari hasil build.
+Bangun ulang aset setelah perubahan source; pemeriksaan waktu file bukan pengganti build baru.
+Arsip hanya memasukkan source runtime yang terlacak Git dan direktori hasil build yang disebutkan dalam script.
+Credentials dan virtualenv lokal tidak masuk ke paket.
+
+Salin arsip ke direktori build baru di `/opt/grow-team/builds/` pada VPS.
+Ekstrak arsip dalam direktori tersebut, lalu jalankan build melalui engine khusus Grow Team:
+
+```bash
+sudo env DOCKER_HOST=unix:///run/grow-team-docker/docker.sock \
+  DOCKER_CONFIG=/opt/grow-team/lib/docker \
+  /opt/grow-team/bin/docker build --network none \
+  --cpu-quota 100000 --memory 2g \
+  --build-arg GROW_TEAM_REVISION=<commit-penuh> \
+  --tag grow-team/server:12.2-grow-team.1 <direktori-build>
+```
+
+Build memakai dependensi base image, mengumpulkan aset, dan mengompilasi katalog bahasa.
+Konfigurasi build hanya berlaku dalam proses build; credentials produksi tidak diperlukan.
+Gunakan tag baru pada rilis berikutnya, lalu perbarui `compose.override.yaml`.
+
+Sebelum mengganti aplikasi:
+
+1. Jalankan backup dan periksa checksum.
+2. Simpan salinan konfigurasi Compose serta ID image yang sedang aktif.
+3. Pasang konfigurasi image baru dan jalankan `compose.sh config --quiet`.
+4. Jalankan `compose.sh up -d --no-deps --no-build --wait --wait-timeout 300 zulip`.
+5. Periksa login, sesi anggota, bantuan, logo, koneksi realtime, dan status container.
+
+Jika pemeriksaan gagal, pulihkan file Compose sebelumnya dan jalankan perintah pada langkah empat.
+Database dan layanan pendukung tidak dibuat ulang untuk rilis branding ini.
+Pertahankan image lama sampai pemeriksaan selesai.
 
 ## Layout server
 

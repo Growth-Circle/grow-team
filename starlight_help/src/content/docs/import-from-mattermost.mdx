@@ -21,16 +21,18 @@ import ViewImportedUsers from "../include/_ViewImportedUsers.mdx";
 
 ## Import process overview
 
-To import your Mattermost organization into Zulip, you will need to take the
+To import your Mattermost organization into Grow Team, you will need to take the
 following steps, which are described in more detail below:
 
 <Steps>
   1. [Export your Mattermost data](#export-your-mattermost-data).
-  1. [Import your Mattermost data into Zulip](#import-your-data-into-zulip).
-  1. [Get your organization started with Zulip](#get-your-organization-started-with-zulip)!
+  1. [Import your Mattermost data into Grow Team](#import-your-data-into-zulip).
+  1. [Get your organization started with Grow Team](#get-your-organization-started-with-zulip)!
 </Steps>
 
-## Import your organization from Mattermost into Zulip
+<span id="import-your-organization-from-mattermost-into-zulip" aria-hidden="true"></span>
+
+## Import your organization from Mattermost into Grow Team
 
 ### Export your Mattermost data
 
@@ -191,7 +193,9 @@ Replace `<username>` and `<server_ip>` with the appropriate values below.
   </TabItem>
 </Tabs>
 
-### Import your data into Zulip
+<span id="import-your-data-into-zulip" aria-hidden="true"></span>
+
+### Import your data into Grow Team
 
 <ImportYourDataIntoZulip />
 
@@ -209,7 +213,7 @@ Replace `<username>` and `<server_ip>` with the appropriate values below.
       <ImportIntoASelfHostedServerInstructions />
 
       1. To import into an organization hosted on the root domain
-         (`EXTERNAL_HOST`) of the Zulip installation, run the following commands,
+         (`EXTERNAL_HOST`) of the Grow Team installation, run the following commands,
          replacing `<team-name>` with the name of the Mattermost team you want to import.
          <ImportSelfHostedServerTips />
          ```bash "<team-name>"
@@ -221,14 +225,14 @@ Replace `<username>` and `<server_ip>` with the appropriate values below.
          ./manage.py import '' /tmp/converted_mattermost_data/<team-name>
          ./scripts/start-server
          ```
-         By default Mattermost teams will be converted into their own Zulip organizations,
-         to convert all Mattermost teams into one Zulip organization, run:
+         By default Mattermost teams will be converted into their own Grow Team organizations,
+         to convert all Mattermost teams into one Grow Team organization, run:
          ```bash
          ./manage.py convert_mattermost_data /tmp/mattermost_data --output /tmp/converted_mattermost_data --combine-teams-into-one-org
          ```
          <ZulipNote>
            **Note**: With the `--combine-teams-into-one-org` option, admins in individual Mattermost
-           teams will be converted into admin users in the combined Zulip organization.
+           teams will be converted into admin users in the combined Grow Team organization.
          </ZulipNote>
          Alternatively, to import into a custom subdomain, run:
          ```bash "<team-name>" "<subdomain>"
@@ -241,7 +245,7 @@ Replace `<username>` and `<server_ip>` with the appropriate values below.
          ./scripts/start-server
          ```
       1. Follow [step 4](https://zulip.readthedocs.io/en/stable/production/install.html#step-4-configure-and-use)
-         of the guide for [installing a new Zulip
+         of the guide for [installing a new Grow Team
          server](https://zulip.readthedocs.io/en/stable/production/install.html).
     </FlattenedSteps>
   </TabItem>
@@ -253,7 +257,7 @@ Replace `<username>` and `<server_ip>` with the appropriate values below.
       <ImportIntoASelfHostedServerInstructions />
 
       1. To import into an organization hosted on the root domain
-         (`EXTERNAL_HOST`) of the Zulip installation, run the following commands,
+         (`EXTERNAL_HOST`) of the Grow Team installation, run the following commands,
          replacing `<team-name>` with the name of the Mattermost team you want to import.
          <ImportSelfHostedServerTips />
          ```bash "<team-name>"
@@ -276,7 +280,7 @@ Replace `<username>` and `<server_ip>` with the appropriate values below.
          ./scripts/start-server
          ```
       1. Follow [step 4](https://zulip.readthedocs.io/en/stable/production/install.html#step-4-configure-and-use)
-         of the guide for [installing a new Zulip
+         of the guide for [installing a new Grow Team
          server](https://zulip.readthedocs.io/en/stable/production/install.html).
     </FlattenedSteps>
   </TabItem>
@@ -288,14 +292,14 @@ Whether you are using Zulip Cloud or self-hosting Zulip, here are a few notes to
 keep in mind about the import process:
 
 * Mattermost does not export workspace settings, so you will need to [configure
-  the settings for your Zulip organization](/help/customize-organization-settings).
+  the settings for your Grow Team organization](/help/customize-organization-settings).
   This includes settings like [email
   visibility](/help/configure-email-visibility),
   [message editing permissions](/help/restrict-message-editing-and-deletion),
   and [how users can join your organization](/help/restrict-account-creation).
-* Mattermost's user roles are mapped to Zulip's [user
+* Mattermost's user roles are mapped to Grow Team's [user
   roles](/help/user-roles) in the following way:
-  | Mattermost role    | Zulip role |
+  | Mattermost role    | Grow Team role |
   | ------------------ | ---------- |
   | Team administrator | Owner      |
   | Member             | Member     |
@@ -307,7 +311,9 @@ keep in mind about the import process:
 * Messages in threads are imported, but they are not explicitly marked as
   being in a thread.
 
-## Get your organization started with Zulip
+<span id="get-your-organization-started-with-zulip" aria-hidden="true"></span>
+
+## Get your organization started with Grow Team
 
 <ImportGetYourOrganizationStarted />
 
@@ -326,5 +332,5 @@ keep in mind about the import process:
 ## Related articles
 
 * [Choosing between Zulip Cloud and self-hosting](/help/zulip-cloud-or-self-hosting)
-* [Moving to Zulip](/help/moving-to-zulip)
-* [Getting started with Zulip](/help/getting-started-with-zulip)
+* [Moving to Grow Team](/help/moving-to-zulip)
+* [Getting started with Grow Team](/help/getting-started-with-zulip)

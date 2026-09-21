@@ -1,7 +1,7 @@
-# Zulip n8n integration
+# Grow Team n8n integration
 
 n8n supports integrations with
-[hundreds of popular products](https://n8n.io/integrations/). Use the Zulip
+[hundreds of popular products](https://n8n.io/integrations/). Use the Grow Team
 action node in n8n workflows to send notifications, manage messages, users,
 and channels.
 
@@ -14,7 +14,7 @@ and channels.
 
 1. Open your n8n workflow, and add the **Zulip** action node.
 
-1. Click **Set up credential**, and enter the **URL** for your Zulip
+1. Click **Set up credential**, and enter the **URL** for your Grow Team
    organization, the bot's **email address**, and **API key** from the
    `zuliprc` file you downloaded above. Click **Save**, and close the
    credentials modal.
@@ -27,7 +27,7 @@ and channels.
 
 {end_tabs}
 
-You're done! You should now be able to interact with your Zulip organization
+You're done! You should now be able to interact with your Grow Team organization
 via n8n workflows.
 
 ### Related documentation

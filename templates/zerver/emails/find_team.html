@@ -1,7 +1,7 @@
 {% extends "zerver/emails/email_base_default.html" %}
 
 {% block illustration %}
-<img src="{{ email_images_base_url }}/email_logo.png" alt=""/>
+<img src="{{ email_images_base_url }}/email_logo.png?v=grow-team-1" alt=""/>
 {% endblock %}
 
 {% block content %}
@@ -9,9 +9,9 @@
 <p>{{ _("Thanks for your request!") }}</p>
 
 {% if corporate_enabled %}
-<p>{% trans %}Your email address {{ email }} has accounts with the following Zulip Cloud organizations:{% endtrans %}</p>
+<p>{% trans %}Your email address {{ email }} has accounts with the following Grow Team organizations:{% endtrans %}</p>
 {% else %}
-<p>{% trans %}Your email address {{ email }} has accounts with the following Zulip organizations hosted by {{ external_host }}:{% endtrans %}</p>
+<p>{% trans %}Your email address {{ email }} has accounts with the following Grow Team organizations hosted by {{ external_host }}:{% endtrans %}</p>
 {% endif %}
 
 <ul>
@@ -25,11 +25,11 @@
 </p>
 {% else %}
 <p>
-    {{ _("You have requested a list of Zulip accounts for this email address.") }}
+    {{ _("You have requested a list of Grow Team accounts for this email address.") }}
     {% if corporate_enabled %}
-    {{ _("Unfortunately, no Zulip Cloud accounts were found.") }}
+    {{ _("Unfortunately, no Grow Team accounts were found.") }}
     {% else %}
-    {% trans%}Unfortunately, no accounts were found in Zulip organizations hosted by {{external_host}}.{% endtrans %}
+    {% trans%}Unfortunately, no accounts were found in Grow Team organizations hosted by {{external_host}}.{% endtrans %}
     {% endif %}
 </p>
 

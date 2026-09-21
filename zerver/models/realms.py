@@ -459,7 +459,7 @@ class Realm(models.Model):
     # Defaults for new users
     default_language = models.CharField(default="en", max_length=MAX_LANGUAGE_ID_LENGTH)
 
-    ZULIP_DISCUSSION_CHANNEL_NAME = gettext_lazy("Zulip")
+    ZULIP_DISCUSSION_CHANNEL_NAME = gettext_lazy("Grow Team")
     ZULIP_SANDBOX_CHANNEL_NAME = gettext_lazy("sandbox")
     DEFAULT_NOTIFICATION_STREAM_NAME = gettext_lazy("general")
     STREAM_EVENTS_NOTIFICATION_TOPIC_NAME = gettext_lazy("channel events")
@@ -493,7 +493,7 @@ class Realm(models.Model):
         on_delete=models.SET_NULL,
     )
 
-    ZULIP_UPDATE_ANNOUNCEMENTS_TOPIC_NAME = gettext_lazy("Zulip updates")
+    ZULIP_UPDATE_ANNOUNCEMENTS_TOPIC_NAME = gettext_lazy("Grow Team updates")
     zulip_update_announcements_stream = models.ForeignKey(
         "Stream",
         related_name="+",
@@ -531,49 +531,49 @@ class Realm(models.Model):
             "id": OrgTypeEnum.Business.value,
             "hidden": False,
             "display_order": 1,
-            "onboarding_zulip_guide_url": "https://zulip.com/for/business/",
+            "onboarding_zulip_guide_url": "/help/getting-started-with-zulip",
         },
         "opensource": {
             "name": "Open-source project",
             "id": OrgTypeEnum.OpenSource.value,
             "hidden": False,
             "display_order": 2,
-            "onboarding_zulip_guide_url": "https://zulip.com/for/open-source/",
+            "onboarding_zulip_guide_url": "/help/getting-started-with-zulip",
         },
         "education_nonprofit": {
             "name": "Education (non-profit)",
             "id": OrgTypeEnum.EducationNonProfit.value,
             "hidden": False,
             "display_order": 3,
-            "onboarding_zulip_guide_url": "https://zulip.com/for/education/",
+            "onboarding_zulip_guide_url": "/help/getting-started-with-zulip",
         },
         "education": {
             "name": "Education (for-profit)",
             "id": OrgTypeEnum.Education.value,
             "hidden": False,
             "display_order": 4,
-            "onboarding_zulip_guide_url": "https://zulip.com/for/education/",
+            "onboarding_zulip_guide_url": "/help/getting-started-with-zulip",
         },
         "research": {
             "name": "Research",
             "id": OrgTypeEnum.Research.value,
             "hidden": False,
             "display_order": 5,
-            "onboarding_zulip_guide_url": "https://zulip.com/for/research/",
+            "onboarding_zulip_guide_url": "/help/getting-started-with-zulip",
         },
         "event": {
             "name": "Event or conference",
             "id": OrgTypeEnum.Event.value,
             "hidden": False,
             "display_order": 6,
-            "onboarding_zulip_guide_url": "https://zulip.com/for/events/",
+            "onboarding_zulip_guide_url": "/help/getting-started-with-zulip",
         },
         "nonprofit": {
             "name": "Non-profit (registered)",
             "id": OrgTypeEnum.NonProfit.value,
             "hidden": False,
             "display_order": 7,
-            "onboarding_zulip_guide_url": "https://zulip.com/for/communities/",
+            "onboarding_zulip_guide_url": "/help/getting-started-with-zulip",
         },
         "government": {
             "name": "Government",
@@ -594,7 +594,7 @@ class Realm(models.Model):
             "id": OrgTypeEnum.Community.value,
             "hidden": False,
             "display_order": 10,
-            "onboarding_zulip_guide_url": "https://zulip.com/for/communities/",
+            "onboarding_zulip_guide_url": "/help/getting-started-with-zulip",
         },
         "personal": {
             "name": "Personal",
@@ -953,7 +953,7 @@ class Realm(models.Model):
     LOGO_DEFAULT = "D"
     LOGO_UPLOADED = "U"
     LOGO_SOURCES = (
-        (LOGO_DEFAULT, "Default to Zulip"),
+        (LOGO_DEFAULT, "Default to Grow Team"),
         (LOGO_UPLOADED, "Uploaded by administrator"),
     )
     logo_source = models.CharField(

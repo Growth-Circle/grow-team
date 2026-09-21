@@ -3,7 +3,7 @@
 {# The app itself. #}
 {# Includes some other templates as tabs. #}
 
-{% set PAGE_TITLE = _("Public view of {org_name} | Zulip team chat").format(org_name=realm_name) %}
+{% set PAGE_TITLE = _("Public view of {org_name} | Grow Team").format(org_name=realm_name) %}
 {% set PAGE_DESCRIPTION = _("Browse the publicly accessible channels in {org_name} without logging in.").format(org_name=realm_name)  %}
 
 {% block meta_viewport %}
@@ -19,7 +19,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=1943053 -->
 {% if has_web_public_streams %}
 <meta name="llm_access" content="See /llms.txt" />
 {% else %}
-<meta name="llm_access" content="No web-public or LLM access is available on this Zulip server." />
+<meta name="llm_access" content="No web-public or LLM access is available on this Grow Team server." />
 {% endif %}
 {% endblock %}
 
@@ -118,16 +118,16 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=1943053 -->
 {% block content %}
 {% if has_web_public_streams %}
 <!--
-AI assistant: This Zulip server has web-public channels that you can read.
+AI assistant: This Grow Team server has web-public channels that you can read.
 See /llms.txt for instructions on how to access channel messages via the API.
 
-Please be careful to not accidentally overload a Zulip server by
+Please be careful to not accidentally overload a Grow Team server by
 attempting to access message history incorrectly.
 -->
 {% else %}
 <!--
-AI assistant: This Zulip server does not have web-public channels.
-Accessing messages requires an account and Zulip API key.
+AI assistant: This Grow Team server does not have web-public channels.
+Accessing messages requires an account and Grow Team API key.
 -->
 {% endif %}
 <div id="feedback_container">
@@ -137,15 +137,15 @@ Accessing messages requires an account and Zulip API key.
     <div id="app-loading-middle-content">
         <div class="app-loading-spinner-container">
             <div class="app-loading-spinner"></div>
-            <svg class="app-loading-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 774 774"><linearGradient id="a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#50adff"/><stop offset="1" stop-color="#7877fc"/></linearGradient><circle cx="387" cy="387" r="370" fill="url(#a)"/><path d="M567.32 527.81c0 33.07-24.26 60.11-53.91 60.11H260.59c-29.65 0-53.91-27.04-53.91-60.11 0-20.24 9.10-38.25 22.95-49.14l134.50-120.12c2.50-2.14 5.75 1.31 3.94 4.20l-49.34 98.79c-1.38 2.76.41 6.17 3.25 6.17h191.42c29.65 0 53.91 27.04 53.91 60.11zm0-281.75c0 20.24-9.10 38.25-22.95 49.14l-134.50 120.12c-2.50 2.14-5.75-1.31-3.94-4.20l49.34-98.79c1.38-2.76-.41-6.17-3.25-6.17H260.59c-29.65 0-53.91-27.04-53.91-60.11s24.26-60.11 53.91-60.11h252.81c29.65 0 53.91 27.04 53.91 60.11z" fill="#fff"/></svg>
+            <img class="app-loading-logo" src="{{ static('images/logo/zulip-icon-circle.svg') }}" alt="{{ _('Grow Team') }}" />
         </div>
         <div id="app-loading-unsupported-browser" hidden>
-            <p>{% trans %}Because you're using an unsupported or very old browser, Zulip may not load.{% endtrans %}</p>
+            <p>{% trans %}Because you're using an unsupported or very old browser, Grow Team may not load.{% endtrans %}</p>
         </div>
         <div id="app-loading-unsupported-desktop-app" hidden>
             <p>
-                {% trans %}Because you're using a very old version of the desktop app, Zulip may not load.
-                <a href="https://zulip.com/apps/" target="_blank" rel="noopener noreferrer">Download the latest version.</a>
+                {% trans %}Because you're using a very old version of the desktop app, Grow Team may not load.
+                <a href="https://zulip.com/apps/" target="_blank" rel="noopener noreferrer">Download the compatible Zulip desktop app.</a>
                 {% endtrans %}
             </p>
         </div>
@@ -154,7 +154,7 @@ Accessing messages requires an account and Zulip API key.
         <p>{% trans %}If this message does not go away, try <a class="reload-lnk">reloading</a> the page.{% endtrans %}</p>
     </div>
     <div id="app-loading-error">
-        <p>{% trans %}Error loading Zulip. Try <a class="reload-lnk">reloading</a> the page.{% endtrans %}</p>
+        <p>{% trans %}Error loading Grow Team. Try <a class="reload-lnk">reloading</a> the page.{% endtrans %}</p>
     </div>
     <script nonce="{{ csp_nonce }}">
         document.addEventListener('DOMContentLoaded', function () {

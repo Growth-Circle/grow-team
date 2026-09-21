@@ -81,9 +81,9 @@ class DemoCreationTest(ZulipTestCase):
             sender__email="welcome-bot@zulip.com",
             recipient__type=Recipient.DIRECT_MESSAGE_GROUP,
         ).latest("id")
-        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to Zulip!"))
+        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to Grow Team!"))
         self.assertIn("getting started guide", welcome_msg.content)
-        self.assertNotIn("using Zulip for a class guide", welcome_msg.content)
+        self.assertNotIn("class collaboration guide", welcome_msg.content)
         self.assertIn("demo organization", welcome_msg.content)
 
         # Confirm we have the expected audit log data.
@@ -253,8 +253,8 @@ class RealmCreationTest(ZulipTestCase):
         # confirmation link and visit it
         confirmation_url = self.get_confirmation_url_from_outbox(
             email,
-            email_subject_contains="Create your Zulip organization",
-            email_body_contains="You have requested a new Zulip organization",
+            email_subject_contains="Create your Grow Team organization",
+            email_body_contains="You have requested a new Grow Team organization",
         )
         result = self.client_get(confirmation_url)
         self.assertEqual(result.status_code, 200)
@@ -647,12 +647,12 @@ class RealmCreationTest(ZulipTestCase):
             sender__email="welcome-bot@zulip.com",
             recipient__type=Recipient.DIRECT_MESSAGE_GROUP,
         ).latest("id")
-        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to Zulip!"))
+        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to Grow Team!"))
 
         # Organization type is not education or education_nonprofit,
         # and organization is not a demo organization.
         self.assertIn("getting started guide", welcome_msg.content)
-        self.assertNotIn("using Zulip for a class guide", welcome_msg.content)
+        self.assertNotIn("class collaboration guide", welcome_msg.content)
         self.assertNotIn("demo organization", welcome_msg.content)
 
         # Organization has tracked onboarding messages.
@@ -668,7 +668,7 @@ class RealmCreationTest(ZulipTestCase):
             sender__email="welcome-bot@zulip.com",
             recipient__type=Recipient.DIRECT_MESSAGE_GROUP,
         ).latest("id")
-        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to Zulip!"))
+        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to Grow Team!"))
         self.assertNotIn("I've kicked off some conversations", welcome_msg.content)
 
     @override_settings(OPEN_REALM_CREATION=True)
@@ -715,11 +715,11 @@ class RealmCreationTest(ZulipTestCase):
             sender__email="welcome-bot@zulip.com",
             recipient__type=Recipient.DIRECT_MESSAGE_GROUP,
         ).latest("id")
-        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to Zulip!"))
+        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to Grow Team!"))
 
         # Organization type is education.
         self.assertNotIn("getting started guide", welcome_msg.content)
-        self.assertIn("using Zulip for a class guide", welcome_msg.content)
+        self.assertIn("class collaboration guide", welcome_msg.content)
 
     @override_settings(OPEN_REALM_CREATION=True)
     def test_create_realm_with_custom_language(self) -> None:

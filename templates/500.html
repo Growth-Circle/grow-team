@@ -1,7 +1,7 @@
 {% extends "zerver/portico_error_pages/portico_error_page.html" %}
 
 {% block title %}
-<title>{{ _("Internal server error") }} | Zulip</title>
+<title>{{ _("Internal server error") }} | Grow Team</title>
 {% endblock %}
 
 {% block customhead %}
@@ -20,14 +20,13 @@
                 {% trans %}
                 Something went wrong. Sorry about that! We're aware of
                 the problem and are working to fix it.
-                Zulip will load automatically once it is working again.
+                Grow Team will load automatically once it is working again.
                 {% endtrans %}
             </p>
             <p>
-                {% trans status_url="https://status.zulip.com/" %}
-                Please check <a href="{{status_url}}">Zulip Cloud status</a> for
-                more information, and <a href="mailto:{{support_email}}">contact
-                Zulip support</a> with any questions.
+                {% trans %}
+                Please <a href="mailto:{{support_email}}">contact support</a> with
+                any questions.
                 {% endtrans %}
             </p>
         {% else %}
@@ -35,7 +34,7 @@
             <p>
                 {% trans %}
                 Something went wrong. Sorry about that!
-                Zulip will load automatically once it is working again.
+                Grow Team will load automatically once it is working again.
                 {% endtrans %}
             </p>
             <p>
@@ -44,9 +43,8 @@
                 {% endtrans %}
             </p>
             <p>
-                {% trans troubleshooting_url="https://zulip.readthedocs.io/en/latest/production/troubleshooting.html" %}
-                If you administer this server, you may want to check out the
-                <a href="{{troubleshooting_url}}">Zulip server troubleshooting guide</a>.
+                {% trans %}
+                If you administer this server, check the local <a href="/help/">help center</a>.
                 {% endtrans %}
             </p>
         {% endif %}

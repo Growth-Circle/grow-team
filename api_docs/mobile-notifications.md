@@ -1,16 +1,14 @@
 # Mobile notifications
 
-Zulip Server 11.0+ supports end-to-end encryption (E2EE) for mobile
-push notifications. Mobile push notifications sent by all Zulip
-servers go through Zulip's mobile push notifications service, which
-then delivers the notifications through the appropriate
-platform-specific push notification service (Google's FCM or Apple's
-APNs). E2EE push notifications ensure that mobile notification message
-content and metadata is not visible to intermediaries.
+This protocol is compatible with the upstream Zulip mobile push notification
+service. Grow Team does not provide mobile apps or a separate push service.
+Use this documentation only when your administrator has configured compatible
+clients and the upstream service. E2EE push notifications keep message content
+and metadata from intermediaries.
 
 Mobile clients that have [registered an E2EE push
 device](/api/register-push-device) will receive mobile notifications
-end-to-end encrypted by their Zulip server.
+end-to-end encrypted by their Grow Team server.
 
 This page documents the format of the encrypted JSON-format payloads
 that the client will receive through this protocol. The same encrypted
@@ -50,7 +48,7 @@ Sample JSON data that gets encrypted:
   directly and a group containing the user, these fields will not be
   present in the payload, because the direct mention has precedence.
 
-**Changes**: New in Zulip 11.0 (feature level 413).
+**Changes**: New in Grow Team 11.0 (feature level 413).
 
 ### New direct message
 
@@ -76,12 +74,12 @@ Sample JSON data that gets encrypted:
 the direct message conversation, including both `user_id` and
 `sender_id`.
 
-**Changes**: In Zulip 12.0 (feature level 429), replaced the
+**Changes**: In Grow Team 12.0 (feature level 429), replaced the
 `pm_users` field with `recipient_user_ids`. The old `pm_users` field
 was only present for group DMs, and was a string containing a
 comma-separated list of sorted user IDs.
 
-New in Zulip 11.0 (feature level 413).
+New in Grow Team 11.0 (feature level 413).
 
 ### Remove notifications
 
@@ -106,7 +104,7 @@ Sample JSON data that gets encrypted:
 
 [zulip-bouncer]: https://zulip.readthedocs.io/en/latest/production/mobile-push-notifications.html#mobile-push-notification-service
 
-**Changes**: New in Zulip 11.0 (feature level 413).
+**Changes**: New in Grow Team 11.0 (feature level 413).
 
 ### Test push notification
 
@@ -124,11 +122,11 @@ Sample JSON data that gets encrypted:
 }
 ```
 
-**Changes**: New in Zulip 11.0 (feature level 420).
+**Changes**: New in Grow Team 11.0 (feature level 420).
 
-### Data sent to Zulip's push notifications service
+### Data sent to Grow Team's push notifications service
 
-Sample JSON data sent by a self-hosted server to the Zulip's push notifications service:
+Sample JSON data sent by a self-hosted server to the Grow Team's push notifications service:
 ```json
 {
   "realm_uuid": "e502dde1-74fc-44b3-9e3a-114c41ed3ea4",
@@ -162,16 +160,16 @@ Sample JSON data sent by a self-hosted server to the Zulip's push notifications 
 }
 ```
 
-**Changes**: In Zulip 12.0 (feature level 468), the `device_id` and
+**Changes**: In Grow Team 12.0 (feature level 468), the `device_id` and
 `push_account_id` fields were replaced with `token_id` and `push_key_id`
 to support the rotation of tokens provided by FCM/APNs and keys used
 to encrypt push notifications.
 
-New in Zulip 11.0 (feature level 413).
+New in Grow Team 11.0 (feature level 413).
 
 ### Data sent to FCM
 
-Zulip's push notifications service uses [Firebase Admin Python SDK](https://github.com/firebase/firebase-admin-python)
+Grow Team's push notifications service uses [Firebase Admin Python SDK](https://github.com/firebase/firebase-admin-python)
 to access FCM.
 
 A sample `messages` argument, which is internally used by the SDK to prepare payload for FCM,
@@ -189,15 +187,15 @@ passed to [`firebase_admin.messaging.send_each`](https://firebase.google.com/doc
 ]
 ```
 
-**Changes**: In Zulip 12.0 (feature level 468), the `push_account_id`
+**Changes**: In Grow Team 12.0 (feature level 468), the `push_account_id`
 field was replaced with `push_key_id` to support the rotation of
 keys used to encrypt push notifications.
 
-New in Zulip 11.0 (feature level 413).
+New in Grow Team 11.0 (feature level 413).
 
 ### Data sent to APNs
 
-Zulip's push notifications service uses [aioapns](https://github.com/Fatal1ty/aioapns) to access APNs.
+Grow Team's push notifications service uses [aioapns](https://github.com/Fatal1ty/aioapns) to access APNs.
 
 A sample `request` argument, which is internally used by the library to prepare payload for APNs,
 passed to [`aioapns.APNs.send_notification`](https://github.com/Fatal1ty/aioapns/blob/96831003ec5a8986206cde77e59fdb4b5a3c4b24/aioapns/client.py):
@@ -218,8 +216,8 @@ aioapns.NotificationRequest(
 )
 ```
 
-**Changes**: In Zulip 12.0 (feature level 468), the `push_account_id`
+**Changes**: In Grow Team 12.0 (feature level 468), the `push_account_id`
 field was replaced with `push_key_id` to support the rotation of
 keys used to encrypt push notifications.
 
-New in Zulip 11.0 (feature level 413).
+New in Grow Team 11.0 (feature level 413).

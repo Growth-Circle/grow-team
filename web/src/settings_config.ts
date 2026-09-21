@@ -728,7 +728,7 @@ export const notification_settings_labels = {
         defaultMessage: "Send email notifications for new logins to my account",
     }),
     enable_marketing_emails: $t({
-        defaultMessage: "Send me Zulip's low-traffic newsletter (a few emails a year)",
+        defaultMessage: "Send me Grow Team updates (a few emails a year)",
     }),
     message_content_in_email_notifications: $t({
         defaultMessage: "Include message content in message notification emails",
@@ -801,7 +801,7 @@ export const all_group_setting_labels = {
         }),
         can_summarize_topics_group: $t({defaultMessage: "Who can use AI summaries"}),
         can_create_write_only_bots_group: $t({
-            defaultMessage: "Who can create bots that send messages into Zulip",
+            defaultMessage: "Who can create bots that send messages into Grow Team",
         }),
         can_create_bots_group: $t({defaultMessage: "Who can create any bot"}),
         can_add_custom_emoji_group: $t({defaultMessage: "Who can add custom emoji"}),

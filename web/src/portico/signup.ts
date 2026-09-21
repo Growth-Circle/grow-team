@@ -293,7 +293,7 @@ $(() => {
             case settings_config.email_address_visibility_values.admins_only.code: {
                 selected_option_text = $t({
                     defaultMessage:
-                        "Administrators of this Zulip organization will be able to see this email address.",
+                        "Administrators of this Grow Team organization will be able to see this email address.",
                 });
 
                 break;
@@ -301,7 +301,7 @@ $(() => {
             case settings_config.email_address_visibility_values.moderators.code: {
                 selected_option_text = $t({
                     defaultMessage:
-                        "Administrators and moderators this Zulip organization will be able to see this email address.",
+                        "Administrators and moderators of this Grow Team organization will be able to see this email address.",
                 });
 
                 break;
@@ -309,7 +309,7 @@ $(() => {
             case settings_config.email_address_visibility_values.nobody.code: {
                 selected_option_text = $t({
                     defaultMessage:
-                        "Nobody in this Zulip organization will be able to see this email address.",
+                        "Nobody in this Grow Team organization will be able to see this email address.",
                 });
 
                 break;
@@ -317,7 +317,7 @@ $(() => {
             default: {
                 selected_option_text = $t({
                     defaultMessage:
-                        "Other users in this Zulip organization will be able to see this email address.",
+                        "Other users in this Grow Team organization will be able to see this email address.",
                 });
             }
         }

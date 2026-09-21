@@ -89,7 +89,7 @@ const alert_banners: Record<string, AlertBanner> = {
     "email-server": {
         process: "email-server",
         intent: "warning",
-        label: "Zulip needs to send email to confirm users' addresses and send notifications.",
+        label: "Grow Team needs to send email to confirm user addresses and send notifications.",
         buttons: [
             {
                 variant: "subtle",
@@ -130,7 +130,7 @@ const alert_banners: Record<string, AlertBanner> = {
         label: new Handlebars.SafeString(
             $t_html({
                 defaultMessage:
-                    "Zulip needs your permission to enable desktop notifications for important messages.",
+                    "Grow Team needs your permission to enable desktop notifications for important messages.",
             }),
         ),
         buttons: [
@@ -170,7 +170,7 @@ const alert_banners: Record<string, AlertBanner> = {
     "insecure-desktop-app": {
         process: "insecure-desktop-app",
         intent: "warning",
-        label: "Zulip Desktop is not updating automatically. Please upgrade for security updates and other improvements.",
+        label: "Your Grow Team desktop app is not updating automatically. Upgrade it for security updates and improvements.",
         buttons: [
             {
                 variant: "subtle",
@@ -184,7 +184,7 @@ const alert_banners: Record<string, AlertBanner> = {
     "unsupported-browser": {
         process: "unsupported-browser",
         intent: "warning",
-        label: "Because you're using an unsupported or very old browser, Zulip may not work as expected.",
+        label: "Because you use an unsupported or old browser, Grow Team may not work as expected.",
         buttons: [
             {
                 variant: "text",
@@ -212,7 +212,7 @@ const alert_banners: Record<string, AlertBanner> = {
     "server-needs-upgrade": {
         process: "server-needs-upgrade",
         intent: "danger",
-        label: "This Zulip server is running an old version and should be upgraded.",
+        label: "This Grow Team server runs an old version and should be upgraded.",
         buttons: [
             {
                 variant: "subtle",

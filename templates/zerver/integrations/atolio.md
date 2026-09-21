@@ -1,12 +1,12 @@
-# Zulip Atolio integration
+# Grow Team Atolio integration
 
-Index Zulip channels, topics, and messages in your Atolio knowledge base!
+Index Grow Team channels, topics, and messages in your Atolio knowledge base!
 
 {start_tabs}
 
 1. {!create-a-generic-bot.md!}
 
-1. [Subscribe the bot][subscribe-channels] to the Zulip channels that you
+1. [Subscribe the bot][subscribe-channels] to the Grow Team channels that you
    want Atolio to index.
 
 1. [Download the `zuliprc` file](/help/manage-a-bot#download-zuliprc-configuration-file)
@@ -15,7 +15,7 @@ Index Zulip channels, topics, and messages in your Atolio knowledge base!
 1. In Atolio, configure the Zulip connector using the following values
    from the `zuliprc` file:
 
-    * **Domain**: Your Zulip organization URL.
+    * **Domain**: Your Grow Team organization URL.
     * **Email**: The bot's email address.
     * **Token**: The bot's API key.
 
@@ -25,7 +25,7 @@ Index Zulip channels, topics, and messages in your Atolio knowledge base!
 
 {end_tabs}
 
-You're done! You should be able to index Zulip from Atolio.
+You're done! You should be able to index Grow Team from Atolio.
 
 ### Related documentation
 

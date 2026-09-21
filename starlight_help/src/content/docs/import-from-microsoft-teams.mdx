@@ -15,15 +15,15 @@ import ImportYourDataIntoZulip from "../include/_ImportYourDataIntoZulip.mdx";
 import ImportZulipCloudOrganizationWarning from "../include/_ImportZulipCloudOrganizationWarning.mdx";
 import ViewImportedUsers from "../include/_ViewImportedUsers.mdx";
 
-You can import your current workspace into a Zulip organization. It's a great way
-to preserve your workspace history when you migrate to Zulip, and to
+You can import your current workspace into a Grow Team organization. It's a great way
+to preserve your workspace history when you migrate to Grow Team, and to
 make the transition easy for the members of your organization.
 
 The import will include your organization's:
 
 * **Name**
 * **Users**, including names, emails, roles
-* **Teams** as Zulip channels, including all user subscriptions
+* **Teams** as Grow Team channels, including all user subscriptions
 * **Message history**, excluding direct messages and messages in private channels
 
 <ZulipNote>
@@ -33,27 +33,29 @@ The import will include your organization's:
 
 ## Import process overview
 
-To import your Microsoft Teams data into Zulip, you will need to take the following
+To import your Microsoft Teams data into Grow Team, you will need to take the following
 steps, which are described in more detail below:
 
 <Steps>
   1. [Export your Microsoft Teams data](#export-your-microsoft-teams-data).
   1. [Authorize a Microsoft Graph API token](#authorize-a-microsoft-graph-api-token).
-  1. [Import your Microsoft Teams data into Zulip](#import-your-data-into-zulip).
+  1. [Import your Microsoft Teams data into Grow Team](#import-your-data-into-zulip).
   1. [Clean up after the Microsoft Teams export](#clean-up-after-the-microsoft-teams-export).
-  1. [Get your organization started with Zulip](#get-your-organization-started-with-zulip)!
+  1. [Get your organization started with Grow Team](#get-your-organization-started-with-zulip)!
 </Steps>
 
-When planning to migrate from Microsoft Teams to Zulip, make sure your Microsoft
+When planning to migrate from Microsoft Teams to Grow Team, make sure your Microsoft
 tenant is active and still has access to Microsoft services for at least a
 couple of months. The process to gain access to the Teams data export tool [can
 take around a month](https://blog.zulip.com/2025/09/10/teams-export-vaporware/),
-and Zulip's import tool for Microsoft Teams requires an active Microsoft Entra
+and Grow Team's import tool for Microsoft Teams requires an active Microsoft Entra
 ID application. Additionally, since the imported users' email addresses will be
 their Microsoft tenant emails, they will still need access to those accounts to
-[update their Zulip email addresses](/help/change-your-email-address).
+[update their Grow Team email addresses](/help/change-your-email-address).
 
-## Import your organization from Microsoft Teams into Zulip
+<span id="import-your-organization-from-microsoft-teams-into-zulip" aria-hidden="true"></span>
+
+## Import your organization from Microsoft Teams into Grow Team
 
 ### Export your Microsoft Teams data
 
@@ -81,14 +83,14 @@ APIs](https://learn.microsoft.com/en-us/microsoftteams/migration-from-teams#step
 
 ### Authorize a Microsoft Graph API token
 
-Some organization data is not exported by the Teams data export tool. The Zulip import
+Some organization data is not exported by the Teams data export tool. The Grow Team import
 tool will call several Microsoft Graph APIs to collect the following data:
 
 * [**Hosted contents**](https://learn.microsoft.com/en-us/graph/api/resources/chatmessagehostedcontent?view=graph-rest-1.0).
   Teams content hosted in a chat message, such as images or code snippets.
 
 * **User roles**. The [user roles](#user-roles) section explains how  Microsoft
-  Teams users roles and user types are mapped to Zulip user roles.
+  Teams users roles and user types are mapped to Grow Team user roles.
 
 To access those APIs, create a Microsoft Entra ID application with the required
 permissions, and [authorize an access
@@ -100,7 +102,7 @@ token](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-clien
   1. Navigate to the sidebar → **Entra ID** → **App registrations**, and click **New
      registration**.
   1. In the **Register an application** menu, enter the application's name
-     (e.g., "Zulip export").
+     (e.g., "Grow Team export").
   1. In the **Supported accounts types** section, select **Accounts in this organizational
      directory only**.
   1. In the **Redirect URI** section, select **Web** as the platform type and enter
@@ -160,7 +162,7 @@ token](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-clien
 
 #### Required token permissions
 
-The following Microsoft Graph API endpoints are used by the Zulip import
+The following Microsoft Graph API endpoints are used by the Grow Team import
 tool:
 
 | Endpoint                                                                                                                            | Uses                                                   | Least-privileged permission     |
@@ -170,7 +172,9 @@ tool:
 | [list user](https://learn.microsoft.com/en-us/graph/api/user-list?view=graph-rest-1.0\&tabs=http)                                   | Used to find guest accounts.                           | `User.Read.All`                 |
 | [get hosted content](https://learn.microsoft.com/en-us/graph/api/chatmessagehostedcontent-get?view=graph-rest-1.0\&tabs=http)       | Used to download hosted content attachments.           | `ChannelMessage.Read.All`       |
 
-### Import your data into Zulip
+<span id="import-your-data-into-zulip" aria-hidden="true"></span>
+
+### Import your data into Grow Team
 
 <ImportYourDataIntoZulip />
 
@@ -188,7 +192,7 @@ tool:
       <ImportIntoASelfHostedServerInstructions />
 
       1. To import into an organization hosted on the root domain
-         (`EXTERNAL_HOST`) of the Zulip installation, run the following
+         (`EXTERNAL_HOST`) of the Grow Team installation, run the following
          commands, replacing `<token>` with your Microsoft Graph API access token.
          <ImportSelfHostedServerTips />
          ```bash "<token>"
@@ -207,7 +211,7 @@ tool:
          ./scripts/start-server
          ```
       1. Follow [step 4](https://zulip.readthedocs.io/en/stable/production/install.html#step-4-configure-and-use)
-         of the guide for [installing a new Zulip
+         of the guide for [installing a new Grow Team
          server](https://zulip.readthedocs.io/en/stable/production/install.html).
     </FlattenedSteps>
   </TabItem>
@@ -216,7 +220,7 @@ tool:
 ### Import details
 
 Because the import tool is currently in beta, the following data is not imported
-into Zulip. If importing any of this data is important for your organization,
+into Grow Team. If importing any of this data is important for your organization,
 contact [support@zulip.com](mailto:support@zulip.com) to see if the import tool
 can be extended to include it.
 
@@ -230,15 +234,15 @@ can be extended to include it.
 
 A couple of additional caveats to keep in mind:
 
-* Mentions in messages are not converted to Zulip mentions.
+* Mentions in messages are not converted to Grow Team mentions.
 * Message thread replies will be combined to the main topic.
 
 #### User roles
 
-Microsoft tenant's user roles are mapped to Zulip's [user
+Microsoft tenant's user roles are mapped to Grow Team's [user
 roles](/help/user-roles) in the following way:
 
-| Microsoft Teams role | Zulip role |
+| Microsoft Teams role | Grow Team role |
 | -------------------- | ---------- |
 | Global Administrator | Owner      |
 | Member               | Member     |
@@ -253,12 +257,14 @@ settings. Configure organization settings as described
 
 ## Clean up after the Microsoft Teams export
 
-Once your organization has been successfully imported in to Zulip, you should
+Once your organization has been successfully imported in to Grow Team, you should
 delete [the Microsoft Entra ID
 application](https://entra.microsoft.com/#view/Microsoft_AAD_IAM/StartboardApplicationsMenuBlade/~/AppAppsPreview) that you created in order to
 export your Microsoft Teams data.
 
-## Get your organization started with Zulip
+<span id="get-your-organization-started-with-zulip" aria-hidden="true"></span>
+
+## Get your organization started with Grow Team
 
 Once the import process is completed, you will need to:
 
@@ -268,16 +274,16 @@ Once the import process is completed, you will need to:
      visibility](/help/configure-email-visibility), [message editing
      permissions](/help/restrict-message-editing-and-deletion),
      and [how users can join your organization](/help/restrict-account-creation).
-  1. All users from your previous workspace will have accounts in your new Zulip
+  1. All users from your previous workspace will have accounts in your new Grow Team
      organization. However, you will need to let users know about their new
      accounts, and [decide how they will log
      in](/help/import-from-microsoft-teams#decide-how-users-will-log-in) for the first time.
-  1. Share the URL for your new Zulip organization, and (recommended) the [Getting
-     started with Zulip guide](/help/getting-started-with-zulip).
-  1. **Make sure all users [change their Zulip email
+  1. Share the URL for your new Grow Team organization, and (recommended) the [Getting
+     started with Grow Team guide](/help/getting-started-with-zulip).
+  1. **Make sure all users [change their Grow Team email
      addresses](/help/change-your-email-address) from their Microsoft tenant
      emails** to ones they can continue to access, before your organization's
-     Microsoft subscription expires. Zulip's [management
+     Microsoft subscription expires. Grow Team's [management
      tools](https://zulip.readthedocs.io/en/latest/production/management-commands.html)
      also allow self-hosted server administrators to change user emails directly;
      Zulip Cloud users can [contact support](mailto:support@zulip.com) for
@@ -301,5 +307,5 @@ Once the import process is completed, you will need to:
 
 * [Choosing between Zulip Cloud and self-hosting](/help/zulip-cloud-or-self-hosting)
 * [Moving from Microsoft Teams](/help/moving-from-teams)
-* [Getting started with Zulip](/help/getting-started-with-zulip)
+* [Getting started with Grow Team](/help/getting-started-with-zulip)
 * [Change your email address](/help/change-your-email-address)

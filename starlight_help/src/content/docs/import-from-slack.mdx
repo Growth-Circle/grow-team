@@ -22,12 +22,12 @@ import ViewImportedUsers from "../include/_ViewImportedUsers.mdx";
 
 ## Import process overview
 
-To import your Slack organization into Zulip, you will need to take the
+To import your Slack organization into Grow Team, you will need to take the
 following steps, which are described in more detail below:
 
 <Steps>
   1. [Export your Slack data](#export-your-slack-data).
-  1. [Import your Slack data into Zulip](#import-your-data-into-zulip).
+  1. [Import your Slack data into Grow Team](#import-your-data-into-zulip).
   1. [Clean up](#clean-up-after-the-slack-export) after the Slack export.
   1. [Decide how users will log in](#decide-how-users-will-log-in)!
 </Steps>
@@ -35,7 +35,9 @@ following steps, which are described in more detail below:
 Be sure to check out the [guide on moving from Slack](/help/moving-from-slack) for
 a walkthrough of the transition process.
 
-## Import your organization from Slack into Zulip
+<span id="import-your-organization-from-slack-into-zulip" aria-hidden="true"></span>
+
+## Import your organization from Slack into Grow Team
 
 {/* Update link in slack_import.html when changing title below. */}
 
@@ -98,7 +100,9 @@ in order to export direct message data.
   be used for the Slack export process.
 </ZulipNote>
 
-### Import your data into Zulip
+<span id="import-your-data-into-zulip" aria-hidden="true"></span>
+
+### Import your data into Grow Team
 
 <ImportYourDataIntoZulip />
 
@@ -121,8 +125,8 @@ in order to export direct message data.
          and click **Start import**. The import may take some time to complete.
       1. If you're using a different registration email from your Slack account,
          select your Slack account from the dropdown. If you don't have an
-         account in the imported workspace, you can create a new Zulip account.
-      1. Set a password for your Zulip account, and click **Submit**.
+         account in the imported workspace, you can create a new Grow Team account.
+      1. Set a password for your Grow Team account, and click **Submit**.
     </Steps>
   </TabItem>
 
@@ -144,7 +148,7 @@ in order to export direct message data.
       <ImportIntoASelfHostedServerInstructions />
 
       1. To import into an organization hosted on the root domain
-         (`EXTERNAL_HOST`) of the Zulip installation, run the following
+         (`EXTERNAL_HOST`) of the Grow Team installation, run the following
          commands, replacing `<token>` with your Slack **Bot User OAuth Token**.
          <ImportSelfHostedServerTips />
          ```bash "<token>"
@@ -163,7 +167,7 @@ in order to export direct message data.
          ./scripts/start-server
          ```
       1. Follow [step 4](https://zulip.readthedocs.io/en/stable/production/install.html#step-4-configure-and-use)
-         of the guide for [installing a new Zulip
+         of the guide for [installing a new Grow Team
          server](https://zulip.readthedocs.io/en/stable/production/install.html).
     </FlattenedSteps>
   </TabItem>
@@ -175,16 +179,16 @@ Whether you are using Zulip Cloud or self-hosting Zulip, here are few notes to k
 in mind about the import process:
 
 * Slack does not export workspace settings, so you will need to [configure
-  the settings for your Zulip organization](/help/customize-organization-settings).
+  the settings for your Grow Team organization](/help/customize-organization-settings).
   This includes settings like [email
   visibility](/help/configure-email-visibility),
   [message editing permissions](/help/restrict-message-editing-and-deletion),
   and [how users can join your organization](/help/restrict-account-creation).
 * Slack does not export user settings, so users in your organization may want to
   [customize their account settings](/help/getting-started-with-zulip).
-* Slack's user roles are mapped to Zulip's [user
+* Slack's user roles are mapped to Grow Team's [user
   roles](/help/user-roles) in the following way:
-  | Slack role              | Zulip role    |
+  | Slack role              | Grow Team role    |
   | ----------------------- | ------------- |
   | Workspace Primary Owner | Owner         |
   | Workspace Owner         | Owner         |
@@ -199,7 +203,7 @@ in mind about the import process:
 
 ## Clean up after the Slack export
 
-Once your organization has been successfully imported in to Zulip, you should
+Once your organization has been successfully imported in to Grow Team, you should
 delete [the Slack app](https://api.slack.com/apps) that you created in order to
 [export your Slack data](#export-your-slack-data).  This will prevent the OAuth
 token from being used to access your Slack workspace in the future.
@@ -218,7 +222,7 @@ token from being used to access your Slack workspace in the future.
 
 ## Onboarding
 
-To prepare your organization for transitioning to Zulip, follow the [guide on
+To prepare your organization for transitioning to Grow Team, follow the [guide on
 moving from Slack](/help/moving-from-slack).
 
 ## Related articles
@@ -226,4 +230,4 @@ moving from Slack](/help/moving-from-slack).
 * [Choosing between Zulip Cloud and self-hosting](/help/zulip-cloud-or-self-hosting)
 * [Moving from Slack](/help/moving-from-slack)
 * [Slack-compatible incoming webhook](/integrations/slack_incoming)
-* [Getting started with Zulip](/help/getting-started-with-zulip)
+* [Getting started with Grow Team](/help/getting-started-with-zulip)

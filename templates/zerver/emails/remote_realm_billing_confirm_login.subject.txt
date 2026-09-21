@@ -1,1 +1,1 @@
-{% trans %}Confirm email for Zulip plan management{% endtrans %}
+{% trans %}Confirm email for Grow Team plan management{% endtrans %}

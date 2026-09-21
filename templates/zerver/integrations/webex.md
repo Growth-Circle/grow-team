@@ -1,4 +1,4 @@
-# Use Webex as your call provider in Zulip
+# Use Webex as your call provider in Grow Team
 
 You can configure Webex as the call provider for your organization. Users will be
 able to start a Webex meeting and invite others using the **add video call** (<i
@@ -7,14 +7,14 @@ box](/help/start-a-call).
 
 !!! warn ""
 
-    **Note:** This is currently only possible on self-hosted Zulip
+    **Note:** This is currently only possible on self-hosted Grow Team
     installations.
 
 ## Configure Webex as your call provider
 
-By default, Zulip integrates with
+By default, Grow Team integrates with
 [Jitsi Meet](https://jitsi.org/jitsi-meet/), a fully-encrypted, 100% open
-source video conferencing solution. You can configure Zulip to use Webex as your
+source video conferencing solution. You can configure Grow Team to use Webex as your
 call provider instead.
 
 !!! warn ""
@@ -37,7 +37,7 @@ call provider instead.
    according to your preferences.
 
 1. For **Redirect URI(s)**, enter `https://zulip.example.com/calls/webex/complete`
-   replacing `zulip.example.com` with your Zulip organization's URL.
+   replacing `zulip.example.com` with your Grow Team organization's URL.
 
 1. For **Scopes**, select `spark:all`, `meeting:schedules_read` and
    `meeting:schedules_write`, and select **Add Integration**.
@@ -47,7 +47,7 @@ call provider instead.
 
 {end_tabs}
 
-### Configure your Zulip server and organization
+### Configure your Grow Team server and organization
 
 {start_tabs}
 
@@ -57,7 +57,7 @@ call provider instead.
 1. In `/etc/zulip/settings.py`, set `VIDEO_WEBEX_CLIENT_ID` to your
    app's "Client ID".
 
-1. Restart the Zulip server with
+1. Restart the Grow Team server with
    `/home/zulip/deployments/current/scripts/restart-server`.
 
 {settings_tab|organization-settings}

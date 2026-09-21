@@ -53,7 +53,7 @@ const markdown_help_rows = [
         markdown: ":heart:",
     },
     {
-        markdown: `[${$t({defaultMessage: "Zulip website"})}](https://zulip.org)`,
+        markdown: `[${$t({defaultMessage: "Grow Team website"})}](https://github.com/Growth-Circle/grow-team)`,
         usage_html: format_usage_html("Ctrl", "Shift", "L"),
     },
     {
@@ -126,7 +126,7 @@ ${$t({defaultMessage: "This text won't be visible until the user clicks."})}
         markdown: `\
 \`\`\`
 def f():
-    print("Zulip")
+    print("Grow Team")
 \`\`\``,
         usage_html: format_usage_html("Ctrl", "Shift", "C"),
     },
@@ -134,13 +134,13 @@ def f():
         markdown: `\
 \`\`\`python
 def f():
-    print("Zulip")
+    print("Grow Team")
 \`\`\``,
         // output_html required because we don't have pygments in the web app processor.
         output_html: `\
 <div class="codehilite zulip-code-block" data-code-language="Python"><pre><div class="code-buttons-container">
     </span></div><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">f</span><span class="p">():</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">"Zulip"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Grow Team"</span><span class="p">)</span>
 </code></pre></div>`,
     },
     {

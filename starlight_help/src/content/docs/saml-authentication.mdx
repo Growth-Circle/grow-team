@@ -15,8 +15,8 @@ import UpgradeToPlusIfNeeded from "../include/_UpgradeToPlusIfNeeded.mdx";
 
 <AdminOnly />
 
-Zulip supports using SAML authentication for single sign-on, both for Zulip
-Cloud and self-hosted Zulip servers. SAML Single Logout is also supported.
+Grow Team supports using SAML authentication for single sign-on, both for Zulip
+Cloud and self-hosted Grow Team servers. SAML Single Logout is also supported.
 
 This page describes how to configure SAML authentication with several common providers:
 
@@ -53,7 +53,7 @@ SAML providers.
            * `first_name` to `user.firstName`
            * `last_name` to `user.lastName`
       1. Assign the appropriate accounts in the **Assignments** tab. These are the users
-         that will be able to log in to your Zulip organization.
+         that will be able to log in to your Grow Team organization.
       1. <SendUsInfo />
 
          <FlattenedList>
@@ -74,7 +74,7 @@ SAML providers.
 
       1. Navigate to the OneLogin **Applications** page, and click **Add App**.
       1. Search for the **SAML Custom Connector (Advanced)** app and select it.
-      1. Set a name and logo and click **Save**. This doesn't affect anything in Zulip,
+      1. Set a name and logo and click **Save**. This doesn't affect anything in Grow Team,
          but will be shown on your OneLogin **Applications** page.
       1. In the **Configuration** section, specify the following fields. Leave the
          remaining fields as they are, including blank fields.
@@ -149,7 +149,7 @@ SAML providers.
       <UpgradeToPlusIfNeeded />
 
       1. Make sure your Keycloak server is up and running.
-      1. In Keycloak, register a new Client for your Zulip organization:
+      1. In Keycloak, register a new Client for your Grow Team organization:
          * **Client-ID**: `https://zulipchat.com`
          * **Client Protocol**: `saml`
          * **Client SAML Endpoint**: *(empty)*
@@ -227,15 +227,15 @@ SAML providers.
 
 ## Synchronizing group membership with SAML
 
-You can configure each Zulip user's [groups](/help/user-groups) to be updated based
+You can configure each Grow Team user's [groups](/help/user-groups) to be updated based
 on their groups in your Identity Provider's (IdP's) directory every time they
 log in.
 
-Your IdP directory's group names don't have to match the associated Zulip group
+Your IdP directory's group names don't have to match the associated Grow Team group
 names (e.g., membership in your IdP's group **finance** can be synced to
-membership in the Zulip group **finance-department**). See the [technical
+membership in the Grow Team group **finance-department**). See the [technical
 documentation][saml-group-sync-readthedocs] on how your IdP's groups are mapped
-to Zulip groups for details.
+to Grow Team groups for details.
 
 <ZulipTip>
   It should be possible to set this up with any provider. If you're interested
@@ -247,7 +247,7 @@ to Zulip groups for details.
   <TabItem label="Okta">
     <Steps>
       1. Follow the instructions [above](#configure-saml) to configure SAML, and go to
-         the application you created for using SAML with Zulip in your
+         the application you created for using SAML with Grow Team in your
          **Applications** menu.
       1. Select the **General** tab, and **Edit** the **SAML Settings** section.
       1. Proceed through the prompts until the main **Configure SAML** prompt.
@@ -257,13 +257,13 @@ to Zulip groups for details.
          * **Name**: `zulip_groups`
          * **Name format**: `Unspecified`
          * **Filter**: `Matches regex: .*`
-           When a user signs in to Zulip via SAML, Okta will now include a list of the
-           user's groups in its response to the Zulip server.
+           When a user signs in to Grow Team via SAML, Okta will now include a list of the
+           user's groups in its response to the Grow Team server.
       1. To enable this feature, please email
          [support@zulip.com](mailto:support@zulip.com) with the following information:
-         * Your Zulip organization URL.
+         * Your Grow Team organization URL.
          * Which groups should be synced from your IdP's directory.
-         * Which groups should have a different name in Zulip (if any).
+         * Which groups should have a different name in Grow Team (if any).
     </Steps>
   </TabItem>
 </Tabs>
@@ -272,7 +272,7 @@ to Zulip groups for details.
 
 * [SAML configuration for self-hosting][saml-readthedocs]
 * [SCIM provisioning](/help/scim)
-* [Moving to Zulip](/help/moving-to-zulip)
+* [Moving to Grow Team](/help/moving-to-zulip)
 
 [saml-readthedocs]: https://zulip.readthedocs.io/en/stable/production/authentication-methods.html#saml
 

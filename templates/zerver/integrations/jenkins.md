@@ -11,7 +11,7 @@
 1. Once the plugin is installed, configure it by going to
    **Manage Jenkins > Configure System**. Scroll to the section
    labeled **Zulip Notification Settings**, and specify your
-   Zulip server address, bot's email address and API key.
+   Grow Team server address, bot's email address and API key.
    Optionally, you may configure a default stream or topic. You can also enable
    smart notifications (i.e. only receive notifications when a build fails or
    recovers from a failed state).

@@ -1,4 +1,4 @@
-# Use Zoom as your call provider in Zulip
+# Use Zoom as your call provider in Grow Team
 
 You can configure Zoom as the call provider for your organization. Users will be
 able to start a Zoom call and invite others using the **add video call** (<i
@@ -8,12 +8,12 @@ box](/help/start-a-call).
 
 ## Configure Zoom as your call provider
 
-By default, Zulip integrates with
+By default, Grow Team integrates with
 [Jitsi Meet](https://jitsi.org/jitsi-meet/), a fully-encrypted, 100% open
-source video conferencing solution. You can configure Zulip to use Zoom as your
+source video conferencing solution. You can configure Grow Team to use Zoom as your
 call provider instead.
 
-### Configure Zoom on Zulip Cloud
+### Configure Zoom on Grow Team
 
 {start_tabs}
 

@@ -694,7 +694,7 @@ def make_constructor_groups_video_call(
     user_profile: UserProfile,
 ) -> HttpResponse:
     service = ConstructorGroupsService()
-    room_name = _("{full_name}'s Zulip room").format(full_name=user_profile.full_name)
+    room_name = _("{full_name}'s Grow Team room").format(full_name=user_profile.full_name)
 
     room_data = service.get_or_create_default_room(
         creator_email=user_profile.delivery_email,

@@ -48,7 +48,7 @@ class TestGetNextOnboardingSteps(ZulipTestCase):
 
         with self.settings(NAVIGATION_TOUR_VIDEO_URL=None):
             onboarding_steps = get_next_onboarding_steps(self.user)
-        self.assertTrue(all(step.name != "navigation_tour_video" for step in onboarding_steps))
+        self.assertTrue(any(step.name == "navigation_tour_video" for step in onboarding_steps))
 
     def test_all_onboarding_steps_done(self) -> None:
         self.assertNotEqual(get_next_onboarding_steps(self.user), [])
@@ -125,4 +125,4 @@ class TestOnboardingSteps(ZulipTestCase):
         self.assertEqual(
             scheduled_message.sender.id, get_system_bot(settings.WELCOME_BOT, user.realm_id).id
         )
-        self.assertIn("Welcome to Zulip video", scheduled_message.content)
+        self.assertIn("help center", scheduled_message.content)

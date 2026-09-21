@@ -39,8 +39,8 @@ def mark_onboarding_step_as_read(
         sender = get_system_bot(settings.WELCOME_BOT, realm.id)
         client = get_client("Internal")
         message_content = _("""
-You asked to watch the [Welcome to Zulip video]({navigation_tour_video_url}) later. Is this a good time?
-""").format(navigation_tour_video_url=settings.NAVIGATION_TOUR_VIDEO_URL)
+You asked to review the [Grow Team help center](/help/) later. Is this a good time?
+""")
         deliver_at = timezone_now() + timedelta(
             seconds=schedule_navigation_tour_video_reminder_delay
         )

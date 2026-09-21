@@ -233,10 +233,9 @@ export function get_assigned_permission_object(
                 page_params.is_cloud_realm_with_discounted_plan
             ) {
                 assigned_permission_object.can_edit = false;
-                assigned_permission_object.tooltip_message = $t(
-                    {defaultMessage: "Contact {sales_email} to change this setting."},
-                    {sales_email: "sales@zulip.com"},
-                );
+                assigned_permission_object.tooltip_message = $t({
+                    defaultMessage: "Contact a Grow Team administrator to change this setting.",
+                });
             }
             return assigned_permission_object;
         }
@@ -284,10 +283,9 @@ export function get_assigned_permission_object(
             page_params.is_cloud_realm_with_discounted_plan
         ) {
             assigned_permission_object.can_edit = false;
-            assigned_permission_object.tooltip_message = $t(
-                {defaultMessage: "Contact {sales_email} to change this setting."},
-                {sales_email: "sales@zulip.com"},
-            );
+            assigned_permission_object.tooltip_message = $t({
+                defaultMessage: "Contact a Grow Team administrator to change this setting.",
+            });
         }
         return assigned_permission_object;
     }

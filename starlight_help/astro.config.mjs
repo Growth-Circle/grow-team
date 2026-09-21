@@ -134,7 +134,7 @@ export default defineConfig({
                 context: "client",
                 access: "public",
                 optional: true,
-                default: true,
+                default: false,
             }),
             SUPPORT_EMAIL: envField.string({
                 context: "client",
@@ -151,7 +151,7 @@ export default defineConfig({
             zstd: false,
         }),
         starlight({
-            title: "Zulip help center",
+            title: "Grow Team help center",
             favicon: "../static/images/favicon.svg",
             components: {
                 Footer: "./src/components/Footer.astro",
@@ -163,13 +163,8 @@ export default defineConfig({
             customCss: ["./src/styles/main.css"],
             sidebar: [
                 {
-                    label: "Zulip homepage",
-                    link: "https://zulip.com",
-                    attrs: {
-                        class: "external-icon-sidebar",
-                        target: "_blank",
-                        rel: "noopener noreferrer",
-                    },
+                    label: "Grow Team",
+                    link: "../",
                 },
                 {
                     label: "Help center home",
@@ -182,29 +177,7 @@ export default defineConfig({
                             label: "Getting started",
                             link: "/getting-started-with-zulip",
                         },
-                        {
-                            label: "Choosing a team chat app",
-                            link: "https://blog.zulip.com/2024/11/04/choosing-a-team-chat-app/",
-                            attrs: {
-                                class: "external-icon-sidebar",
-                                target: "_blank",
-                                rel: "noopener noreferrer",
-                            },
-                        },
-                        {
-                            label: "Why Zulip",
-                            link: "https://zulip.com/why-zulip/",
-                            attrs: {
-                                class: "external-icon-sidebar",
-                                target: "_blank",
-                                rel: "noopener noreferrer",
-                            },
-                        },
                         "trying-out-zulip",
-                        {
-                            label: "Zulip Cloud or self-hosting?",
-                            link: "/zulip-cloud-or-self-hosting",
-                        },
                         "moderating-open-organizations",
                         "setting-up-zulip-for-a-class",
                         "using-zulip-for-a-class",
@@ -290,7 +263,7 @@ export default defineConfig({
                     ],
                 },
                 {
-                    label: "Guides for mastering Zulip",
+                    label: "Guides for mastering Grow Team",
                     items: [
                         "keyboard-shortcuts",
                         "reading-strategies",
@@ -467,25 +440,8 @@ export default defineConfig({
                     ],
                 },
                 {
-                    label: "Apps",
+                    label: "Browser access",
                     items: [
-                        {
-                            label: "Download apps",
-                            link: "https://zulip.com/apps/",
-                            attrs: {
-                                class: "external-icon-sidebar",
-                                target: "_blank",
-                                rel: "noopener noreferrer",
-                            },
-                        },
-                        {
-                            label: "Mobile app installation guides",
-                            link: "/mobile-app-install-guide",
-                        },
-                        {
-                            label: "Desktop installation guides",
-                            link: "/desktop-app-install-guide",
-                        },
                         "supported-browsers",
                         {
                             label: "Configure how links open",
@@ -496,7 +452,7 @@ export default defineConfig({
                     ],
                 },
                 {
-                    label: "Zulip administration",
+                    label: "Grow Team administration",
                     link: "#",
                     attrs: {
                         class: "non-clickable-sidebar-heading",
@@ -523,14 +479,6 @@ export default defineConfig({
                         "import-from-slack",
                         "import-from-rocketchat",
                         "export-your-organization",
-                        {
-                            label: "Zulip Cloud to self-hosting",
-                            link: "/cloud-to-self-hosting",
-                        },
-                        {
-                            label: "Self-hosting to Zulip Cloud",
-                            link: "/self-hosting-to-cloud",
-                        },
                     ],
                 },
                 {
@@ -685,23 +633,12 @@ export default defineConfig({
                     label: "Support",
                     items: [
                         "view-zulip-version",
-                        "zulip-cloud-billing",
-                        {
-                            label: "Self-hosted billing",
-                            link: "/self-hosted-billing",
-                        },
                         "gdpr-compliance",
-                        {
-                            label: "Move to Zulip Cloud",
-                            link: "/move-to-zulip-cloud",
-                        },
-                        "support-zulip-project",
-                        "linking-to-zulip-website",
                         "contact-support",
                     ],
                 },
                 {
-                    label: "◀ Back to Zulip",
+                    label: "◀ Back to Grow Team",
                     link: "../",
                 },
             ],
@@ -712,6 +649,9 @@ export default defineConfig({
     // /help/ will apply to the keys in the list below but we will
     // have to prepend /help/ in the redirect URL.
     redirects: {
+        "getting-started": "/help/getting-started-with-zulip",
+        "using-grow-team-for-a-class": "/help/using-zulip-for-a-class",
+        "setting-up-grow-team-for-a-class": "/help/setting-up-zulip-for-a-class",
         "pm-mention-alert-notifications": "/help/dm-mention-alert-notifications",
         "restrict-private-messages": "/help/restrict-direct-messages",
         "reading-pms": "/help/direct-messages",

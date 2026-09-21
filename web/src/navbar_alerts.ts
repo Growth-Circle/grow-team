@@ -187,7 +187,7 @@ const DESKTOP_NOTIFICATIONS_BANNER: AlertBanner = {
     intent: "brand",
     label: $t({
         defaultMessage:
-            "Zulip needs your permission to enable desktop notifications for important messages.",
+            "Grow Team needs your permission to enable desktop notifications for important messages.",
     }),
     buttons: [
         {
@@ -215,7 +215,7 @@ const CONFIGURE_OUTGOING_MAIL_BANNER: AlertBanner = {
     intent: "warning",
     label: $t({
         defaultMessage:
-            "Zulip needs to send email to confirm users' addresses and send notifications.",
+            "Grow Team needs to send email to confirm user addresses and send notifications.",
     }),
     buttons: [
         {
@@ -233,7 +233,7 @@ const INSECURE_DESKTOP_APP_BANNER: AlertBanner = {
     intent: "warning",
     label: $t({
         defaultMessage:
-            "Zulip Desktop is not updating automatically. Please upgrade for security updates and other improvements.",
+            "Your compatible desktop app is not updating automatically. Upgrade it for security updates and improvements.",
     }),
     buttons: [
         {
@@ -251,7 +251,7 @@ const UNSUPPORTED_BROWSER_BANNER: AlertBanner = {
     intent: "warning",
     label: $t({
         defaultMessage:
-            "Because you're using an unsupported or very old browser, Zulip may not work as expected.",
+            "Because you use an unsupported or old browser, Grow Team may not work as expected.",
     }),
     buttons: [
         {
@@ -303,7 +303,7 @@ const SERVER_NEEDS_UPGRADE_BANNER: AlertBanner = {
     process: "server-needs-upgrade",
     intent: "danger",
     label: $t({
-        defaultMessage: "This Zulip server is running an old version and should be upgraded.",
+        defaultMessage: "This Grow Team server runs an old version and should be upgraded.",
     }),
     buttons: [
         {
@@ -412,7 +412,7 @@ const time_zone_update_offer_banner = (): AlertBanner => {
         label: $t(
             {
                 defaultMessage:
-                    "Your computer's time zone differs from your Zulip profile. Update your time zone to {browser_time_zone}?",
+                    "Your computer's time zone differs from your Grow Team profile. Update your time zone to {browser_time_zone}?",
             },
             {
                 browser_time_zone,
@@ -619,19 +619,19 @@ export function initialize(): void {
     // NOTE: The `window.open()` click handlers are required over here since the
     // the buttons component framework doesn't support link buttons as of now.
     $("#navbar_alerts_wrapper").on("click", ".demo-organizations-help", () => {
-        window.open("https://zulip.com/help/demo-organizations", "_blank", "noopener,noreferrer");
+        window.open("/help/demo-organizations", "_blank", "noopener,noreferrer");
     });
 
     $("#navbar_alerts_wrapper").on("click", ".configure-outgoing-mail-instructions", () => {
         window.open(
-            "https://zulip.readthedocs.io/en/latest/production/email.html",
+            "https://github.com/Growth-Circle/grow-team/blob/grow-team/deploy/grow-team/README.md",
             "_blank",
             "noopener,noreferrer",
         );
     });
 
     $("#navbar_alerts_wrapper").on("click", ".download-latest-zulip-version", () => {
-        window.open("https://zulip.com/apps/", "_blank", "noopener,noreferrer");
+        window.open("/help/desktop-app-install-guide", "_blank", "noopener,noreferrer");
     });
 
     $("#navbar_alerts_wrapper").on("click", ".edit-profile-required-fields", () => {
@@ -644,7 +644,7 @@ export function initialize(): void {
 
     $("#navbar_alerts_wrapper").on("click", ".server-upgrade-learn-more", () => {
         window.open(
-            "https://zulip.readthedocs.io/en/latest/overview/release-lifecycle.html#upgrade-nag",
+            "https://github.com/Growth-Circle/grow-team/releases",
             "_blank",
             "noopener,noreferrer",
         );

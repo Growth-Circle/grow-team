@@ -1,26 +1,12 @@
-{{ _("As you are getting started with Zulip, we'd love to help you discover how it can work best for your needs. Check out this guide to key Zulip features for organizations like yours!") }}
+{{ _("As you are getting started with Grow Team, we'd love to help you discover how it can work best for your needs. Check out this guide to key Grow Team features for organizations like yours!") }}
 
-{% if organization_type == "business" %}
-{{ _("View Zulip guide for businesses") }}:
-{% elif organization_type == "opensource" %}
-{{ _("View Zulip guide for open-source projects") }}:
-{% elif organization_type == "education" %}
-{{ _("View Zulip guide for education") }}:
-{% elif organization_type == "research" %}
-{{ _("View Zulip guide for research") }}:
-{% elif organization_type == "event" %}
-{{ _("View Zulip guide for events and conferences") }}:
-{% elif organization_type == "nonprofit" %}
-{{ _("View Zulip guide for non-profits") }}:
-{% elif organization_type == "community" %}
-{{ _("View Zulip guide for communities") }}:
-{% endif %}
+{{ _("Open the Grow Team getting started guide") }}:
 <{{ zulip_guide_link }}>
 
 {% if corporate_enabled %}
     {% trans %}Do you have questions or feedback to share? Contact us at {{ support_email }} — we'd love to help!{% endtrans %}
 {% else %}
-    {% trans %}If you have any questions, please contact this Zulip server's administrators at {{ support_email }}.{% endtrans %}
+    {% trans %}If you have any questions, please contact this Grow Team server's administrators at {{ support_email }}.{% endtrans %}
 {% endif %}
 
 ----

@@ -1098,10 +1098,7 @@ export function initialize(): void {
         target: ".two-tier-billing-disabled",
         delay: LONG_HOVER_DELAY,
         onShow(instance) {
-            const content = $t(
-                {defaultMessage: "Contact {sales_email} to enable"},
-                {sales_email: "sales@zulip.com"},
-            );
+            const content = $t({defaultMessage: "Contact a Grow Team administrator to enable this."});
             instance.setContent(content);
         },
         appendTo: () => document.body,

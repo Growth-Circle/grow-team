@@ -1,6 +1,6 @@
 # Error handling
 
-Zulip's API will always return a JSON format response.
+Grow Team's API will always return a JSON format response.
 The HTTP status code indicates whether the request was successful
 (200 = success, 4xx = user error, 5xx = server error).
 
@@ -36,7 +36,7 @@ contain other keys with further details that are useful for clients. The
 specific keys present depend on the error `code`, and are documented at
 the API endpoints where these particular errors appear.
 
-**Changes**: Before Zulip 5.0 (feature level 76), all error responses
+**Changes**: Before Grow Team 5.0 (feature level 76), all error responses
 did not contain a `code` key, and its absence indicated that no specific
 error `code` had been allocated for that error.
 
@@ -49,14 +49,14 @@ endpoints:
 
 ## Ignored Parameters
 
-In JSON success responses, all Zulip REST API endpoints may return
+In JSON success responses, all Grow Team REST API endpoints may return
 an array of parameters sent in the request that are not supported
 by that specific endpoint.
 
 While this can be expected, e.g., when sending both current and legacy
-names for a parameter to a Zulip server of unknown version, this often
+names for a parameter to a Grow Team server of unknown version, this often
 indicates either a bug in the client implementation or an attempt to
-configure a new feature while connected to an older Zulip server that
+configure a new feature while connected to an older Grow Team server that
 does not support said feature.
 
 {generate_code_example|/settings:patch|fixture}

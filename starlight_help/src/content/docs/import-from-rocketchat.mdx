@@ -15,8 +15,8 @@ import ImportYourDataIntoZulip from "../include/_ImportYourDataIntoZulip.mdx";
 import ImportZulipCloudOrganizationWarning from "../include/_ImportZulipCloudOrganizationWarning.mdx";
 import ViewImportedUsers from "../include/_ViewImportedUsers.mdx";
 
-You can import your current workspace into a Zulip organization. It's a great
-way to preserve your workspace history when you migrate to Zulip, and to make
+You can import your current workspace into a Grow Team organization. It's a great
+way to preserve your workspace history when you migrate to Grow Team, and to make
 the transition easy for the members of your organization.
 
 The import will include your organization's:
@@ -29,20 +29,22 @@ The import will include your organization's:
 
 ## Import process overview
 
-To import your Rocket.Chat organization into Zulip, you will need to take the
+To import your Rocket.Chat organization into Grow Team, you will need to take the
 following steps, which are described in more detail below:
 
 <Steps>
   1. [Export your Rocket.Chat data](#export-your-rocketchat-data).
-  1. [Import your Rocket.Chat data into Zulip](#import-your-data-into-zulip).
-  1. [Get your organization started with Zulip](#get-your-organization-started-with-zulip)!
+  1. [Import your Rocket.Chat data into Grow Team](#import-your-data-into-zulip).
+  1. [Get your organization started with Grow Team](#get-your-organization-started-with-zulip)!
 </Steps>
 
-## Import your organization from Rocket.Chat into Zulip
+<span id="import-your-organization-from-rocketchat-into-zulip" aria-hidden="true"></span>
+
+## Import your organization from Rocket.Chat into Grow Team
 
 ### Export your Rocket.Chat data
 
-Rocket.Chat does not provide an official data export feature, so the Zulip
+Rocket.Chat does not provide an official data export feature, so the Grow Team
 import tool works by importing data from a Rocket.Chat database dump.
 
 If you're self-hosting your Rocket.Chat instance, you can create a
@@ -57,7 +59,9 @@ to request a database dump by contacting their
 In either case, you should end up with a directory containing many
 `.bson` files.
 
-### Import your data into Zulip
+<span id="import-your-data-into-zulip" aria-hidden="true"></span>
+
+### Import your data into Grow Team
 
 <ImportYourDataIntoZulip />
 
@@ -79,7 +83,7 @@ be your **exported data** file in the instructions below.
       <ImportIntoASelfHostedServerInstructions />
 
       1. To import into an organization hosted on the root domain
-         (`EXTERNAL_HOST`) of the Zulip installation, run the following
+         (`EXTERNAL_HOST`) of the Grow Team installation, run the following
          commands.
          <ImportSelfHostedServerTips />
          ```bash
@@ -98,7 +102,7 @@ be your **exported data** file in the instructions below.
          ./scripts/start-server
          ```
       1. Follow [step 4](https://zulip.readthedocs.io/en/stable/production/install.html#step-4-configure-and-use)
-         of the guide for [installing a new Zulip
+         of the guide for [installing a new Grow Team
          server](https://zulip.readthedocs.io/en/stable/production/install.html).
     </FlattenedSteps>
   </TabItem>
@@ -110,16 +114,16 @@ Whether you are using Zulip Cloud or self-hosting Zulip, here are a few notes to
 keep in mind about the import process:
 
 * Rocket.Chat does not export workspace settings, so you will need to [configure
-  the settings for your Zulip organization](/help/customize-organization-settings).
+  the settings for your Grow Team organization](/help/customize-organization-settings).
   This includes settings like [email
   visibility](/help/configure-email-visibility),
   [message editing permissions](/help/restrict-message-editing-and-deletion),
   and [how users can join your organization](/help/restrict-account-creation).
 * Rocket.Chat does not export user settings, so users in your organization may
   want to [customize their account settings](/help/getting-started-with-zulip).
-* Rocket.Chat user roles are mapped to Zulip's [user
+* Rocket.Chat user roles are mapped to Grow Team's [user
   roles](/help/user-roles) in the following way:
-  | Rocket.Chat role | Zulip role |
+  | Rocket.Chat role | Grow Team role |
   | ---------------- | ---------- |
   | Admin            | Owner      |
   | User             | Member     |
@@ -127,20 +131,20 @@ keep in mind about the import process:
 * User avatars are not imported.
 * Default channels for new users are not imported.
 * Starred messages are not imported.
-* Messages longer than Zulip's limit of 10,000 characters are not
+* Messages longer than Grow Team's limit of 10,000 characters are not
   imported.
 * Livechat channels/messages are not imported.
 * Messages from Rocket.Chat Discussions are imported as topics
-  inside the Zulip channel corresponding to the parent channel of the
+  inside the Grow Team channel corresponding to the parent channel of the
   Rocket.Chat Discussion.
 * Messages from Rocket.Chat Discussions having direct channels
   (i.e. direct messages) as their parent are imported as normal
-  direct messages in Zulip.
+  direct messages in Grow Team.
 * While Rocket.Chat Threads are in general imported as separate
   topics, Rocket.Chat Threads within Rocket.Chat Discussions are
   imported as normal messages within the topic containing that
   Discussion, and Threads in Direct Messages are imported as normal
-  Zulip direct messages.
+  Grow Team direct messages.
 
 Additionally, because Rocket.Chat does not provide a documented or
 stable data export API, the import tool may require small changes from
@@ -148,7 +152,9 @@ time to time to account for changes in the Rocket.Chat database
 format.  Please [contact us](/help/contact-support) if you encounter
 any problems using this tool.
 
-## Get your organization started with Zulip
+<span id="get-your-organization-started-with-zulip" aria-hidden="true"></span>
+
+## Get your organization started with Grow Team
 
 <ImportGetYourOrganizationStarted />
 
@@ -167,5 +173,5 @@ any problems using this tool.
 ## Related articles
 
 * [Choosing between Zulip Cloud and self-hosting](/help/zulip-cloud-or-self-hosting)
-* [Moving to Zulip](/help/moving-to-zulip)
-* [Getting started with Zulip](/help/getting-started-with-zulip)
+* [Moving to Grow Team](/help/moving-to-zulip)
+* [Getting started with Grow Team](/help/getting-started-with-zulip)

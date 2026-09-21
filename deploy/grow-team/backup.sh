@@ -8,7 +8,7 @@ compose=/opt/grow-team/deploy/compose.sh
 backup_dir=/var/backups/grow-team/$(date -u +%Y%m%dT%H%M%SZ)-zulip
 mkdir -p "$backup_dir"
 
-"$compose" exec -T --user zulip zulip sh -c \
+"$compose" exec -T --interactive=false --user zulip zulip sh -c \
   'umask 077; /home/zulip/deployments/current/manage.py backup --output=/tmp/grow-team-backup.tar.gz'
 "$compose" cp zulip:/tmp/grow-team-backup.tar.gz "$backup_dir/zulip.tar.gz"
 tar -C / -czf "$backup_dir/operations.tar.gz" \

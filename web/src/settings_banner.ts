@@ -45,7 +45,7 @@ export function set_up_upgrade_banners(): void {
 
     const upgrade_banner: Banner = {
         intent: banner_intent,
-        label: $t({defaultMessage: "Available on Zulip Cloud Standard."}),
+        label: $t({defaultMessage: "Available on this hosted service."}),
         buttons: upgrade_buttons,
         custom_classes: "organization-upgrade-banner",
         close_button: false,

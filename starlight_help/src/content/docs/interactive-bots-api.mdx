@@ -7,7 +7,7 @@ bot's config file.
 
 With this API, you can:
 
-* intercept, view, and process messages sent by users on Zulip.
+* intercept, view, and process messages sent by users on Grow Team.
 * send out new messages as replies to the processed messages.
 
 With this API, you cannot:
@@ -46,13 +46,13 @@ def usage(self):
 
 ## handle\_message
 
-`handle_message(self, message, bot_handler)`: Handle a Zulip message.
+`handle_message(self, message, bot_handler)`: Handle a Grow Team message.
 
 ### Arguments
 
 * `self`: The instance the method is called on
 
-* `message`: A dictionary describing a Zulip message
+* `message`: A dictionary describing a Grow Team message
 
 * `bot_handler`: Used to interact with the server, e.g., to send a message
 
@@ -100,24 +100,24 @@ bot_handler.send_message(dict(
 
 ## bot\_handler.send\_reply
 
-`bot_handler.send_reply(message, response)`: Reply to a Zulip message,
+`bot_handler.send_reply(message, response)`: Reply to a Grow Team message,
 i.e., the response will be sent to the same place that the original
-Zulip message was sent to.
+Grow Team message was sent to.
 
 ### Arguments
 
-* `message`: A dictionary containing information on the Zulip message
+* `message`: A dictionary containing information on the Grow Team message
   to respond to (provided by `handle_message`)
 * `response`: A string with the response message from the bot
 
 ## bot\_handler.react
 
 `bot_handler.react(message, emoji_name)`: Add an emoji reaction to a
-Zulip message.
+Grow Team message.
 
 ### Arguments
 
-* `message`: A dictionary containing information on the Zulip message
+* `message`: A dictionary containing information on the Grow Team message
   that the bot is reacting to (provided by `handle_message`)
 * `emoji_name`: A string with the name of the emoji reaction to add
 
@@ -303,7 +303,7 @@ with use_storage(bot_handler.storage, ["foo", "bar"]) as cache:
  site=<dev-url>
 ```
 
-* **key**: The API key for the bot (this is how Zulip knows
+* **key**: The API key for the bot (this is how Grow Team knows
   the request is from an authorized user).
 * **email**: The email address of the bot, e.g., `some-bot@zulip.com`.
 * **site**: Your development environment URL. If you are working on a

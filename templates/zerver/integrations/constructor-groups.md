@@ -1,4 +1,4 @@
-# Use Constructor Groups as your call provider in Zulip
+# Use Constructor Groups as your call provider in Grow Team
 
 You can configure [Constructor Groups][constructor-groups] as the call
 provider for your organization. Users will be able to start a Constructor
@@ -8,14 +8,14 @@ box](/help/start-a-call).
 
 !!! warn ""
 
-    **Note:** This is currently only possible on self-hosted Zulip
+    **Note:** This is currently only possible on self-hosted Grow Team
     installations, and requires a Constructor Groups account.
 
 ## Configure Constructor Groups as your call provider
 
-By default, Zulip integrates with
+By default, Grow Team integrates with
 [Jitsi Meet](https://jitsi.org/jitsi-meet/), a fully-encrypted, 100% open
-source video conferencing solution. You can configure Zulip to use
+source video conferencing solution. You can configure Grow Team to use
 [Constructor Groups][constructor-groups] as your call provider instead.
 
 {start_tabs}
@@ -33,7 +33,7 @@ source video conferencing solution. You can configure Zulip to use
 1. In `/etc/zulip/settings.py`, set `CONSTRUCTOR_GROUPS_URL` to your
    Constructor Groups API URL, e.g., `https://example.constructor.app/api/groups/xapi`.
 
-1. Restart the Zulip server with
+1. Restart the Grow Team server with
    `/home/zulip/deployments/current/scripts/restart-server`.
 
 {settings_tab|organization-settings}

@@ -343,13 +343,13 @@ def do_create_realm(
         zulip_discussion_channel = ensure_stream(
             realm,
             str(Realm.ZULIP_DISCUSSION_CHANNEL_NAME),
-            stream_description=_("Questions and discussion about using Zulip."),
+            stream_description=_("Questions and discussion about using Grow Team."),
             acting_user=None,
         )
         zulip_sandbox_channel = ensure_stream(
             realm,
             str(Realm.ZULIP_SANDBOX_CHANNEL_NAME),
-            stream_description=_("Experiment with Zulip here. :test_tube:"),
+            stream_description=_("Experiment with Grow Team here. :test_tube:"),
             acting_user=None,
         )
         new_stream_announcements_stream = ensure_stream(

@@ -1,5 +1,5 @@
 {% if account_found %}
-    {{ _("Your Zulip accounts") }}
+    {{ _("Your Grow Team accounts") }}
 {% else %}
-    {{ _("No Zulip accounts found") }}
+    {{ _("No Grow Team accounts found") }}
 {% endif %}

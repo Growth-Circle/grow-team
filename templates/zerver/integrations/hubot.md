@@ -1,6 +1,6 @@
-# Zulip Hubot Integration
+# Grow Team Hubot Integration
 
-Use Hubot to execute scripts and commands within Zulip!
+Use Hubot to execute scripts and commands within Grow Team!
 
 {start_tabs}
 
@@ -8,7 +8,7 @@ Use Hubot to execute scripts and commands within Zulip!
    to create your Hubot. You'll have a new directory from which `bin/hubot`
    starts a vanilla Hubot instance with the shell backend.
 
-1. In your Hubot's directory, install the Zulip adapter by running:
+1. In your Hubot's directory, install the Grow Team adapter by running:
 
       `npm install --save hubot-zulip`
 
@@ -49,9 +49,9 @@ result like this:
 
 ### Related documentation
 
-* [GitHub repository for Zulip Hubot adapter][hubot-zulip]
+* [GitHub repository for Grow Team Hubot adapter][hubot-zulip]
 
-* Zulip Integrations using Hubot: [Assembla](/integrations/assembla) |
+* Grow Team Integrations using Hubot: [Assembla](/integrations/assembla) |
   [Bonusly](/integrations/bonusly) |
   [Chartbeat](/integrations/chartbeat) |
   [Instagram](/integrations/instagram) |

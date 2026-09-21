@@ -1,14 +1,14 @@
 {% extends "zerver/portico_signup.html" %}
 
 {% block title %}
-<title>{{ _("Try Zulip in a demo organization") }} | Zulip</title>
+<title>{{ _("Try Grow Team in a demo organization") }} | Grow Team</title>
 {% endblock %}
 
 {% block portico_content %}
 <div class="register-account flex full-page">
     <div class="center-block new-style" id="demo-realm-creation">
         <div class="registration-lead-section">
-            <h1 class="registration-lead-title">{{ _("Try Zulip in a demo organization") }}</h1>
+            <h1 class="registration-lead-title">{{ _("Try Grow Team in a demo organization") }}</h1>
             <p class="registration-lead-subtitle">
                 {% trans %}
                 No email required. Or <a class="registration-lead-subtitle-link" href="{{ root_domain_url }}/new/">create a permanent organization</a>.
@@ -24,7 +24,7 @@
             {% include 'zerver/create_user/terms_of_service_form_field.html' %}
             {% endif %}
             <div class="input-box" id="demo-submit-button-container">
-                <button type="submit" class="new-organization-button register-button">{{ _("Try Zulip") }}</button>
+                <button type="submit" class="new-organization-button register-button">{{ _("Try Grow Team") }}</button>
                 {% if has_captcha %}
                     {% if form.captcha.errors %}
                         {% for error in form.captcha.errors %}

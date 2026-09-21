@@ -1,7 +1,7 @@
-# The Zulip REST API
+# The Grow Team REST API
 
-The Zulip REST API powers the Zulip web and mobile apps, so anything
-you can do in Zulip, you can do with Zulip's REST API.  To use this API:
+The Grow Team REST API powers the Grow Team web app. It remains compatible with
+the Grow Team API protocol. To use this API:
 
 * You'll need to [get an API key](/api/api-keys).  You will likely
   want to [create a bot](/help/add-a-bot-or-integration), unless you're
@@ -13,7 +13,7 @@ you can do in Zulip, you can do with Zulip's REST API.  To use this API:
   just make HTTP requests with your favorite programming language.
 * If you're making your own HTTP requests, you'll want to send the
   appropriate [HTTP basic authentication headers](/api/http-headers).
-* The Zulip API has a standard
+* The API has a standard
   [system for reporting errors](/api/rest-error-handling).
 
 Most other details are covered in the documentation for the individual
@@ -27,6 +27,5 @@ endpoints:
 
 {!rest-endpoints.md!}
 
-Since Zulip is open source, you can also consult the
-[Zulip server source code](https://github.com/zulip/zulip/) as a
-workaround for how to do anything not documented here.
+For implementation details that are not documented here, consult the
+[Grow Team source code](https://github.com/Growth-Circle/grow-team).

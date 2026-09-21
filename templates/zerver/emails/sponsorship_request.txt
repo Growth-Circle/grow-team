@@ -7,7 +7,7 @@ Organization type: {{ organization_type }}
 Description:
 {{ description }}
 
-How do you plan to use Zulip?
+How do you plan to use Grow Team?
 {{ plan_to_use_zulip }}
 
 Expected users:

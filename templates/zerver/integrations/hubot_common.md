@@ -1,6 +1,6 @@
-# Zulip {{ integration_display_name }} integration
+# Grow Team {{ integration_display_name }} integration
 
-Get Zulip notifications from {{ integration_display_name }} via Hubot!
+Get Grow Team notifications from {{ integration_display_name }} via Hubot!
 
 {start_tabs}
 

@@ -789,7 +789,7 @@ export async function initialize_everything(state_data) {
 function show_try_zulip_modal() {
     const modal_content_html = render_try_zulip_modal();
     dialog_widget.launch({
-        modal_title_text: i18n.$t({defaultMessage: "Welcome to the Zulip development community!"}),
+        modal_title_text: i18n.$t({defaultMessage: "Welcome to the Grow Team development community!"}),
         modal_content_html,
         modal_submit_button_text: i18n.$t({defaultMessage: "Let's go!"}),
         on_click() {

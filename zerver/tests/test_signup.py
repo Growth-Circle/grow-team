@@ -2304,7 +2304,7 @@ class UserSignUpTest(ZulipTestCase):
         with self.settings(BILLING_ENABLED=True):
             form = HomepageForm({"email": self.nonreg_email("test")}, realm=realm)
             self.assertIn(
-                "New members cannot join this organization because all Zulip licenses",
+                "New members cannot join this organization because all Grow Team licenses",
                 form.errors["email"][0],
             )
             last_message = Message.objects.last()
@@ -2323,7 +2323,7 @@ class UserSignUpTest(ZulipTestCase):
         with self.settings(BILLING_ENABLED=True):
             form = HomepageForm({"email": self.nonreg_email("test")}, realm=realm)
             self.assertIn(
-                "New members cannot join this organization because all Zulip licenses",
+                "New members cannot join this organization because all Grow Team licenses",
                 form.errors["email"][0],
             )
 
@@ -2333,7 +2333,7 @@ class UserSignUpTest(ZulipTestCase):
         with self.settings(BILLING_ENABLED=True):
             form = HomepageForm({"email": self.nonreg_email("test")}, realm=realm)
             self.assertIn(
-                "New members cannot join this organization because all Zulip licenses",
+                "New members cannot join this organization because all Grow Team licenses",
                 form.errors["email"][0],
             )
             last_message = Message.objects.last()
@@ -3619,11 +3619,11 @@ class UserSignUpTest(ZulipTestCase):
             sender__email="welcome-bot@zulip.com",
             recipient__type=Recipient.DIRECT_MESSAGE_GROUP,
         ).latest("id")
-        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to Zulip!"))
+        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to Grow Team!"))
 
         # Organization type is education, and organization is a demo organization.
         self.assertNotIn("getting started guide", welcome_msg.content)
-        self.assertIn("using Zulip for a class guide", welcome_msg.content)
+        self.assertIn("class collaboration guide", welcome_msg.content)
         self.assertIn("demo organization", welcome_msg.content)
 
     def test_get_default_language_for_new_user(self) -> None:

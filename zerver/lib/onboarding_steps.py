@@ -82,9 +82,6 @@ def get_next_onboarding_steps(user: UserProfile) -> list[APIOnboardingStep]:
     seen_onboarding_steps: list[str] = list(
         OnboardingStep.objects.filter(user=user).values_list("onboarding_step", flat=True)
     )
-    if settings.NAVIGATION_TOUR_VIDEO_URL is None:
-        # Server admin disabled navigation tour video, treat it as seen.
-        seen_onboarding_steps.append("navigation_tour_video")
     seen_onboarding_steps_set = frozenset(seen_onboarding_steps)
 
     onboarding_steps: list[APIOnboardingStep] = []

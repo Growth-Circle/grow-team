@@ -1,6 +1,6 @@
-# Zulip Discourse integration
+# Grow Team Discourse integration
 
-Forward new Discourse posts to Zulip!
+Forward new Discourse posts to Grow Team!
 
 {start_tabs}
 
@@ -22,7 +22,7 @@ Forward new Discourse posts to Zulip!
    like to receive notifications in, set **Subject** to the topic name, and
    click **Save Channel**.
 
-1. To filter the posts you'd like to forward to Zulip,
+1. To filter the posts you'd like to forward to Grow Team,
    [configure the rules][configuring-rules] in your Discourse forum's
    **Chat Integrations** panel.
 

@@ -583,7 +583,7 @@ JWT_AUTH_KEYS: dict[str, JwtAuthKey] = {}
 # Django setting for what from address to use in error emails.
 SERVER_EMAIL = ZULIP_ADMINISTRATOR
 # Django setting for who receives error emails.
-ADMINS = (("Zulip Administrator", ZULIP_ADMINISTRATOR),)
+ADMINS = (("Grow Team Administrator", ZULIP_ADMINISTRATOR),)
 
 # From address for welcome emails.
 WELCOME_EMAIL_SENDER: dict[str, str] | None = None
@@ -776,9 +776,7 @@ MAX_PER_USER_MONTHLY_AI_COST: float | None = 0.5
 
 # URL of the navigation tour video displayed to new users.
 # Set it to None to disable it.
-NAVIGATION_TOUR_VIDEO_URL: str | None = (
-    "https://static.zulipchat.com/static/navigation-tour-video/zulip-10.mp4"
-)
+NAVIGATION_TOUR_VIDEO_URL: str | None = None
 
 # Webhook signature verification.
 VERIFY_WEBHOOK_SIGNATURES = True

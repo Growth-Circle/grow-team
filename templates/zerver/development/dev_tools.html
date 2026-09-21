@@ -1,7 +1,7 @@
 {% extends "zerver/portico.html" %}
 
 {% block title %}
-<title>Development tools | Zulip Dev</title>
+<title>Development tools | Grow Team Dev</title>
 {% endblock %}
 
 {# Login page. #}
@@ -105,7 +105,7 @@
         <ul>
             <li><code>./manage.py populate_db</code>: Rebuilds database. Has options to, for example, create 3K users for testing.</li>
             <li><code>./manage.py mark_all_messages_unread</code>: Useful for testing reading messages.</li>
-            <li><code>./manage.py send_zulip_update_announcements</code>: Send <a href="https://zulip.com/help/configure-automated-notices#zulip-update-announcements">Zulip
+            <li><code>./manage.py send_zulip_update_announcements</code>: Send <a href="https://zulip.com/help/configure-automated-notices#zulip-update-announcements">Grow Team
                 update notices</a> drafted in <code>zerver/lib/zulip_update_announcements.py</code>.</li>
             <li><code>./manage.py add_mock_conversation</code>: Add test messages, streams, images, emoji, etc.
                 into the dev environment. First edit <code>zilencer/management/commands/add_mock_conversation.py</code>

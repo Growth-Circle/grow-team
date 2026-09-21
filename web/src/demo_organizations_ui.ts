@@ -159,6 +159,6 @@ export function handle_demo_organization_conversion(): void {
     });
 
     $(".demo-organization-warning").on("click", ".demo-organizations-help", () => {
-        window.open("https://zulip.com/help/demo-organizations", "_blank", "noopener,noreferrer");
+        window.open("/help/demo-organizations", "_blank", "noopener,noreferrer");
     });
 }

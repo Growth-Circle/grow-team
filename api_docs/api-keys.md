@@ -1,12 +1,12 @@
 # API keys and `zuliprc` files
 
-An **API key** is how a user or bot can identify their account to Zulip.
+An **API key** is how a user or bot can identify their account to Grow Team.
 
 A **`zuliprc` file** is a configuration file written in the [INI file
 format](https://en.wikipedia.org/wiki/INI_file), which contains key-value
 pairs, such as an API key and other configuration values, that are
-necessary for using the Zulip API with a specific user or bot account on
-a Zulip server, for example:
+necessary for using the Grow Team API with a specific user or bot account on
+a Grow Team server, for example:
 
 ```
 [api]
@@ -123,7 +123,7 @@ new API key will immediately log you out of this account on all mobile devices.
 1. Click **Download zuliprc** to download your `zuliprc` file.
 
 1. (optional) If you'd like your credentials to be used by default
-   when using the Zulip API on your computer, move the `zuliprc` file
+   when using the Grow Team API on your computer, move the `zuliprc` file
    to `~/.zuliprc` in your home directory.
 
 !!! warn ""
@@ -142,7 +142,7 @@ can be found in the following table:
 | --- | --- | --- | --- |
 | `key` | `ZULIP_API_KEY` | Yes | The user's [API key](#get-an-api-key). |
 | `email` | `ZULIP_EMAIL` | Yes | The email address of the user who owns the API key mentioned above. |
-| `site` | `ZULIP_SITE` | No | URL where the Zulip server is located. |
+| `site` | `ZULIP_SITE` | No | URL where the Grow Team server is located. |
 | `client_cert_key` | `ZULIP_CERT_KEY` | No | Path to the SSL/TLS private key that the binding should use to connect to the server. |
 | `client_cert`| `ZULIP_CERT` | No* | The public counterpart of `client_cert_key`/`ZULIP_CERT_KEY`. _*This setting is required if a cert key has been set._ |
 | `client_bundle` | `ZULIP_CERT_BUNDLE` | No | Path where the server's PEM-encoded certificate is located. CA certificates are also accepted, in case those CA's have issued the server's certificate. Defaults to the built-in CA bundle trusted by Python. |

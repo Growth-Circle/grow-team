@@ -1,19 +1,19 @@
 {% extends "zerver/emails/email_base_default.html" %}
 
 {% block illustration %}
-<img src="{{ email_images_base_url }}/email_logo.png" alt=""/>
+<img src="{{ email_images_base_url }}/email_logo.png?v=grow-team-1" alt=""/>
 {% endblock %}
 
 {% block content %}
     {% trans organization_name_with_link=macros.link_tag(realm_url, string_id) %}
-    Your organization, {{ organization_name_with_link }}, has been downgraded to the Zulip Cloud
+    Your organization, {{ organization_name_with_link }}, has been downgraded to the Grow Team
     Free plan because of unpaid invoices. The unpaid invoices have been voided.
     {% endtrans %}
     <br/>
     <br/>
 
     {% trans upgrade_url=macros.link_tag(upgrade_url) %}
-    To continue on the Zulip Cloud Standard plan, please upgrade again by going to {{ upgrade_url }}.
+    To continue on the Grow Team Standard plan, please upgrade again by going to {{ upgrade_url }}.
     {% endtrans %}
 
     <br/>

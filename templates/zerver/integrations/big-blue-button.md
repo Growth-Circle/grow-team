@@ -1,4 +1,4 @@
-# Use BigBlueButton as your call provider in Zulip
+# Use BigBlueButton as your call provider in Grow Team
 
 You can configure BigBlueButton as the call provider for your organization.
 Users will be able to start a BigBlueButton call and invite others using the
@@ -8,14 +8,14 @@ Users will be able to start a BigBlueButton call and invite others using the
 
 !!! warn ""
 
-    **Note:** This is currently only possible on self-hosted Zulip
+    **Note:** This is currently only possible on self-hosted Grow Team
     installations, and you'll need a BigBlueButton server.
 
 ## Configure BigBlueButton as your call provider
 
-By default, Zulip integrates with
+By default, Grow Team integrates with
 [Jitsi Meet](https://jitsi.org/jitsi-meet/), a fully-encrypted, 100% open
-source video conferencing solution. You can configure Zulip to use BigBlueButton
+source video conferencing solution. You can configure Grow Team to use BigBlueButton
 as your call provider instead.
 
 {start_tabs}
@@ -29,7 +29,7 @@ as your call provider instead.
 1. In `/etc/zulip/settings.py`, set `BIG_BLUE_BUTTON_URL` to your
    BigBlueButton server's hostname.
 
-1. Restart the Zulip server with
+1. Restart the Grow Team server with
    `/home/zulip/deployments/current/scripts/restart-server`.
 
 {settings_tab|organization-settings}

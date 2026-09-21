@@ -1,12 +1,12 @@
 # Configuring the Python bindings
 
-Zulip provides a set of tools that allows interacting with its API more
+Grow Team provides a set of tools that allows interacting with its API more
 easily, called the [Python bindings](https://pypi.python.org/pypi/zulip/).
 One of the most notable use cases for these bindings are bots developed
-using Zulip's [bot framework](/help/writing-bots).
+using Grow Team's [bot framework](/help/writing-bots).
 
 In order to use them, you need to configure them with your identity
-(account, API key, and Zulip server URL). There are a few ways to
+(account, API key, and Grow Team server URL). There are a few ways to
 achieve that:
 
 - Using a [`zuliprc` file](/api/api-keys#download-a-zuliprc-file), referenced via

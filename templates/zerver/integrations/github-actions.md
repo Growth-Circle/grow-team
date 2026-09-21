@@ -1,6 +1,6 @@
-# Zulip GitHub Actions integration
+# Grow Team GitHub Actions integration
 
-Get Zulip notifications from GitHub Actions workflow runs!
+Get Grow Team notifications from GitHub Actions workflow runs!
 
 {start_tabs}
 
@@ -66,7 +66,7 @@ Get Zulip notifications from GitHub Actions workflow runs!
 
 * [Configuring the Send Message Action][README]
 
-* [Zulip GitHub Actions repository][repo]
+* [Grow Team GitHub Actions repository][repo]
 
 * [GitHub integration](/integrations/github)
 

@@ -1,13 +1,13 @@
-# Zulip Onyx Integration
+# Grow Team Onyx Integration
 
-Export discussions from Zulip channels and topics to your Onyx knowledge
+Export discussions from Grow Team channels and topics to your Onyx knowledge
 base!
 
 {start_tabs}
 
 1. {!create-a-generic-bot.md!}
 
-1. [Subscribe the bot][subscribe-channels] to the Zulip channels that you
+1. [Subscribe the bot][subscribe-channels] to the Grow Team channels that you
    want to export.
 
 1. [Download the `zuliprc` file](/help/manage-a-bot#download-zuliprc-configuration-file)
@@ -19,12 +19,12 @@ base!
    **API key** from the `zuliprc` file you downloaded above. Click
    **Update**.
 
-1. Set **Realm name** to the name of your Zulip organization, set
+1. Set **Realm name** to the name of your Grow Team organization, set
    **Realm URL** to `{{ zulip_url }}`, and click **Connect**.
 
 {end_tabs}
 
-You're done! You should be able to index Zulip from your Onyx **Connectors
+You're done! You should be able to index Grow Team from your Onyx **Connectors
 Dashboard**!
 
 ### Related documentation

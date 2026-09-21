@@ -91,7 +91,7 @@ def send_initial_direct_messages_to_user(
     with override_language(user.default_language):
         if education_organization:
             getting_started_string = _("""
-To learn more, check out our [using Zulip for a class guide]({getting_started_url})!
+To learn more, check out our [class collaboration guide]({getting_started_url})!
 """).format(getting_started_url="/help/using-zulip-for-a-class")
         else:
             getting_started_string = _("""
@@ -103,11 +103,11 @@ To learn more, check out our [getting started guide]({getting_started_url})!
         if user.is_realm_admin:
             if education_organization:
                 organization_setup_string = _("""
-We also have a guide for [setting up Zulip for a class]({organization_setup_url}).
+We also have a guide for [setting up Grow Team for a class]({organization_setup_url}).
 """).format(organization_setup_url="/help/setting-up-zulip-for-a-class")
             else:
                 organization_setup_string = _("""
-We also have a guide for [moving your organization to Zulip]({organization_setup_url}).
+We also have a guide for [setting up your organization]({organization_setup_url}).
 """).format(organization_setup_url="/help/moving-to-zulip")
 
         demo_organization_warning_string = ""
@@ -135,8 +135,8 @@ them in your [Inbox](/#inbox).
 """)
 
         navigation_tour_video_string = _("""
-You can always come back to the [Welcome to Zulip video]({navigation_tour_video_url}) for a quick app overview.
-""").format(navigation_tour_video_url=settings.NAVIGATION_TOUR_VIDEO_URL)
+Use the [help center](/help/) whenever you need a quick app overview.
+""")
 
         welcome_bot_custom_message_string = ""
         # Add welcome bot custom message.
@@ -146,7 +146,7 @@ You can always come back to the [Welcome to Zulip video]({navigation_tour_video_
             )
 
         content = _("""
-Hello, and welcome to Zulip!👋 {inform_about_tracked_onboarding_messages_text}
+Hello, and welcome to Grow Team!👋 {inform_about_tracked_onboarding_messages_text}
 
 {getting_started_text} {organization_setup_text}
 
@@ -217,7 +217,7 @@ def select_welcome_bot_response(human_response_lower: str) -> str:
     if human_response_lower in ["app", "apps"]:
         return _("""
 You can [download](/apps/) the [mobile and desktop apps](/apps/).
-Zulip also works great in a browser.
+Grow Team also works great in a browser.
 """)
     elif human_response_lower == "profile":
         return _("""
@@ -228,7 +228,7 @@ and edit your [profile information](/help/edit-your-profile).
         return _("""
 You can switch between [light and dark theme](/help/dark-theme), [pick your
 favorite emoji set](/help/emoji-and-emoticons#change-your-emoji-set), [change
-your language](/help/change-your-language), and otherwise customize your Zulip
+your language](/help/change-your-language), and otherwise customize your Grow Team
 experience in your [Preferences](#settings/preferences).
 """)
     elif human_response_lower in ["stream", "streams", "channel", "channels"]:
@@ -240,8 +240,8 @@ it's common to have a channel for each team in an organization.
 """).format(help_link="/help/introduction-to-channels", settings_link="#channels/all")
     elif human_response_lower in ["topic", "topics"]:
         return _("""
-[Topics](/help/introduction-to-topics) summarize what each conversation in Zulip
-is about. You can read Zulip one topic at a time, seeing each message in
+[Topics](/help/introduction-to-topics) summarize what each conversation in Grow Team
+is about. You can read Grow Team one topic at a time, seeing each message in
 context, no matter how many other conversations are going on.
 
 When you start a conversation, label it with a new topic. For a good topic name,
@@ -252,7 +252,7 @@ discussed.
 """)
     elif human_response_lower in ["keyboard", "shortcuts", "keyboard shortcuts"]:
         return _("""
-Zulip's [keyboard shortcuts](#keyboard-shortcuts) let you navigate the app
+Grow Team's [keyboard shortcuts](#keyboard-shortcuts) let you navigate the app
 quickly and efficiently.
 
 Press `?` any time to see a [cheat sheet](#keyboard-shortcuts).
@@ -377,7 +377,7 @@ or even move a topic [to a different channel]({move_content_another_channel_help
 """)
 
     content1_of_welcome_to_zulip_topic_name = _("""
-Zulip is organized to help you communicate more efficiently. Conversations are
+Grow Team is organized to help you communicate more efficiently. Conversations are
 labeled with topics, which summarize what the conversation is about.
 
 For example, this message is in the “{topic_name}” topic in the
@@ -385,11 +385,11 @@ For example, this message is in the “{topic_name}” topic in the
 and above.
 """).format(
         zulip_discussion_channel_name=channel_name_map[OnboardingMessageTypeEnum.welcome_to_zulip],
-        topic_name=_("welcome to Zulip!"),
+        topic_name=_("welcome to Grow Team!"),
     )
 
     content2_of_welcome_to_zulip_topic_name = _("""
-You can read Zulip one conversation at a time, seeing each message in context,
+You can read Grow Team one conversation at a time, seeing each message in context,
 no matter how many other conversations are going on.
 """)
 
@@ -414,7 +414,7 @@ can we chat about…?”
 
     content1_of_experiments_topic_name = (
         _("""
-:point_right:  Use this topic to try out [Zulip's messaging features]({format_message_help_url}).
+:point_right:  Use this topic to try out [Grow Team's messaging features]({format_message_help_url}).
 """)
     ).format(format_message_help_url="/help/format-your-message-using-markdown")
 
@@ -437,7 +437,7 @@ Link to a conversation: #**{zulip_discussion_channel_name}>{topic_name}**
 """)
     ).format(
         zulip_discussion_channel_name=channel_name_map[OnboardingMessageTypeEnum.welcome_to_zulip],
-        topic_name=_("welcome to Zulip!"),
+        topic_name=_("welcome to Grow Team!"),
     )
 
     content1_of_greetings_topic_name = _("""
@@ -528,7 +528,7 @@ This **greetings** topic is a great place to say “hi” :wave: to your teammat
         welcome_messages += [
             {
                 "channel_name": welcome_to_zulip_channel_name,
-                "topic_name": _("welcome to Zulip!"),
+                "topic_name": _("welcome to Grow Team!"),
                 "content": content,
             }
             for content in [

@@ -7,13 +7,13 @@ import {TabItem, Tabs} from "@astrojs/starlight/components";
 import FlattenedSteps from "../../components/FlattenedSteps.astro";
 import NavigationSteps from "../../components/NavigationSteps.astro";
 
-Outgoing webhooks allow you to build or set up Zulip integrations
-which are notified when certain types of messages are sent in Zulip.
-When one of those events is [triggered](#triggering), the Zulip server
+Outgoing webhooks allow you to build or set up Grow Team integrations
+which are notified when certain types of messages are sent in Grow Team.
+When one of those events is [triggered](#triggering), the Grow Team server
 will send an HTTP POST [payload](/api/outgoing-webhook-payload) to the
 webhook's configured URL.
 
-Outgoing webhooks can be used to power a wide range of Zulip
+Outgoing webhooks can be used to power a wide range of Grow Team
 integrations. For example, the [Zulip Botserver](/help/deploying-bots#zulip-botserver)
 is built on top of this API.
 
@@ -27,7 +27,7 @@ is built on top of this API.
       1. Click **Add a new bot**.
       1. Set **Bot type** to **Outgoing webhook**.
       1. Fill out the fields, with **Endpoint URL** set to the URL you'd like
-         Zulip to post to, and the outgoing webhook [format](/api/outgoing-webhook-payload)
+         Grow Team to post to, and the outgoing webhook [format](/api/outgoing-webhook-payload)
          you plan on using.
       1. Click **Add**.
     </FlattenedSteps>
@@ -49,16 +49,16 @@ There are currently two ways to trigger an outgoing webhook:
 
 The remote server must respond to a `POST` request in a timely manner.
 The default timeout for outgoing webhooks is 10 seconds, though this
-can be configured by the administrator of the Zulip server by setting
+can be configured by the administrator of the Grow Team server by setting
 `OUTGOING_WEBHOOKS_TIMEOUT_SECONDS` in the [server's
 settings](https://zulip.readthedocs.io/en/latest/subsystems/settings.html#server-settings).
 
 ## Replying with a message
 
 Many bots implemented using this outgoing webhook API will want to
-send a reply message into Zulip.  Zulip's outgoing webhook API
+send a reply message into Grow Team.  Grow Team's outgoing webhook API
 provides a convenient way to do that by simply returning an
-appropriate HTTP response to the Zulip server.
+appropriate HTTP response to the Grow Team server.
 
 A correctly implemented bot will return a JSON object containing one
 of two possible formats, described below.
@@ -88,8 +88,8 @@ you would like to send a response message:
 }
 ```
 
-The `content` field should contain [Zulip-flavored Markdown](/help/format-your-message-using-markdown).
+The `content` field should contain [Grow Team-flavored Markdown](/help/format-your-message-using-markdown).
 
-Note that an outgoing webhook bot can use the [Zulip REST
+Note that an outgoing webhook bot can use the [Grow Team REST
 API](/api/rest) with its API key in case your bot needs to do
 something else, like add an emoji reaction or upload a file.

@@ -16,7 +16,9 @@ services:
     cpus: 0.25
     mem_limit: 256m
   zulip:
-    image: ghcr.io/zulip/zulip-server:12.2-0@sha256:765f0ab3caa49041989132ee1879d98dbab1df7695c27e713eac1f114d167755
+    image: grow-team/server:12.2-grow-team.1
+    pull_policy: never
+    build: !reset null
     cpus: 2
     mem_limit: 3g
     ports: !override

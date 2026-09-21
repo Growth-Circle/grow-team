@@ -159,7 +159,7 @@ def fix_emojis(fragment: lxml.html.HtmlElement, emojiset: str) -> None:
 
 def fix_spoilers_in_html(fragment: lxml.html.HtmlElement, language: str) -> None:
     with override_language(language):
-        spoiler_title: str = _("Open Zulip to see the spoiler content")
+        spoiler_title: str = _("Open Grow Team to see the spoiler content")
     spoilers = fragment.find_class("spoiler-block")
     for spoiler in spoilers:
         header = spoiler.find_class("spoiler-header")[0]
@@ -181,7 +181,7 @@ def fix_spoilers_in_html(fragment: lxml.html.HtmlElement, language: str) -> None
 
 def fix_spoilers_in_text(content: str, language: str) -> str:
     with override_language(language):
-        spoiler_title: str = _("Open Zulip to see the spoiler content")
+        spoiler_title: str = _("Open Grow Team to see the spoiler content")
     lines = content.split("\n")
     output = []
     open_fence = None
@@ -527,7 +527,7 @@ def do_send_missedmessage_events_reply_in_zulip(
     if reply_to_address == FromAddress.NOREPLY:
         reply_to_name = ""
     else:
-        reply_to_name = "Zulip"
+        reply_to_name = "Grow Team"
 
     senders = list({m["message"].sender for m in missed_messages})
     message = missed_messages[0]["message"]
@@ -953,13 +953,9 @@ def enqueue_welcome_emails(
     # We only send the onboarding_zulip_guide email for a subset of Realm.ORG_TYPES
     onboarding_zulip_guide_url, organization_type_reference = get_org_type_zulip_guide(user.realm)
 
-    # Only send follow_zulip_guide to "/for/communities/" guide if user is realm admin.
-    # TODO: Remove this condition and related tests when guide is updated;
-    # see https://github.com/zulip/zulip/issues/24822.
-    if (
-        onboarding_zulip_guide_url == Realm.ORG_TYPES["community"]["onboarding_zulip_guide_url"]
-        and not user.is_realm_admin
-    ):
+    # Send the general guide to community organization administrators only.
+    # Do not compare URLs here. Several organization types use the same guide.
+    if organization_type_reference == "community" and not user.is_realm_admin:
         onboarding_zulip_guide_url = None
 
     if onboarding_zulip_guide_url is not None:
@@ -969,7 +965,7 @@ def enqueue_welcome_emails(
             # and onboarding_zulip_guide as these links do not expire.
             unsubscribe_link=unsubscribe_link,
             organization_type=organization_type_reference,
-            zulip_guide_link=onboarding_zulip_guide_url,
+            zulip_guide_link=realm_url + onboarding_zulip_guide_url,
         )
 
         send_future_email(
@@ -990,7 +986,7 @@ def enqueue_welcome_emails(
             get_organization_started=realm_url + "/help/moving-to-zulip",
             invite_users=realm_url + "/help/invite-users-to-join",
             trying_out_zulip=realm_url + "/help/trying-out-zulip",
-            why_zulip="https://zulip.com/why-zulip/",
+            why_zulip=realm_url + "/help/",
         )
 
         send_future_email(

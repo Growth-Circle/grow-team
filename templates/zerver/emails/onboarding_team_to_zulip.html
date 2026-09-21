@@ -1,13 +1,13 @@
 {% extends "zerver/emails/email_base_default.html" %}
 
 {% block illustration %}
-<img src="{{ email_images_base_url }}/email_logo.png" alt=""/>
+<img src="{{ email_images_base_url }}/email_logo.png?v=grow-team-1" alt=""/>
 {% endblock %}
 
 {% block content %}
 
 <p>
-    {% trans %}If you've already decided to use Zulip for your organization, welcome! You can use our <a href="{{ get_organization_started }}">guide for moving to Zulip</a> to get started.{% endtrans %}
+    {% trans %}If you've already decided to use Grow Team for your organization, welcome! You can use our <a href="{{ get_organization_started }}">guide for moving to Grow Team</a> to get started.{% endtrans %}
 </p>
 <p>
     {% trans %}Otherwise, here is some advice we often hear from customers for evaluating <i>any</i> team chat product:{% endtrans %}
@@ -20,7 +20,7 @@
     </li>
 </ol>
 <p>
-    {% trans %}Zulip is designed to <a href="{{ why_zulip }}">enable efficient communication</a>, and we hope these tips help your team experience it in action.{% endtrans %}
+    {% trans %}Grow Team is designed to <a href="{{ why_zulip }}">enable efficient communication</a>, and we hope these tips help your team experience it in action.{% endtrans %}
 </p>
 
 <p>

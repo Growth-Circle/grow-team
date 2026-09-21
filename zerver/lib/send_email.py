@@ -197,7 +197,7 @@ def build_email(
         logger.warning("Missing language for email template '%s'", template_prefix)
 
     if from_name is None:
-        from_name = "Zulip"
+        from_name = "Grow Team"
     if from_address is None:
         from_address = FromAddress.NOREPLY
     if from_address == FromAddress.tokenized_no_reply_placeholder:

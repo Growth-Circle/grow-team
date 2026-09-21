@@ -111,7 +111,7 @@ const apps_events = function (): void {
         windows: {
             alt: "Windows",
             description:
-                "The Zulip desktop app comes with native <a class='apps-page-link' href='/help/desktop-notifications'>desktop notifications</a>, support for multiple Zulip accounts, and a dedicated tray icon.",
+                "The compatible Zulip desktop app has native <a class='apps-page-link' href='/help/desktop-notifications'>desktop notifications</a>, support for multiple accounts, and a dedicated tray icon.",
             download_link: "/apps/download/windows",
             show_instructions: true,
             install_guide: "/help/desktop-app-install-guide",
@@ -122,7 +122,7 @@ const apps_events = function (): void {
         mac: {
             alt: "macOS",
             description:
-                "The Zulip desktop app comes with native <a class='apps-page-link' href='/help/desktop-notifications'>desktop notifications</a>, support for multiple Zulip accounts, and a dedicated tray icon.",
+                "The compatible Zulip desktop app has native <a class='apps-page-link' href='/help/desktop-notifications'>desktop notifications</a>, support for multiple accounts, and a dedicated tray icon.",
             download_link: "/apps/download/mac-arm64",
             mac_intel_link: "/apps/download/mac-intel",
             show_instructions: true,
@@ -134,7 +134,7 @@ const apps_events = function (): void {
         android: {
             alt: "Android",
             description:
-                "Zulip's native Android app makes it easy to keep up while on the go, with fully customizable <a class='apps-page-link' href='/help/mobile-notifications'>mobile notifications</a>.",
+                "The compatible Zulip Android app has customizable <a class='apps-page-link' href='/help/mobile-notifications'>mobile notifications</a>.",
             show_instructions: false,
             play_store_link: "https://play.google.com/store/apps/details?id=com.zulipmobile",
             download_link: "https://github.com/zulip/zulip-flutter/releases/latest",
@@ -144,7 +144,7 @@ const apps_events = function (): void {
         ios: {
             alt: "iOS",
             description:
-                "Zulip's native iOS app makes it easy to keep up while on the go, with fully customizable <a class='apps-page-link' href='/help/mobile-notifications'>mobile notifications</a>.",
+                "The compatible Zulip iOS app has customizable <a class='apps-page-link' href='/help/mobile-notifications'>mobile notifications</a>.",
             show_instructions: false,
             app_store_link: "https://itunes.apple.com/us/app/zulip/id1203036395",
             app_type: "mobile",
@@ -152,7 +152,7 @@ const apps_events = function (): void {
         linux: {
             alt: "Linux",
             description:
-                "The Zulip desktop app comes with native <a class='apps-page-link' href='/help/desktop-notifications'>desktop notifications</a>, support for multiple Zulip accounts, and a dedicated tray icon.",
+                "The compatible Zulip desktop app has native <a class='apps-page-link' href='/help/desktop-notifications'>desktop notifications</a>, support for multiple accounts, and a dedicated tray icon.",
             download_link: "/apps/download/linux",
             show_instructions: true,
             install_guide: "/help/desktop-app-install-guide",
@@ -211,7 +211,7 @@ const apps_events = function (): void {
                     $desktop_download_link.attr("href", version_info.mac_intel_link);
                     $desktop_download_link
                         .find("span.button")
-                        .text($t({defaultMessage: "Download Zulip for macOS (Intel)"}));
+                        .text($t({defaultMessage: "Download compatible Zulip for macOS (Intel)"}));
                     $("#download-mac-alt").show();
                     $("#download-mac-alt-apple-silicon").show();
                     $("#download-mac-alt-intel").hide();
@@ -220,7 +220,7 @@ const apps_events = function (): void {
                     $desktop_download_link.attr("href", version_info.download_link);
                     $desktop_download_link
                         .find("span.button")
-                        .text($t({defaultMessage: "Download Zulip for macOS (Apple Silicon)"}));
+                        .text($t({defaultMessage: "Download compatible Zulip for macOS (Apple Silicon)"}));
                     $("#download-mac-alt").show();
                     $("#download-mac-alt-apple-silicon").hide();
                     $("#download-mac-alt-intel").show();

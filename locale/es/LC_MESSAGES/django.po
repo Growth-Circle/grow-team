@@ -431,10 +431,10 @@ msgstr "Error interno del servidor"
 #: templates/500.html
 msgid ""
 "Something went wrong. Sorry about that! We're aware of the problem and are "
-"working to fix it. Zulip will load automatically once it is working again."
+"working to fix it. Grow Team will load automatically once it is working again."
 msgstr ""
 "Algo salió mal. ¡Lo sentimos por eso! Somos conscientes del problema y "
-"estamos trabajando para solucionarlo. Zulip se cargará automáticamente "
+"estamos trabajando para solucionarlo. Grow Team se cargará automáticamente "
 "cuando vuelva a funcionar."
 
 #: templates/500.html
@@ -451,10 +451,10 @@ msgstr ""
 
 #: templates/500.html
 msgid ""
-"Something went wrong. Sorry about that! Zulip will load automatically once "
+"Something went wrong. Sorry about that! Grow Team will load automatically once "
 "it is working again."
 msgstr ""
-"Ha habido un error. ¡Lo sentimos! Zulip se cargará automáticamente en cuanto "
+"Ha habido un error. ¡Lo sentimos! Grow Team se cargará automáticamente en cuanto "
 "vuelva a funcionar."
 
 #: templates/500.html
@@ -1049,8 +1049,8 @@ msgid "Accept the Terms of Service"
 msgstr "Acepta los Términos de Servicio"
 
 #: templates/zerver/accounts_accept_terms.html
-msgid "Welcome to Zulip"
-msgstr "Te damos la bienvenida a Zulip"
+msgid "Welcome to Grow Team"
+msgstr "Te damos la bienvenida a Grow Team"
 
 #: templates/zerver/accounts_accept_terms.html
 #: templates/zerver/create_user/accounts_home.html
@@ -1062,9 +1062,9 @@ msgstr "Correo"
 #: templates/zerver/accounts_accept_terms.html
 #: templates/zerver/create_user/register.html
 #: templates/zerver/reset_confirm.html
-msgid "Subscribe me to Zulip's low-traffic newsletter (a few emails a year)."
+msgid "Subscribe me to Grow Team's low-traffic newsletter (a few emails a year)."
 msgstr ""
-"Suscríbeme al boletín informativo de Zulip, que no envía muchos correos "
+"Suscríbeme al boletín informativo de Grow Team, que no envía muchos correos "
 "(solo unos pocos al año)."
 
 #: templates/zerver/accounts_accept_terms.html
@@ -1080,11 +1080,11 @@ msgstr "Confirma tu dirección de email"
 msgid ""
 "To complete your registration, check your email account (<span "
 "class=\"user_email semi-bold\">%(email)s</span>) for a confirmation email "
-"from Zulip."
+"from Grow Team."
 msgstr ""
 "Para completar tu registro, por favor, comprueba tu cuenta de correo (<span "
 "class=\"user_email semi-bold\">%(email)s</span>) y busca un correo de "
-"confirmación de Zulip."
+"confirmación de Grow Team."
 
 #: templates/zerver/accounts_send_confirm.html
 msgid ""
@@ -1110,10 +1110,10 @@ msgstr ""
 
 #: templates/zerver/app/index.html
 msgid ""
-"Because you're using an unsupported or very old browser, Zulip may not load."
+"Because you're using an unsupported or very old browser, Grow Team may not load."
 msgstr ""
 "Como estás utilizando un navegador que no es compatible o que es muy "
-"antiguo, es posible que Zulip no se cargue."
+"antiguo, es posible que Grow Team no se cargue."
 
 #: templates/zerver/app/index.html
 msgid ""
@@ -1136,9 +1136,9 @@ msgstr ""
 
 #: templates/zerver/app/index.html
 msgid ""
-"Error loading Zulip. Try <a class=\"reload-lnk\">reloading</a> the page."
+"Error loading Grow Team. Try <a class=\"reload-lnk\">reloading</a> the page."
 msgstr ""
-"Error cargando Zulip. Intenta <a class=\"reload-lnk\">recargar</a> la página."
+"Error cargando Grow Team. Intenta <a class=\"reload-lnk\">recargar</a> la página."
 
 #: templates/zerver/app/index.html
 msgid "No conversations match your filters."
@@ -1189,8 +1189,8 @@ msgid "Account not found"
 msgstr "Cuenta no encontrada"
 
 #: templates/zerver/confirm_continue_registration.html
-msgid "Zulip account not found."
-msgstr "Cuenta de Zulip no encontrada."
+msgid "Grow Team account not found."
+msgstr "Cuenta de Grow Team no encontrada."
 
 #: templates/zerver/confirm_continue_registration.html
 #, python-format
@@ -1206,8 +1206,8 @@ msgid "Continue to registration"
 msgstr "Proceder al registro"
 
 #: templates/zerver/create_realm/create_demo_realm.html
-msgid "Try Zulip in a demo organization"
-msgstr "Prueba Zulip en una organización de demostración"
+msgid "Try Grow Team in a demo organization"
+msgstr "Prueba Grow Team en una organización de demostración"
 
 #: templates/zerver/create_realm/create_demo_realm.html
 #, python-format
@@ -1220,16 +1220,16 @@ msgstr ""
 "\">crea una organización permanente</a>."
 
 #: templates/zerver/create_realm/create_demo_realm.html
-msgid "Try Zulip"
-msgstr "Prueba Zulip"
+msgid "Try Grow Team"
+msgstr "Prueba Grow Team"
 
 #: templates/zerver/create_realm/create_realm.html
 msgid "Create a new organization"
 msgstr "Crear una nueva organización"
 
 #: templates/zerver/create_realm/create_realm.html
-msgid "Create a new Zulip organization"
-msgstr "Crear una nueva organización de Zulip"
+msgid "Create a new Grow Team organization"
+msgstr "Crear una nueva organización de Grow Team"
 
 #: templates/zerver/create_realm/create_realm.html
 #, python-format
@@ -1260,16 +1260,16 @@ msgstr ""
 "import-from-rocketchat\">Rocket.Chat</a>."
 
 #: templates/zerver/create_realm/found_zulip_form_field.html
-msgid "How did you first hear about Zulip?"
-msgstr "¿Cómo conociste Zulip?"
+msgid "How did you first hear about Grow Team?"
+msgstr "¿Cómo conociste Grow Team?"
 
 #: templates/zerver/create_realm/found_zulip_form_field.html
 msgid ""
 "This value is used only if you sign up for a plan, in which case it will be "
-"sent to the Zulip team."
+"sent to the Grow Team team."
 msgstr ""
 "Este dato solo se utiliza si te suscribes a un plan; en ese caso, se enviará "
-"al equipo de Zulip."
+"al equipo de Grow Team."
 
 #: templates/zerver/create_realm/found_zulip_form_field.html
 msgid "Select an option"
@@ -1347,8 +1347,8 @@ msgid "Sign up"
 msgstr "Registrarse"
 
 #: templates/zerver/create_user/accounts_home.html
-msgid "Sign up for Zulip"
-msgstr "Iniciar sesión en Zulip"
+msgid "Sign up for Grow Team"
+msgstr "Iniciar sesión en Grow Team"
 
 #: templates/zerver/create_user/accounts_home.html
 msgid "You need an invitation to join this organization."
@@ -1378,10 +1378,10 @@ msgstr "Configurar la privacidad de las direcciones de correo"
 
 #: templates/zerver/create_user/change_email_address_visibility_modal.html
 msgid ""
-"Zulip lets you control which roles in the organization can view your email "
+"Grow Team lets you control which roles in the organization can view your email "
 "address."
 msgstr ""
-"Zulip te permite controlar qué roles en la organización pueden ver tu correo "
+"Grow Team te permite controlar qué roles en la organización pueden ver tu correo "
 "electrónico."
 
 #: templates/zerver/create_user/change_email_address_visibility_modal.html
@@ -1409,33 +1409,33 @@ msgstr ""
 
 #: templates/zerver/create_user/new_user_email_address_visibility.html
 msgid ""
-"Administrators of this Zulip organization will be able to see this email "
+"Administrators of this Grow Team organization will be able to see this email "
 "address."
 msgstr ""
-"Los administradores de esta organización de Zulip podrán ver esta dirección "
+"Los administradores de esta organización de Grow Team podrán ver esta dirección "
 "de correo electrónico."
 
 #: templates/zerver/create_user/new_user_email_address_visibility.html
 msgid ""
-"Administrators and moderators of this Zulip organization will be able to see "
+"Administrators and moderators of this Grow Team organization will be able to see "
 "this email address."
 msgstr ""
-"Los administradores y moderadores de esta organización de Zulip podrán ver "
+"Los administradores y moderadores de esta organización de Grow Team podrán ver "
 "esta dirección de correo electrónico."
 
 #: templates/zerver/create_user/new_user_email_address_visibility.html
 msgid ""
-"Nobody in this Zulip organization will be able to see this email address."
+"Nobody in this Grow Team organization will be able to see this email address."
 msgstr ""
-"Nadie de esta organización de Zulip podrá ver esta dirección de correo "
+"Nadie de esta organización de Grow Team podrá ver esta dirección de correo "
 "electrónico."
 
 #: templates/zerver/create_user/new_user_email_address_visibility.html
 msgid ""
-"Other users in this Zulip organization will be able to see this email "
+"Other users in this Grow Team organization will be able to see this email "
 "address."
 msgstr ""
-"Los demás usuarios de esta organización de Zulip podrán ver esta dirección "
+"Los demás usuarios de esta organización de Grow Team podrán ver esta dirección "
 "de correo electrónico."
 
 #: templates/zerver/create_user/new_user_email_address_visibility.html
@@ -1471,8 +1471,8 @@ msgid "Don&rsquo;t import settings"
 msgstr "No importar ajustes"
 
 #: templates/zerver/create_user/register.html
-msgid "Import settings from existing Zulip account"
-msgstr "Importar ajustes desde una cuenta Zulip existente"
+msgid "Import settings from existing Grow Team account"
+msgstr "Importar ajustes desde una cuenta Grow Team existente"
 
 #: templates/zerver/create_user/register.html
 msgid "Your full name"
@@ -1483,8 +1483,8 @@ msgid "Name"
 msgstr "Nombre"
 
 #: templates/zerver/create_user/register.html
-msgid "This is how your account is displayed in Zulip."
-msgstr "Así es como se muestra tu cuenta en Zulip."
+msgid "This is how your account is displayed in Grow Team."
+msgstr "Así es como se muestra tu cuenta en Grow Team."
 
 #: templates/zerver/create_user/register.html templates/zerver/login.html
 #: templates/zerver/reset_confirm.html
@@ -1558,21 +1558,21 @@ msgstr ""
 #: templates/zerver/deactivated.html
 #, python-format
 msgid ""
-"You can <a href=\"mailto:%(support_email)s\">contact Zulip support</a> to "
+"You can <a href=\"mailto:%(support_email)s\">contact Grow Team support</a> to "
 "inquire about reusing this URL for a new organization."
 msgstr ""
 "Puedes <a href=\"mailto:%(support_email)s\">ponerte en contacto con el "
-"servicio de asistencia de Zulip</a> para preguntar si es posible reutilizar "
+"servicio de asistencia de Grow Team</a> para preguntar si es posible reutilizar "
 "esta URL para una nueva organización."
 
 #: templates/zerver/deactivated.html
 #, python-format
 msgid ""
-"You can <a href=\"mailto:%(support_email)s\">contact this Zulip server's "
+"You can <a href=\"mailto:%(support_email)s\">contact this Grow Team server's "
 "administrators</a> to inquire about reusing this URL for a new organization."
 msgstr ""
 "Puedes <a href=\"mailto:%(support_email)s\">ponerte en contacto con los "
-"administradores de este servidor de Zulip</a> para preguntar sobre la "
+"administradores de este servidor de Grow Team</a> para preguntar sobre la "
 "posibilidad de reutilizar esta URL para una nueva organización."
 
 #: templates/zerver/deactivated.html
@@ -1583,11 +1583,11 @@ msgstr "Esta organización ha sido desactivada."
 #, python-format
 msgid ""
 "If you are an owner of this organization, you can <a href=\"mailto:"
-"%(support_email)s\">contact Zulip support</a> to reactivate it."
+"%(support_email)s\">contact Grow Team support</a> to reactivate it."
 msgstr ""
 "Si eres el propietario de esta organización, puedes <a href=\"mailto:"
 "%(support_email)s\">ponerte en contacto con el servicio de asistencia de "
-"Zulip</a> para reactivarla."
+"Grow Team</a> para reactivarla."
 
 #: templates/zerver/deactivated.html
 msgid ""
@@ -1602,12 +1602,12 @@ msgstr ""
 #, python-format
 msgid ""
 "If you are an owner of this organization, you can <a href=\"mailto:"
-"%(support_email)s\">contact this Zulip server's administrators</a> to "
+"%(support_email)s\">contact this Grow Team server's administrators</a> to "
 "reactivate it."
 msgstr ""
 "Si eres el propietario de esta organización, puedes <a href=\"mailto:"
 "%(support_email)s\">ponerte en contacto con los administradores de este "
-"servidor de Zulip</a> para reactivarla."
+"servidor de Grow Team</a> para reactivarla."
 
 #: templates/zerver/desktop_login.html
 msgid "Finish desktop app login"
@@ -1647,9 +1647,9 @@ msgstr "Iniciar sesión en la aplicación de escritorio"
 
 #: templates/zerver/desktop_redirect.html
 msgid ""
-"Copy this login token and return to your Zulip app to finish logging in:"
+"Copy this login token and return to your Grow Team app to finish logging in:"
 msgstr ""
-"Copia este token de inicio de sesión y vuelve a tu aplicación de Zulip para "
+"Copia este token de inicio de sesión y vuelve a tu aplicación de Grow Team para "
 "terminar el inicio de sesión:"
 
 #: templates/zerver/desktop_redirect.html
@@ -1703,8 +1703,8 @@ msgstr "Actualizar"
 
 #: templates/zerver/development/integrations_dev_panel.html
 #: templates/zerver/portico-header.html zerver/models/realms.py
-msgid "Zulip"
-msgstr "Zulip"
+msgid "Grow Team"
+msgstr "Grow Team"
 
 #: templates/zerver/digest_base.html
 msgid "Digest"
@@ -1713,31 +1713,31 @@ msgstr "Resumen"
 #: templates/zerver/emails/account_registered.html
 #, python-format
 msgid ""
-"Congratulations, you have created a new Zulip organization: "
+"Congratulations, you have created a new Grow Team organization: "
 "<b>%(realm_name)s</b>."
 msgstr ""
-"Enhorabuena, acaba de crear una nueva organización de Zulip: "
+"Enhorabuena, acaba de crear una nueva organización de Grow Team: "
 "<b>%(realm_name)s</b>."
 
 #: templates/zerver/emails/account_registered.html
 #: templates/zerver/emails/account_registered.txt
-msgid "Welcome to Zulip!"
-msgstr "¡Bienvenido a Zulip!"
+msgid "Welcome to Grow Team!"
+msgstr "¡Bienvenido a Grow Team!"
 
 #: templates/zerver/emails/account_registered.html
 #, python-format
-msgid "You've joined the Zulip organization <b>%(realm_name)s</b>."
+msgid "You've joined the Grow Team organization <b>%(realm_name)s</b>."
 msgstr ""
-"Acabas de iniciar sesión en la organización de Zulip <b>%(realm_name)s</b>."
+"Acabas de iniciar sesión en la organización de Grow Team <b>%(realm_name)s</b>."
 
 #: templates/zerver/emails/account_registered.html
 #, python-format
 msgid ""
-"You will use the following info to log into the Zulip web, <a "
+"You will use the following info to log into the Grow Team web, <a "
 "href=\"%(apps_page_link)s\">mobile and desktop</a> apps:"
 msgstr ""
 "Usarás la siguiente información para iniciar sesión en las aplicaciones web, "
-"<a href=\"%(apps_page_link)s\">móviles y de escritorio</a> de Zulip:"
+"<a href=\"%(apps_page_link)s\">móviles y de escritorio</a> de Grow Team:"
 
 #: templates/zerver/emails/account_registered.html
 #: templates/zerver/emails/account_registered.txt
@@ -1771,10 +1771,10 @@ msgstr "Ir a tu organización"
 #: templates/zerver/emails/account_registered.html
 #, python-format
 msgid ""
-"If you are new to Zulip, check out our <a "
+"If you are new to Grow Team, check out our <a "
 "href=\"%(getting_user_started_link)s\">getting started guide</a>!"
 msgstr ""
-"Si eres nuevo en Zulip, ¡echa un vistazo a nuestra <a "
+"Si eres nuevo en Grow Team, ¡echa un vistazo a nuestra <a "
 "href=\"%(getting_user_started_link)s\">guía de introducción</a>!"
 
 #: templates/zerver/emails/account_registered.html
@@ -1782,11 +1782,11 @@ msgstr ""
 msgid ""
 "We also have a guide for <a "
 "href=\"%(getting_organization_started_link)s\">moving your organization to "
-"Zulip</a>."
+"Grow Team</a>."
 msgstr ""
 "También disponemos de una guía para <a "
 "href=\"%(getting_organization_started_link)s\">trasladar tu organización a "
-"Zulip</a>."
+"Grow Team</a>."
 
 #: templates/zerver/emails/account_registered.html
 #, python-format
@@ -1799,51 +1799,51 @@ msgstr ""
 
 #: templates/zerver/emails/account_registered.subject.txt
 #, python-format
-msgid "%(realm_name)s on Zulip: Your new organization details"
-msgstr "%(realm_name)s en Zulip: Detalles de tu nueva organización"
+msgid "%(realm_name)s on Grow Team: Your new organization details"
+msgstr "%(realm_name)s en Grow Team: Detalles de tu nueva organización"
 
 #: templates/zerver/emails/account_registered.subject.txt
 #, python-format
-msgid "%(realm_name)s on Zulip: Your new account details"
-msgstr "%(realm_name)s en Zulip: Detalles de tu nueva cuenta"
+msgid "%(realm_name)s on Grow Team: Your new account details"
+msgstr "%(realm_name)s en Grow Team: Detalles de tu nueva cuenta"
 
 #: templates/zerver/emails/account_registered.txt
 #, python-format
 msgid ""
-"Congratulations, you have created a new Zulip organization: %(realm_name)s."
+"Congratulations, you have created a new Grow Team organization: %(realm_name)s."
 msgstr ""
-"Enhorabuena, acaba de crear una nueva organización de Zulip: %(realm_name)s."
+"Enhorabuena, acaba de crear una nueva organización de Grow Team: %(realm_name)s."
 
 #: templates/zerver/emails/account_registered.txt
 #, python-format
-msgid "You've joined the Zulip organization %(realm_name)s."
-msgstr "Te haz unido a la organización Zulip %(realm_name)s."
+msgid "You've joined the Grow Team organization %(realm_name)s."
+msgstr "Te haz unido a la organización Grow Team %(realm_name)s."
 
 #: templates/zerver/emails/account_registered.txt
 #, python-format
 msgid ""
-"You will use the following info to log into the Zulip web, mobile and "
+"You will use the following info to log into the Grow Team web, mobile and "
 "desktop apps (%(apps_page_link)s):"
 msgstr ""
-"Se usará la siguiente información para iniciar sesión en celular, Zulip web "
+"Se usará la siguiente información para iniciar sesión en celular, Grow Team web "
 "y aplicaciones de escritorio (%(apps_page_link)s):"
 
 #: templates/zerver/emails/account_registered.txt
 #, python-format
 msgid ""
-"If you are new to Zulip, check out our getting started guide "
+"If you are new to Grow Team, check out our getting started guide "
 "(%(getting_user_started_link)s)!"
 msgstr ""
-"Si eres nuevo en Zulip, ¡echa un vistazo a nuestra guía de introducción "
+"Si eres nuevo en Grow Team, ¡echa un vistazo a nuestra guía de introducción "
 "(%(getting_user_started_link)s)!"
 
 #: templates/zerver/emails/account_registered.txt
 #, python-format
 msgid ""
-"We also have a guide for moving your organization to Zulip "
+"We also have a guide for moving your organization to Grow Team "
 "(%(getting_organization_started_link)s)."
 msgstr ""
-"También disponemos de una guía para migrar tu organización a Zulip "
+"También disponemos de una guía para migrar tu organización a Grow Team "
 "(%(getting_organization_started_link)s)."
 
 #: templates/zerver/emails/account_registered.txt
@@ -1861,11 +1861,11 @@ msgstr ""
 #: templates/zerver/emails/realm_reactivation.txt
 #, python-format
 msgid ""
-"If you have any questions, please contact this Zulip server's administrators "
+"If you have any questions, please contact this Grow Team server's administrators "
 "at %(support_email)s."
 msgstr ""
 "Si tienes alguna duda, por favor contacta con el administrador de este "
-"servidor Zulip en el siguiente email %(support_email)s."
+"servidor Grow Team en el siguiente email %(support_email)s."
 
 #: templates/zerver/emails/confirm_demo_organization_email.html
 #: templates/zerver/emails/confirm_demo_organization_email.txt
@@ -1880,12 +1880,12 @@ msgstr "Hola,"
 #: templates/zerver/emails/confirm_demo_organization_email.txt
 #, python-format
 msgid ""
-"We received a request to add the email address %(new_email)s to your Zulip "
+"We received a request to add the email address %(new_email)s to your Grow Team "
 "demo organization account on %(realm_url)s. To confirm this update and set a "
 "password for this account, please click below:"
 msgstr ""
 "Hemos recibido una solicitud para añadir la dirección de correo electrónico "
-"%(new_email)s a tu cuenta de la organización de demostración de Zulip en "
+"%(new_email)s a tu cuenta de la organización de demostración de Grow Team en "
 "%(realm_url)s. Para confirmar esta actualización y establecer una contraseña "
 "para esta cuenta, haz clic a continuación:"
 
@@ -1904,10 +1904,10 @@ msgstr ""
 "%(support_email)s de inmediato."
 
 #: templates/zerver/emails/confirm_demo_organization_email.subject.txt
-msgid "Verify your email address for your Zulip demo organization"
+msgid "Verify your email address for your Grow Team demo organization"
 msgstr ""
 "Verifica tu dirección de correo electrónico para tu organización de "
-"demostración de Zulip"
+"demostración de Grow Team"
 
 #: templates/zerver/emails/confirm_demo_organization_email.txt
 #: templates/zerver/emails/confirm_new_email.txt
@@ -1923,12 +1923,12 @@ msgstr ""
 #: templates/zerver/emails/confirm_new_email.txt
 #, python-format
 msgid ""
-"We received a request to change the email address for the Zulip account on "
+"We received a request to change the email address for the Grow Team account on "
 "%(realm_url)s from %(old_email)s to %(new_email)s. To confirm this change, "
 "please click below:"
 msgstr ""
 "Hemos recibido una solicitud para cambiar la dirección de correo electrónico "
-"de la cuenta de Zulip en %(realm_url)s de %(old_email)s a %(new_email)s. "
+"de la cuenta de Grow Team en %(realm_url)s de %(old_email)s a %(new_email)s. "
 "Para confirmar este cambio, haz clic a continuación:"
 
 #: templates/zerver/emails/confirm_new_email.html
@@ -1942,8 +1942,8 @@ msgstr "Verifica tu dirección de correo para %(organization_host)s"
 
 #: templates/zerver/emails/confirm_registration.html
 #: templates/zerver/emails/confirm_registration.txt
-msgid "You have requested a new Zulip organization:"
-msgstr "Has solicitado crear una nueva organización Zulip:"
+msgid "You have requested a new Grow Team organization:"
+msgstr "Has solicitado crear una nueva organización Grow Team:"
 
 #: templates/zerver/emails/confirm_registration.html
 #: templates/zerver/emails/confirm_registration.txt
@@ -1953,8 +1953,8 @@ msgstr "Tipo de organización: %(organization_type)s"
 
 #: templates/zerver/emails/confirm_registration.html
 #: templates/zerver/emails/confirm_registration.txt
-msgid "You recently signed up for Zulip. Awesome!"
-msgstr "Te has registrado recientemente en Zulip. ¡Genial!"
+msgid "You recently signed up for Grow Team. Awesome!"
+msgstr "Te has registrado recientemente en Grow Team. ¡Genial!"
 
 #: templates/zerver/emails/confirm_registration.html
 #: templates/zerver/emails/confirm_registration.txt
@@ -1976,12 +1976,12 @@ msgid "Complete registration"
 msgstr "Completar registro"
 
 #: templates/zerver/emails/confirm_registration.subject.txt
-msgid "Create your Zulip organization"
-msgstr "Crea tu organización Zulip"
+msgid "Create your Grow Team organization"
+msgstr "Crea tu organización Grow Team"
 
 #: templates/zerver/emails/confirm_registration.subject.txt
-msgid "Activate your Zulip account"
-msgstr "Activar tu cuenta Zulip"
+msgid "Activate your Grow Team account"
+msgstr "Activar tu cuenta Grow Team"
 
 #: templates/zerver/emails/confirm_registration.txt
 msgid "Click the link below to complete registration."
@@ -2016,10 +2016,10 @@ msgstr "Desubscribirse de emails de marketing"
 #: templates/zerver/portico_error_pages/user_deactivated.html
 #, python-format
 msgid ""
-"Your Zulip account on <a href=\"%(realm_url)s\">%(realm_url)s</a> has been "
+"Your Grow Team account on <a href=\"%(realm_url)s\">%(realm_url)s</a> has been "
 "deactivated, and you will no longer be able to log in."
 msgstr ""
-"Tu cuenta de Zulip en <a href=\"%(realm_url)s\">%(realm_url)s</a> ha sido "
+"Tu cuenta de Grow Team en <a href=\"%(realm_url)s\">%(realm_url)s</a> ha sido "
 "desactivada, por lo que ya no podrás iniciar sesión."
 
 #: templates/zerver/emails/deactivate.html
@@ -2035,10 +2035,10 @@ msgstr "Notificación de desactivación de cuenta en %(realm_name)s"
 #: templates/zerver/emails/deactivate.txt
 #, python-format
 msgid ""
-"Your Zulip account on %(realm_url)s has been deactivated, and you will no "
+"Your Grow Team account on %(realm_url)s has been deactivated, and you will no "
 "longer be able to log in."
 msgstr ""
-"Tu cuenta de Zulip en %(realm_url)s ha sido desactivada y ya no podrás "
+"Tu cuenta de Grow Team en %(realm_url)s ha sido desactivada y ya no podrás "
 "iniciar sesión."
 
 #: templates/zerver/emails/digest.html templates/zerver/emails/digest.txt
@@ -2101,9 +2101,9 @@ msgstr ""
 
 #: templates/zerver/emails/digest.html
 #, python-format
-msgid "<a href=\"%(realm_url)s\">Log in</a> to Zulip to catch up."
+msgid "<a href=\"%(realm_url)s\">Log in</a> to Grow Team to catch up."
 msgstr ""
-"<a href=\"%(realm_url)s\">Inicia sesión</a> en Zulip para ponerte al día."
+"<a href=\"%(realm_url)s\">Inicia sesión</a> en Grow Team para ponerte al día."
 
 #: templates/zerver/emails/digest.html
 msgid "Unsubscribe from digest emails"
@@ -2111,8 +2111,8 @@ msgstr "Desubscribirse de los emails de digesto"
 
 #: templates/zerver/emails/digest.subject.txt
 #, python-format
-msgid "Zulip digest for %(realm_name)s"
-msgstr "Resumen de Zulip para %(realm_name)s"
+msgid "Grow Team digest for %(realm_name)s"
+msgstr "Resumen de Grow Team para %(realm_name)s"
 
 #: templates/zerver/emails/digest.txt
 #, python-format
@@ -2158,8 +2158,8 @@ msgstr ""
 
 #: templates/zerver/emails/digest.txt
 #, python-format
-msgid "Log in to Zulip to catch up: %(organization_url)s."
-msgstr "Inicia sesión en Zulip para ponerte al día: %(organization_url)s."
+msgid "Log in to Grow Team to catch up: %(organization_url)s."
+msgstr "Inicia sesión en Grow Team para ponerte al día: %(organization_url)s."
 
 #: templates/zerver/emails/digest.txt
 #: templates/zerver/emails/missed_message.txt
@@ -2191,11 +2191,11 @@ msgstr ""
 #: templates/zerver/emails/find_team.html templates/zerver/emails/find_team.txt
 #, python-format
 msgid ""
-"Your email address %(email)s has accounts with the following Zulip "
+"Your email address %(email)s has accounts with the following Grow Team "
 "organizations hosted by %(external_host)s:"
 msgstr ""
 "Tu dirección de correo %(email)stiene cuentas con las siguientes "
-"organizaciones de Zulip creadas por %(external_host)s:"
+"organizaciones de Grow Team creadas por %(external_host)s:"
 
 #: templates/zerver/emails/find_team.html
 #, python-format
@@ -2207,9 +2207,9 @@ msgstr ""
 "href=\"%(help_reset_password_link)s\">restablecer tu contraseña</a>."
 
 #: templates/zerver/emails/find_team.html templates/zerver/emails/find_team.txt
-msgid "You have requested a list of Zulip accounts for this email address."
+msgid "You have requested a list of Grow Team accounts for this email address."
 msgstr ""
-"Has solicitado una lista de cuentas de Zulip asociadas a esta dirección de "
+"Has solicitado una lista de cuentas de Grow Team asociadas a esta dirección de "
 "correo electrónico."
 
 #: templates/zerver/emails/find_team.html templates/zerver/emails/find_team.txt
@@ -2219,10 +2219,10 @@ msgstr "Lamentablemente, no se han encontrado cuentas de Zulip Cloud."
 #: templates/zerver/emails/find_team.html templates/zerver/emails/find_team.txt
 #, python-format
 msgid ""
-"Unfortunately, no accounts were found in Zulip organizations hosted by "
+"Unfortunately, no accounts were found in Grow Team organizations hosted by "
 "%(external_host)s."
 msgstr ""
-"Lamentablemente, no se han encontrado cuentas en las organizaciones de Zulip "
+"Lamentablemente, no se han encontrado cuentas en las organizaciones de Grow Team "
 "alojadas en %(external_host)s."
 
 #: templates/zerver/emails/find_team.html
@@ -2243,12 +2243,12 @@ msgstr ""
 "ningún problema."
 
 #: templates/zerver/emails/find_team.subject.txt
-msgid "Your Zulip accounts"
-msgstr "Tus cuentas de Zulip"
+msgid "Your Grow Team accounts"
+msgstr "Tus cuentas de Grow Team"
 
 #: templates/zerver/emails/find_team.subject.txt
-msgid "No Zulip accounts found"
-msgstr "No se han encontrado cuentas de Zulip"
+msgid "No Grow Team accounts found"
+msgstr "No se han encontrado cuentas de Grow Team"
 
 #: templates/zerver/emails/find_team.txt
 msgid "If you have trouble logging in, you can reset your password."
@@ -2273,10 +2273,10 @@ msgstr "Hola,"
 #: templates/zerver/emails/invitation.html
 #, python-format
 msgid ""
-"%(referrer_name)s wants you to join them on Zulip &mdash; the team "
+"%(referrer_name)s wants you to join them on Grow Team &mdash; the team "
 "communication tool designed for productivity."
 msgstr ""
-"%(referrer_name)s quiere que te unas a ellos en Zulip &mdash; la herramienta "
+"%(referrer_name)s quiere que te unas a ellos en Grow Team &mdash; la herramienta "
 "de comunicación entre equipos diseñada para productividad."
 
 #: templates/zerver/emails/invitation.html
@@ -2292,10 +2292,10 @@ msgstr "%(referrer_full_name)s te invitó a unirte a %(referrer_realm_name)s"
 #: templates/zerver/emails/invitation.txt
 #, python-format
 msgid ""
-"%(referrer_full_name)s (%(referrer_email)s) wants you to join them on Zulip "
+"%(referrer_full_name)s (%(referrer_email)s) wants you to join them on Grow Team "
 "-- the team communication tool designed for productivity."
 msgstr ""
-"%(referrer_full_name)s (%(referrer_email)s) quiere que te unas a Zulip — la "
+"%(referrer_full_name)s (%(referrer_email)s) quiere que te unas a Grow Team — la "
 "herramienta de comunicación para equipos diseñada con la productividad en "
 "mente."
 
@@ -2313,10 +2313,10 @@ msgstr "Hola de nuevo,"
 #, python-format
 msgid ""
 "This is a friendly reminder that %(referrer_name)s wants you to join them on "
-"Zulip &mdash; the team communication tool designed for productivity."
+"Grow Team &mdash; the team communication tool designed for productivity."
 msgstr ""
 "Este es un agradable recordatorio de que %(referrer_name)s quiere que te "
-"unas a ellos en Zulip &mdash; la herramienta de comunicación de equipos "
+"unas a ellos en Grow Team &mdash; la herramienta de comunicación de equipos "
 "diseñada exclusivamente para productividad."
 
 #: templates/zerver/emails/invitation_reminder.html
@@ -2343,17 +2343,17 @@ msgstr "Recordatorio: Únete a %(referrer_name)s en %(referrer_realm_name)s"
 #, python-format
 msgid ""
 "This is a friendly reminder that %(referrer_name)s (%(referrer_email)s) "
-"wants you to join them on Zulip -- the team communication tool designed for "
+"wants you to join them on Grow Team -- the team communication tool designed for "
 "productivity."
 msgstr ""
 "Este es un recordatorio de que %(referrer_name)s (%(referrer_email)s) quiere "
-"que te unas a Zulip, una herramienta de chat para el trabajo que realmente "
+"que te unas a Grow Team, una herramienta de chat para el trabajo que realmente "
 "aumenta tu productividad."
 
 #: templates/zerver/emails/macros.html
 #, python-format
 msgid ""
-"If you have any questions, please contact this Zulip server's administrators "
+"If you have any questions, please contact this Grow Team server's administrators "
 "at <a href=\"mailto:%(email)s\">%(email)s</a>."
 msgstr ""
 "Si tiene alguna duda, póngase en contacto con el administrador de este "
@@ -2431,38 +2431,38 @@ msgstr ""
 #, python-format
 msgid ""
 "Reply to this email directly, <a href=\"%(narrow_url)s\">view it in "
-"%(realm_name)s Zulip</a>, or <a href=\"%(notif_url)s\">manage email "
+"%(realm_name)s Grow Team</a>, or <a href=\"%(notif_url)s\">manage email "
 "preferences</a>."
 msgstr ""
 "Responde a este email directamente, <a href=\"%(narrow_url)s\">revisalo en "
-"%(realm_name)s Zulip</a>, o <a href=\"%(notif_url)s\">administra tus "
+"%(realm_name)s Grow Team</a>, o <a href=\"%(notif_url)s\">administra tus "
 "preferencias de correo</a>."
 
 #: templates/zerver/emails/missed_message.html
 #, python-format
 msgid ""
-"<a href=\"%(narrow_url)s\">View or reply in %(realm_name)s Zulip</a>, or <a "
+"<a href=\"%(narrow_url)s\">View or reply in %(realm_name)s Grow Team</a>, or <a "
 "href=\"%(notif_url)s\">manage email preferences</a>."
 msgstr ""
-"<a href=\"%(narrow_url)s\">Ver o responder en %(realm_name)s Zulip</a> o <a "
+"<a href=\"%(narrow_url)s\">Ver o responder en %(realm_name)s Grow Team</a> o <a "
 "href=\"%(notif_url)s\">administrar preferencias de correo</a>."
 
 #: templates/zerver/emails/missed_message.html
 #, python-format
 msgid ""
-"<a href=\"%(narrow_url)s\">Reply in %(realm_name)s Zulip</a>, or <a "
+"<a href=\"%(narrow_url)s\">Reply in %(realm_name)s Grow Team</a>, or <a "
 "href=\"%(notif_url)s\">manage email preferences</a>."
 msgstr ""
-"<a href=\"%(narrow_url)s\">Responder en %(realm_name)s Zulip</a>, o <a "
+"<a href=\"%(narrow_url)s\">Responder en %(realm_name)s Grow Team</a>, o <a "
 "href=\"%(notif_url)s\">administrar prefencias de correo</a>."
 
 #: templates/zerver/emails/missed_message.html
 #, python-format
 msgid ""
-"Do not reply to this email. This Zulip server is not configured to accept "
+"Do not reply to this email. This Grow Team server is not configured to accept "
 "incoming emails (<a href=\"%(url)s\">help</a>)."
 msgstr ""
-"No responder a este correo. Este servidor de Zulip no fue configurado para "
+"No responder a este correo. Este servidor de Grow Team no fue configurado para "
 "aceptar correos entrantes (<a href=\"%(url)s\">ayuda</a>)."
 
 #: templates/zerver/emails/missed_message.subject.txt
@@ -2486,36 +2486,36 @@ msgstr "Nuevos mensajes"
 
 #: templates/zerver/emails/missed_message.txt
 #, python-format
-msgid "Reply to this email directly, or view it in %(realm_name)s Zulip:"
+msgid "Reply to this email directly, or view it in %(realm_name)s Grow Team:"
 msgstr ""
-"Responda a este correo directamente, o revíselo en %(realm_name)s Zulip:"
+"Responda a este correo directamente, o revíselo en %(realm_name)s Grow Team:"
 
 #: templates/zerver/emails/missed_message.txt
 #, python-format
-msgid "View or reply in %(realm_name)s Zulip:"
+msgid "View or reply in %(realm_name)s Grow Team:"
 msgstr "Ver o responder en %(realm_name)sZulip:"
 
 #: templates/zerver/emails/missed_message.txt
 #, python-format
-msgid "Reply in %(realm_name)s Zulip:"
+msgid "Reply in %(realm_name)s Grow Team:"
 msgstr "Responder en %(realm_name)sZulip:"
 
 #: templates/zerver/emails/missed_message.txt
 msgid ""
-"Do not reply to this email. This Zulip server is not configured to accept "
+"Do not reply to this email. This Grow Team server is not configured to accept "
 "incoming emails. Help:"
 msgstr ""
-"No responder a este corre. Este servidor de Zulip no fue configurado para "
+"No responder a este corre. Este servidor de Grow Team no fue configurado para "
 "recibir correos entrantes. Ayuda:"
 
 #: templates/zerver/emails/notify_change_in_email.html
 #, python-format
 msgid ""
-"The email associated with your Zulip account was recently changed to "
+"The email associated with your Grow Team account was recently changed to "
 "%(new_email)s. If you did not request this change, please contact us "
 "immediately at %(support_email)s."
 msgstr ""
-"El correo asociado a tu cuenta de Zulip fue recientemente cambiado a "
+"El correo asociado a tu cuenta de Grow Team fue recientemente cambiado a "
 "%(new_email)s. Si no fuiste tú quien solicitó este cambio, contáctanos de "
 "inmediato a %(support_email)s."
 
@@ -2526,22 +2526,22 @@ msgstr "Saludos,"
 
 #: templates/zerver/emails/notify_change_in_email.html
 #: templates/zerver/emails/notify_change_in_email.txt
-msgid "Team Zulip"
-msgstr "El equipo de Zulip"
+msgid "Team Grow Team"
+msgstr "El equipo de Grow Team"
 
 #: templates/zerver/emails/notify_change_in_email.subject.txt
 #, python-format
-msgid "Zulip email changed for %(realm_name)s"
-msgstr "Correo de Zulip cambiado por %(realm_name)s"
+msgid "Grow Team email changed for %(realm_name)s"
+msgstr "Correo de Grow Team cambiado por %(realm_name)s"
 
 #: templates/zerver/emails/notify_change_in_email.txt
 #, python-format
 msgid ""
-"The email associated with your Zulip account was recently changed to "
+"The email associated with your Grow Team account was recently changed to "
 "%(new_email)s. If you did not request this change, please contact us "
 "immediately at <%(support_email)s>."
 msgstr ""
-"El correo asociado con tu cuenta Zulip fue cambiado recientemente a "
+"El correo asociado con tu cuenta Grow Team fue cambiado recientemente a "
 "%(new_email)s. Si no has solicitado este cambio, por favor, contáctanos "
 "inmediatamente en <%(support_email)s>."
 
@@ -2555,9 +2555,9 @@ msgstr ""
 
 #: templates/zerver/emails/notify_new_login.html
 #: templates/zerver/emails/notify_new_login.txt
-msgid "We noticed a recent login for the following Zulip account."
+msgid "We noticed a recent login for the following Grow Team account."
 msgstr ""
-"Hemos observado un inicio de sesion reciente para la siguiente cuenta Zulip."
+"Hemos observado un inicio de sesion reciente para la siguiente cuenta Grow Team."
 
 #: templates/zerver/emails/notify_new_login.html
 #, python-format
@@ -2613,8 +2613,8 @@ msgstr "Gracias,"
 
 #: templates/zerver/emails/notify_new_login.html
 #: templates/zerver/emails/notify_new_login.txt
-msgid "Zulip Security"
-msgstr "Seguridad de Zulip"
+msgid "Grow Team Security"
+msgstr "Seguridad de Grow Team"
 
 #: templates/zerver/emails/notify_new_login.html
 msgid "Unsubscribe from login notifications"
@@ -2644,13 +2644,13 @@ msgstr ""
 #: templates/zerver/emails/onboarding_team_to_zulip.html
 #, python-format
 msgid ""
-"If you've already decided to use Zulip for your organization, welcome! You "
+"If you've already decided to use Grow Team for your organization, welcome! You "
 "can use our <a href=\"%(get_organization_started)s\">guide for moving to "
-"Zulip</a> to get started."
+"Grow Team</a> to get started."
 msgstr ""
-"Si ya has decidido utilizar Zulip en tu organización, ¡bienvenido! Puedes "
+"Si ya has decidido utilizar Grow Team en tu organización, ¡bienvenido! Puedes "
 "consultar nuestra <a href=\"%(get_organization_started)s\">guía para migrar "
-"a Zulip</a> para empezar."
+"a Grow Team</a> para empezar."
 
 #: templates/zerver/emails/onboarding_team_to_zulip.html
 msgid ""
@@ -2689,11 +2689,11 @@ msgstr ""
 #: templates/zerver/emails/onboarding_team_to_zulip.html
 #, python-format
 msgid ""
-"Zulip is designed to <a href=\"%(why_zulip)s\">enable efficient "
+"Grow Team is designed to <a href=\"%(why_zulip)s\">enable efficient "
 "communication</a>, and we hope these tips help your team experience it in "
 "action."
 msgstr ""
-"Zulip fue diseñado para lograr una comunicación <a "
+"Grow Team fue diseñado para lograr una comunicación <a "
 "href=\"%(why_zulip)s\">eficiente</a>. Esperamos que estos consejos te "
 "permitan ponerlo a prueba junto a tu equipo."
 
@@ -2713,11 +2713,11 @@ msgstr "Eligiendo la aplicación de mensajería para tu equipo"
 
 #: templates/zerver/emails/onboarding_team_to_zulip.txt
 msgid ""
-"If you've already decided to use Zulip for your organization, welcome! You "
-"can use our guide for moving to Zulip to get started."
+"If you've already decided to use Grow Team for your organization, welcome! You "
+"can use our guide for moving to Grow Team to get started."
 msgstr ""
-"Si ya has decidido utilizar Zulip en tu organización, ¡bienvenido! Puedes "
-"consultar nuestra guía para dar el salto a Zulip y empezar a utilizarlo."
+"Si ya has decidido utilizar Grow Team en tu organización, ¡bienvenido! Puedes "
+"consultar nuestra guía para dar el salto a Grow Team y empezar a utilizarlo."
 
 #: templates/zerver/emails/onboarding_team_to_zulip.txt
 msgid ""
@@ -2745,116 +2745,116 @@ msgstr ""
 
 #: templates/zerver/emails/onboarding_team_to_zulip.txt
 msgid ""
-"Zulip is designed to enable efficient communication, and we hope these tips "
+"Grow Team is designed to enable efficient communication, and we hope these tips "
 "help your team experience it in action."
 msgstr ""
-"Zulip está diseñado para facilitar una comunicación eficaz, y esperamos que "
+"Grow Team está diseñado para facilitar una comunicación eficaz, y esperamos que "
 "estos consejos ayuden a tu equipo a descubrirlo en la práctica."
 
 #: templates/zerver/emails/onboarding_zulip_guide.html
 #: templates/zerver/emails/onboarding_zulip_guide.txt
 msgid ""
-"As you are getting started with Zulip, we'd love to help you discover how it "
-"can work best for your needs. Check out this guide to key Zulip features for "
+"As you are getting started with Grow Team, we'd love to help you discover how it "
+"can work best for your needs. Check out this guide to key Grow Team features for "
 "organizations like yours!"
 msgstr ""
-"Mientras aprendés a usar Zulip, nos encantaría ayudarte a descubrir cómo se "
+"Mientras aprendés a usar Grow Team, nos encantaría ayudarte a descubrir cómo se "
 "pueda adaptar a tus necesidades. Revisá esta guía de características clave "
-"de Zulip para organizaciones como la tuya!"
+"de Grow Team para organizaciones como la tuya!"
 
 #: templates/zerver/emails/onboarding_zulip_guide.html
 #: templates/zerver/emails/onboarding_zulip_guide.txt
-msgid "View Zulip guide for businesses"
-msgstr "Consulta la guía de Zulip para empresas"
+msgid "View Grow Team guide for businesses"
+msgstr "Consulta la guía de Grow Team para empresas"
 
 #: templates/zerver/emails/onboarding_zulip_guide.html
 #: templates/zerver/emails/onboarding_zulip_guide.txt
-msgid "View Zulip guide for open-source projects"
-msgstr "Consulta la guía de Zulip para proyectos de código abierto"
+msgid "View Grow Team guide for open-source projects"
+msgstr "Consulta la guía de Grow Team para proyectos de código abierto"
 
 #: templates/zerver/emails/onboarding_zulip_guide.html
 #: templates/zerver/emails/onboarding_zulip_guide.txt
-msgid "View Zulip guide for education"
-msgstr "Consulta la guía de Zulip para el sector educativo"
+msgid "View Grow Team guide for education"
+msgstr "Consulta la guía de Grow Team para el sector educativo"
 
 #: templates/zerver/emails/onboarding_zulip_guide.html
 #: templates/zerver/emails/onboarding_zulip_guide.txt
-msgid "View Zulip guide for research"
-msgstr "Consulta la guía de Zulip para la investigación"
+msgid "View Grow Team guide for research"
+msgstr "Consulta la guía de Grow Team para la investigación"
 
 #: templates/zerver/emails/onboarding_zulip_guide.html
 #: templates/zerver/emails/onboarding_zulip_guide.txt
-msgid "View Zulip guide for events and conferences"
-msgstr "Consulta la guía de Zulip para eventos y conferencias"
+msgid "View Grow Team guide for events and conferences"
+msgstr "Consulta la guía de Grow Team para eventos y conferencias"
 
 #: templates/zerver/emails/onboarding_zulip_guide.html
 #: templates/zerver/emails/onboarding_zulip_guide.txt
-msgid "View Zulip guide for non-profits"
-msgstr "Consulta la guía de Zulip para organizaciones sin ánimo de lucro"
+msgid "View Grow Team guide for non-profits"
+msgstr "Consulta la guía de Grow Team para organizaciones sin ánimo de lucro"
 
 #: templates/zerver/emails/onboarding_zulip_guide.html
 #: templates/zerver/emails/onboarding_zulip_guide.txt
-msgid "View Zulip guide for communities"
-msgstr "Consulta la guía de Zulip para comunidades"
+msgid "View Grow Team guide for communities"
+msgstr "Consulta la guía de Grow Team para comunidades"
 
 #: templates/zerver/emails/onboarding_zulip_guide.subject.txt
-msgid "Zulip guide for businesses"
-msgstr "Guía de Zulip para empresas"
+msgid "Grow Team guide for businesses"
+msgstr "Guía de Grow Team para empresas"
 
 #: templates/zerver/emails/onboarding_zulip_guide.subject.txt
-msgid "Zulip guide for open-source projects"
-msgstr "Guía de Zulip para proyectos de código abierto"
+msgid "Grow Team guide for open-source projects"
+msgstr "Guía de Grow Team para proyectos de código abierto"
 
 #: templates/zerver/emails/onboarding_zulip_guide.subject.txt
-msgid "Zulip guide for education"
-msgstr "Guía de Zulip para el sector educativo"
+msgid "Grow Team guide for education"
+msgstr "Guía de Grow Team para el sector educativo"
 
 #: templates/zerver/emails/onboarding_zulip_guide.subject.txt
-msgid "Zulip guide for research"
-msgstr "Guía de Zulip para la investigación"
+msgid "Grow Team guide for research"
+msgstr "Guía de Grow Team para la investigación"
 
 #: templates/zerver/emails/onboarding_zulip_guide.subject.txt
-msgid "Zulip guide for events and conferences"
-msgstr "Guía de Zulip para eventos y conferencias"
+msgid "Grow Team guide for events and conferences"
+msgstr "Guía de Grow Team para eventos y conferencias"
 
 #: templates/zerver/emails/onboarding_zulip_guide.subject.txt
-msgid "Zulip guide for non-profits"
-msgstr "Guía de Zulip para organizaciones sin ánimo de lucro"
+msgid "Grow Team guide for non-profits"
+msgstr "Guía de Grow Team para organizaciones sin ánimo de lucro"
 
 #: templates/zerver/emails/onboarding_zulip_guide.subject.txt
-msgid "Zulip guide for communities"
-msgstr "Guía de Zulip para comunidades"
+msgid "Grow Team guide for communities"
+msgstr "Guía de Grow Team para comunidades"
 
 #: templates/zerver/emails/onboarding_zulip_topics.html
 #: templates/zerver/emails/onboarding_zulip_topics.txt
 msgid ""
-"Here are some tips for keeping your Zulip conversations organized with "
+"Here are some tips for keeping your Grow Team conversations organized with "
 "topics."
 msgstr ""
 "Aquí tienes algunos consejos para mantener organizadas tus conversaciones en "
-"Zulip mediante temas."
+"Grow Team mediante temas."
 
 #: templates/zerver/emails/onboarding_zulip_topics.html
 msgid ""
-"In Zulip, <b>channels</b> determine who gets a message. <b>Topics</b> tell "
+"In Grow Team, <b>channels</b> determine who gets a message. <b>Topics</b> tell "
 "you what the message is about."
 msgstr ""
-"En Zulip, <b>los canales</b> determinan quién recibe un mensaje. <b>Los "
+"En Grow Team, <b>los canales</b> determinan quién recibe un mensaje. <b>Los "
 "temas</b> indican de qué trata el mensaje."
 
 #: templates/zerver/emails/onboarding_zulip_topics.html
 #: templates/zerver/emails/onboarding_zulip_topics.txt
 msgid ""
-"Using topics, you can read Zulip one conversation at a time. You'll see each "
+"Using topics, you can read Grow Team one conversation at a time. You'll see each "
 "message in context, no matter how many different discussions are going on."
 msgstr ""
-"Gracias a los temas, puedes leer Zulip una conversación cada vez. Verás cada "
+"Gracias a los temas, puedes leer Grow Team una conversación cada vez. Verás cada "
 "mensaje en su contexto, independientemente del número de conversaciones que "
 "haya en marcha."
 
 #: templates/zerver/emails/onboarding_zulip_topics.html
-msgid "Channels and topics in the Zulip app"
-msgstr "Canales y temas en la aplicación Zulip"
+msgid "Channels and topics in the Grow Team app"
+msgstr "Canales y temas en la aplicación Grow Team"
 
 #: templates/zerver/emails/onboarding_zulip_topics.html
 #: templates/zerver/emails/onboarding_zulip_topics.txt
@@ -2889,8 +2889,8 @@ msgstr ""
 #: templates/zerver/emails/onboarding_zulip_topics.html
 #: templates/zerver/emails/onboarding_zulip_topics.txt
 #: templates/zerver/portico-header-dropdown.html
-msgid "Go to Zulip"
-msgstr "Ir a Zulip"
+msgid "Go to Grow Team"
+msgstr "Ir a Grow Team"
 
 #: templates/zerver/emails/onboarding_zulip_topics.subject.txt
 msgid "Keep your conversations organized with topics"
@@ -2898,10 +2898,10 @@ msgstr "Mantén tus conversaciones organizadas por temas"
 
 #: templates/zerver/emails/onboarding_zulip_topics.txt
 msgid ""
-"In Zulip, channels determine who gets a message. Topics tell you what the "
+"In Grow Team, channels determine who gets a message. Topics tell you what the "
 "message is about."
 msgstr ""
-"En Zulip, los canales determinan quién recibe un mensaje. Los temas indican "
+"En Grow Team, los canales determinan quién recibe un mensaje. Los temas indican "
 "de qué trata el mensaje."
 
 #: templates/zerver/emails/onboarding_zulip_topics.txt
@@ -2921,11 +2921,11 @@ msgstr ""
 #: templates/zerver/emails/password_reset.txt
 #, python-format
 msgid ""
-"Somebody (possibly you) requested a new password for the Zulip account "
+"Somebody (possibly you) requested a new password for the Grow Team account "
 "%(email)s on %(realm_url)s."
 msgstr ""
 "Alguien (quizás tú) ha solicitado una nueva contraseña para la cuenta de "
-"Zulip %(email)s en %(realm_url)s."
+"Grow Team %(email)s en %(realm_url)s."
 
 #: templates/zerver/emails/password_reset.html
 msgid "Click the button below to reset your password."
@@ -2948,8 +2948,8 @@ msgstr ""
 
 #: templates/zerver/emails/password_reset.html
 #: templates/zerver/emails/password_reset.txt
-msgid "You do not have an account in that Zulip organization."
-msgstr "No tienes cuenta en esa organización de Zulip."
+msgid "You do not have an account in that Grow Team organization."
+msgstr "No tienes cuenta en esa organización de Grow Team."
 
 #: templates/zerver/emails/password_reset.html
 #: templates/zerver/emails/password_reset.txt
@@ -3023,60 +3023,60 @@ msgstr ""
 #: templates/zerver/emails/realm_deactivated.txt
 #, python-format
 msgid ""
-"You have deactivated your Zulip demo organization, %(realm_name)s, on "
+"You have deactivated your Grow Team demo organization, %(realm_name)s, on "
 "%(localized_date)s."
 msgstr ""
-"Has desactivado tu organización de demostración de Zulip, %(realm_name)s, el "
+"Has desactivado tu organización de demostración de Grow Team, %(realm_name)s, el "
 "%(localized_date)s."
 
 #: templates/zerver/emails/realm_deactivated.html
 #: templates/zerver/emails/realm_deactivated.txt
 #, python-format
 msgid ""
-"Your Zulip demo organization, %(realm_name)s, was deactivated by "
+"Your Grow Team demo organization, %(realm_name)s, was deactivated by "
 "%(deactivating_owner)s on %(localized_date)s."
 msgstr ""
-"Tu organización de demostración de Zulip, %(realm_name)s, fue desactivada "
+"Tu organización de demostración de Grow Team, %(realm_name)s, fue desactivada "
 "por %(deactivating_owner)s el %(localized_date)s."
 
 #: templates/zerver/emails/realm_deactivated.html
 #: templates/zerver/emails/realm_deactivated.txt
 #, python-format
 msgid ""
-"Your Zulip demo organization, %(realm_name)s, was deactivated on "
+"Your Grow Team demo organization, %(realm_name)s, was deactivated on "
 "%(localized_date)s."
 msgstr ""
-"Tu organización de demostración de Zulip, %(realm_name)s, se desactivó el "
+"Tu organización de demostración de Grow Team, %(realm_name)s, se desactivó el "
 "%(localized_date)s."
 
 #: templates/zerver/emails/realm_deactivated.html
 #: templates/zerver/emails/realm_deactivated.txt
 #, python-format
 msgid ""
-"You have deactivated your Zulip organization, %(realm_name)s, on "
+"You have deactivated your Grow Team organization, %(realm_name)s, on "
 "%(localized_date)s."
 msgstr ""
-"Has desactivado tu organización de Zulip, %(realm_name)s, el "
+"Has desactivado tu organización de Grow Team, %(realm_name)s, el "
 "%(localized_date)s."
 
 #: templates/zerver/emails/realm_deactivated.html
 #: templates/zerver/emails/realm_deactivated.txt
 #, python-format
 msgid ""
-"Your Zulip organization, %(realm_name)s, was deactivated by "
+"Your Grow Team organization, %(realm_name)s, was deactivated by "
 "%(deactivating_owner)s on %(localized_date)s."
 msgstr ""
-"Tu organización de Zulip, %(realm_name)s, fue desactivada por "
+"Tu organización de Grow Team, %(realm_name)s, fue desactivada por "
 "%(deactivating_owner)s el %(localized_date)s."
 
 #: templates/zerver/emails/realm_deactivated.html
 #: templates/zerver/emails/realm_deactivated.txt
 #, python-format
 msgid ""
-"Your Zulip organization, %(realm_name)s, was deactivated on "
+"Your Grow Team organization, %(realm_name)s, was deactivated on "
 "%(localized_date)s."
 msgstr ""
-"Tu organización de Zulip, %(realm_name)s, se desactivó el %(localized_date)s."
+"Tu organización de Grow Team, %(realm_name)s, se desactivó el %(localized_date)s."
 
 #: templates/zerver/emails/realm_deactivated.html
 #: templates/zerver/emails/realm_deactivated.txt
@@ -3107,8 +3107,8 @@ msgstr ""
 
 #: templates/zerver/emails/realm_deactivated.subject.txt
 #, python-format
-msgid "Your Zulip organization %(realm_name)s has been deactivated"
-msgstr "Tu organización de Zulip %(realm_name)s ha sido desactivada"
+msgid "Your Grow Team organization %(realm_name)s has been deactivated"
+msgstr "Tu organización de Grow Team %(realm_name)s ha sido desactivada"
 
 #: templates/zerver/emails/realm_reactivation.html
 #: templates/zerver/emails/realm_reactivation.txt
@@ -3121,10 +3121,10 @@ msgstr "Estimado antiguo administrador de %(realm_name)s,"
 #, python-format
 msgid ""
 "One of your administrators requested reactivation of the previously "
-"deactivated Zulip demo organization hosted at %(realm_url)s."
+"deactivated Grow Team demo organization hosted at %(realm_url)s."
 msgstr ""
 "Uno de tus administradores ha solicitado la reactivación de la organización "
-"de demostración de Zulip, anteriormente desactivada, alojada en "
+"de demostración de Grow Team, anteriormente desactivada, alojada en "
 "%(realm_url)s."
 
 #: templates/zerver/emails/realm_reactivation.html
@@ -3132,10 +3132,10 @@ msgstr ""
 #, python-format
 msgid ""
 "One of your administrators requested reactivation of the previously "
-"deactivated Zulip organization hosted at %(realm_url)s."
+"deactivated Grow Team organization hosted at %(realm_url)s."
 msgstr ""
 "Uno de tus administradores ha solicitado la reactivación de la organización "
-"de Zulip alojada en %(realm_url)s, que había sido desactivada anteriormente."
+"de Grow Team alojada en %(realm_url)s, que había sido desactivada anteriormente."
 
 #: templates/zerver/emails/realm_reactivation.html
 msgid "Click the button below to reactivate your organization."
@@ -3155,12 +3155,12 @@ msgstr ""
 "expirara en 24 horas."
 
 #: templates/zerver/emails/realm_reactivation.subject.txt
-msgid "Reactivate your Zulip demo organization"
-msgstr "Reactiva tu organización de demostración de Zulip"
+msgid "Reactivate your Grow Team demo organization"
+msgstr "Reactiva tu organización de demostración de Grow Team"
 
 #: templates/zerver/emails/realm_reactivation.subject.txt
-msgid "Reactivate your Zulip organization"
-msgstr "Reactiva tu organización de Zulip"
+msgid "Reactivate your Grow Team organization"
+msgstr "Reactiva tu organización de Grow Team"
 
 #: templates/zerver/emails/realm_reactivation.txt
 msgid "Click the link below to reactivate your organization."
@@ -3170,10 +3170,10 @@ msgstr "Haz click en el enlace inferior para reactivar tu organización."
 #, python-format
 msgid ""
 "Either you, or someone on your behalf, has requested a log in link to manage "
-"the Zulip plan for <b>%(remote_server_hostname)s</b>."
+"the Grow Team plan for <b>%(remote_server_hostname)s</b>."
 msgstr ""
 "Tanto tú como alguien en tu nombre ha solicitado un enlace de inicio de "
-"sesión para gestionar el plan de Zulip de <b>%(remote_server_hostname)s</b>."
+"sesión para gestionar el plan de Grow Team de <b>%(remote_server_hostname)s</b>."
 
 #: templates/zerver/emails/remote_billing_legacy_server_confirm_login.html
 msgid "Click the button below to log in."
@@ -3196,17 +3196,17 @@ msgstr ""
 "a> o ponte en contacto con %(billing_contact_email)s."
 
 #: templates/zerver/emails/remote_billing_legacy_server_confirm_login.subject.txt
-msgid "Log in to Zulip plan management"
-msgstr "Iniciar sesión en la gestión de planes de Zulip"
+msgid "Log in to Grow Team plan management"
+msgstr "Iniciar sesión en la gestión de planes de Grow Team"
 
 #: templates/zerver/emails/remote_billing_legacy_server_confirm_login.txt
 #, python-format
 msgid ""
 "Either you, or someone on your behalf, has requested a log in link to manage "
-"the Zulip plan for %(remote_server_hostname)s."
+"the Grow Team plan for %(remote_server_hostname)s."
 msgstr ""
 "Tanto tú como alguien en tu nombre ha solicitado un enlace de inicio de "
-"sesión para gestionar el plan de Zulip de %(remote_server_hostname)s."
+"sesión para gestionar el plan de Grow Team de %(remote_server_hostname)s."
 
 #: templates/zerver/emails/remote_billing_legacy_server_confirm_login.txt
 msgid "Click the link below to log in."
@@ -3225,11 +3225,11 @@ msgstr ""
 #: templates/zerver/emails/remote_realm_billing_confirm_login.html
 #, python-format
 msgid ""
-"Click the button below to confirm your email and log in to Zulip plan "
+"Click the button below to confirm your email and log in to Grow Team plan "
 "management for <b>%(remote_realm_host)s</b>."
 msgstr ""
 "Haz clic en el botón de abajo para confirmar tu correo electrónico e iniciar "
-"sesión en la gestión de planes de Zulip para <b>%(remote_realm_host)s</b>."
+"sesión en la gestión de planes de Grow Team para <b>%(remote_realm_host)s</b>."
 
 #: templates/zerver/emails/remote_realm_billing_confirm_login.html
 #: templates/zerver/emails/remote_realm_billing_confirm_login.txt
@@ -3237,34 +3237,34 @@ msgid "Confirm and log in"
 msgstr "Confirma y inicia sesión"
 
 #: templates/zerver/emails/remote_realm_billing_confirm_login.subject.txt
-msgid "Confirm email for Zulip plan management"
-msgstr "Confirma tu correo electrónico para gestionar tu plan de Zulip"
+msgid "Confirm email for Grow Team plan management"
+msgstr "Confirma tu correo electrónico para gestionar tu plan de Grow Team"
 
 #: templates/zerver/emails/remote_realm_billing_confirm_login.txt
 #, python-format
 msgid ""
-"Click the link below to confirm your email and log in to Zulip plan "
+"Click the link below to confirm your email and log in to Grow Team plan "
 "management for %(remote_realm_host)s."
 msgstr ""
 "Haz clic en el enlace siguiente para confirmar tu correo electrónico e "
-"iniciar sesión en la gestión de planes de Zulip para %(remote_realm_host)s."
+"iniciar sesión en la gestión de planes de Grow Team para %(remote_realm_host)s."
 
 #: templates/zerver/emails/sponsorship_approved_community_plan.html
 #, python-format
 msgid ""
-"Your request for Zulip sponsorship has been approved! Your organization has "
-"been upgraded to the <a href=\"%(plans_link)s\">Zulip Community plan</a>."
+"Your request for Grow Team sponsorship has been approved! Your organization has "
+"been upgraded to the <a href=\"%(plans_link)s\">Grow Team Community plan</a>."
 msgstr ""
-"¡Tu solicitud de patrocinio de Zulip ha sido aprobada! Tu organización ha "
-"pasado al <a href=\"%(plans_link)s\">plan Comunidad de Zulip</a>."
+"¡Tu solicitud de patrocinio de Grow Team ha sido aprobada! Tu organización ha "
+"pasado al <a href=\"%(plans_link)s\">plan Comunidad de Grow Team</a>."
 
 #: templates/zerver/emails/sponsorship_approved_community_plan.html
 #, python-format
 msgid ""
-"If you could <a href=\"%(link_to_zulip)s\">list Zulip as a sponsor on your "
+"If you could <a href=\"%(link_to_zulip)s\">list Grow Team as a sponsor on your "
 "website</a>, we would really appreciate it!"
 msgstr ""
-"Si pudieras <a href=\"%(link_to_zulip)s\">incluir a Zulip como patrocinador "
+"Si pudieras <a href=\"%(link_to_zulip)s\">incluir a Grow Team como patrocinador "
 "en tu sitio web</a>, ¡te lo agradeceríamos mucho!"
 
 #: templates/zerver/emails/sponsorship_approved_community_plan.subject.txt
@@ -3275,18 +3275,18 @@ msgstr ""
 
 #: templates/zerver/emails/sponsorship_approved_community_plan.txt
 msgid ""
-"Your request for Zulip sponsorship has been approved! Your organization has "
-"been upgraded to the Zulip Community plan."
+"Your request for Grow Team sponsorship has been approved! Your organization has "
+"been upgraded to the Grow Team Community plan."
 msgstr ""
-"¡Tu solicitud de patrocinio de Zulip ha sido aprobada! Tu organización ha "
-"pasado al plan Zulip Community."
+"¡Tu solicitud de patrocinio de Grow Team ha sido aprobada! Tu organización ha "
+"pasado al plan Grow Team Community."
 
 #: templates/zerver/emails/sponsorship_approved_community_plan.txt
 msgid ""
-"If you could list Zulip as a sponsor on your website, we would really "
+"If you could list Grow Team as a sponsor on your website, we would really "
 "appreciate it!"
 msgstr ""
-"Si pudieras incluir a Zulip como patrocinador en tu página web, ¡te lo "
+"Si pudieras incluir a Grow Team como patrocinador en tu página web, ¡te lo "
 "agradeceríamos mucho!"
 
 #: templates/zerver/find_account.html
@@ -3294,8 +3294,8 @@ msgid "Find your accounts"
 msgstr "Busca tus cuentas"
 
 #: templates/zerver/find_account.html
-msgid "Find your Zulip accounts"
-msgstr "Encontrar tus cuentas de Zulip"
+msgid "Find your Grow Team accounts"
+msgstr "Encontrar tus cuentas de Grow Team"
 
 #: templates/zerver/find_account.html
 msgid ""
@@ -3325,11 +3325,11 @@ msgstr ""
 
 #: templates/zerver/find_account.html
 msgid ""
-"Enter your email address to receive an email with the URLs for all the Zulip "
+"Enter your email address to receive an email with the URLs for all the Grow Team "
 "organizations on this server in which you have active accounts."
 msgstr ""
 "Introduce tu dirección de correo electrónico para recibir un mensaje con las "
-"direcciones URL de todas las organizaciones de Zulip de este servidor en las "
+"direcciones URL de todas las organizaciones de Grow Team de este servidor en las "
 "que tengas cuentas activas."
 
 #: templates/zerver/find_account.html
@@ -3353,8 +3353,8 @@ msgid "Product"
 msgstr "Producto"
 
 #: templates/zerver/footer.html
-msgid "Why Zulip"
-msgstr "Por qué Zulip"
+msgid "Why Grow Team"
+msgstr "Por qué Grow Team"
 
 #: templates/zerver/footer.html
 msgid "Features"
@@ -3453,16 +3453,16 @@ msgid "Zulip Cloud status"
 msgstr "Estado de Zulip Cloud"
 
 #: templates/zerver/footer.html
-msgid "Moving to Zulip"
-msgstr "Pasándose a Zulip"
+msgid "Moving to Grow Team"
+msgstr "Pasándose a Grow Team"
 
 #: templates/zerver/footer.html
-msgid "Installing a Zulip server"
-msgstr "Instalación de un servidor Zulip"
+msgid "Installing a Grow Team server"
+msgstr "Instalación de un servidor Grow Team"
 
 #: templates/zerver/footer.html
-msgid "Upgrading a Zulip server"
-msgstr "Actualización de un servidor Zulip"
+msgid "Upgrading a Grow Team server"
+msgstr "Actualización de un servidor Grow Team"
 
 #: templates/zerver/footer.html
 msgid "Contributing"
@@ -3644,8 +3644,8 @@ msgstr "No se ha encontrado ninguna organización"
 
 #: templates/zerver/invalid_realm.html
 #, python-format
-msgid "There is no Zulip organization at <b>%(current_url)s</b>."
-msgstr "No hay ninguna organización de Zulip en <b>%(current_url)s</b>."
+msgid "There is no Grow Team organization at <b>%(current_url)s</b>."
+msgstr "No hay ninguna organización de Grow Team en <b>%(current_url)s</b>."
 
 #: templates/zerver/invalid_realm.html
 #, python-format
@@ -3664,21 +3664,21 @@ msgstr ""
 msgid ""
 "Please try a different URL, <a href=\"%(root_domain_url)s/accounts/find/"
 "\">get a list of your accounts</a> on this server, or <a href=\"mailto:"
-"%(support_email)s\">contact this Zulip server's administrators</a>."
+"%(support_email)s\">contact this Grow Team server's administrators</a>."
 msgstr ""
 "Por favor, prueba con otra URL, <a href=\"%(root_domain_url)s/accounts/find/"
 "\">consulta la lista de tus cuentas</a> en este servidor, o <a href=\"mailto:"
 "%(support_email)s\">ponte en contacto con los administradores de este "
-"servidor de Zulip</a>."
+"servidor de Grow Team</a>."
 
 #: templates/zerver/invalid_realm.html
 #, python-format
 msgid ""
 "<a href=\"%(current_url)s/serverlogin/\">Click here</a> to access plan "
-"management for your Zulip server."
+"management for your Grow Team server."
 msgstr ""
 "<a href=\"%(current_url)s/serverlogin/\">Haz clic aquí</a> para acceder a la "
-"gestión de planes de tu servidor Zulip."
+"gestión de planes de tu servidor Grow Team."
 
 #: templates/zerver/log_into_subdomain_token_invalid.html
 msgid "Invalid or expired login session"
@@ -3689,8 +3689,8 @@ msgid "Invalid or expired login session."
 msgstr "Sesión de inicio de sesión no válida o caducada."
 
 #: templates/zerver/login.html
-msgid "Log in to Zulip"
-msgstr "Iniciar sesión en Zulip"
+msgid "Log in to Grow Team"
+msgstr "Iniciar sesión en Grow Team"
 
 #: templates/zerver/login.html
 msgid "You've already registered with this email address. Please log in below."
@@ -3843,19 +3843,19 @@ msgstr ""
 "favor, <a href=\"/new/\">obtén un nuevo enlace</a> e inténtalo de nuevo."
 
 #: templates/zerver/portico_error_pages/remote_realm_server_mismatch_error.html
-msgid "Unexpected Zulip server registration"
-msgstr "Registro inesperado en el servidor de Zulip"
+msgid "Unexpected Grow Team server registration"
+msgstr "Registro inesperado en el servidor de Grow Team"
 
 #: templates/zerver/portico_error_pages/remote_realm_server_mismatch_error.html
 #, python-format
 msgid ""
-"Your Zulip organization is registered as associated with a different Zulip "
+"Your Grow Team organization is registered as associated with a different Grow Team "
 "server installation. Please <a href=\"mailto:%(support_email)s\">contact "
-"Zulip support</a> for assistance in resolving this issue."
+"Grow Team support</a> for assistance in resolving this issue."
 msgstr ""
-"Tu organización de Zulip está registrada como asociada a otra instalación "
-"del servidor de Zulip. Por favor, <a href=\"mailto:%(support_email)s\">ponte "
-"en contacto con el servicio de asistencia de Zulip</a> para que te ayuden a "
+"Tu organización de Grow Team está registrada como asociada a otra instalación "
+"del servidor de Grow Team. Por favor, <a href=\"mailto:%(support_email)s\">ponte "
+"en contacto con el servicio de asistencia de Grow Team</a> para que te ayuden a "
 "resolver este problema."
 
 #: templates/zerver/portico_error_pages/unsupported_browser.html
@@ -3864,16 +3864,16 @@ msgstr "Navegador no compatible"
 
 #: templates/zerver/portico_error_pages/unsupported_browser.html
 #, python-format
-msgid "%(browser_name)s is not supported by Zulip."
-msgstr "Zulip no es compatible con %(browser_name)s."
+msgid "%(browser_name)s is not supported by Grow Team."
+msgstr "Grow Team no es compatible con %(browser_name)s."
 
 #: templates/zerver/portico_error_pages/unsupported_browser.html
 #, python-format
 msgid ""
-"Zulip supports <a href=\"%(supported_browsers_page_link)s\">modern browsers</"
+"Grow Team supports <a href=\"%(supported_browsers_page_link)s\">modern browsers</"
 "a> like Firefox, Chrome, and Edge."
 msgstr ""
-"Zulip es compatible con <a href=\"%(supported_browsers_page_link)s\">los "
+"Grow Team es compatible con <a href=\"%(supported_browsers_page_link)s\">los "
 "navegadores modernos</a> como Firefox, Chrome y Edge."
 
 #: templates/zerver/portico_error_pages/unsupported_browser.html
@@ -3901,11 +3901,11 @@ msgstr "¡Importación de la organización completada!"
 #, python-format
 msgid ""
 "No account in the imported data matched the email address you've verified "
-"with Zulip (<strong>%(verified_email)s</strong>). Select an account to "
+"with Grow Team (<strong>%(verified_email)s</strong>). Select an account to "
 "associate your email address with."
 msgstr ""
 "Ninguna de las cuentas de los datos importados coincide con la dirección de "
-"correo electrónico que has verificado en Zulip (<strong>%(verified_email)s</"
+"correo electrónico que has verificado en Grow Team (<strong>%(verified_email)s</"
 "strong>). Selecciona una cuenta con la que asociar tu dirección de correo "
 "electrónico."
 
@@ -3965,8 +3965,8 @@ msgstr ""
 "href=\"%(org_creation_link)s\">Crea una organiación</a> si aún no tienes una."
 
 #: templates/zerver/realm_redirect.html
-msgid "Self-hosting Zulip?"
-msgstr "¿Alojar Zulip por cuenta propia?"
+msgid "Self-hosting Grow Team?"
+msgstr "¿Alojar Grow Team por cuenta propia?"
 
 #: templates/zerver/realm_redirect.html
 #, python-format
@@ -4175,10 +4175,10 @@ msgstr ""
 
 #: templates/zerver/social_auth_select_email.html
 msgid ""
-"To use one of these to log in to Zulip, you must first <a href=\"https://"
+"To use one of these to log in to Grow Team, you must first <a href=\"https://"
 "github.com/settings/emails\">verify it with GitHub.</a>"
 msgstr ""
-"Para utilizar una de estas opciones para iniciar sesión en Zulip, primero "
+"Para utilizar una de estas opciones para iniciar sesión en Grow Team, primero "
 "debes <a href=\"https://github.com/settings/emails\">verificarla con GitHub."
 "</a>"
 
@@ -4216,11 +4216,11 @@ msgstr "Ajustes de correo electrónico actualizados"
 #: templates/zerver/unsubscribe_success.html
 #, python-format
 msgid ""
-"You've successfully unsubscribed from Zulip %(subscription_type)s emails for "
+"You've successfully unsubscribed from Grow Team %(subscription_type)s emails for "
 "<a href=\"%(realm_url)s\">%(realm_name)s</a>."
 msgstr ""
 "Has cancelado correctamente la suscripción a los correos electrónicos de "
-"Zulip %(subscription_type)s para <a href=\"%(realm_url)s\">%(realm_name)s</"
+"Grow Team %(subscription_type)s para <a href=\"%(realm_url)s\">%(realm_name)s</"
 "a>."
 
 #: templates/zerver/unsubscribe_success.html
@@ -4237,12 +4237,12 @@ msgid "Invalid order mapping."
 msgstr "Orden del mapeo inválido."
 
 #: zerver/actions/create_realm.py
-msgid "Questions and discussion about using Zulip."
-msgstr "Preguntas y debate sobre el uso de Zulip."
+msgid "Questions and discussion about using Grow Team."
+msgstr "Preguntas y debate sobre el uso de Grow Team."
 
 #: zerver/actions/create_realm.py
-msgid "Experiment with Zulip here. :test_tube:"
-msgstr "Prueba Zulip aquí. :test_tube:"
+msgid "Experiment with Grow Team here. :test_tube:"
+msgstr "Prueba Grow Team aquí. :test_tube:"
 
 #: zerver/actions/create_realm.py
 msgid "For team-wide conversations"
@@ -4259,8 +4259,8 @@ msgstr "{user} se ha unido a esta organización."
 
 #: zerver/actions/create_user.py
 #, python-brace-format
-msgid "{user} accepted your invitation to join Zulip!"
-msgstr "¡{user} ha aceptado tu invitación para unirse a Zulip!"
+msgid "{user} accepted your invitation to join Grow Team!"
+msgstr "¡{user} ha aceptado tu invitación para unirse a Grow Team!"
 
 #: zerver/actions/create_user.py
 msgid ""
@@ -4349,10 +4349,10 @@ msgstr "Este grupo de canales predeterminado ya se llama «{group_name}»"
 
 #: zerver/actions/invites.py
 msgid ""
-"To protect users, Zulip limits the number of invitations you can send in one "
+"To protect users, Grow Team limits the number of invitations you can send in one "
 "day. Because you have reached the limit, no invitations were sent."
 msgstr ""
-"Para proteger a los usuarios, Zulip limita el número de invitaciones que "
+"Para proteger a los usuarios, Grow Team limita el número de invitaciones que "
 "puedes enviar en un día. Ya que haz alcanzado el límite, no se enviaron "
 "invitaciones."
 
@@ -4932,12 +4932,12 @@ msgstr ""
 
 #: zerver/forms.py
 msgid ""
-"New members cannot join this organization because all Zulip licenses are in "
+"New members cannot join this organization because all Grow Team licenses are in "
 "use. Please contact the person who invited you and ask them to increase the "
 "number of licenses, then try again."
 msgstr ""
 "Los nuevos miembros no pueden unirse a esta organización porque todas las "
-"licencias de Zulip están en uso. Ponte en contacto con la persona que te "
+"licencias de Grow Team están en uso. Ponte en contacto con la persona que te "
 "invitó y pídele que aumente el número de licencias; después, vuelve a "
 "intentarlo."
 
@@ -4998,8 +4998,8 @@ msgid "Please enter at most 10 emails."
 msgstr "Por favor, introduce como máximo 10 correos."
 
 #: zerver/forms.py
-msgid "We couldn't find that Zulip organization."
-msgstr "No se pudo encontrar la organización de Zulip."
+msgid "We couldn't find that Grow Team organization."
+msgstr "No se pudo encontrar la organización de Grow Team."
 
 #: zerver/lib/addressee.py
 #, python-brace-format
@@ -5157,8 +5157,8 @@ msgid "Email with no subject"
 msgstr "Correo electrónico sin asunto"
 
 #: zerver/lib/email_notifications.py
-msgid "Open Zulip to see the spoiler content"
-msgstr "Abre Zulip para ver el contenido oculto"
+msgid "Open Grow Team to see the spoiler content"
+msgstr "Abre Grow Team para ver el contenido oculto"
 
 #: zerver/lib/email_notifications.py
 #, python-brace-format
@@ -5798,11 +5798,11 @@ msgstr ""
 #, python-brace-format
 msgid ""
 "\n"
-"We also have a guide for [setting up Zulip for a class]"
+"We also have a guide for [setting up Grow Team for a class]"
 "({organization_setup_url}).\n"
 msgstr ""
 "\n"
-"También disponemos de una guía para [configurar Zulip para una clase]"
+"También disponemos de una guía para [configurar Grow Team para una clase]"
 "({organization_setup_url}).\n"
 
 #: zerver/lib/onboarding.py
@@ -5858,7 +5858,7 @@ msgstr ""
 #, python-brace-format
 msgid ""
 "\n"
-"Hello, and welcome to Zulip!👋 "
+"Hello, and welcome to Grow Team!👋 "
 "{inform_about_tracked_onboarding_messages_text}\n"
 "\n"
 "{getting_started_text} {organization_setup_text}\n"
@@ -5869,7 +5869,7 @@ msgid ""
 "\n"
 msgstr ""
 "\n"
-"¡Hola y bienvenido a Zulip!👋 "
+"¡Hola y bienvenido a Grow Team!👋 "
 "{inform_about_tracked_onboarding_messages_text}\n"
 "\n"
 "{getting_started_text} {organization_setup_text}\n"
@@ -5883,12 +5883,12 @@ msgstr ""
 msgid ""
 "\n"
 "You can [download](/apps/) the [mobile and desktop apps](/apps/).\n"
-"Zulip also works great in a browser.\n"
+"Grow Team also works great in a browser.\n"
 msgstr ""
 "\n"
 "Puedes [descargar](/apps/) las [aplicaciones para móviles y ordenadores](/"
 "apps/).\n"
-"Zulip también funciona muy bien en el navegador.\n"
+"Grow Team también funciona muy bien en el navegador.\n"
 
 #: zerver/lib/onboarding.py
 msgid ""
@@ -5909,7 +5909,7 @@ msgid ""
 "favorite emoji set](/help/emoji-and-emoticons#change-your-emoji-set), "
 "[change\n"
 "your language](/help/change-your-language), and otherwise customize your "
-"Zulip\n"
+"Grow Team\n"
 "experience in your [Preferences](#settings/preferences).\n"
 msgstr ""
 "\n"
@@ -5918,7 +5918,7 @@ msgstr ""
 "conjunto de emojis favorito](/help/emoji-and-emoticons#change-your-emoji-"
 "set), [cambiar\n"
 "tu idioma](/help/change-your-language) y personalizar tu experiencia en "
-"Zulip\n"
+"Grow Team\n"
 "en tus [Preferencias](#settings/preferences).\n"
 
 #: zerver/lib/onboarding.py
@@ -5942,8 +5942,8 @@ msgstr ""
 msgid ""
 "\n"
 "[Topics](/help/introduction-to-topics) summarize what each conversation in "
-"Zulip\n"
-"is about. You can read Zulip one topic at a time, seeing each message in\n"
+"Grow Team\n"
+"is about. You can read Grow Team one topic at a time, seeing each message in\n"
 "context, no matter how many other conversations are going on.\n"
 "\n"
 "When you start a conversation, label it with a new topic. For a good topic "
@@ -5956,8 +5956,8 @@ msgid ""
 msgstr ""
 "\n"
 "[Los temas](/help/introduction-to-topics) resumen de qué trata cada "
-"conversación en Zulip.\n"
-"Puedes leer Zulip tema por tema, viendo cada mensaje en\n"
+"conversación en Grow Team.\n"
+"Puedes leer Grow Team tema por tema, viendo cada mensaje en\n"
 "su contexto, independientemente de cuántas otras conversaciones haya en "
 "marcha.\n"
 "\n"
@@ -5972,13 +5972,13 @@ msgstr ""
 #: zerver/lib/onboarding.py
 msgid ""
 "\n"
-"Zulip's [keyboard shortcuts](#keyboard-shortcuts) let you navigate the app\n"
+"Grow Team's [keyboard shortcuts](#keyboard-shortcuts) let you navigate the app\n"
 "quickly and efficiently.\n"
 "\n"
 "Press `?` any time to see a [cheat sheet](#keyboard-shortcuts).\n"
 msgstr ""
 "\n"
-"Los [atajos de teclado](#keyboard-shortcuts) de Zulip te permiten navegar "
+"Los [atajos de teclado](#keyboard-shortcuts) de Grow Team te permiten navegar "
 "por la aplicación\n"
 "de forma rápida y eficaz.\n"
 "\n"
@@ -6064,7 +6064,7 @@ msgstr ""
 #, python-brace-format
 msgid ""
 "\n"
-"Zulip is organized to help you communicate more efficiently. Conversations "
+"Grow Team is organized to help you communicate more efficiently. Conversations "
 "are\n"
 "labeled with topics, which summarize what the conversation is about.\n"
 "\n"
@@ -6074,7 +6074,7 @@ msgid ""
 "and above.\n"
 msgstr ""
 "\n"
-"Zulip está diseñado para ayudarte a comunicarte de forma más eficiente. Las "
+"Grow Team está diseñado para ayudarte a comunicarte de forma más eficiente. Las "
 "conversaciones se\n"
 "etiquetan con temas, que resumen de qué trata la conversación.\n"
 "\n"
@@ -6084,18 +6084,18 @@ msgstr ""
 "y más arriba.\n"
 
 #: zerver/lib/onboarding.py
-msgid "welcome to Zulip!"
-msgstr "¡bienvenido a Zulip!"
+msgid "welcome to Grow Team!"
+msgstr "¡bienvenido a Grow Team!"
 
 #: zerver/lib/onboarding.py
 msgid ""
 "\n"
-"You can read Zulip one conversation at a time, seeing each message in "
+"You can read Grow Team one conversation at a time, seeing each message in "
 "context,\n"
 "no matter how many other conversations are going on.\n"
 msgstr ""
 "\n"
-"Puedes leer Zulip conversación por conversación, viendo cada mensaje en su "
+"Puedes leer Grow Team conversación por conversación, viendo cada mensaje en su "
 "contexto,\n"
 "sin importar cuántas otras conversaciones haya en marcha.\n"
 
@@ -6145,12 +6145,12 @@ msgstr ""
 #, python-brace-format
 msgid ""
 "\n"
-":point_right:  Use this topic to try out [Zulip's messaging features]"
+":point_right:  Use this topic to try out [Grow Team's messaging features]"
 "({format_message_help_url}).\n"
 msgstr ""
 "\n"
 ":point_right:  Utiliza este tema para probar [las funciones de mensajería de "
-"Zulip]({format_message_help_url}).\n"
+"Grow Team]({format_message_help_url}).\n"
 
 #: zerver/lib/onboarding.py
 #, python-brace-format
@@ -6338,8 +6338,8 @@ msgstr "Usuario no autorizado para esta petición"
 
 #: zerver/lib/recipient_users.py
 #, python-brace-format
-msgid "'{email}' is no longer using Zulip."
-msgstr "«{email}» ya no utiliza Zulip."
+msgid "'{email}' is no longer using Grow Team."
+msgstr "«{email}» ya no utiliza Grow Team."
 
 #: zerver/lib/recipient_users.py
 msgid "You can't send direct messages outside of your organization."
@@ -7132,8 +7132,8 @@ msgid "Custom emoji"
 msgstr "Emoticonos personalizados"
 
 #: zerver/models/messages.py
-msgid "Zulip extra emoji"
-msgstr "Emoticonos extra de Zulip"
+msgid "Grow Team extra emoji"
+msgstr "Emoticonos extra de Grow Team"
 
 #: zerver/models/realm_emoji.py
 msgid "Invalid characters in emoji name"
@@ -7184,8 +7184,8 @@ msgid "Other reason"
 msgstr "Otra razón"
 
 #: zerver/models/realms.py
-msgid "Zulip updates"
-msgstr "Novedades de Zulip"
+msgid "Grow Team updates"
+msgstr "Novedades de Grow Team"
 
 #: zerver/models/realms.py
 msgid "Available on Zulip Cloud Standard. Upgrade to access."
@@ -7456,10 +7456,10 @@ msgstr "Debes especificar al menos una dirección de correo."
 
 #: zerver/views/invite.py
 msgid ""
-"Some of those addresses are already using Zulip, so we didn't send them an "
+"Some of those addresses are already using Grow Team, so we didn't send them an "
 "invitation. We did send invitations to everyone else!"
 msgstr ""
-"Algunas de esas direcciones ya están usando Zulip, por lo que no les hemos "
+"Algunas de esas direcciones ya están usando Grow Team, por lo que no les hemos "
 "enviado una invitación. ¡Enviamos invitaciones a todos los demás!"
 
 #: zerver/views/message_edit.py
@@ -8116,8 +8116,8 @@ msgid "Cannot change this setting for other users."
 msgstr "No se puede modificar este ajuste para otros usuarios."
 
 #: zerver/views/user_settings.py
-msgid "Your Zulip password is managed in LDAP"
-msgstr "Tu contraseña de Zulip está gestionada en LDAP"
+msgid "Your Grow Team password is managed in LDAP"
+msgstr "Tu contraseña de Grow Team está gestionada en LDAP"
 
 #: zerver/views/user_settings.py
 msgid "Wrong password!"
@@ -8287,8 +8287,8 @@ msgstr "Firma no válida."
 
 #: zerver/views/video_calls.py
 #, python-brace-format
-msgid "{full_name}'s Zulip room"
-msgstr "La sala de Zulip de {full_name}"
+msgid "{full_name}'s Grow Team room"
+msgstr "La sala de Grow Team de {full_name}"
 
 #: zerver/webhooks/circleci/view.py
 msgid "Projects using this version control system provider aren't supported"

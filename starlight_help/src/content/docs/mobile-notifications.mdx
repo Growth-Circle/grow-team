@@ -9,7 +9,7 @@ import NavigationSteps from "../../components/NavigationSteps.astro";
 import ZulipNote from "../../components/ZulipNote.astro";
 import AdminOnly from "../include/_AdminOnly.mdx";
 
-Zulip can be configured to send [mobile](/help/mobile-app-install-guide)
+Grow Team can be configured to send [mobile](/help/mobile-app-install-guide)
 notifications for [DMs, mentions, and
 alerts](/help/dm-mention-alert-notifications), as well as [channel
 messages](/help/channel-notifications) and [followed
@@ -35,7 +35,7 @@ push notifications. All push notifications sent from an up-to-date version of
 the server to an updated version of the app (30.0.271+ on Android, 30.0.272+ on iOS)
 will be end-to-end encrypted. E2EE ensures that message **content** and **metadata**
 (including the sender's and recipient's names, or channel and topic where the
-message was sent) are not visible to Apple, Google, or Zulip's
+message was sent) are not visible to Apple, Google, or Grow Team's
 [Mobile Push Notification
 Service](https://zulip.readthedocs.io/en/stable/production/mobile-push-notifications.html).
 
@@ -62,8 +62,8 @@ for encryption protocol details.
 
 ## Mobile notifications while online
 
-You can customize whether or not Zulip will send mobile push
-notifications while you are actively using one of the Zulip apps.
+You can customize whether or not Grow Team will send mobile push
+notifications while you are actively using one of the Grow Team apps.
 
 <Tabs>
   <TabItem label="Desktop/Web">
@@ -94,20 +94,20 @@ notification.
   </TabItem>
 </Tabs>
 
-Next, test Zulip push notifications on your mobile device.
+Next, test Grow Team push notifications on your mobile device.
 
 <Tabs>
   <TabItem label="Mobile">
     <Steps>
       1. [Download](https://zulip.com/apps/) and install the Zulip mobile app if you
          have not done so already.
-      1. If your Zulip organization is self-hosted (not at `*.zulipchat.com`),
+      1. If your Grow Team organization is self-hosted (not at `*.zulipchat.com`),
          [check](/help/mobile-notifications#enabling-push-notifications-for-self-hosted-servers)
          whether push notifications have been set up. If they were set up recently,
          you will need to [log out](/help/logging-out) of your account.
       1. [Log in](/help/logging-in) to the account you want to test.
       1. Ask *another* user (not yourself) to [send you a direct
-         message](/help/starting-a-new-direct-message). You should see a Zulip message
+         message](/help/starting-a-new-direct-message). You should see a Grow Team message
          notification in the **notifications area** on your device.
     </Steps>
   </TabItem>
@@ -118,8 +118,8 @@ Next, test Zulip push notifications on your mobile device.
 ### Checking your device settings
 
 Some Android vendors have added extra device-level settings that can impact the
-delivery of mobile notifications to apps like Zulip. If you're having issues
-with Zulip notifications on your Android phone, we recommend Signal's excellent
+delivery of mobile notifications to apps like Grow Team. If you're having issues
+with Grow Team notifications on your Android phone, we recommend Signal's excellent
 [troubleshooting guide](https://support.signal.org/hc/en-us/articles/360007318711-Troubleshooting-Notifications#android_notifications_troubleshooting),
 which explains the notification settings for many popular Android vendors.
 
@@ -135,7 +135,7 @@ if microG's "Cloud Messaging" setting is enabled.
 To enable push notifications for your organization:
 
 <Steps>
-  1. Your server administrator needs to register your Zulip server with the
+  1. Your server administrator needs to register your Grow Team server with the
      [Zulip Mobile Push Notification
      Service](https://zulip.readthedocs.io/en/stable/production/mobile-push-notifications.html).
   1. For organizations with more than 10 users, a user [who can manage plans

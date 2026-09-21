@@ -8,7 +8,7 @@
         </div>
         {{#if server_needs_upgrade }}
         <div class="org-info org-upgrade">
-            <a href="https://zulip.readthedocs.io/en/stable/production/upgrade.html" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">{{t 'Upgrade to the latest release' }}</a>
+            <a href="https://github.com/Growth-Circle/grow-team/releases" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">{{t 'Upgrade to the latest release' }}</a>
         </div>
         {{/if}}
         {{else}}
@@ -16,13 +16,13 @@
             {{#if is_demo_organization }}
             <a href="/help/demo-organizations" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">{{t "Demo organization" }}</a>
             {{else if is_plan_limited }}
-            <a href="/plans/" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">Zulip Cloud Free</a>
+            <a href="/plans/" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">Free</a>
             {{else if is_plan_standard}}
-            <a href="/plans/" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">Zulip Cloud Standard</a>
+            <a href="/plans/" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">Standard</a>
             {{else if is_plan_standard_sponsored_for_free}}
-            <a href="/plans/" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">Zulip Cloud Standard (sponsored)</a>
+            <a href="/plans/" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">Standard (sponsored)</a>
             {{else if is_plan_plus}}
-            <a href="/plans/" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">Zulip Cloud Plus</a>
+            <a href="/plans/" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">Plus</a>
             {{/if}}
         </div>
         {{/if}}
@@ -136,7 +136,7 @@
         {{!-- Group 2 --}}
         <li role="separator" class="popover-menu-separator"></li>
         <li role="none" class="link-item popover-menu-list-item">
-            <a role="menuitem" href="{{ apps_page_url }}" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">
+            <a role="menuitem" href="/help/desktop-app-install-guide" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">
                 <i class="popover-menu-icon zulip-icon zulip-icon-monitor" aria-hidden="true"></i>
                 <span class="popover-menu-label">{{t 'Desktop & mobile apps' }}</span>
             </a>
@@ -163,9 +163,9 @@
         {{/if}}
         {{#if promote_sponsoring_zulip}}
         <li role="none" class="link-item popover-menu-list-item">
-            <a role="menuitem" href="https://zulip.com/help/support-zulip-project" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">
+            <a role="menuitem" href="https://github.com/Growth-Circle/grow-team" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">
                 <i class="popover-menu-icon zulip-icon zulip-icon-heart" aria-hidden="true"></i>
-                <span class="popover-menu-label">{{t 'Support Zulip' }}</span>
+                <span class="popover-menu-label">{{t 'Support Grow Team' }}</span>
             </a>
         </li>
         {{/if}}

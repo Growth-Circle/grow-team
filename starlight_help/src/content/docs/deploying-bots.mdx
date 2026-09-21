@@ -22,17 +22,17 @@ options for doing so:
   (since you need a persistent process running), but otherwise works
   great.
 * Using the Zulip Botserver, which is a simple Flask server for
-  running a bot in production, and connecting that to Zulip's outgoing
+  running a bot in production, and connecting that to Grow Team's outgoing
   webhooks feature.
 
 ## Zulip Botserver
 
-The Zulip Botserver is for people who want to:
+The upstream Zulip Botserver is compatible with Grow Team. It can:
 
 * Run bots in production.
 * Run multiple bots at once.
 
-The Zulip Botserver is a Python (Flask) server that implements Zulip's
+The Zulip Botserver is a Python (Flask) server that implements Grow Team's
 outgoing webhooks API.  You can of course write your own servers using
 the outgoing webhooks API, but the Botserver is designed to make it
 easy for a novice Python programmer to write a new bot and deploy it
@@ -41,7 +41,7 @@ in production.
 ### How Botserver works
 
 Zulip Botserver starts a web server that listens to incoming messages
-from your main Zulip server. The sequence of events in a successful
+from your main Grow Team server. The sequence of events in a successful
 Botserver interaction are:
 
 <Steps>
@@ -51,7 +51,7 @@ Botserver interaction are:
      @**My Bot User** hello world
      ```
 
-  1. The Zulip server sends a POST request to your Botserver endpoint URL:
+  1. The Grow Team server sends a POST request to your Botserver endpoint URL:
 
      ```
      {
@@ -64,7 +64,7 @@ Botserver interaction are:
      }
      ```
 
-     This URL is configured in the Zulip web-app in your Bot User's settings.
+     This URL is configured in the Grow Team web-app in your Bot User's settings.
 
   1. The Botserver searches for a bot to handle the message, and executes your
      bot's `handle_message` code.
@@ -80,7 +80,9 @@ Install the `zulip_botserver` package:
 pip3 install zulip_botserver
 ```
 
-### Create a bot in your Zulip organization
+<span id="create-a-bot-in-your-zulip-organization" aria-hidden="true"></span>
+
+### Create a bot in your Grow Team organization
 
 <Steps>
   1. Navigate to the **Bots** tab of the **Personal settings** menu, and click
@@ -96,7 +98,7 @@ pip3 install zulip_botserver
 ### Running a bot using the Zulip Botserver
 
 <Steps>
-  1. [Create your bot](#create-a-bot-in-your-zulip-organization) in your Zulip
+  1. [Create your bot](#create-a-bot-in-your-zulip-organization) in your Grow Team
      organization.
   1. [Download the `zuliprc` file](/help/manage-a-bot#download-zuliprc-configuration-file)
      for the bot created above.
@@ -121,7 +123,7 @@ Botserver process.
 
 <Steps>
   1. [Create your bots](#create-a-bot-in-your-zulip-organization)
-     in your Zulip organization.
+     in your Grow Team organization.
 
   1. Download the `botserverrc` file from the **Bots** tab of the
      **Personal settings** menu, by clicking the **download**
@@ -232,11 +234,11 @@ Botserver with SSL using an `nginx` or `Apache` reverse proxy and
   bot](/help/outgoing-webhooks) and you've
   correctly configured the URL for your Botserver.
 
-* Your Botserver needs to be accessible from your Zulip server over
+* Your Botserver needs to be accessible from your Grow Team server over
   HTTP(S).  Make sure any firewall allows the connection.  We
   recommend using [zulip-run-bot](/help/running-bots) instead for
   development/testing on a laptop or other non-server system.
-  If your Zulip server is self-hosted, you can test by running `curl
+  If your Grow Team server is self-hosted, you can test by running `curl
   http://zulipbotserver.example.com:5002` from your Zulip server;
   the output should be:
 
