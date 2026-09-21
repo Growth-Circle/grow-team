@@ -19,6 +19,22 @@ memerlukan satu agent terpasang dan satu endpoint nyata yang disetujui.
 - Produksi masih memakai image `grow-team/server:12.2-grow-team.3` saat pekerjaan dimulai.
 - Tidak ada fitur agent baru yang sudah dinyatakan tersedia pada produksi.
 
+## Bukti komponen yang sudah direview
+
+Backend koneksi, policy, dan API pada commit `3469f2f` lulus 96 tes gabungan
+bersama model dan protokol. Review spesifikasi dan kualitas lulus. Bukti tersedia
+pada [tes koneksi](../../zerver/tests/test_agents_connections.py),
+[tes policy](../../zerver/tests/test_agents_policy.py), dan
+[tes API](../../zerver/tests/test_agents_api.py).
+
+Komponen file backup pada commit `fb12e290` lulus 24 tes dan review independen.
+Lihat [tes file backup](../../zerver/tests/test_agents_backup.py) dan
+[syarat pemulihan](agent-recovery.md). Pengujian tersebut belum memakai restore
+database lengkap.
+
+Baris berstatus **Sebagian** di bawah mencatat bukti komponen tersebut. Status
+tersebut tidak menyatakan fitur sudah tersedia di produksi atau spesifikasi selesai.
+
 ## Arti status
 
 - **Belum diuji:** belum ada bukti untuk kriteria lengkap.
@@ -30,9 +46,9 @@ memerlukan satu agent terpasang dan satu endpoint nyata yang disetujui.
 
 | ID | Skenario | Hasil wajib | Status dan bukti |
 | --- | --- | --- | --- |
-| AT-01 | Pairing normal | Perangkat terikat pengguna dan realm yang menyetujui. | Belum diuji. |
-| AT-02 | Kode pairing expired, replay, atau brute force | Ditolak tanpa menerbitkan credential. | Belum diuji. |
-| AT-03 | Runner/token dicabut | Claim baru ditolak; lease dan eksekusi aktif masuk jalur penghentian. | Belum diuji. |
+| AT-01 | Pairing normal | Perangkat terikat pengguna dan realm yang menyetujui. | Sebagian: pairing dan binding backend lulus pada `3469f2f`; alur CLI dan browser belum diuji. |
+| AT-02 | Kode pairing expired, replay, atau brute force | Ditolak tanpa menerbitkan credential. | Sebagian: expiry, replay, dan batas percobaan backend lulus pada `3469f2f`; integrasi runner belum diuji. |
+| AT-03 | Runner/token dicabut | Claim baru ditolak; lease dan eksekusi aktif masuk jalur penghentian. | Sebagian: rotasi, pencabutan credential, dan permintaan stop backend lulus pada `3469f2f`; penghentian proses nyata belum diuji. |
 | AT-04 | Agent ACP terpilih | Handshake, prompt, progres, izin, dan cancel sesuai kemampuan yang dinegosiasikan. | Belum diuji. |
 | AT-05 | ACP tanpa `loadSession` | Resume memakai sesi baru dan checkpoint; tidak memanggil metode yang tidak didukung. | Belum diuji. |
 | AT-06 | Endpoint hanya Chat Completions | Probe tool round-trip dan coding fixture lulus melalui mode tersebut. | Belum diuji. |
@@ -50,8 +66,8 @@ memerlukan satu agent terpasang dan satu endpoint nyata yang disetujui.
 | AT-18 | Process child membuat grandchild | Cancel/timeout menghentikan seluruh tree pada platform yang didukung. | Belum diuji. |
 | AT-19 | Working tree pengguna sudah dirty | WIP tetap utuh; pekerjaan berjalan pada salinan terpisah dari commit terpilih. | Belum diuji. |
 | AT-20 | Symlink atau common Git dir keluar scope | Akses tidak memperluas mount atau izin repository. | Belum diuji. |
-| AT-21 | Member kehilangan akses kanal/repo | Pembacaan berikutnya dan publikasi ditolak sesuai scope baru. | Belum diuji. |
-| AT-22 | Permintaan lintas realm | List, count, detail, event, approval, dan download tidak membocorkan data. | Belum diuji. |
+| AT-21 | Member kehilangan akses kanal/repo | Pembacaan berikutnya dan publikasi ditolak sesuai scope baru. | Sebagian: irisan grant dan membership saat ini lulus pada `3469f2f`; context dan publikasi hasil belum selesai. |
+| AT-22 | Permintaan lintas realm | List, count, detail, event, approval, dan download tidak membocorkan data. | Sebagian: list, count, dan detail profil lintas realm ditolak pada `3469f2f`; job, event, approval, dan artifact belum selesai. |
 | AT-23 | Topik pindah dari privat ke audiens lebih luas | Hasil ditahan sampai tujuan dan audiens disetujui. | Belum diuji. |
 | AT-24 | Diff berubah setelah approval | Approval lama tidak dapat digunakan. | Belum diuji. |
 | AT-25 | Dua keputusan approval bersamaan | Tepat satu konsumsi operasi berhasil. | Belum diuji. |
@@ -61,20 +77,20 @@ memerlukan satu agent terpasang dan satu endpoint nyata yang disetujui.
 | AT-29 | Konteks penuh, ringkasan gagal, atau provider error | Retry terbatas; tugas/checkpoint tetap dapat ditinjau. | Belum diuji. |
 | AT-30 | Titen tidak tersedia | Pekerjaan yang aman dapat berjalan tanpa klaim recall berhasil. | Belum diuji. |
 | AT-31 | Reply akhir diulang karena worker restart | Satu pesan hasil, dengan result message ID yang sama. | Belum diuji. |
-| AT-32 | Secret sintetis pada error/header/output | Tidak muncul pada chat, event, artifact yang dibagikan, atau telemetry. | Belum diuji. |
+| AT-32 | Secret sintetis pada error/header/output | Tidak muncul pada chat, event, artifact yang dibagikan, atau telemetry. | Sebagian: enkripsi, field secret write-only, dan error backend lulus pada `3469f2f`; output runner, artifact, dan telemetry belum diuji. |
 | AT-33 | UI dark/light, keyboard, layar sempit | Semua state utama dan approval dapat dioperasikan. | Belum diuji. |
 | AT-34 | Upgrade/rollback runner | Versi tidak kompatibel ditolak dengan pesan pemulihan; job lama tetap terbaca. | Belum diuji. |
-| AT-35 | Pemulihan database dan artifact | Hubungan job, approval, result, dan checksum tetap konsisten. | Belum diuji. |
+| AT-35 | Pemulihan database dan artifact | Hubungan job, approval, result, dan checksum tetap konsisten. | Sebagian: penyalinan file dan verifikasi arsip lulus pada `fb12e290`; restore database dan dekripsi hasil restore belum diuji. |
 | AT-36 | Anggota memakai browser tanpa aplikasi desktop | Login, chat, pengaturan, trigger, review, approval, cancel, dan resume bekerja; job tetap berjalan setelah tab ditutup. | Belum diuji. |
 
 ## AF: [2026-09-21-agent-lifecycle-and-mention-flow.md](spec/2026-09-21-agent-lifecycle-and-mention-flow.md)
 
 | ID | Skenario | Hasil wajib | Status dan bukti |
 | --- | --- | --- | --- |
-| AF-01 | Create diklik dua kali atau respons hilang | Satu bot user, satu profil, dan setup operation yang dapat ditemukan kembali. | Belum diuji. |
-| AF-02 | Profil tersimpan tetapi probe gagal | Profil tetap ada; retry tidak membuat identitas baru. | Belum diuji. |
-| AF-03 | Kanal gagal ditambahkan setelah create | UI membedakan profil berhasil dari akses kanal gagal. | Belum diuji. |
-| AF-04 | Profil diedit selama probe berlangsung | Hasil revision lama tidak mengaktifkan revision baru. | Belum diuji. |
+| AF-01 | Create diklik dua kali atau respons hilang | Satu bot user, satu profil, dan setup operation yang dapat ditemukan kembali. | Sebagian: retry HTTP dan race create menghasilkan satu identitas pada `3469f2f`; alur browser belum diuji. |
+| AF-02 | Profil tersimpan tetapi probe gagal | Profil tetap ada; retry tidak membuat identitas baru. | Sebagian: retry setup mempertahankan profil pada `3469f2f`; probe melalui runner nyata belum diuji. |
+| AF-03 | Kanal gagal ditambahkan setelah create | UI membedakan profil berhasil dari akses kanal gagal. | Sebagian: grant dan retry penambahan kanal lulus pada `3469f2f`; pemulihan UI belum diuji. |
+| AF-04 | Profil diedit selama probe berlangsung | Hasil revision lama tidak mengaktifkan revision baru. | Sebagian: revision dan descriptor probe lama ditolak pada `3469f2f`; alur edit di browser belum diuji. |
 | AF-05 | Dua profil bernama sama | ID penerima yang dipilih tetap tepat setelah rename dan upload. | Belum diuji. |
 | AF-06 | Presence/query gagal dengan cache Online lama | UI menampilkan unknown tanpa membuat proses duplikat. | Belum diuji. |
 | AF-07 | Mention personal biasa pada profil Coding | Satu pesan, receipt, job, outbox, dan attempt sesuai scope. | Belum diuji. |
@@ -103,7 +119,7 @@ memerlukan satu agent terpasang dan satu endpoint nyata yang disetujui.
 | AF-30 | Cancel saat permission request menunggu | Approval tidak dapat dipakai; proses berhenti atau tampil belum terkonfirmasi. | Belum diuji. |
 | AF-31 | Cancel bersamaan dengan completion | Transisi memakai versi; hanya hasil sah yang menang dan tersimpan. | Belum diuji. |
 | AF-32 | Resume setelah operasi remote tidak pasti | Rekonsiliasi dilakukan sebelum retry; approval lama tidak diaktifkan ulang. | Belum diuji. |
-| AF-33 | Profil pause saat ada tugas aktif | Kerja baru tertahan; UI tidak mengklaim tugas aktif otomatis berhenti. | Belum diuji. |
+| AF-33 | Profil pause saat ada tugas aktif | Kerja baru tertahan; UI tidak mengklaim tugas aktif otomatis berhenti. | Sebagian: pause memerlukan revision saat ini pada `3469f2f`; perilaku job aktif dan status UI belum diuji. |
 | AF-34 | Profil arsip/rename dan pesan lama dibuka | Identitas historis tetap tepat; tidak dialihkan ke agent lain. | Belum diuji. |
 | AF-35 | Pindah/ubah audiens ketika hasil akan terbit | Result broker menahan publikasi yang memperluas akses. | Belum diuji. |
 | AF-36 | Tab ditutup lalu dibuka dari browser lain | Job tetap berjalan; status, inputs, approval, dan hasil dipulihkan dari server. | Belum diuji. |

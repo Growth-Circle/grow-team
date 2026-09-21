@@ -196,18 +196,18 @@ self.assertEqual(AgentProfile.objects.filter(bot_user=first.bot_user).count(), 1
 
 **Interfaces:** Produce device claim/lease/control/event/context/artifact/credential APIs. Claim returns the frozen Task 1 descriptor. Human APIs return jobs, inputs, events, artifacts, and allowed actions.
 
-- [ ] Test concurrent claims and lost claim responses with actual database rows.
-- [ ] Enforce capacity, start deadlines, schema versions, record versions, epochs, and current grants.
-- [ ] Persist event receipts and ordered inputs before acknowledgement.
-- [ ] Implement cancel requests, stop confirmation, interrupted state, and explicit new-attempt resume.
-- [ ] Implement bounded outbox replay and lease/deadline reconciliation without network work inside message transactions.
-- [ ] Implement proposals and single-use approval consumption bound to operation, diff, policy, and attempt.
-- [ ] Keep uncertain remote operations blocked until a matching receipt is reconciled.
-- [ ] Store private bounded artifacts and structured final-tree verification records.
-- [ ] Reject model-only completion, stale checks, missing required checks, and unconfirmed delivery.
-- [ ] Publish one result atomically after current audience checks.
-- [ ] Test stop/completion races, authority violations, secret redaction, and publication retry.
-- [ ] Run focused tests and commit the task.
+- [x] Test concurrent claims and lost claim responses with actual database rows.
+- [x] Enforce capacity, start deadlines, schema versions, record versions, epochs, and current grants.
+- [x] Persist event receipts and ordered inputs before acknowledgement.
+- [x] Implement cancel requests, stop confirmation, interrupted state, and explicit new-attempt resume.
+- [x] Implement bounded outbox replay and lease/deadline reconciliation without network work inside message transactions.
+- [x] Implement proposals and single-use approval consumption bound to operation, diff, policy, and attempt.
+- [x] Keep uncertain remote operations blocked until a matching receipt is reconciled.
+- [x] Store private bounded artifacts and structured final-tree verification records.
+- [x] Reject model-only completion, stale checks, missing required checks, and unconfirmed delivery.
+- [x] Publish one result atomically after current audience checks.
+- [x] Test stop/completion races, authority violations, secret redaction, and publication retry.
+- [x] Run focused tests and commit the task.
 
 Test example:
 
