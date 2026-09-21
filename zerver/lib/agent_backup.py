@@ -1,10 +1,12 @@
 """Stage and verify private agent files for database backup recovery."""
 
+import base64
 import hashlib
 import json
 import os
 import re
 import stat
+from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 from typing import Literal, TypedDict
 
@@ -24,6 +26,47 @@ class AgentBackupManifest(TypedDict):
     artifacts: bool
     keyring: bool
     files: list[BackupFile]
+
+
+def verify_agent_backup_references(
+    staged: Path,
+    *,
+    artifacts: Sequence[tuple[str, int, str]],
+    secret_key_ids: set[str],
+) -> AgentBackupManifest:
+    """Check database references against staged files and retained encryption keys."""
+    manifest = verify_agent_backup(staged)
+    files = {record["path"]: record for record in manifest["files"]}
+    for storage_ref, size, checksum in artifacts:
+        record = files.get(f"artifacts/{storage_ref}")
+        if record is None or record["size"] != size or record["sha256"] != checksum:
+            raise AgentBackupError("An agent artifact reference does not match the backup.")
+    if secret_key_ids and not manifest["keyring"]:
+        raise AgentBackupError("Agent secrets require their retained encryption keys.")
+    if manifest["keyring"]:
+        try:
+            with os.fdopen(_open_path(staged / "keyring.json", _FILE_FLAGS), "rb") as source:
+                content = source.read(64 * 1024 + 1)
+            if len(content) > 64 * 1024:
+                raise ValueError
+            payload = json.loads(content)
+            if (
+                not isinstance(payload, dict)
+                or set(payload) != {"current", "keys"}
+                or not isinstance(payload["current"], str)
+                or not isinstance(payload["keys"], dict)
+                or payload["current"] not in payload["keys"]
+                or not secret_key_ids <= payload["keys"].keys()
+            ):
+                raise ValueError
+            for key_id, value in payload["keys"].items():
+                if not isinstance(key_id, str) or not isinstance(value, str):
+                    raise ValueError
+                if len(base64.b64decode(value, validate=True)) != 32:
+                    raise ValueError
+        except (OSError, TypeError, ValueError):
+            raise AgentBackupError("The agent backup keyring cannot restore its secrets.") from None
+    return manifest
 
 
 _DIRECTORY_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
@@ -169,15 +212,25 @@ def stage_agent_backup(
             try:
                 destination = staged / "artifacts"
                 destination.mkdir(mode=0o700)
-                manifest["files"].extend(_directory_records(source_fd, "artifacts", destination))
+                manifest["files"].extend(
+                    _directory_records(source_fd, "artifacts", destination, private=True)
+                )
             finally:
                 os.close(source_fd)
         if keyring_file is not None:
-            manifest["files"].append(
-                _file_record(
-                    _open_path(keyring_file, _FILE_FLAGS), "keyring.json", staged / "keyring.json"
+            keyring_parent_fd = _open_path(keyring_file.parent, _DIRECTORY_FLAGS)
+            try:
+                _require_private(os.fstat(keyring_parent_fd))
+                manifest["files"].append(
+                    _file_record(
+                        _open_path(keyring_file, _FILE_FLAGS),
+                        "keyring.json",
+                        staged / "keyring.json",
+                        private=True,
+                    )
                 )
-            )
+            finally:
+                os.close(keyring_parent_fd)
         manifest["files"].sort(key=lambda record: record["path"])
         fd = os.open(staged / "manifest.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(fd, "w") as output:

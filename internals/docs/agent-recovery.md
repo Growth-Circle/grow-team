@@ -1,6 +1,6 @@
 # Pemulihan data agen
 
-Status: komponen penyalinan dan pemeriksaan file tersedia. Integrasi backup produksi
+Status: perintah backup sudah mencakup artifact dan keyring. Pemasangan produksi
 dan restore database lengkap masih menunggu gate rilis.
 
 ## Data yang wajib dipulihkan bersama
@@ -55,23 +55,34 @@ Pemanggil wajib menjaga syarat tersebut sepanjang operasi backup.
 
 ## Gate sebelum rilis
 
-- Integrasikan staging ke perintah backup dan arsip operasi yang digunakan server.
-- Tolak backup tidak lengkap jika database memiliki artifact atau secret tanpa sumbernya.
+- Pasang perintah backup dan wrapper yang sudah mencakup data agen pada image rilis.
+- Pastikan timer cleanup artifact dan penghapusan versi kunci tetap tidak aktif.
 - Gunakan target restore baru dengan versi database dan image yang sesuai.
 - Periksa referensi job, approval, operation, result, dan checksum artifact setelah restore.
 - Uji dekripsi secret sintetis dengan versi kunci lama dan baru tanpa mencetak nilainya.
 - Uji rollback aplikasi dan runner sambil mempertahankan journal dan data chat.
 - Rekam hasil produksi dan pastikan layanan Hermes tetap sesuai baseline.
 
-Tes file yang sudah tersedia:
+Tes file dan perintah backup yang sudah tersedia:
 
 ```bash
-tools/grow-team/test-environment/run.sh \
-  .venv/bin/python -m unittest zerver.tests.test_agents_backup
+tools/grow-team/test-environment/run.sh .venv/bin/python - <<'PY'
+import django
+import unittest
+
+django.setup()
+suite = unittest.defaultTestLoader.loadTestsFromNames([
+    "zerver.tests.test_agents_backup",
+    "zerver.tests.test_agents_backup_command",
+])
+result = unittest.TextTestRunner(verbosity=1).run(suite)
+raise SystemExit(not result.wasSuccessful())
+PY
 ```
 
-Tes tersebut memakai file sementara. Tes ini belum membuktikan restore database,
-pemulihan runner, atau pemulihan layanan produksi.
+Sebanyak 43 tes memakai file sementara dan tar yang nyata. Tes perintah memakai
+mock untuk query database. Bukti ini belum membuktikan restore database, pemulihan
+runner, atau pemulihan layanan produksi.
 
 ## Rekonsiliasi terjadwal
 
@@ -118,6 +129,18 @@ Arsip operasi mencakup service dan timer rekonsiliasi agen. Pasang kedua unit
 tersebut sebelum memasang versi baru script backup. Script menolak backup operasi
 yang tidak lengkap jika unit belum tersedia.
 
-Perubahan wrapper ini belum mengintegrasikan artifact dan keyring ke perintah
-`manage.py backup`. Integrasi tersebut dan bukti restore database tetap menjadi
-syarat rilis.
+Perintah `manage.py backup` menyalin artifact dan keyring setelah dump database.
+Perintah memeriksa ukuran serta checksum artifact yang tercatat dan semua versi
+kunci yang dirujuk secret. Sumber yang hilang, permission yang terbuka, serta
+referensi yang tidak lengkap membuat backup gagal. Opsi `--skip-db` dan
+`--skip-uploads` tetap menyertakan file privat agen.
+
+Target `--output` harus berupa path baru. Perintah membuat arsip melalui descriptor
+file privat, lalu menerbitkannya secara atomik tanpa menimpa target yang sudah ada.
+Kegagalan hanya membersihkan staging milik percobaan tersebut. Penghentian paksa
+dapat meninggalkan staging privat; staging itu bukan bukti backup berhasil.
+
+Cleanup artifact dan penghapusan versi kunci masih nonaktif. Operator wajib
+mempertahankan kondisi tersebut sepanjang backup. Implementasi cleanup mendatang
+harus memakai barrier yang sama dengan backup. Bukti restore database lengkap
+tetap menjadi syarat rilis.

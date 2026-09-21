@@ -1,9 +1,14 @@
+import contextlib
 import os
 import platform
 import re
+import secrets
+import stat
 import tempfile
 from argparse import ArgumentParser, RawTextHelpFormatter
 from contextlib import ExitStack
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from django.conf import settings
@@ -14,8 +19,106 @@ from typing_extensions import override
 
 from scripts.lib.zulip_tools import TIMESTAMP_FORMAT, run
 from version import ZULIP_VERSION
+from zerver.lib.agent_backup import stage_agent_backup, verify_agent_backup_references
 from zerver.lib.management import ZulipBaseCommand
 from zerver.logging_handlers import try_git_describe
+from zerver.models import agents
+
+
+@dataclass
+class OutputStaging:
+    parent_fd: int | None
+    directory_fd: int | None
+    directory_name: str
+    directory_identity: tuple[int, int]
+    archive_fd: int | None
+
+
+def _make_private_output_staging(destination: str) -> OutputStaging:
+    path = Path(destination)
+    parent_fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    directory_fd = -1
+    archive_fd = -1
+    try:
+        while True:
+            directory_name = f".{path.name}.{secrets.token_hex(16)}.partial"
+            try:
+                os.mkdir(directory_name, 0o700, dir_fd=parent_fd)
+                break
+            except FileExistsError:
+                continue
+        directory_fd = os.open(
+            directory_name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent_fd
+        )
+        info = os.fstat(directory_fd)
+        if (
+            info.st_uid != os.geteuid()
+            or stat.S_IMODE(info.st_mode) != 0o700
+            or info.st_mode & 0o7000
+        ):
+            raise PermissionError("Backup staging directory is not private.")
+        archive_fd = os.open(
+            "archive.tar.gz",
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600,
+            dir_fd=directory_fd,
+        )
+        os.fchmod(archive_fd, 0o600)
+        return OutputStaging(
+            parent_fd, directory_fd, directory_name, (info.st_dev, info.st_ino), archive_fd
+        )
+    except Exception:
+        if archive_fd != -1:
+            os.close(archive_fd)
+        if directory_fd != -1:
+            os.close(directory_fd)
+        os.close(parent_fd)
+        raise
+
+
+def _remove_owned_output_staging(staging: OutputStaging) -> None:
+    archive_fd = staging.archive_fd
+    staging.archive_fd = None
+    if archive_fd is not None:
+        with contextlib.suppress(OSError):
+            os.close(archive_fd)
+
+    directory_fd = staging.directory_fd
+    staging.directory_fd = None
+    if directory_fd is not None:
+        with contextlib.suppress(OSError):
+            os.unlink("archive.tar.gz", dir_fd=directory_fd)
+        with contextlib.suppress(OSError):
+            os.close(directory_fd)
+
+    parent_fd = staging.parent_fd
+    staging.parent_fd = None
+    if parent_fd is None:
+        return
+    try:
+        info = os.stat(staging.directory_name, dir_fd=parent_fd, follow_symlinks=False)
+        if (info.st_dev, info.st_ino) == staging.directory_identity:
+            with contextlib.suppress(OSError):
+                os.rmdir(staging.directory_name, dir_fd=parent_fd)
+    except FileNotFoundError:
+        pass
+    finally:
+        with contextlib.suppress(OSError):
+            os.close(parent_fd)
+
+
+def _publish_output_staging(staging: OutputStaging, destination: str) -> None:
+    assert staging.archive_fd is not None
+    assert staging.directory_fd is not None
+    assert staging.parent_fd is not None
+    os.fsync(staging.archive_fd)
+    os.link(
+        "archive.tar.gz",
+        Path(destination).name,
+        src_dir_fd=staging.directory_fd,
+        dst_dir_fd=staging.parent_fd,
+        follow_symlinks=False,
+    )
 
 
 class Command(ZulipBaseCommand):
@@ -96,6 +199,27 @@ class Command(ZulipBaseCommand):
                 )
                 members.append("zulip-backup/database")
 
+            artifact_root = getattr(settings, "AGENT_ARTIFACT_ROOT", None)
+            keyring_file = getattr(settings, "AGENT_SECRET_MASTER_KEY_FILE", None)
+            artifact_references = list(
+                agents.AgentArtifact.objects.filter(unavailable_at__isnull=True).values_list(
+                    "storage_ref", "size", "checksum"
+                )
+            )
+            secret_key_ids = set(agents.AgentSecret.objects.values_list("key_id", flat=True))
+            staged_agent = stage_agent_backup(
+                Path(tmp) / "zulip-backup",
+                artifact_root=Path(artifact_root) if artifact_root else None,
+                keyring_file=Path(keyring_file) if keyring_file else None,
+                require_artifacts=bool(artifact_references),
+                require_keyring=bool(secret_key_ids),
+            )
+            if staged_agent is not None:
+                verify_agent_backup_references(
+                    staged_agent, artifacts=artifact_references, secret_key_ids=secret_key_ids
+                )
+                members.append("zulip-backup/agent")
+
             if (
                 not options["skip_uploads"]
                 and settings.LOCAL_UPLOADS_DIR is not None
@@ -122,6 +246,8 @@ class Command(ZulipBaseCommand):
                 for name, path in paths
             ]
 
+            tarball_path: str | None = None
+            output_staging: OutputStaging | None = None
             try:
                 if options["output"] is None:
                     tarball_path = stack.enter_context(
@@ -132,21 +258,34 @@ class Command(ZulipBaseCommand):
                         )
                     ).name
                 else:
-                    tarball_path = options["output"]
+                    output_staging = _make_private_output_staging(options["output"])
+                    tarball_path = "-"
 
-                run(
-                    [
-                        "tar",
-                        f"--directory={tmp}",
-                        "-cPhzf",
-                        tarball_path,
-                        *transform_args,
-                        "--",
-                        *members,
-                    ]
-                )
+                tar_command = [
+                    "tar",
+                    f"--directory={tmp}",
+                    "-cPhzf",
+                    tarball_path,
+                    *transform_args,
+                    "--",
+                    *members,
+                ]
+                if output_staging is None:
+                    run(tar_command)
+                else:
+                    assert output_staging.archive_fd is not None
+                    with os.fdopen(output_staging.archive_fd, "wb", closefd=False) as archive:
+                        run(tar_command, stdout=archive)
+                if output_staging is not None:
+                    _publish_output_staging(output_staging, options["output"])
+                    completed_staging = output_staging
+                    output_staging = None
+                    _remove_owned_output_staging(completed_staging)
+                    tarball_path = options["output"]
                 print(f"Backup tarball written to {tarball_path}")
             except BaseException:
-                if options["output"] is None:
+                if output_staging is not None:
+                    _remove_owned_output_staging(output_staging)
+                elif options["output"] is None and tarball_path is not None:
                     os.unlink(tarball_path)
                 raise

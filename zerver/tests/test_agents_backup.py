@@ -20,13 +20,15 @@ class AgentBackupTest(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.artifacts = self.root / "private-artifacts"
-        self.artifacts.mkdir()
-        (self.artifacts / "job").mkdir()
+        self.artifacts.mkdir(mode=0o700)
+        (self.artifacts / "job").mkdir(mode=0o700)
         (self.artifacts / "job" / "diff.patch").write_bytes(b"synthetic diff\n")
+        (self.artifacts / "job" / "diff.patch").chmod(0o600)
         self.keyring = self.root / "keys.json"
         self.keyring.write_text(
             json.dumps({"current": "v2", "keys": {"v1": "synthetic-old", "v2": "synthetic-new"}})
         )
+        self.keyring.chmod(0o600)
         self.staging = self.root / "backup"
         self.staging.mkdir()
 
@@ -83,6 +85,31 @@ class AgentBackupTest(unittest.TestCase):
     def test_missing_configured_source_fails(self) -> None:
         with self.assertRaises(AgentBackupError):
             stage_agent_backup(self.staging, artifact_root=self.root / "absent", keyring_file=None)
+
+    def test_non_private_source_paths_are_rejected(self) -> None:
+        for source, mode in (
+            (self.artifacts, 0o750),
+            (self.artifacts / "job", 0o750),
+            (self.artifacts / "job/diff.patch", 0o640),
+            (self.keyring.parent, 0o750),
+            (self.keyring, 0o640),
+        ):
+            with self.subTest(source=source.name):
+                original_mode = stat.S_IMODE(source.stat().st_mode)
+                source.chmod(mode)
+                staging = self.root / f"backup-{source.name}"
+                staging.mkdir(mode=0o700)
+                try:
+                    with self.assertRaises(AgentBackupError):
+                        stage_agent_backup(
+                            staging,
+                            artifact_root=self.artifacts,
+                            keyring_file=self.keyring,
+                            require_artifacts=True,
+                            require_keyring=True,
+                        )
+                finally:
+                    source.chmod(original_mode)
 
     def test_symlink_outside_artifacts_is_rejected(self) -> None:
         (self.artifacts / "escape").symlink_to(self.keyring)
@@ -149,7 +176,7 @@ class AgentBackupTest(unittest.TestCase):
 
     def test_empty_artifact_directory_is_preserved(self) -> None:
         empty = self.root / "empty"
-        empty.mkdir()
+        empty.mkdir(mode=0o700)
         staged = stage_agent_backup(self.staging, artifact_root=empty, keyring_file=None)
         assert staged is not None
         manifest = verify_agent_backup(staged)
