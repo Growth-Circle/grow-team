@@ -1,6 +1,6 @@
 # ERD Grow Team
 
-Status: diagram pertama adalah model source Zulip yang terverifikasi dari `zerver/models`. Diagram kedua adalah proposal AI untuk ide inti Grow Team, tetapi belum ada migrasi, tabel, atau agent runtime.
+Status: diagram pertama adalah model source Zulip yang terverifikasi dari `zerver/models`. Runtime image Grow Team sudah dideploy, tetapi tidak mengubah model ini. Diagram kedua adalah proposal AI untuk ide inti Grow Team, tetapi belum ada migrasi, tabel, atau agent runtime.
 
 ## Model aktual
 

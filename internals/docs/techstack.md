@@ -14,18 +14,20 @@ Status: terverifikasi dari `pyproject.toml`, `package.json`, dan `deploy/grow-te
 | Ingress dan email | Cloudflare Tunnel; Worker Email Sending | Terverifikasi. Worker mengirim email transaksi; tidak ada SMTP/API-token blocker. |
 | AI privat | Gateway pada server Wulan lewat Tailscale/SSH | Terverifikasi sebagai koneksi privat. Integrasi aplikasi belum ada. |
 
-Image aplikasi produksi saat ini `ghcr.io/zulip/zulip-server:12.2-0` dipatok digest.
-Deploy image fork berbranding Grow Team untuk `team.growc.id` sedang berlangsung dan
-belum terverifikasi selesai. PostgreSQL, Redis, RabbitMQ, dan Memcached juga dipatok
-digest dalam override. Host aplikasi adalah `team.growc.id`; port HTTP hanya diekspos
-ke loopback. Nama paket, queue, dan setting Zulip tetap ada sebagai kompatibilitas teknis.
+Image aplikasi produksi memakai fork Grow Team. Pemeriksaan publik dan browser lulus
+untuk alur inti, tetapi audit visual menemukan ikon Z upstream pada spinner feed.
+Koreksi ikon dan rebuild akhir masih berjalan. PostgreSQL, Redis, RabbitMQ, dan
+Memcached juga dipatok digest dalam override. Host aplikasi adalah `team.growc.id`;
+port HTTP hanya diekspos ke loopback. Nama paket, queue, dan setting Zulip tetap ada
+sebagai kompatibilitas teknis. Lihat
+[verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md).
 
 ## Catatan operasi
 
 - Gunakan `deploy/grow-team/compose.sh`, bukan engine Docker lain.
 - Konfigurasi dan credential host berada di path privat dan tidak dicantumkan di sini.
-- Backend email Python dipasang read-only ke container; perubahan source aplikasi tetap memerlukan image fork untuk rilis branding.
-- Backup mencakup database, uploads, konfigurasi, dan checksum. Uji pemulihan stack penuh belum tercatat.
+- Backend email Python dipasang read-only ke container; image fork saat ini dibangun sebagai user `zulip` setelah kegagalan ownership log pada kandidat pertama.
+- Backup sebelum deploy `20260921T132110Z-zulip` mencakup database, uploads, dan konfigurasi; checksum lokal serta remote lulus. Uji pemulihan stack penuh belum tercatat.
 
 ## Target yang belum ada
 

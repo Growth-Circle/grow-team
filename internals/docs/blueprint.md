@@ -20,12 +20,16 @@ flowchart LR
   HostTunnel[Unit tunnel AI host] -. Tailscale SSH .-> Wulan[Gateway AI privat]
 ```
 
-Runtime produksi masih memakai image resmi Zulip, bukan image fork. Deploy image
-fork berbranding Grow Team untuk `team.growc.id` sekarang dalam proses. Karena itu
-login live masih dapat menampilkan branding lama sampai image baru berjalan dan
-smoke test serta rollback diverifikasi. Engine Docker, data, volume, systemd slice,
-dan tunnel dipisahkan dari Hermes. Aplikasi hanya dipublikasikan lewat loopback lalu
-tunnel. Lihat `deploy/grow-team/DESIGN.md`, `README.md`, dan `VERIFICATION.md`.
+Runtime produksi memakai image fork Grow Team. Pemeriksaan publik dan browser pada
+13:52 UTC lulus untuk login, registrasi, reset password, assets, help, owner session,
+event queue, dan anon 401. Audit visual kemudian menemukan ikon Z upstream pada
+spinner feed pesan. Koreksi ikon dan rebuild akhir masih berjalan, sehingga identitas
+runtime belum boleh dinyatakan tuntas. Kandidat pertama gagal karena ownership log,
+lalu rollback ke image resmi sehat sebelum image baru dibangun ulang dengan user
+`zulip` dan pemeriksaan startup Django lulus. Engine Docker, data, volume, systemd
+slice, dan tunnel dipisahkan dari Hermes. Aplikasi hanya dipublikasikan lewat
+loopback lalu tunnel. Lihat
+[verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md).
 
 ## Target AI, belum diimplementasikan
 
@@ -57,6 +61,6 @@ boleh dipakai untuk tugas opsional; aplikasi realtime tidak tidur.
 
 1. Pilih isolasi pelanggan: instance per klien atau realm bersama sebelum rilis komersial.
 2. Tetapkan kontrak gateway AI, kelas data, retensi audit, dan batas retry.
-3. Selesaikan dan verifikasi deploy image fork berbranding sebelum menyatakan branding live.
+3. Selesaikan browser smoke penuh dan catat bukti rilis terpisah.
 
 Rujukan: [tech stack](techstack.md), [ERD](erd.md), [security](security.md), dan [roadmap](roadmap.md).

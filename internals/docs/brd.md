@@ -40,6 +40,6 @@ Jangan pilih salah satu untuk komersial sebelum gate keamanan, backup/restore, o
 | Status | Keputusan |
 | --- | --- |
 | Diterima | Fork Zulip 12.2, browser-first, repo `Growth-Circle/grow-team`, domain internal, dan jaringan AI privat. |
-| Dalam proses | Deploy image fork berbranding Grow Team ke `team.growc.id`; belum selesai sampai runtime dan rollback diverifikasi. |
+| Diterapkan sebagian | Image fork Grow Team sudah berjalan di `team.growc.id`. Pemeriksaan publik dan browser inti lulus, tetapi audit visual menemukan ikon Z upstream pada spinner feed. Koreksi dan rebuild akhir masih berjalan. Kandidat awal di-rollback sehat sesudah gagal ownership log. |
 | Proposal | Sidecar bot/API, storage durable AI, dan worker terpisah. |
 | Belum diputuskan | Model deployment pelanggan, isolasi tenant, katalog model, dan operasi komersial. |
