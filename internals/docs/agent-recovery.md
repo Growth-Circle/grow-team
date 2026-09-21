@@ -91,3 +91,33 @@ Keduanya terpisah dari lokasi unggahan publik.
 
 Wrapper dan unit ini masih berupa konfigurasi rilis. Aktivasi serta pemeriksaan
 rekonsiliasi setelah restart dilakukan bersama gate produksi.
+
+## Inisialisasi penyimpanan privat
+
+`deploy/grow-team/init_agent_storage.py` dijalankan sebagai user `zulip` setelah
+operator menyiapkan direktori induk privat. Script membuat direktori artifact dan
+keyring hanya jika belum tersedia. Script memeriksa seluruh versi kunci yang sudah
+ada dan mempertahankan isi file persis seperti sebelumnya.
+
+Script menolak pemilik atau permission yang salah, symlink, file khusus, dan
+keyring yang tidak valid. Lock inisialisasi memiliki batas tunggu satu detik.
+Output hanya menunjukkan status `created` dan `ready`; nilai kunci tidak dicetak.
+
+## Arsip operasional
+
+`deploy/grow-team/backup.sh` membuat direktori privat yang unik untuk setiap
+percobaan backup, termasuk dua backup pada detik yang sama. Aplikasi mengirimkan
+arsip dari staging sementara di dalam container. Staging tersebut dibersihkan
+setelah transfer selesai atau gagal.
+
+Arsip yang belum selesai memakai akhiran `.partial`. Script hanya menulis
+`SHA256SUMS` setelah arsip aplikasi dan operasi selesai serta arsip aplikasi dapat
+dibaca. Backup yang gagal tidak menimpa backup sebelumnya.
+
+Arsip operasi mencakup service dan timer rekonsiliasi agen. Pasang kedua unit
+tersebut sebelum memasang versi baru script backup. Script menolak backup operasi
+yang tidak lengkap jika unit belum tersedia.
+
+Perubahan wrapper ini belum mengintegrasikan artifact dan keyring ke perintah
+`manage.py backup`. Integrasi tersebut dan bukti restore database tetap menjadi
+syarat rilis.
