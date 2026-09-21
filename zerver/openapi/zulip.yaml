@@ -9143,6 +9143,33 @@ paths:
                         type: integer
                       minLength: 1
                   example: [9, 10]
+                agent_send_key:
+                  description: |
+                    **Changes**: Grow Team pilot local extension (ZF-8ed736).
+
+                    A sender-scoped UUID for one captured send intent.
+                    Retry the same payload with the same key to recover the original message ID.
+                    A changed payload returns an error. Message deletion does not permit key reuse.
+                    Keep automatic retries within 24 hours. The server retains mappings for at least
+                    30 days and while related jobs remain active. Other clients may omit this field.
+                    Forged or mirrored senders cannot use this key.
+                  type: string
+                  format: uuid
+                  example: "10ad20de-e20c-4c27-926b-9823aa7e5f99"
+                agent_send_metadata:
+                  description: |
+                    **Changes**: Grow Team pilot local extension (ZF-8ed736).
+
+                    JSON-encoded captured client context; requires
+                    `agent_send_key`. This context never grants execution permission.
+                    Fields are `schema_version` (integer 1), `profile_ids` (UUID array),
+                    `draft_key` (string), `visit_token` (UUID), and `draft_revision`
+                    (nonnegative integer). The selected profiles must match authoritative
+                    personal mentions or the implicit one-agent direct-message target.
+                    All fields participate in retry conflict detection. Local echo identifiers
+                    do not participate; they retain their existing transport behavior.
+                  type: string
+                  example: '{"schema_version":1,"profile_ids":["a803e751-f438-4dfb-bded-c323c88e0a71"],"draft_key":"draft-A","visit_token":"2a1d48c2-a7c7-4853-94c4-cb6c8ab9dc63","draft_revision":1}'
                 content:
                   $ref: "#/components/schemas/RequiredContent"
                 topic:

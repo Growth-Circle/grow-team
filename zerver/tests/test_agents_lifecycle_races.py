@@ -425,6 +425,13 @@ class AgentLifecycleRaceTests(ZulipTransactionTestCase):
             required_checks=[{"id": "test", "argv": ["true"], "cwd": ".", "timeout_seconds": 120}],
         )
         actions = ["context.read", "repository.read", "repository.edit", "checks.run", "git.push"]
+        self.profile.capability_report = {
+            "chat_ready": True,
+            "code_ready": True,
+            "tool_calling": "passed",
+            "sandbox": "passed",
+            "config_version": 1,
+        }
         self.profile.policy["actions"] = actions
         self.profile.default_repository = repository
         configuration = self.profile.readiness_configuration

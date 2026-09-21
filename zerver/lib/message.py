@@ -187,6 +187,7 @@ class SendMessageRequest:
     reminder_target_message_id: int | None = None
     reminder_note: str | None = None
     agent_send_key: UUID | None = None
+    agent_send_metadata: dict[str, object] | None = None
 
 
 @dataclass

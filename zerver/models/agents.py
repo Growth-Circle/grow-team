@@ -296,10 +296,6 @@ class AgentProfile(AgentRecord):
                 name="agent_profile_runtime_valid",
             ),
             models.CheckConstraint(
-                condition=Q(default_mode="answer") | Q(default_repository__isnull=False),
-                name="agent_profile_code_repo",
-            ),
-            models.CheckConstraint(
                 condition=~Q(desired_state="enabled") | Q(enabled_revision__isnull=False),
                 name="agent_profile_enable_revision",
             ),
@@ -425,6 +421,7 @@ class AgentJob(AgentRecord):
     resume_checkpoint = models.ForeignKey(
         "AgentCheckpoint", on_delete=models.PROTECT, null=True, related_name="resume_jobs"
     )
+    draft_completion = models.JSONField(null=True, default=None)
     event_sequence = models.PositiveBigIntegerField(default=0)
     input_sequence = models.PositiveBigIntegerField(default=0)
     result_proposal = models.JSONField(null=True, default=None)
@@ -851,6 +848,9 @@ class AgentProbeGrant(AgentRecord):
 
 
 class AgentSendIntent(AgentRecord):
+    identity_unavailable = models.BooleanField(default=False)
+    # This identity survives deletion of the nullable source message.
+    sent_message_id = models.PositiveBigIntegerField(null=True)
     sender = models.ForeignKey("zerver.UserProfile", on_delete=models.PROTECT)
     client_key = models.UUIDField()
     payload_digest = models.CharField(max_length=64)

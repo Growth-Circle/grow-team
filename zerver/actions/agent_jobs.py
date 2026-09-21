@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 from django.db.models import Max
 from django.utils.timezone import now
 
-from zerver.actions.agents import provider_config, validate_runtime
+from zerver.actions.agents import current_execution_configuration, provider_config, validate_runtime
 from zerver.lib import agent_protocol as p
 from zerver.lib.agent_context import (
     agent_transaction,
@@ -111,7 +111,10 @@ def require_ready(profile: agents.AgentProfile) -> p.ExecutionConfiguration:
         raise ValueError("Profile readiness is stale.")
     validate_runtime(profile)
     tested = p.ExecutionConfiguration.model_validate(profile.readiness_configuration)
-    if digest(p.serialize_payload(tested)) != profile.readiness_configuration_digest:
+    if (
+        digest(p.serialize_payload(tested)) != profile.readiness_configuration_digest
+        or current_execution_configuration(profile) != tested
+    ):
         raise ValueError("Profile readiness is stale.")
     return tested
 
@@ -131,6 +134,8 @@ def create_job(
     context_attachment_ids: list[int] | None = None,
     trigger_kind: str = "manual",
     draft: bool = False,
+    completing: agents.AgentJob | None = None,
+    allow_blocked: bool = False,
 ) -> agents.AgentJob:
     if not request or len(request) > 20000:
         raise ValueError("Invalid request.")
@@ -166,7 +171,7 @@ def create_job(
         prior = agents.AgentJob.objects.filter(
             realm=actor.realm, requester=actor, idempotency_key=idempotency_key
         ).first()
-        if prior is not None:
+        if prior is not None and completing is None:
             require_job_access(actor, prior)
             if prior.payload_digest != payload_hash:
                 raise ValueError("Idempotency conflict.")
@@ -174,7 +179,7 @@ def create_job(
         existing_trigger = agents.AgentJob.objects.filter(
             realm=actor.realm, source_message=source, profile=profile, trigger_kind=trigger_kind
         ).first()
-        if existing_trigger is not None:
+        if existing_trigger is not None and completing is None:
             require_job_access(actor, existing_trigger)
             if (
                 existing_trigger.requester_id != actor.id
@@ -186,34 +191,61 @@ def create_job(
             realm=actor.realm, enabled=True
         )
         profile = agents.AgentProfile.objects.get(id=profile.id, realm=actor.realm)
-        require_ready(profile)
+        blocked_reason = ""
+        try:
+            require_ready(profile)
+        except ValueError:
+            if not allow_blocked or profile.desired_state != "enabled":
+                raise
+            blocked_reason = "profile_needs_action"
         source = Message.objects.get(id=source.id, realm=actor.realm)
         if repository is not None and repository.id != profile.default_repository_id:
             raise ValueError("Repository requires a new configuration.")
-        if job_kind == "code" and repository is None:
+        if job_kind == "code" and repository is None and not draft:
             raise ValueError("Coding requires a repository.")
         if repository is not None and not draft and base_ref not in repository.allowed_refs:
             raise ValueError("Base ref is not approved.")
+        if (
+            job_kind == "code"
+            and not draft
+            and not blocked_reason
+            and (
+                not profile.capability_report.get("code_ready", False)
+                or repository is None
+                or not repository.required_checks
+            )
+        ):
+            raise ValueError("Coding readiness and required checks are required.")
         check_agent_access(actor, profile, repository, source, "profile.use")
-        if not draft and (
-            agents.AgentJob.objects.filter(realm=actor.realm, status="queued").count()
-            >= settings.queued_job_limit
-            or agents.AgentJob.objects.filter(profile=profile, status="queued").count()
-            >= settings.profile_queue_limit
+        if (
+            not draft
+            and not blocked_reason
+            and (
+                agents.AgentJob.objects.filter(realm=actor.realm, status="queued").count()
+                >= settings.queued_job_limit
+                or agents.AgentJob.objects.filter(profile=profile, status="queued").count()
+                >= settings.profile_queue_limit
+            )
         ):
             raise ValueError("Agent queue is full.")
         scope = p.serialize_payload(scope_for_message(source))
-        conversation = agents.AgentConversation.objects.create(
-            realm=actor.realm,
-            profile=profile,
-            repository=repository,
-            anchor_message=source,
-            scope=scope,
-        )
-        conversation.audience_binding = p.serialize_payload(
-            current_audience(conversation, actor, profile.bot_user)
-        )
-        conversation.save(update_fields=["audience_binding"])
+        if completing is None:
+            conversation = agents.AgentConversation.objects.create(
+                realm=actor.realm,
+                profile=profile,
+                repository=repository,
+                anchor_message=source,
+                scope=scope,
+            )
+            conversation.audience_binding = p.serialize_payload(
+                current_audience(conversation, actor, profile.bot_user)
+            )
+            conversation.save(update_fields=["audience_binding"])
+        else:
+            require_audience(completing)
+            conversation = completing.conversation
+            conversation.repository = repository
+            conversation.save(update_fields=["repository"])
         policy = dict(profile.policy)
         policy["scope"] = scope
         job = agents.AgentJob(
@@ -232,8 +264,9 @@ def create_job(
             idempotency_key=idempotency_key,
             payload_digest=payload_hash,
             admission_revision=profile.revision,
-            status="draft" if draft else "queued",
-            start_deadline=None if draft else now() + timedelta(hours=24),
+            status="draft" if draft else "blocked" if blocked_reason else "queued",
+            blocked_reason=blocked_reason,
+            start_deadline=None if draft or blocked_reason else now() + timedelta(hours=24),
             policy=policy,
             budget=profile.budget,
         )
@@ -248,11 +281,23 @@ def create_job(
         policy["actions"] = current_actions(job, ceiling)
         if "context.read" not in policy["actions"] or (
             job_kind == "code"
+            and not draft
             and not {"repository.read", "repository.edit", "checks.run"} <= set(policy["actions"])
         ):
             raise ValueError("Required job authority is unavailable.")
+        if completing is not None:
+            job.id = completing.id
+            job.created_at = completing.created_at
+            job.version = completing.version + 1
+            job.event_sequence = completing.event_sequence
+            job.draft_completion = {
+                "expected_version": completing.version,
+                "repository_id": str(repository.id) if repository else None,
+                "base_ref": base_ref,
+            }
+            agents.AgentContextRef.objects.filter(job=completing).delete()
         job.clean()
-        job.save()
+        job.save(force_update=completing is not None)
         from zerver.lib.message import access_message
 
         for message_id in ids:
@@ -281,7 +326,7 @@ def create_job(
                 scope=scope,
             )
             selected_context(job, [ref.id])
-        if not draft:
+        if not draft and not blocked_reason:
             agents.AgentOutbox.objects.create(
                 realm=actor.realm, job=job, delivery_key=f"wake:{job.id}:1", event_type="job.wake"
             )
@@ -289,9 +334,67 @@ def create_job(
         return job
 
 
+def complete_draft(
+    actor: UserProfile,
+    job_id: UUID,
+    *,
+    expected_version: int,
+    repository_id: UUID,
+    base_ref: str,
+) -> agents.AgentJob:
+    with agent_transaction():
+        job = agents.AgentJob.objects.select_for_update().get(id=job_id, realm=actor.realm)
+        require_control(actor, job)
+        receipt = {
+            "expected_version": expected_version,
+            "repository_id": str(repository_id),
+            "base_ref": base_ref,
+        }
+        if job.draft_completion is not None:
+            if job.draft_completion != receipt:
+                raise ValueError("Draft completion conflicts with the previous request.")
+            return job
+        if job.status != "draft" or job.version != expected_version or job.source_message is None:
+            raise ValueError("Draft is no longer configurable.")
+        repository = agents.AgentRepository.objects.get(id=repository_id, realm=actor.realm)
+        result = create_job(
+            actor,
+            profile=job.profile,
+            source=job.source_message,
+            request=job.request,
+            idempotency_key=job.idempotency_key,
+            job_kind=job.job_kind,
+            delivery_target=job.delivery_target,
+            repository=repository,
+            base_ref=base_ref,
+            trigger_kind=job.trigger_kind,
+            completing=job,
+            context_message_ids=list(
+                agents.AgentContextRef.objects.filter(
+                    job=job, kind="message", message__isnull=False
+                ).values_list("message_id", flat=True)
+            ),
+            context_attachment_ids=list(
+                agents.AgentContextRef.objects.filter(
+                    job=job, kind="attachment", attachment__isnull=False
+                ).values_list("attachment_id", flat=True)
+            ),
+        )
+        agents.AgentDispatchReceipt.objects.filter(job=result).update(
+            decision="accepted", reason=""
+        )
+        return result
+
+
 def build_descriptor(job: agents.AgentJob, attempt: agents.AgentAttempt) -> dict[str, Any]:
     profile = job.profile
     tested = require_ready(profile)
+    if job.job_kind == "code" and (
+        not profile.capability_report.get("code_ready", False)
+        or job.repository is None
+        or not job.repository.required_checks
+    ):
+        raise ValueError("Coding readiness and required checks are required.")
     policy = p.Policy.model_validate(job.policy)
     policy.actions = current_actions(job, policy.actions)  # type: ignore[assignment]
     repository = None

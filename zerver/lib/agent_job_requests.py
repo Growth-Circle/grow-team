@@ -3,7 +3,7 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from zerver.lib import agent_protocol as p
 
@@ -25,13 +25,36 @@ class CreateJob(Request):
     context_attachment_ids: list[p.Positive] = Field(default_factory=list, max_length=20)
 
 
+class SendMetadata(Request):
+    profile_ids: list[UUID] = Field(min_length=1, max_length=20)
+    draft_key: Annotated[str, Field(min_length=1, max_length=200)]
+    visit_token: UUID
+    draft_revision: Annotated[int, Field(strict=True, ge=0)]
+
+
 class MessagePreflight(Request):
     profile_ids: list[UUID] = Field(min_length=1, max_length=20)
     source_message_id: p.Positive | None = None
+    destination: p.ConversationScope | None = None
+
+    @model_validator(mode="after")
+    def one_destination(self) -> "MessagePreflight":
+        if (self.source_message_id is None) == (self.destination is None):
+            raise ValueError("Specify one source or destination.")
+        if self.destination is not None and (
+            self.destination.kind == "selected" or self.destination.anchor_message_id is not None
+        ):
+            raise ValueError("Preflight destination cannot contain a message anchor.")
+        return self
 
 
 class JobControl(Request):
     expected_version: p.Positive
+
+
+class CompleteDraft(JobControl):
+    repository_id: UUID
+    base_ref: Annotated[str, Field(min_length=1, max_length=200)]
 
 
 class Resume(JobControl):

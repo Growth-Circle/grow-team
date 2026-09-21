@@ -521,6 +521,52 @@ def validate_runtime(profile: agents.AgentProfile) -> None:
                 )
 
 
+def current_execution_configuration(
+    profile: agents.AgentProfile,
+) -> protocol.ExecutionConfiguration:
+    """Compare live dependencies without a stored or unexpired setup grant."""
+    policy = protocol.Policy.model_validate(profile.policy)
+    provider = None
+    if profile.provider is not None:
+        configured = protocol.ProviderConfig.model_validate(provider_config(profile.provider))
+        provider = protocol.EffectiveProvider.model_validate(
+            configured.model_dump(include=set(protocol.EffectiveProvider.model_fields))
+        )
+    repository = profile.default_repository
+    binding = None
+    if repository is not None:
+        binding = protocol.WorkspaceBinding(
+            canonical_origin=repository.canonical_origin or None,
+            repository_id=repository.id,
+            workspace_alias=repository.workspace_alias,
+            policy_version=repository.policy_version,
+            allowed_refs=repository.allowed_refs,
+            checks_digest=hashlib.sha256(
+                protocol.canonical_json(
+                    [
+                        protocol.serialize_payload(protocol.RequiredCheck.model_validate(item))
+                        for item in repository.required_checks
+                    ]
+                )
+            ).hexdigest(),
+        )
+    return protocol.ExecutionConfiguration(
+        runner_id=profile.runner_id,
+        profile_revision=profile.revision,
+        adapter=protocol.AdapterConfig.model_validate(
+            {"id": profile.adapter_id, "version": profile.adapter_version, "mode": profile.mode}
+        ),
+        provider=provider,
+        workspace_binding=binding,
+        policy_version=policy.version,
+        actions=sorted(set(policy.actions)),
+        sandbox=policy.sandbox,
+        network=policy.network,
+        hard_cost_cap=policy.hard_cost_cap,
+        budget=protocol.Budget.model_validate(profile.budget),
+    )
+
+
 def _save_descriptor(setup: agents.AgentSetupOperation, descriptor: dict[str, object]) -> None:
     setup.descriptor = descriptor
     setup.configuration_digest = str(descriptor["configuration_digest"])
@@ -695,7 +741,6 @@ def create_profile(
         mode not in {"acp", "endpoint"}
         or default_mode not in {"answer", "code"}
         or (mode == "endpoint" and provider is None)
-        or (default_mode == "code" and repository is None)
     ):
         raise ValueError("Invalid profile configuration.")
     try:
@@ -908,7 +953,11 @@ def record_setup_result(
         ready = (
             result.state == "ready"
             and result.capabilities.chat_ready
-            and (profile.default_mode != "code" or result.capabilities.code_ready)
+            and (
+                profile.default_mode != "code"
+                or profile.default_repository_id is None
+                or result.capabilities.code_ready
+            )
         )
         profile.readiness_state = "ready" if ready else "needs_action"
         profile.readiness_revision = profile.revision

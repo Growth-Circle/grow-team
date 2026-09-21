@@ -129,6 +129,7 @@ def send_message_backend(
         str | None, ApiParamConfig("widget_content", documentation_status=DOCUMENTATION_PENDING)
     ] = None,
     agent_send_key: str | None = None,
+    agent_send_metadata: str | None = None,
 ) -> HttpResponse:
     recipient_type_name = req_type
     if recipient_type_name == "direct":
@@ -223,6 +224,8 @@ def send_message_backend(
         read_by_sender = client.default_read_by_sender()
 
     if agent_send_key is not None:
+        if forged:
+            raise JsonableError(_("Agent send keys cannot be used for forged messages."))
         try:
             parsed_agent_send_key = UUID(agent_send_key)
         except ValueError:
@@ -230,24 +233,49 @@ def send_message_backend(
     else:
         parsed_agent_send_key = None
 
+    metadata = None
+    if agent_send_metadata is not None:
+        from zerver.lib.agent_job_requests import SendMetadata
+        from zerver.lib.agent_protocol import serialize_payload
+
+        if parsed_agent_send_key is None or sender.id != user_profile.id:
+            raise JsonableError(_("Agent send metadata requires the sender's send key."))
+        try:
+            metadata = serialize_payload(SendMetadata.model_validate_json(agent_send_metadata))
+        except ValueError:
+            raise JsonableError(_("Invalid agent send metadata.")) from None
+    if parsed_agent_send_key is not None and sender.id != user_profile.id:
+        raise JsonableError(_("Agent send key requires the authenticated sender."))
+
     data: dict[str, int] = {}
-    sent_message_result = check_send_message(
-        sender,
-        client,
-        recipient_type_name,
-        message_to,
-        topic_name,
-        message_content,
-        forged=forged,
-        forged_timestamp=time,
-        forwarder_user_profile=user_profile,
-        realm=realm,
-        local_id=local_id,
-        sender_queue_id=queue_id,
-        widget_content=widget_content,
-        read_by_sender=read_by_sender,
-        agent_send_key=parsed_agent_send_key,
-    )
+    from zerver.lib.agent_context import AgentBusy
+
+    try:
+        sent_message_result = check_send_message(
+            sender,
+            client,
+            recipient_type_name,
+            message_to,
+            topic_name,
+            message_content,
+            forged=forged,
+            forged_timestamp=time,
+            forwarder_user_profile=user_profile,
+            realm=realm,
+            local_id=local_id,
+            sender_queue_id=queue_id,
+            widget_content=widget_content,
+            read_by_sender=read_by_sender,
+            agent_send_key=parsed_agent_send_key,
+            agent_send_metadata=metadata,
+        )
+    except AgentBusy:
+        return HttpResponse(
+            '{"result":"error","msg":"Agent authority is busy. Retry the same send key.","schema_version":1}',
+            status=503,
+            content_type="application/json",
+            headers={"Retry-After": "1"},
+        )
     data["id"] = sent_message_result.message_id
     if sent_message_result.automatic_new_visibility_policy:
         data["automatic_new_visibility_policy"] = (

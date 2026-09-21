@@ -439,8 +439,6 @@ class ProfileConfig(Versioned):
     def configured_mode(self) -> Self:
         if self.adapter.mode == "endpoint" and self.provider_id is None:
             raise ValueError("Endpoint mode requires a provider")
-        if self.default_mode == "code" and self.default_repository_id is None:
-            raise ValueError("Coding requires a repository")
         if self.desired_state == "enabled" and self.enabled_revision is None:
             raise ValueError("Enabled profile requires its authorized revision")
         if any(

@@ -32,9 +32,27 @@ def _principal_matches(actor: UserProfile, grant: agents.AgentGrant) -> bool:
     return get_recursive_group_members(grant.principal_group_id).filter(id=actor.id).exists()
 
 
-def scope_matches(scope_data: dict[str, object], message: Message | None) -> bool:
+def scope_matches(
+    scope_data: dict[str, object],
+    message: Message | None,
+    destination: protocol.ConversationScope | None = None,
+) -> bool:
     if message is None:
-        return False
+        if destination is None:
+            return False
+        try:
+            required = protocol.ConversationScope.model_validate(scope_data)
+        except ValueError:
+            return False
+        if required.anchor_message_id is not None or required.kind != destination.kind:
+            return False
+        if required.kind == "stream":
+            return required.stream_id == destination.stream_id and (
+                required.topic is None or required.topic == destination.topic
+            )
+        return required.kind == "direct" and set(required.participant_user_ids) == set(
+            destination.participant_user_ids
+        )
     try:
         scope = protocol.ConversationScope.model_validate(scope_data)
     except ValueError:
@@ -64,6 +82,7 @@ def _grant_matches(
     action: str,
     repository: agents.AgentRepository | None = None,
     source_message: Message | None = None,
+    destination: protocol.ConversationScope | None = None,
 ) -> bool:
     filters = Q(realm_id=actor.realm_id, target_kind=target_kind, revoked_at__isnull=True)
     filters &= Q(expires_at__isnull=True) | Q(expires_at__gt=now())
@@ -78,7 +97,7 @@ def _grant_matches(
             and (repository is None or grant.repository_id != repository.id)
         ):
             continue
-        if grant.scope is not None and not scope_matches(grant.scope, source_message):
+        if grant.scope is not None and not scope_matches(grant.scope, source_message, destination):
             continue
         return True
     return False
@@ -94,6 +113,7 @@ def _owner_or_grant(
     action: str,
     repository: agents.AgentRepository | None = None,
     source_message: Message | None = None,
+    destination: protocol.ConversationScope | None = None,
 ) -> bool:
     return getattr(resource, "owner_id", None) == actor.id or _grant_matches(
         actor,
@@ -102,6 +122,7 @@ def _owner_or_grant(
         action=action,
         repository=repository,
         source_message=source_message,
+        destination=destination,
     )
 
 
@@ -286,6 +307,8 @@ def check_agent_access(
     repository: agents.AgentRepository | None,
     source_message: Message | None,
     action: str,
+    *,
+    destination: protocol.ConversationScope | None = None,
 ) -> None:
     profile = agents.AgentProfile.objects.select_related(
         "runner", "provider", "provider__secret"
@@ -317,6 +340,14 @@ def check_agent_access(
         _deny()
     if not _same_realm(actor, profile, profile.runner, provider, repository, source_message):
         _deny()
+    if destination is not None:
+        if source_message is not None:
+            _deny()
+        readable, _scope = _readable_scope(
+            actor, profile.bot_user, protocol.serialize_payload(destination)
+        )
+        if not readable:
+            _deny()
     if source_message is not None:
         try:
             access_message(actor, source_message.id, is_modifying_message=False)
@@ -330,6 +361,7 @@ def check_agent_access(
         action=action,
         repository=repository,
         source_message=source_message,
+        destination=destination,
     ):
         _deny()
     if not _owner_or_grant(
@@ -338,6 +370,7 @@ def check_agent_access(
         target_kind="runner",
         action="runner.use",
         source_message=source_message,
+        destination=destination,
     ):
         _deny()
     if provider is not None and not _owner_or_grant(
@@ -346,6 +379,7 @@ def check_agent_access(
         target_kind="provider",
         action="provider.use",
         source_message=source_message,
+        destination=destination,
     ):
         _deny()
     if repository is not None and not _owner_or_grant(
@@ -358,5 +392,6 @@ def check_agent_access(
             else "repository.read"
         ),
         source_message=source_message,
+        destination=destination,
     ):
         _deny()

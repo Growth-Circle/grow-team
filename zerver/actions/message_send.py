@@ -666,6 +666,7 @@ def build_message_send_dict(
     acting_user: UserProfile | None = None,
     no_previews: bool = False,
     agent_send_key: UUID | None = None,
+    agent_send_metadata: dict[str, object] | None = None,
 ) -> SendMessageRequest:
     """Returns a dictionary that can be passed into do_send_messages.  In
     production, this is always called by check_message, but some
@@ -772,6 +773,7 @@ def build_message_send_dict(
         mention_data=mention_data,
         mentioned_user_groups_map=mentioned_user_groups_map,
         agent_send_key=agent_send_key,
+        agent_send_metadata=agent_send_metadata,
         message=message,
         rendering_result=rendering_result,
         active_user_ids=info.active_user_ids,
@@ -934,7 +936,6 @@ def get_active_presence_idle_user_ids(
     return filter_presence_idle_user_ids(user_ids)
 
 
-@transaction.atomic(savepoint=False)
 def do_send_messages(
     send_message_requests_maybe_none: Sequence[SendMessageRequest | None],
     *,
@@ -945,6 +946,38 @@ def do_send_messages(
     for high-level documentation on this subsystem.
     """
 
+    from zerver.lib.agent_context import agent_transaction
+
+    needs_guard = any(
+        item is not None
+        and (
+            item.agent_send_key is not None
+            or (
+                not item.message.sender.is_bot
+                and (
+                    item.rendering_result.personal_mention_user_ids & item.default_bot_user_ids
+                    or (
+                        item.message.recipient.type == Recipient.DIRECT_MESSAGE_GROUP
+                        and item.default_bot_user_ids
+                    )
+                )
+            )
+        )
+        for item in send_message_requests_maybe_none
+    )
+    # Acquire before message writes and retain limits through the outer commit.
+    if needs_guard:
+        with agent_transaction(retain_nested_limits=True):
+            return _do_send_messages(send_message_requests_maybe_none, mark_as_read=mark_as_read)
+    with transaction.atomic(savepoint=False):
+        return _do_send_messages(send_message_requests_maybe_none, mark_as_read=mark_as_read)
+
+
+def _do_send_messages(
+    send_message_requests_maybe_none: Sequence[SendMessageRequest | None],
+    *,
+    mark_as_read: Sequence[int],
+) -> list[SentMessageResult]:
     # Filter out messages which didn't pass internal_prep_message properly
     send_message_requests = [
         send_request
@@ -955,6 +988,8 @@ def do_send_messages(
     # Claim a sender-scoped retry identity before writing a new message. The
     # intent is part of this transaction, so a failed send leaves no retry key.
     replayed_results: dict[int, SentMessageResult] = {}
+    batch_keys: dict[tuple[int, int, UUID], SendMessageRequest] = {}
+    aliases: dict[int, SendMessageRequest] = {}
     for send_request in list(send_message_requests):
         if send_request.agent_send_key is None:
             continue
@@ -967,10 +1002,11 @@ def do_send_messages(
                 "type": send_request.message.recipient.type,
                 "topic": send_request.message.topic_name(),
                 "content": send_request.message.content,
-                "attachments": sorted(
-                    send_request.rendering_result.potential_attachment_path_ids
-                ),
-                "profiles": sorted(send_request.rendering_result.personal_mention_user_ids),
+                "attachments": sorted(send_request.rendering_result.potential_attachment_path_ids),
+                "metadata": send_request.agent_send_metadata,
+                "widget": send_request.widget_content,
+                "message_type": send_request.message.type,
+                "read_by_sender": send_request.message.sender_id in mark_as_read,
             }
         )
         try:
@@ -996,14 +1032,53 @@ def do_send_messages(
                 )
         if intent.payload_digest != payload_digest:
             raise JsonableError(_("Agent send key conflicts with an earlier message."))
-        if intent.source_message_id is not None:
-            replayed_results[id(send_request)] = SentMessageResult(intent.source_message_id)
+        if intent.identity_unavailable:
+            raise JsonableError(
+                _("The original message identity is unavailable. This send key cannot be reused.")
+            )
+        if intent.sent_message_id is not None:
+            replayed_results[id(send_request)] = SentMessageResult(intent.sent_message_id)
+        else:
+            identity = (
+                send_request.realm.id,
+                send_request.message.sender_id,
+                send_request.agent_send_key,
+            )
+            if identity in batch_keys:
+                aliases[id(send_request)] = batch_keys[identity]
+            else:
+                batch_keys[identity] = send_request
 
     send_message_requests = [
-        item for item in send_message_requests if id(item) not in replayed_results
+        item
+        for item in send_message_requests
+        if id(item) not in replayed_results and id(item) not in aliases
     ]
     if not send_message_requests:
-        return [replayed_results[id(item)] for item in send_message_requests_maybe_none if item is not None]
+        return [
+            replayed_results[id(item)]
+            for item in send_message_requests_maybe_none
+            if item is not None
+        ]
+
+    from zerver.actions.agent_dispatch import _targets
+
+    for item in send_message_requests:
+        if item.agent_send_metadata is not None:
+            actual = {
+                str(profile.id)
+                for profile in _targets(
+                    item.message, item.rendering_result.personal_mention_user_ids
+                )
+            }
+            from zerver.lib.agent_job_requests import SendMetadata
+
+            selected = {
+                str(value)
+                for value in SendMetadata.model_validate(item.agent_send_metadata).profile_ids
+            }
+            if selected != actual:
+                raise JsonableError(_("Agent targets changed. Review the message before sending."))
 
     # Save the message receipts in the database
     user_message_flags: dict[int, dict[int, list[str]]] = defaultdict(dict)
@@ -1018,8 +1093,8 @@ def do_send_messages(
                 realm=send_request.realm,
                 sender=send_request.message.sender,
                 client_key=send_request.agent_send_key,
-                source_message__isnull=True,
-            ).update(source_message=send_request.message)
+                sent_message_id__isnull=True,
+            ).update(source_message=send_request.message, sent_message_id=send_request.message.id)
 
     # Claim attachments in message
     for send_request in send_message_requests:
@@ -1428,14 +1503,17 @@ def do_send_messages(
                     },
                 )
 
-    sent_message_results = [
-        SentMessageResult(
-            message_id=send_request.message.id,
-            automatic_new_visibility_policy=send_request.automatic_new_visibility_policy,
+    results = {
+        id(item): SentMessageResult(
+            message_id=item.message.id,
+            automatic_new_visibility_policy=item.automatic_new_visibility_policy,
         )
-        for send_request in send_message_requests
-    ]
-    return sent_message_results
+        for item in send_message_requests
+    }
+    results.update(replayed_results)
+    for alias_id, original in aliases.items():
+        results[alias_id] = results[id(original)]
+    return [results[id(item)] for item in send_message_requests_maybe_none if item is not None]
 
 
 def extract_stream_indicator(s: str) -> str | int:
@@ -1576,6 +1654,7 @@ def check_send_message(
     sender_queue_id: str | None = None,
     widget_content: str | None = None,
     agent_send_key: UUID | None = None,
+    agent_send_metadata: dict[str, object] | None = None,
     *,
     skip_stream_access_check: bool = False,
     read_by_sender: bool = False,
@@ -1594,6 +1673,7 @@ def check_send_message(
         sender_queue_id,
         widget_content,
         agent_send_key=agent_send_key,
+        agent_send_metadata=agent_send_metadata,
         skip_stream_access_check=skip_stream_access_check,
     )
     return do_send_messages(
@@ -1850,6 +1930,7 @@ def check_message(
     no_previews: bool = False,
     acting_user: UserProfile | None = None,
     agent_send_key: UUID | None = None,
+    agent_send_metadata: dict[str, object] | None = None,
 ) -> SendMessageRequest:
     """See
     https://zulip.readthedocs.io/en/latest/subsystems/sending-messages.html
@@ -2011,6 +2092,7 @@ def check_message(
         acting_user=acting_user,
         no_previews=no_previews,
         agent_send_key=agent_send_key,
+        agent_send_metadata=agent_send_metadata,
     )
 
     if (

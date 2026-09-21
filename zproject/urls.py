@@ -350,6 +350,7 @@ v1_api_and_json_patterns = [
     rest_path(
         "agent/jobs/<uuid:job_id>/inputs", GET=agent_job_views.inputs, POST=agent_job_views.inputs
     ),
+    rest_path("agent/jobs/<uuid:job_id>/configure", POST=agent_job_views.complete_draft),
     rest_path("agent/jobs/<uuid:job_id>/cancel", POST=agent_job_views.cancel),
     rest_path("agent/jobs/<uuid:job_id>/resume", POST=agent_job_views.resume),
     rest_path("agent/approvals/<uuid:approval_id>/decision", POST=agent_job_views.decide),

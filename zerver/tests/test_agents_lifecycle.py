@@ -74,8 +74,6 @@ class AgentLifecycleTests(ZulipTestCase):
             },
         )
         self.profile.refresh_from_db()
-        message_id = self.send_personal_message(self.owner, self.profile.bot_user, "Please answer")
-        self.message = Message.objects.get(id=message_id)
         # Sequential tests own an outer transaction. Acquire its guard before assertions.
         # Separate TransactionTestCase tests exercise real contention and rollback.
         from time import sleep
@@ -91,6 +89,12 @@ class AgentLifecycleTests(ZulipTestCase):
                 if retry == 19:
                     raise
                 sleep(0.1)
+
+        # Group DM without a mention isolates manual lifecycle admission from Task 4.
+        message_id = self.send_group_direct_message(
+            self.owner, [self.profile.bot_user, self.example_user("iago")], "Please answer"
+        )
+        self.message = Message.objects.get(id=message_id)
 
     def test_claim_replay_keeps_one_attempt_and_narrows_answer_authority(self) -> None:
         self.assertIsNotNone(
@@ -598,7 +602,9 @@ class AgentLifecycleTests(ZulipTestCase):
             },
         )
         message = Message.objects.get(
-            id=self.send_personal_message(self.owner, profile.bot_user, "Code task")
+            id=self.send_group_direct_message(
+                self.owner, [profile.bot_user, self.example_user("iago")], "Code task"
+            )
         )
         job = actions.create_job(
             self.owner,
@@ -1391,7 +1397,9 @@ class AgentLifecycleTests(ZulipTestCase):
         self.assertEqual(agents.AgentOutbox.objects.get(job=job).status, "delivered")
         # The deadline scanner also runs while admission is disabled.
         source = Message.objects.get(
-            id=self.send_personal_message(self.owner, self.profile.bot_user, "deadline")
+            id=self.send_group_direct_message(
+                self.owner, [self.profile.bot_user, self.example_user("iago")], "deadline"
+            )
         )
         second = actions.create_job(
             self.owner,

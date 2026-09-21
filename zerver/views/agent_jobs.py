@@ -7,7 +7,7 @@ from django.http import HttpRequest, HttpResponse
 from zerver.actions import agent_approvals, agent_jobs
 from zerver.lib import agent_job_requests as r
 from zerver.lib.agent_context import agent_transaction, ensure_budget, require_job_access
-from zerver.lib.agent_policy import AgentAccessDenied, check_agent_access
+from zerver.lib.agent_policy import AgentAccessDenied
 from zerver.lib.agent_results import download_artifact
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.message import access_message
@@ -21,6 +21,8 @@ def job_data(actor: UserProfile, job: agents.AgentJob) -> dict[str, object]:
         agent_jobs.require_control(actor, job)
         if job.status not in {"completed", "cancelled"}:
             actions.append("cancel")
+        if job.status == "draft":
+            actions.append("configure")
         if job.status in {"cancelled", "failed", "interrupted", "blocked"}:
             actions.append("resume")
         if job.status not in agent_jobs.TERMINAL | {"cancel_requested"} and (
@@ -42,6 +44,11 @@ def job_data(actor: UserProfile, job: agents.AgentJob) -> dict[str, object]:
         "job_kind": job.job_kind,
         "delivery_target": job.delivery_target,
         "blocked_reason": job.blocked_reason,
+        "requirements": (
+            [{"code": "profile_needs_action", "surface": "adapter", "action": "probe_again"}]
+            if job.blocked_reason == "profile_needs_action"
+            else []
+        ),
         "start_deadline": job.start_deadline.isoformat() if job.start_deadline else None,
         "result": job.result_receipt,
         "allowed_actions": actions,
@@ -88,47 +95,46 @@ def message_preflight(request: HttpRequest, user_profile: UserProfile) -> HttpRe
     )
     if source is not None:
         access_message(user_profile, source.id, is_modifying_message=False)
+    from zerver.actions.agent_dispatch import preflight_profile
+
     decisions = []
-    for profile_id in data.profile_ids:
-        profile = agents.AgentProfile.objects.get(id=profile_id, realm=user_profile.realm)
-        try:
-            agent_jobs.require_ready(profile)
-            check_agent_access(user_profile, profile, profile.default_repository, source, "profile.use")
-        except (AgentAccessDenied, ValueError):
-            decisions.append({"profile_id": str(profile.id), "decision": "rejected"})
-        else:
-            decisions.append(
-                {
-                    "profile_id": str(profile.id),
-                    "decision": "needs_input" if profile.default_mode == "code" else "accepted",
-                }
-            )
+    with agent_transaction():
+        for profile_id in dict.fromkeys(data.profile_ids):
+            try:
+                profile = agents.AgentProfile.objects.get(id=profile_id, realm=user_profile.realm)
+                decision = preflight_profile(user_profile, profile, source, data.destination)
+            except (JsonableError, ValueError, agents.AgentProfile.DoesNotExist):
+                decision = "rejected"
+            decisions.append({"profile_id": str(profile_id), "decision": decision})
     return _success(request, {"decisions": decisions})
 
 
 @safe_agent_endpoint
-def message_dispatch(request: HttpRequest, user_profile: UserProfile, message_id: int) -> HttpResponse:
+def message_dispatch(
+    request: HttpRequest, user_profile: UserProfile, message_id: int
+) -> HttpResponse:
     with agent_transaction():
         access_message(user_profile, message_id, is_modifying_message=False)
         receipts = agents.AgentDispatchReceipt.objects.filter(
             realm=user_profile.realm, source_message_id=message_id, requester=user_profile
         ).select_related("job")
-        return _success(
-            request,
-            {
-                "source_message_id": message_id,
-                "dispatch_receipts": [
-                    {
-                        "profile_id": str(item.profile_id),
-                        "decision": item.decision,
-                        "reason": item.reason,
-                        "job_id": str(item.job_id) if item.job_id else None,
-                        "job_status": item.job.status if item.job is not None else None,
-                    }
-                    for item in receipts
-                ],
-            },
-        )
+        visible = []
+        for item in receipts:
+            if item.job is not None:
+                try:
+                    require_job_access(user_profile, item.job)
+                except JsonableError:
+                    continue
+            visible.append(
+                {
+                    "profile_id": str(item.profile_id),
+                    "decision": item.decision,
+                    "reason": item.reason,
+                    "job_id": str(item.job_id) if item.job_id else None,
+                    "job_status": item.job.status if item.job is not None else None,
+                }
+            )
+        return _success(request, {"source_message_id": message_id, "dispatch_receipts": visible})
 
 
 @safe_agent_endpoint
@@ -136,10 +142,14 @@ def send_intent(request: HttpRequest, user_profile: UserProfile, client_key: UUI
     intent = agents.AgentSendIntent.objects.get(
         realm=user_profile.realm, sender=user_profile, client_key=client_key
     )
-    if intent.source_message_id is None:
+    if intent.sent_message_id is None:
         raise ValueError("Send intent is pending.")
-    access_message(user_profile, intent.source_message_id, is_modifying_message=False)
-    return _success(request, {"source_message_id": intent.source_message_id})
+    if intent.source_message_id is not None:
+        access_message(user_profile, intent.source_message_id, is_modifying_message=False)
+    return _success(
+        request,
+        {"source_message_id": intent.sent_message_id, "deleted": intent.source_message_id is None},
+    )
 
 
 @safe_agent_endpoint
@@ -311,3 +321,16 @@ def artifact(request: HttpRequest, user_profile: UserProfile, artifact_id: UUID)
     response["X-Content-Type-Options"] = "nosniff"
     response["Cache-Control"] = "private, no-store"
     return response
+
+
+@safe_agent_endpoint
+def complete_draft(request: HttpRequest, user_profile: UserProfile, job_id: UUID) -> HttpResponse:
+    data = payload(request, r.CompleteDraft)
+    job = agent_jobs.complete_draft(
+        user_profile,
+        job_id,
+        expected_version=data.expected_version,
+        repository_id=data.repository_id,
+        base_ref=data.base_ref,
+    )
+    return _success(request, {"job": job_data(user_profile, job)})
