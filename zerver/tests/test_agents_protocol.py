@@ -1,0 +1,449 @@
+"""Protocol tests also run with Python unittest without Django services."""
+
+import importlib
+import importlib.util
+import json
+from copy import deepcopy
+from pathlib import Path
+from types import ModuleType
+from typing import Any
+from unittest import TestCase
+
+from pydantic import ValidationError
+
+FIXTURE_PATH = Path(__file__).parent / "fixtures/agents/protocol-v1.json"
+
+
+class AgentProtocolTest(TestCase):
+    def protocol(self) -> ModuleType:
+        self.assertIsNotNone(
+            importlib.util.find_spec("zerver.lib.agent_protocol"),
+            "The versioned agent protocol must be implemented",
+        )
+        return importlib.import_module("zerver.lib.agent_protocol")
+
+    def test_shared_fixtures(self) -> None:
+        protocol = self.protocol()
+        fixtures = json.loads(FIXTURE_PATH.read_text())
+        for case in fixtures["valid"]:
+            with self.subTest(case=case["name"]):
+                parsed = protocol.parse_payload(case["schema"], case["payload"])
+                self.assertEqual(protocol.serialize_payload(parsed), case["payload"])
+        for case in fixtures["invalid"]:
+            with self.subTest(case=case["name"]), self.assertRaises((ValidationError, ValueError)):
+                protocol.parse_payload(case["schema"], case["payload"])
+
+    def descriptor(self) -> dict[str, Any]:
+        return deepcopy(json.loads(FIXTURE_PATH.read_text())["valid"][0]["payload"])
+
+    def test_nested_authority_is_closed(self) -> None:
+        protocol = self.protocol()
+        for nested in ["adapter", "policy", "budget", "repository", "provider"]:
+            data = self.descriptor()
+            data[nested]["allow_all"] = True
+            with self.subTest(nested=nested), self.assertRaises(ValidationError):
+                protocol.parse_payload("attempt_descriptor", data)
+
+    def test_answer_has_no_mutation_authority(self) -> None:
+        protocol = self.protocol()
+        data = self.descriptor()
+        data.update(job_kind="answer", delivery_target="answer")
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("attempt_descriptor", data)
+        data["policy"]["actions"] = ["context.read", "repository.read"]
+        protocol.parse_payload("attempt_descriptor", data)
+
+    def test_runner_cannot_send_server_authority_events(self) -> None:
+        protocol = self.protocol()
+        fixture = json.loads(FIXTURE_PATH.read_text())["valid"][1]["payload"]
+        for name in ["approval.resolved", "job.queued", "result.published", "job.completed"]:
+            data = {**fixture, "type": name}
+            with self.subTest(event=name), self.assertRaises((ValidationError, ValueError)):
+                protocol.parse_runner_event(data)
+
+    def test_event_size_is_utf8_bytes(self) -> None:
+        protocol = self.protocol()
+        data = deepcopy(json.loads(FIXTURE_PATH.read_text())["valid"][1]["payload"])
+        data["payload"]["summary"] = "測" * 22000
+        with self.assertRaises(ValueError):
+            protocol.parse_runner_event(data)
+
+    def test_descriptor_digest_is_canonical_and_covers_authority(self) -> None:
+        protocol = self.protocol()
+        data = self.descriptor()
+        first = protocol.descriptor_digest(data)
+        self.assertEqual(first, protocol.descriptor_digest(dict(reversed(list(data.items())))))
+        data["policy"]["actions"].append("git.push")
+        self.assertNotEqual(first, protocol.descriptor_digest(data))
+
+    def test_probe_never_has_repository_authority(self) -> None:
+        protocol = self.protocol()
+        fixture = json.loads(FIXTURE_PATH.read_text())["valid"][2]["payload"]
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload(
+                "probe_descriptor", {**fixture, "repository": self.descriptor()["repository"]}
+            )
+
+    def test_digest_redacts_no_fields_except_self(self) -> None:
+        protocol = self.protocol()
+        data = self.descriptor()
+        first = protocol.descriptor_digest(data)
+        data["descriptor_digest"] = "f" * 64
+        self.assertEqual(first, protocol.descriptor_digest(data))
+        data["provider"]["config_version"] += 1
+        self.assertNotEqual(first, protocol.descriptor_digest(data))
+
+    def test_naive_timestamp_and_unknown_schema_rejected(self) -> None:
+        protocol = self.protocol()
+        data = self.descriptor()
+        data["lease_expires_at"] = "2026-09-21T12:00:00"
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("attempt_descriptor", data)
+        with self.assertRaises(ValueError):
+            protocol.parse_payload("future", {})
+
+    def test_configuration_digest_is_shared_between_probe_and_attempt(self) -> None:
+        protocol = self.protocol()
+        data = self.descriptor()
+        probe = deepcopy(json.loads(FIXTURE_PATH.read_text())["valid"][2]["payload"])
+        attempt = protocol.parse_payload("attempt_descriptor", data)
+        probe_record = protocol.parse_payload("probe_descriptor", probe)
+        self.assertEqual(
+            protocol.configuration_digest(attempt), protocol.configuration_digest(probe_record)
+        )
+        data["lease_epoch"] += 1
+        changed = protocol.parse_payload("attempt_descriptor", data)
+        self.assertEqual(
+            protocol.configuration_digest(attempt), protocol.configuration_digest(changed)
+        )
+        data["policy"]["version"] += 1
+        data["tested_configuration"]["policy_version"] += 1
+        changed = protocol.parse_payload("attempt_descriptor", data)
+        self.assertNotEqual(
+            protocol.configuration_digest(attempt), protocol.configuration_digest(changed)
+        )
+
+    def test_boolean_authority_does_not_coerce_strings(self) -> None:
+        protocol = self.protocol()
+        data = self.descriptor()
+        data["policy"]["network"]["project_network"] = "true"
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("attempt_descriptor", data)
+
+    def test_panel_events_preserve_authority(self) -> None:
+        protocol = self.protocol()
+        data = {
+            "schema_version": 1,
+            "job_id": "00000000-0000-4000-8000-000000000001",
+            "attempt_id": None,
+            "lease_epoch": None,
+            "event_id": "00000000-0000-4000-8000-000000000002",
+            "sequence": 1,
+            "type": "job.queued",
+            "occurred_at": "2026-09-21T12:00:00Z",
+            "payload": {"status": "queued", "reason": "runner_offline"},
+        }
+        protocol.parse_authority_event("server", data)
+        with self.assertRaises((ValidationError, ValueError)):
+            protocol.parse_authority_event("runner", data)
+        with self.assertRaises((ValidationError, ValueError)):
+            protocol.parse_authority_event("publisher", data)
+
+    def test_resource_grants_work_before_profile_creation(self) -> None:
+        protocol = self.protocol()
+        grant = {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "principal_user_id": 1,
+            "target_kind": "runner",
+            "runner_id": "00000000-0000-4000-8000-000000000002",
+            "actions": ["runner.use"],
+            "policy_version": 1,
+        }
+        protocol.parse_payload("grant", grant)
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("grant", {**grant, "provider_id": grant["runner_id"]})
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("grant", {**grant, "actions": ["repository.edit"]})
+
+    def test_management_grants_are_not_execution_tools(self) -> None:
+        protocol = self.protocol()
+        data = self.descriptor()
+        data["policy"]["actions"] = ["profile.manage"]
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("attempt_descriptor", data)
+
+    def test_sandbox_identity_changes_configuration_digest(self) -> None:
+        protocol = self.protocol()
+        data = self.descriptor()
+        before = protocol.configuration_digest(protocol.parse_payload("attempt_descriptor", data))
+        data["policy"]["sandbox"]["image_digest"] = "sha256:" + "f" * 64
+        data["tested_configuration"]["sandbox"]["image_digest"] = "sha256:" + "f" * 64
+        after = protocol.configuration_digest(protocol.parse_payload("attempt_descriptor", data))
+        self.assertNotEqual(before, after)
+
+    def test_runner_catalog_rejects_host_commands(self) -> None:
+        protocol = self.protocol()
+        catalog: dict[str, Any] = {
+            "revision": 1,
+            "adapters": [
+                {
+                    "id": "codex-acp",
+                    "version": "1.12.0",
+                    "auth_state": "unchecked",
+                    "capabilities": {},
+                }
+            ],
+            "sandboxes": [],
+        }
+        protocol.parse_payload("runner_catalog", catalog)
+        catalog["adapters"][0]["command"] = "/bin/bash"
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("runner_catalog", catalog)
+
+    def test_provider_url_cannot_contain_credentials(self) -> None:
+        protocol = self.protocol()
+        data = self.descriptor()["provider"]
+        for url in [
+            "https://secret:password@example.test/v1",
+            "https://example.test/v1?api_key=secret",
+            "https://example.test/v1#secret",
+        ]:
+            with self.subTest(url=url), self.assertRaises(ValidationError):
+                protocol.parse_payload("provider", {**data, "base_url": url})
+
+    def test_workspace_preparation_pins_commit_before_execution(self) -> None:
+        protocol = self.protocol()
+        data = self.descriptor()
+        data["repository"]["base_commit"] = None
+        protocol.parse_payload("attempt_descriptor", data)
+        event = deepcopy(json.loads(FIXTURE_PATH.read_text())["valid"][1]["payload"])
+        event["type"] = "workspace.prepared"
+        event["payload"] = {
+            "repository_id": data["repository"]["id"],
+            "workspace_reference": "fixture-attempt",
+            "base_ref": "main",
+            "base_commit": "a" * 40,
+            "tree_hash": "b" * 40,
+            "user_worktree_dirty": True,
+        }
+        protocol.parse_runner_event(event)
+        event["payload"]["base_commit"] = None
+        with self.assertRaises(ValidationError):
+            protocol.parse_runner_event(event)
+
+    def test_private_http_requires_explicit_private_permission(self) -> None:
+        protocol = self.protocol()
+        data = self.descriptor()
+        data["provider"]["network"]["targets"][0]["allow_http_private"] = True
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("attempt_descriptor", data)
+        data["provider"]["network"]["targets"][0]["allow_private"] = True
+        data["tested_configuration"]["provider"]["network"] = deepcopy(data["provider"]["network"])
+        protocol.parse_payload("attempt_descriptor", data)
+        data["policy"]["network"]["project_network"] = True
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("attempt_descriptor", data)
+
+    def test_json_schema_export_stays_current(self) -> None:
+        protocol = self.protocol()
+        exported = json.loads(FIXTURE_PATH.with_name("protocol-v1.schema.json").read_text())
+        self.assertEqual(exported, protocol.protocol_json_schemas())
+
+    def test_enabled_profile_can_wait_for_edited_revision(self) -> None:
+        protocol = self.protocol()
+        profile = deepcopy(
+            next(
+                item["payload"]
+                for item in json.loads(FIXTURE_PATH.read_text())["valid"]
+                if item["name"] == "profile"
+            )
+        )
+        profile.update(
+            desired_state="enabled",
+            revision=2,
+            enabled_revision=1,
+            readiness_revision=1,
+            readiness_state="checking",
+        )
+        protocol.parse_payload("profile", profile)
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("profile", {**profile, "enabled_revision": 3})
+
+    def test_schema_version_is_an_integer_not_boolean(self) -> None:
+        protocol = self.protocol()
+        for version in [True, 1.0, "1"]:
+            with self.subTest(version=version), self.assertRaises(ValidationError):
+                protocol.parse_payload(
+                    "attempt_descriptor", {**self.descriptor(), "schema_version": version}
+                )
+
+    def test_effective_lease_can_narrow_tested_configuration(self) -> None:
+        protocol = self.protocol()
+        data = self.descriptor()
+        self.assertIn("tested_configuration", data)
+        baseline = protocol.configuration_digest(protocol.parse_payload("attempt_descriptor", data))
+        data.update(job_kind="answer", delivery_target="answer", repository=None)
+        data["policy"]["actions"] = ["context.read"]
+        data["budget"]["output_tokens"] = 100
+        narrowed = protocol.parse_payload("attempt_descriptor", data)
+        self.assertEqual(protocol.configuration_digest(narrowed), baseline)
+
+    def test_effective_lease_cannot_widen_tested_configuration(self) -> None:
+        protocol = self.protocol()
+        for change in [
+            lambda data: data["policy"]["actions"].append("git.push"),
+            lambda data: data["budget"].update(output_tokens=2048),
+            lambda data: data["provider"].update(base_url="https://other.example.test/v1"),
+            lambda data: data["policy"]["sandbox"].update(image_digest="sha256:" + "f" * 64),
+            lambda data: data["policy"]["network"]["targets"].append(
+                {"hostname": "other.test", "port": 443}
+            ),
+            lambda data: data["repository"].update(workspace_alias="other"),
+            lambda data: data["repository"].update(canonical_origin="example/other"),
+            lambda data: data["policy"].update(version=2),
+        ]:
+            data = self.descriptor()
+            change(data)
+            with self.subTest(change=change), self.assertRaises(ValidationError):
+                protocol.parse_payload("attempt_descriptor", data)
+
+    def test_effective_lease_preserves_finite_cost_ceiling(self) -> None:
+        protocol = self.protocol()
+        data = self.descriptor()
+        self.assertIn("tested_configuration", data)
+        data["tested_configuration"]["budget"]["cost_limit_microunits"] = 1000
+        data["budget"]["cost_limit_microunits"] = 500
+        protocol.parse_payload("attempt_descriptor", data)
+        data["budget"]["cost_limit_microunits"] = None
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("attempt_descriptor", data)
+        data["budget"]["cost_limit_microunits"] = 500
+        data["tested_configuration"]["hard_cost_cap"] = True
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("attempt_descriptor", data)
+
+    def test_event_type_rejects_nonstring_values(self) -> None:
+        protocol = self.protocol()
+        data = deepcopy(json.loads(FIXTURE_PATH.read_text())["valid"][1]["payload"])
+        values: list[Any] = [None, [], {}]
+        for value in values:
+            data["type"] = value
+            with self.subTest(value=value), self.assertRaises(ValidationError):
+                protocol.parse_runner_event(data)
+
+    def test_all_execution_actions_have_typed_operation_arguments(self) -> None:
+        protocol = self.protocol()
+        repository_id = self.descriptor()["repository"]["id"]
+        cases = [
+            {"action": "context.read", "context_ids": [repository_id]},
+            {"action": "repository.read", "repository_id": repository_id, "paths": ["src/app.py"]},
+            {
+                "action": "repository.edit",
+                "repository_id": repository_id,
+                "patch_artifact_id": repository_id,
+                "patch_checksum": "a" * 64,
+                "expected_tree": "b" * 40,
+            },
+            {
+                "action": "checks.run",
+                "repository_id": repository_id,
+                "check_ids": ["unit"],
+                "tree_hash": "a" * 40,
+            },
+            {
+                "action": "git.commit",
+                "repository_id": repository_id,
+                "message": "Fix fixture",
+                "tree_hash": "a" * 40,
+                "expected_parent": "b" * 40,
+            },
+        ]
+        for case in cases:
+            with self.subTest(action=case["action"]):
+                protocol.parse_payload("operation_arguments", case)
+                with self.assertRaises((ValueError, ValidationError)):
+                    protocol.parse_payload("approval_arguments", case)
+
+    def test_event_type_requires_matching_semantic_state(self) -> None:
+        protocol = self.protocol()
+        runner = deepcopy(json.loads(FIXTURE_PATH.read_text())["valid"][1]["payload"])
+        identifier = runner["event_id"]
+        cases = [
+            (
+                "runner",
+                "input.applied",
+                {"input_id": identifier, "input_sequence": 1, "delivery_state": "pending"},
+            ),
+            (
+                "runner",
+                "tool.started",
+                {
+                    "operation_id": identifier,
+                    "tool_class": "git.commit",
+                    "argument_digest": "a" * 64,
+                    "status": "succeeded",
+                },
+            ),
+            (
+                "runner",
+                "tool.finished",
+                {
+                    "operation_id": identifier,
+                    "tool_class": "git.commit",
+                    "argument_digest": "a" * 64,
+                    "status": "started",
+                },
+            ),
+            ("server", "job.queued", {"status": "completed"}),
+            (
+                "server",
+                "input.received",
+                {"input_id": identifier, "input_sequence": 1, "delivery_state": "applied"},
+            ),
+            (
+                "server",
+                "approval.requested",
+                {
+                    "approval_id": identifier,
+                    "operation_hash": "a" * 64,
+                    "version": 1,
+                    "decision": "approved",
+                },
+            ),
+            (
+                "server",
+                "approval.resolved",
+                {
+                    "approval_id": identifier,
+                    "operation_hash": "a" * 64,
+                    "version": 1,
+                    "decision": "pending",
+                },
+            ),
+            ("publisher", "result.published", {"result_message_id": None}),
+            ("publisher", "publication.blocked", {"result_message_id": 12, "reason": "revoked"}),
+        ]
+        for authority, kind, payload in cases:
+            with self.subTest(kind=kind), self.assertRaises(ValidationError):
+                protocol.parse_authority_event(
+                    authority, {**runner, "type": kind, "payload": payload}
+                )
+
+    def test_endpoint_probe_requires_provider(self) -> None:
+        protocol = self.protocol()
+        probe = deepcopy(json.loads(FIXTURE_PATH.read_text())["valid"][2]["payload"])
+        probe["provider"] = None
+        probe["grant"].update(provider_id=None, provider_config_version=None)
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("probe_descriptor", probe)
+
+    def test_verification_exit_code_is_strict(self) -> None:
+        protocol = self.protocol()
+        verification = next(
+            item["payload"]
+            for item in json.loads(FIXTURE_PATH.read_text())["valid"]
+            if item["name"] == "verification"
+        )
+        for value in [False, "0", 0.0]:
+            with self.subTest(value=value), self.assertRaises(ValidationError):
+                protocol.parse_payload("verification", {**verification, "exit_code": value})

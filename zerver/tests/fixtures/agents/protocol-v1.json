@@ -1,0 +1,5005 @@
+{
+  "schema_version": 1,
+  "valid": [
+    {
+      "name": "code_descriptor",
+      "schema": "attempt_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "tested_configuration": {
+          "schema_version": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "profile_revision": 1,
+          "adapter": {
+            "id": "grow-endpoint",
+            "version": "1.0.0",
+            "mode": "endpoint"
+          },
+          "provider": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "config_version": 1,
+            "base_url": "https://llm.example.test/v1",
+            "api_mode": "chat_completions",
+            "model_id": "fixture",
+            "allowed_models": [
+              "fixture"
+            ],
+            "credential_ref": {
+              "kind": "server",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "version": 1
+            },
+            "context_window_tokens": 8192,
+            "max_output_tokens": 1024,
+            "data_scope": [
+              "synthetic",
+              "selected_repository"
+            ],
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            }
+          },
+          "workspace_binding": {
+            "canonical_origin": "example/fixture",
+            "repository_id": "00000000-0000-4000-8000-000000000004",
+            "workspace_alias": "fixture",
+            "policy_version": 1,
+            "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+            "allowed_refs": [
+              "main"
+            ]
+          },
+          "policy_version": 1,
+          "actions": [
+            "checks.run",
+            "context.read",
+            "repository.edit",
+            "repository.read"
+          ],
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false,
+          "budget": {
+            "active_seconds": 3600,
+            "tool_rounds": 40,
+            "shell_timeout_seconds": 120,
+            "transport_retries": 2,
+            "context_recoveries": 2,
+            "input_tokens": 8192,
+            "output_tokens": 1024,
+            "tool_output_bytes": 51200,
+            "artifact_bytes": 10485760,
+            "job_artifact_bytes": 52428800,
+            "cost_limit_microunits": null
+          }
+        },
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "lease_expires_at": "2026-09-21T12:00:00Z",
+        "job_kind": "code",
+        "delivery_target": "patch",
+        "request": "Fix fixture",
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "repository": {
+          "id": "00000000-0000-4000-8000-000000000004",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "workspace_alias": "fixture",
+          "canonical_origin": "example/fixture",
+          "allowed_refs": [
+            "main"
+          ],
+          "base_ref": "main",
+          "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "policy_version": 1,
+          "required_checks": [
+            {
+              "id": "unit",
+              "argv": [
+                "python",
+                "-m",
+                "unittest"
+              ],
+              "cwd": ".",
+              "timeout_seconds": 120
+            }
+          ]
+        },
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 1024,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        },
+        "context_refs": [],
+        "inputs": [],
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "runner_started",
+      "schema": "runner_event",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "event_id": "00000000-0000-4000-8000-000000000007",
+        "sequence": 1,
+        "type": "attempt.started",
+        "occurred_at": "2026-09-21T12:00:00Z",
+        "payload": {
+          "process_state": "active",
+          "adapter_session_ref": null,
+          "stop_confirmed": false,
+          "summary": ""
+        }
+      }
+    },
+    {
+      "name": "provider_probe",
+      "schema": "probe_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "setup_operation_id": "00000000-0000-4000-8000-000000000008",
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "grant": {
+          "id": "00000000-0000-4000-8000-000000000011",
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "provider_id": "00000000-0000-4000-8000-000000000003",
+          "provider_config_version": 1,
+          "profile_revision": 1,
+          "expires_at": "2026-09-21T12:00:00Z",
+          "actions": [
+            "probe"
+          ]
+        },
+        "workspace_binding": {
+          "canonical_origin": "example/fixture",
+          "repository_id": "00000000-0000-4000-8000-000000000004",
+          "workspace_alias": "fixture",
+          "policy_version": 1,
+          "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+          "allowed_refs": [
+            "main"
+          ]
+        },
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 1024,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        }
+      }
+    },
+    {
+      "name": "provider",
+      "schema": "provider",
+      "payload": {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "owner_user_id": 1,
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "name": "Fixture",
+        "base_url": "https://llm.example.test/v1",
+        "api_mode": "chat_completions",
+        "model_id": "fixture",
+        "allowed_models": [
+          "fixture"
+        ],
+        "credential_ref": {
+          "kind": "server",
+          "id": "00000000-0000-4000-8000-000000000009",
+          "version": 1
+        },
+        "context_window_tokens": 8192,
+        "max_output_tokens": 1024,
+        "config_version": 1,
+        "data_scope": [
+          "synthetic",
+          "selected_repository"
+        ],
+        "network": {
+          "targets": [
+            {
+              "hostname": "llm.example.test",
+              "port": 443,
+              "allow_private": false,
+              "allow_http_loopback": false,
+              "allow_http_private": false
+            }
+          ],
+          "public_https_only": true,
+          "block_metadata": true,
+          "cross_origin_authorization": false,
+          "project_network": false
+        },
+        "capability_report": {
+          "chat_ready": true,
+          "code_ready": true,
+          "tool_calling": "passed",
+          "streaming": "unknown",
+          "usage": "unknown",
+          "native_resume": "unknown",
+          "steering": "unknown",
+          "sandbox": "passed",
+          "probed_at": null,
+          "runner_version": "",
+          "adapter_version": "",
+          "config_version": 1
+        }
+      }
+    },
+    {
+      "name": "repository",
+      "schema": "repository",
+      "payload": {
+        "id": "00000000-0000-4000-8000-000000000004",
+        "owner_user_id": 1,
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "workspace_alias": "fixture",
+        "canonical_origin": "example/fixture",
+        "allowed_refs": [
+          "main"
+        ],
+        "base_ref": "main",
+        "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_version": 1,
+        "required_checks": [
+          {
+            "id": "unit",
+            "argv": [
+              "python",
+              "-m",
+              "unittest"
+            ],
+            "cwd": ".",
+            "timeout_seconds": 120
+          }
+        ]
+      }
+    },
+    {
+      "name": "profile",
+      "schema": "profile",
+      "payload": {
+        "schema_version": 1,
+        "id": "00000000-0000-4000-8000-000000000002",
+        "owner_user_id": 1,
+        "bot_user_id": 2,
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "name": "Fixture",
+        "description": "",
+        "revision": 1,
+        "desired_state": "draft",
+        "default_mode": "answer",
+        "default_repository_id": null,
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider_id": "00000000-0000-4000-8000-000000000003",
+        "enabled_revision": null,
+        "readiness_revision": null,
+        "readiness_state": "unchecked",
+        "capabilities": {
+          "chat_ready": false,
+          "code_ready": false,
+          "tool_calling": "unknown",
+          "streaming": "unknown",
+          "usage": "unknown",
+          "native_resume": "unknown",
+          "steering": "unknown",
+          "sandbox": "unknown",
+          "probed_at": null,
+          "runner_version": "",
+          "adapter_version": "",
+          "config_version": 1
+        },
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 1024,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        }
+      }
+    },
+    {
+      "name": "grant",
+      "schema": "grant",
+      "payload": {
+        "id": "00000000-0000-4000-8000-000000000012",
+        "principal_user_id": 1,
+        "principal_group_id": null,
+        "target_kind": "profile",
+        "runner_id": null,
+        "provider_id": null,
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "repository_id": "00000000-0000-4000-8000-000000000004",
+        "scope": {
+          "kind": "stream",
+          "stream_id": 1,
+          "topic": "Fixture",
+          "participant_user_ids": [],
+          "anchor_message_id": 10
+        },
+        "actions": [
+          "profile.use"
+        ],
+        "policy_version": 1,
+        "expires_at": null
+      }
+    },
+    {
+      "name": "artifact",
+      "schema": "artifact",
+      "payload": {
+        "id": "00000000-0000-4000-8000-000000000013",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "kind": "diff",
+        "checksum": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "size": 42,
+        "media_type": "text/x-diff",
+        "filename": "change.patch",
+        "expires_at": "2026-09-21T12:00:00Z"
+      }
+    },
+    {
+      "name": "verification",
+      "schema": "verification",
+      "payload": {
+        "check_id": "unit",
+        "command": [
+          "python",
+          "-m",
+          "unittest"
+        ],
+        "cwd": ".",
+        "exit_code": 0,
+        "started_at": "2026-09-21T12:00:00Z",
+        "finished_at": "2026-09-21T12:00:00Z",
+        "tree_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "artifact_id": "00000000-0000-4000-8000-000000000013",
+        "timed_out": false
+      }
+    },
+    {
+      "name": "approval",
+      "schema": "approval",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "id": "00000000-0000-4000-8000-000000000014",
+        "operation_id": "00000000-0000-4000-8000-000000000015",
+        "operation_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "policy_version": 1,
+        "version": 1,
+        "arguments": {
+          "action": "git.push",
+          "repository_id": "00000000-0000-4000-8000-000000000004",
+          "remote": "origin",
+          "branch": "grow/task",
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "expected_remote_head": null,
+          "force": false
+        },
+        "tree_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "approver_user_id": 1,
+        "decision": "pending",
+        "expires_at": "2026-09-21T12:00:00Z",
+        "nonce": "00000000-0000-4000-8000-000000000016"
+      }
+    },
+    {
+      "name": "readiness",
+      "schema": "readiness",
+      "payload": {
+        "schema_version": 1,
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "state": "needs_action",
+        "capabilities": {
+          "chat_ready": false,
+          "code_ready": false,
+          "tool_calling": "unknown",
+          "streaming": "unknown",
+          "usage": "unknown",
+          "native_resume": "unknown",
+          "steering": "unknown",
+          "sandbox": "unknown",
+          "probed_at": null,
+          "runner_version": "",
+          "adapter_version": "",
+          "config_version": 1
+        },
+        "requirements": [
+          {
+            "code": "workspace_not_registered",
+            "surface": "runner_workspace",
+            "action": "register_workspace",
+            "diagnostic_id": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "answer_job",
+      "schema": "job",
+      "payload": {
+        "schema_version": 1,
+        "id": "00000000-0000-4000-8000-000000000005",
+        "status": "queued",
+        "phase": "inspect",
+        "job_kind": "answer",
+        "delivery_target": "answer",
+        "version": 1
+      }
+    },
+    {
+      "name": "claim",
+      "schema": "claim_response",
+      "payload": {
+        "schema_version": 1,
+        "result": "success",
+        "msg": "",
+        "attempt": {
+          "schema_version": 1,
+          "job_id": "00000000-0000-4000-8000-000000000005",
+          "attempt_id": "00000000-0000-4000-8000-000000000006",
+          "lease_epoch": 1,
+          "tested_configuration": {
+            "schema_version": 1,
+            "runner_id": "00000000-0000-4000-8000-000000000001",
+            "profile_revision": 1,
+            "adapter": {
+              "id": "grow-endpoint",
+              "version": "1.0.0",
+              "mode": "endpoint"
+            },
+            "provider": {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "config_version": 1,
+              "base_url": "https://llm.example.test/v1",
+              "api_mode": "chat_completions",
+              "model_id": "fixture",
+              "allowed_models": [
+                "fixture"
+              ],
+              "credential_ref": {
+                "kind": "server",
+                "id": "00000000-0000-4000-8000-000000000009",
+                "version": 1
+              },
+              "context_window_tokens": 8192,
+              "max_output_tokens": 1024,
+              "data_scope": [
+                "synthetic",
+                "selected_repository"
+              ],
+              "network": {
+                "targets": [
+                  {
+                    "hostname": "llm.example.test",
+                    "port": 443,
+                    "allow_private": false,
+                    "allow_http_loopback": false,
+                    "allow_http_private": false
+                  }
+                ],
+                "public_https_only": true,
+                "block_metadata": true,
+                "cross_origin_authorization": false,
+                "project_network": false
+              }
+            },
+            "workspace_binding": {
+              "canonical_origin": "example/fixture",
+              "repository_id": "00000000-0000-4000-8000-000000000004",
+              "workspace_alias": "fixture",
+              "policy_version": 1,
+              "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+              "allowed_refs": [
+                "main"
+              ]
+            },
+            "policy_version": 1,
+            "actions": [
+              "checks.run",
+              "context.read",
+              "repository.edit",
+              "repository.read"
+            ],
+            "sandbox": {
+              "kind": "rootless_container",
+              "alias": "fixture",
+              "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "catalog_revision": 1,
+              "cpu_millicores": 1000,
+              "memory_bytes": 536870912,
+              "pids_limit": 128,
+              "temporary_bytes": 67108864,
+              "network_mode": "none",
+              "read_only_root": true,
+              "drop_all_capabilities": true
+            },
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            },
+            "hard_cost_cap": false,
+            "budget": {
+              "active_seconds": 3600,
+              "tool_rounds": 40,
+              "shell_timeout_seconds": 120,
+              "transport_retries": 2,
+              "context_recoveries": 2,
+              "input_tokens": 8192,
+              "output_tokens": 1024,
+              "tool_output_bytes": 51200,
+              "artifact_bytes": 10485760,
+              "job_artifact_bytes": 52428800,
+              "cost_limit_microunits": null
+            }
+          },
+          "profile_id": "00000000-0000-4000-8000-000000000002",
+          "profile_revision": 1,
+          "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+          "lease_expires_at": "2026-09-21T12:00:00Z",
+          "job_kind": "code",
+          "delivery_target": "patch",
+          "request": "Fix fixture",
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "adapter": {
+            "id": "grow-endpoint",
+            "version": "1.0.0",
+            "mode": "endpoint"
+          },
+          "provider": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "owner_user_id": 1,
+            "runner_id": "00000000-0000-4000-8000-000000000001",
+            "name": "Fixture",
+            "base_url": "https://llm.example.test/v1",
+            "api_mode": "chat_completions",
+            "model_id": "fixture",
+            "allowed_models": [
+              "fixture"
+            ],
+            "credential_ref": {
+              "kind": "server",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "version": 1
+            },
+            "context_window_tokens": 8192,
+            "max_output_tokens": 1024,
+            "config_version": 1,
+            "data_scope": [
+              "synthetic",
+              "selected_repository"
+            ],
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            },
+            "capability_report": {
+              "chat_ready": true,
+              "code_ready": true,
+              "tool_calling": "passed",
+              "streaming": "unknown",
+              "usage": "unknown",
+              "native_resume": "unknown",
+              "steering": "unknown",
+              "sandbox": "passed",
+              "probed_at": null,
+              "runner_version": "",
+              "adapter_version": "",
+              "config_version": 1
+            }
+          },
+          "repository": {
+            "id": "00000000-0000-4000-8000-000000000004",
+            "owner_user_id": 1,
+            "runner_id": "00000000-0000-4000-8000-000000000001",
+            "workspace_alias": "fixture",
+            "canonical_origin": "example/fixture",
+            "allowed_refs": [
+              "main"
+            ],
+            "base_ref": "main",
+            "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "policy_version": 1,
+            "required_checks": [
+              {
+                "id": "unit",
+                "argv": [
+                  "python",
+                  "-m",
+                  "unittest"
+                ],
+                "cwd": ".",
+                "timeout_seconds": 120
+              }
+            ]
+          },
+          "policy": {
+            "version": 1,
+            "actions": [
+              "context.read",
+              "repository.read",
+              "repository.edit",
+              "checks.run"
+            ],
+            "grant_ids": [],
+            "scope": {
+              "kind": "stream",
+              "stream_id": 1,
+              "topic": "Fixture",
+              "participant_user_ids": [],
+              "anchor_message_id": 10
+            },
+            "sandbox": {
+              "kind": "rootless_container",
+              "alias": "fixture",
+              "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "catalog_revision": 1,
+              "cpu_millicores": 1000,
+              "memory_bytes": 536870912,
+              "pids_limit": 128,
+              "temporary_bytes": 67108864,
+              "network_mode": "none",
+              "read_only_root": true,
+              "drop_all_capabilities": true
+            },
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            },
+            "hard_cost_cap": false
+          },
+          "budget": {
+            "active_seconds": 3600,
+            "tool_rounds": 40,
+            "shell_timeout_seconds": 120,
+            "transport_retries": 2,
+            "context_recoveries": 2,
+            "input_tokens": 8192,
+            "output_tokens": 1024,
+            "tool_output_bytes": 51200,
+            "artifact_bytes": 10485760,
+            "job_artifact_bytes": 52428800,
+            "cost_limit_microunits": null
+          },
+          "context_refs": [],
+          "inputs": [],
+          "checkpoint": null
+        },
+        "probe": null
+      }
+    },
+    {
+      "name": "input",
+      "schema": "input",
+      "payload": {
+        "id": "00000000-0000-4000-8000-000000000017",
+        "author_user_id": 1,
+        "source_message_id": null,
+        "client_key": "00000000-0000-4000-8000-000000000018",
+        "sequence": 1,
+        "input_type": "steering",
+        "text": "Check edge cases",
+        "delivery_state": "pending"
+      }
+    },
+    {
+      "name": "context",
+      "schema": "context_ref",
+      "payload": {
+        "id": "00000000-0000-4000-8000-000000000019",
+        "kind": "message",
+        "message_id": 10,
+        "attachment_id": null,
+        "repository_id": null,
+        "scope": {
+          "kind": "stream",
+          "stream_id": 1,
+          "topic": "Fixture",
+          "participant_user_ids": [],
+          "anchor_message_id": 10
+        },
+        "validated_at": "2026-09-21T12:00:00Z"
+      }
+    },
+    {
+      "name": "checkpoint",
+      "schema": "checkpoint",
+      "payload": {
+        "id": "00000000-0000-4000-8000-000000000020",
+        "source_attempt_id": "00000000-0000-4000-8000-000000000006",
+        "base_commit": null,
+        "tree_hash": null,
+        "summary": "Fixture modified",
+        "context_ref_ids": [],
+        "artifact_ids": [],
+        "remaining_work": [],
+        "next_step": "Run unit check",
+        "adapter_session_ref": null,
+        "input_cursor": 0
+      }
+    },
+    {
+      "name": "narrowed_answer_descriptor",
+      "schema": "attempt_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "tested_configuration": {
+          "schema_version": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "profile_revision": 1,
+          "adapter": {
+            "id": "grow-endpoint",
+            "version": "1.0.0",
+            "mode": "endpoint"
+          },
+          "provider": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "config_version": 1,
+            "base_url": "https://llm.example.test/v1",
+            "api_mode": "chat_completions",
+            "model_id": "fixture",
+            "allowed_models": [
+              "fixture"
+            ],
+            "credential_ref": {
+              "kind": "server",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "version": 1
+            },
+            "context_window_tokens": 8192,
+            "max_output_tokens": 1024,
+            "data_scope": [
+              "synthetic",
+              "selected_repository"
+            ],
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            }
+          },
+          "workspace_binding": {
+            "canonical_origin": "example/fixture",
+            "repository_id": "00000000-0000-4000-8000-000000000004",
+            "workspace_alias": "fixture",
+            "policy_version": 1,
+            "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+            "allowed_refs": [
+              "main"
+            ]
+          },
+          "policy_version": 1,
+          "actions": [
+            "checks.run",
+            "context.read",
+            "repository.edit",
+            "repository.read"
+          ],
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false,
+          "budget": {
+            "active_seconds": 3600,
+            "tool_rounds": 40,
+            "shell_timeout_seconds": 120,
+            "transport_retries": 2,
+            "context_recoveries": 2,
+            "input_tokens": 8192,
+            "output_tokens": 1024,
+            "tool_output_bytes": 51200,
+            "artifact_bytes": 10485760,
+            "job_artifact_bytes": 52428800,
+            "cost_limit_microunits": null
+          }
+        },
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "lease_expires_at": "2026-09-21T12:00:00Z",
+        "job_kind": "answer",
+        "delivery_target": "answer",
+        "request": "Fix fixture",
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "repository": null,
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 100,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        },
+        "context_refs": [],
+        "inputs": [],
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "operation_repository.read",
+      "schema": "operation_arguments",
+      "payload": {
+        "action": "repository.read",
+        "repository_id": "00000000-0000-4000-8000-000000000004",
+        "paths": [
+          "src/app.py"
+        ]
+      }
+    },
+    {
+      "name": "operation_repository.edit",
+      "schema": "operation_arguments",
+      "payload": {
+        "action": "repository.edit",
+        "repository_id": "00000000-0000-4000-8000-000000000004",
+        "patch_artifact_id": "00000000-0000-4000-8000-000000000013",
+        "patch_checksum": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "expected_tree": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "name": "operation_checks.run",
+      "schema": "operation_arguments",
+      "payload": {
+        "action": "checks.run",
+        "repository_id": "00000000-0000-4000-8000-000000000004",
+        "check_ids": [
+          "unit"
+        ],
+        "tree_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "name": "operation_git.commit",
+      "schema": "operation_arguments",
+      "payload": {
+        "action": "git.commit",
+        "repository_id": "00000000-0000-4000-8000-000000000004",
+        "message": "Fix fixture",
+        "tree_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expected_parent": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    },
+    {
+      "name": "operation_context.read",
+      "schema": "operation_arguments",
+      "payload": {
+        "action": "context.read",
+        "context_ids": [
+          "00000000-0000-4000-8000-000000000019"
+        ]
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "unsupported_version",
+      "schema": "attempt_descriptor",
+      "payload": {
+        "schema_version": 2,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "tested_configuration": {
+          "schema_version": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "profile_revision": 1,
+          "adapter": {
+            "id": "grow-endpoint",
+            "version": "1.0.0",
+            "mode": "endpoint"
+          },
+          "provider": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "config_version": 1,
+            "base_url": "https://llm.example.test/v1",
+            "api_mode": "chat_completions",
+            "model_id": "fixture",
+            "allowed_models": [
+              "fixture"
+            ],
+            "credential_ref": {
+              "kind": "server",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "version": 1
+            },
+            "context_window_tokens": 8192,
+            "max_output_tokens": 1024,
+            "data_scope": [
+              "synthetic",
+              "selected_repository"
+            ],
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            }
+          },
+          "workspace_binding": {
+            "canonical_origin": "example/fixture",
+            "repository_id": "00000000-0000-4000-8000-000000000004",
+            "workspace_alias": "fixture",
+            "policy_version": 1,
+            "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+            "allowed_refs": [
+              "main"
+            ]
+          },
+          "policy_version": 1,
+          "actions": [
+            "checks.run",
+            "context.read",
+            "repository.edit",
+            "repository.read"
+          ],
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false,
+          "budget": {
+            "active_seconds": 3600,
+            "tool_rounds": 40,
+            "shell_timeout_seconds": 120,
+            "transport_retries": 2,
+            "context_recoveries": 2,
+            "input_tokens": 8192,
+            "output_tokens": 1024,
+            "tool_output_bytes": 51200,
+            "artifact_bytes": 10485760,
+            "job_artifact_bytes": 52428800,
+            "cost_limit_microunits": null
+          }
+        },
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "lease_expires_at": "2026-09-21T12:00:00Z",
+        "job_kind": "code",
+        "delivery_target": "patch",
+        "request": "Fix fixture",
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "repository": {
+          "id": "00000000-0000-4000-8000-000000000004",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "workspace_alias": "fixture",
+          "canonical_origin": "example/fixture",
+          "allowed_refs": [
+            "main"
+          ],
+          "base_ref": "main",
+          "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "policy_version": 1,
+          "required_checks": [
+            {
+              "id": "unit",
+              "argv": [
+                "python",
+                "-m",
+                "unittest"
+              ],
+              "cwd": ".",
+              "timeout_seconds": 120
+            }
+          ]
+        },
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 1024,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        },
+        "context_refs": [],
+        "inputs": [],
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "unknown_authority",
+      "schema": "runner_event",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "event_id": "00000000-0000-4000-8000-000000000007",
+        "sequence": 1,
+        "type": "approval.resolved",
+        "occurred_at": "2026-09-21T12:00:00Z",
+        "payload": {
+          "process_state": "active",
+          "adapter_session_ref": null,
+          "stop_confirmed": false,
+          "summary": ""
+        }
+      }
+    },
+    {
+      "name": "invalid_job_state",
+      "schema": "job",
+      "payload": {
+        "schema_version": 1,
+        "id": "00000000-0000-4000-8000-000000000005",
+        "status": "succeeded",
+        "phase": "inspect",
+        "job_kind": "answer",
+        "delivery_target": "answer",
+        "version": 1
+      }
+    },
+    {
+      "name": "answer_mutation",
+      "schema": "attempt_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "tested_configuration": {
+          "schema_version": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "profile_revision": 1,
+          "adapter": {
+            "id": "grow-endpoint",
+            "version": "1.0.0",
+            "mode": "endpoint"
+          },
+          "provider": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "config_version": 1,
+            "base_url": "https://llm.example.test/v1",
+            "api_mode": "chat_completions",
+            "model_id": "fixture",
+            "allowed_models": [
+              "fixture"
+            ],
+            "credential_ref": {
+              "kind": "server",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "version": 1
+            },
+            "context_window_tokens": 8192,
+            "max_output_tokens": 1024,
+            "data_scope": [
+              "synthetic",
+              "selected_repository"
+            ],
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            }
+          },
+          "workspace_binding": {
+            "canonical_origin": "example/fixture",
+            "repository_id": "00000000-0000-4000-8000-000000000004",
+            "workspace_alias": "fixture",
+            "policy_version": 1,
+            "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+            "allowed_refs": [
+              "main"
+            ]
+          },
+          "policy_version": 1,
+          "actions": [
+            "checks.run",
+            "context.read",
+            "repository.edit",
+            "repository.read"
+          ],
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false,
+          "budget": {
+            "active_seconds": 3600,
+            "tool_rounds": 40,
+            "shell_timeout_seconds": 120,
+            "transport_retries": 2,
+            "context_recoveries": 2,
+            "input_tokens": 8192,
+            "output_tokens": 1024,
+            "tool_output_bytes": 51200,
+            "artifact_bytes": 10485760,
+            "job_artifact_bytes": 52428800,
+            "cost_limit_microunits": null
+          }
+        },
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "lease_expires_at": "2026-09-21T12:00:00Z",
+        "job_kind": "answer",
+        "delivery_target": "answer",
+        "request": "Fix fixture",
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "repository": {
+          "id": "00000000-0000-4000-8000-000000000004",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "workspace_alias": "fixture",
+          "canonical_origin": "example/fixture",
+          "allowed_refs": [
+            "main"
+          ],
+          "base_ref": "main",
+          "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "policy_version": 1,
+          "required_checks": [
+            {
+              "id": "unit",
+              "argv": [
+                "python",
+                "-m",
+                "unittest"
+              ],
+              "cwd": ".",
+              "timeout_seconds": 120
+            }
+          ]
+        },
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 1024,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        },
+        "context_refs": [],
+        "inputs": [],
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "plaintext_secret",
+      "schema": "provider",
+      "payload": {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "owner_user_id": 1,
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "name": "Fixture",
+        "base_url": "https://llm.example.test/v1",
+        "api_mode": "chat_completions",
+        "model_id": "fixture",
+        "allowed_models": [
+          "fixture"
+        ],
+        "credential_ref": {
+          "kind": "server",
+          "id": "00000000-0000-4000-8000-000000000009",
+          "version": 1
+        },
+        "context_window_tokens": 8192,
+        "max_output_tokens": 1024,
+        "config_version": 1,
+        "data_scope": [
+          "synthetic",
+          "selected_repository"
+        ],
+        "network": {
+          "targets": [
+            {
+              "hostname": "llm.example.test",
+              "port": 443,
+              "allow_private": false,
+              "allow_http_loopback": false,
+              "allow_http_private": false
+            }
+          ],
+          "public_https_only": true,
+          "block_metadata": true,
+          "cross_origin_authorization": false,
+          "project_network": false
+        },
+        "capability_report": {
+          "chat_ready": true,
+          "code_ready": true,
+          "tool_calling": "passed",
+          "streaming": "unknown",
+          "usage": "unknown",
+          "native_resume": "unknown",
+          "steering": "unknown",
+          "sandbox": "passed",
+          "probed_at": null,
+          "runner_version": "",
+          "adapter_version": "",
+          "config_version": 1
+        },
+        "api_key": "synthetic-secret"
+      }
+    },
+    {
+      "name": "unknown_nested_policy",
+      "schema": "attempt_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "tested_configuration": {
+          "schema_version": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "profile_revision": 1,
+          "adapter": {
+            "id": "grow-endpoint",
+            "version": "1.0.0",
+            "mode": "endpoint"
+          },
+          "provider": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "config_version": 1,
+            "base_url": "https://llm.example.test/v1",
+            "api_mode": "chat_completions",
+            "model_id": "fixture",
+            "allowed_models": [
+              "fixture"
+            ],
+            "credential_ref": {
+              "kind": "server",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "version": 1
+            },
+            "context_window_tokens": 8192,
+            "max_output_tokens": 1024,
+            "data_scope": [
+              "synthetic",
+              "selected_repository"
+            ],
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            }
+          },
+          "workspace_binding": {
+            "canonical_origin": "example/fixture",
+            "repository_id": "00000000-0000-4000-8000-000000000004",
+            "workspace_alias": "fixture",
+            "policy_version": 1,
+            "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+            "allowed_refs": [
+              "main"
+            ]
+          },
+          "policy_version": 1,
+          "actions": [
+            "checks.run",
+            "context.read",
+            "repository.edit",
+            "repository.read"
+          ],
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false,
+          "budget": {
+            "active_seconds": 3600,
+            "tool_rounds": 40,
+            "shell_timeout_seconds": 120,
+            "transport_retries": 2,
+            "context_recoveries": 2,
+            "input_tokens": 8192,
+            "output_tokens": 1024,
+            "tool_output_bytes": 51200,
+            "artifact_bytes": 10485760,
+            "job_artifact_bytes": 52428800,
+            "cost_limit_microunits": null
+          }
+        },
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "lease_expires_at": "2026-09-21T12:00:00Z",
+        "job_kind": "code",
+        "delivery_target": "patch",
+        "request": "Fix fixture",
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "repository": {
+          "id": "00000000-0000-4000-8000-000000000004",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "workspace_alias": "fixture",
+          "canonical_origin": "example/fixture",
+          "allowed_refs": [
+            "main"
+          ],
+          "base_ref": "main",
+          "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "policy_version": 1,
+          "required_checks": [
+            {
+              "id": "unit",
+              "argv": [
+                "python",
+                "-m",
+                "unittest"
+              ],
+              "cwd": ".",
+              "timeout_seconds": 120
+            }
+          ]
+        },
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false,
+          "allow_all": true
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 1024,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        },
+        "context_refs": [],
+        "inputs": [],
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "model_not_allowed",
+      "schema": "provider",
+      "payload": {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "owner_user_id": 1,
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "name": "Fixture",
+        "base_url": "https://llm.example.test/v1",
+        "api_mode": "chat_completions",
+        "model_id": "another-model",
+        "allowed_models": [
+          "fixture"
+        ],
+        "credential_ref": {
+          "kind": "server",
+          "id": "00000000-0000-4000-8000-000000000009",
+          "version": 1
+        },
+        "context_window_tokens": 8192,
+        "max_output_tokens": 1024,
+        "config_version": 1,
+        "data_scope": [
+          "synthetic",
+          "selected_repository"
+        ],
+        "network": {
+          "targets": [
+            {
+              "hostname": "llm.example.test",
+              "port": 443,
+              "allow_private": false,
+              "allow_http_loopback": false,
+              "allow_http_private": false
+            }
+          ],
+          "public_https_only": true,
+          "block_metadata": true,
+          "cross_origin_authorization": false,
+          "project_network": false
+        },
+        "capability_report": {
+          "chat_ready": true,
+          "code_ready": true,
+          "tool_calling": "passed",
+          "streaming": "unknown",
+          "usage": "unknown",
+          "native_resume": "unknown",
+          "steering": "unknown",
+          "sandbox": "passed",
+          "probed_at": null,
+          "runner_version": "",
+          "adapter_version": "",
+          "config_version": 1
+        }
+      }
+    },
+    {
+      "name": "stale_provider_probe",
+      "schema": "provider",
+      "payload": {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "owner_user_id": 1,
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "name": "Fixture",
+        "base_url": "https://llm.example.test/v1",
+        "api_mode": "chat_completions",
+        "model_id": "fixture",
+        "allowed_models": [
+          "fixture"
+        ],
+        "credential_ref": {
+          "kind": "server",
+          "id": "00000000-0000-4000-8000-000000000009",
+          "version": 1
+        },
+        "context_window_tokens": 8192,
+        "max_output_tokens": 1024,
+        "config_version": 2,
+        "data_scope": [
+          "synthetic",
+          "selected_repository"
+        ],
+        "network": {
+          "targets": [
+            {
+              "hostname": "llm.example.test",
+              "port": 443,
+              "allow_private": false,
+              "allow_http_loopback": false,
+              "allow_http_private": false
+            }
+          ],
+          "public_https_only": true,
+          "block_metadata": true,
+          "cross_origin_authorization": false,
+          "project_network": false
+        },
+        "capability_report": {
+          "chat_ready": true,
+          "code_ready": true,
+          "tool_calling": "passed",
+          "streaming": "unknown",
+          "usage": "unknown",
+          "native_resume": "unknown",
+          "steering": "unknown",
+          "sandbox": "passed",
+          "probed_at": null,
+          "runner_version": "",
+          "adapter_version": "",
+          "config_version": 1
+        }
+      }
+    },
+    {
+      "name": "foreign_runner",
+      "schema": "attempt_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "tested_configuration": {
+          "schema_version": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "profile_revision": 1,
+          "adapter": {
+            "id": "grow-endpoint",
+            "version": "1.0.0",
+            "mode": "endpoint"
+          },
+          "provider": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "config_version": 1,
+            "base_url": "https://llm.example.test/v1",
+            "api_mode": "chat_completions",
+            "model_id": "fixture",
+            "allowed_models": [
+              "fixture"
+            ],
+            "credential_ref": {
+              "kind": "server",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "version": 1
+            },
+            "context_window_tokens": 8192,
+            "max_output_tokens": 1024,
+            "data_scope": [
+              "synthetic",
+              "selected_repository"
+            ],
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            }
+          },
+          "workspace_binding": {
+            "canonical_origin": "example/fixture",
+            "repository_id": "00000000-0000-4000-8000-000000000004",
+            "workspace_alias": "fixture",
+            "policy_version": 1,
+            "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+            "allowed_refs": [
+              "main"
+            ]
+          },
+          "policy_version": 1,
+          "actions": [
+            "checks.run",
+            "context.read",
+            "repository.edit",
+            "repository.read"
+          ],
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false,
+          "budget": {
+            "active_seconds": 3600,
+            "tool_rounds": 40,
+            "shell_timeout_seconds": 120,
+            "transport_retries": 2,
+            "context_recoveries": 2,
+            "input_tokens": 8192,
+            "output_tokens": 1024,
+            "tool_output_bytes": 51200,
+            "artifact_bytes": 10485760,
+            "job_artifact_bytes": 52428800,
+            "cost_limit_microunits": null
+          }
+        },
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "lease_expires_at": "2026-09-21T12:00:00Z",
+        "job_kind": "code",
+        "delivery_target": "patch",
+        "request": "Fix fixture",
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "repository": {
+          "id": "00000000-0000-4000-8000-000000000004",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000099",
+          "workspace_alias": "fixture",
+          "canonical_origin": "example/fixture",
+          "allowed_refs": [
+            "main"
+          ],
+          "base_ref": "main",
+          "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "policy_version": 1,
+          "required_checks": [
+            {
+              "id": "unit",
+              "argv": [
+                "python",
+                "-m",
+                "unittest"
+              ],
+              "cwd": ".",
+              "timeout_seconds": 120
+            }
+          ]
+        },
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 1024,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        },
+        "context_refs": [],
+        "inputs": [],
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "absolute_check_path",
+      "schema": "repository",
+      "payload": {
+        "id": "00000000-0000-4000-8000-000000000004",
+        "owner_user_id": 1,
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "workspace_alias": "fixture",
+        "canonical_origin": "example/fixture",
+        "allowed_refs": [
+          "main"
+        ],
+        "base_ref": "main",
+        "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_version": 1,
+        "required_checks": [
+          {
+            "id": "unit",
+            "argv": [
+              "python",
+              "-m",
+              "unittest"
+            ],
+            "cwd": "/etc",
+            "timeout_seconds": 120
+          }
+        ]
+      }
+    },
+    {
+      "name": "parent_check_path",
+      "schema": "repository",
+      "payload": {
+        "id": "00000000-0000-4000-8000-000000000004",
+        "owner_user_id": 1,
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "workspace_alias": "fixture",
+        "canonical_origin": "example/fixture",
+        "allowed_refs": [
+          "main"
+        ],
+        "base_ref": "main",
+        "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_version": 1,
+        "required_checks": [
+          {
+            "id": "unit",
+            "argv": [
+              "python",
+              "-m",
+              "unittest"
+            ],
+            "cwd": "../other",
+            "timeout_seconds": 120
+          }
+        ]
+      }
+    },
+    {
+      "name": "probe_repository_access",
+      "schema": "probe_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "setup_operation_id": "00000000-0000-4000-8000-000000000008",
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "grant": {
+          "id": "00000000-0000-4000-8000-000000000011",
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "provider_id": "00000000-0000-4000-8000-000000000003",
+          "provider_config_version": 1,
+          "profile_revision": 1,
+          "expires_at": "2026-09-21T12:00:00Z",
+          "actions": [
+            "probe"
+          ]
+        },
+        "workspace_binding": {
+          "canonical_origin": "example/fixture",
+          "repository_id": "00000000-0000-4000-8000-000000000004",
+          "workspace_alias": "fixture",
+          "policy_version": 1,
+          "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+          "allowed_refs": [
+            "main"
+          ]
+        },
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 1024,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        },
+        "repository": {
+          "id": "00000000-0000-4000-8000-000000000004",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "workspace_alias": "fixture",
+          "canonical_origin": "example/fixture",
+          "allowed_refs": [
+            "main"
+          ],
+          "base_ref": "main",
+          "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "policy_version": 1,
+          "required_checks": [
+            {
+              "id": "unit",
+              "argv": [
+                "python",
+                "-m",
+                "unittest"
+              ],
+              "cwd": ".",
+              "timeout_seconds": 120
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "probe_stale_grant",
+      "schema": "probe_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "setup_operation_id": "00000000-0000-4000-8000-000000000008",
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "grant": {
+          "id": "00000000-0000-4000-8000-000000000011",
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "provider_id": "00000000-0000-4000-8000-000000000003",
+          "provider_config_version": 2,
+          "profile_revision": 1,
+          "expires_at": "2026-09-21T12:00:00Z",
+          "actions": [
+            "probe"
+          ]
+        },
+        "workspace_binding": {
+          "canonical_origin": "example/fixture",
+          "repository_id": "00000000-0000-4000-8000-000000000004",
+          "workspace_alias": "fixture",
+          "policy_version": 1,
+          "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+          "allowed_refs": [
+            "main"
+          ]
+        },
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 1024,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        }
+      }
+    },
+    {
+      "name": "grant_two_principals",
+      "schema": "grant",
+      "payload": {
+        "id": "00000000-0000-4000-8000-000000000012",
+        "principal_user_id": 1,
+        "principal_group_id": 2,
+        "target_kind": "profile",
+        "runner_id": null,
+        "provider_id": null,
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "repository_id": "00000000-0000-4000-8000-000000000004",
+        "scope": {
+          "kind": "stream",
+          "stream_id": 1,
+          "topic": "Fixture",
+          "participant_user_ids": [],
+          "anchor_message_id": 10
+        },
+        "actions": [
+          "profile.use"
+        ],
+        "policy_version": 1,
+        "expires_at": null
+      }
+    },
+    {
+      "name": "grant_no_principal",
+      "schema": "grant",
+      "payload": {
+        "id": "00000000-0000-4000-8000-000000000012",
+        "principal_user_id": null,
+        "principal_group_id": null,
+        "target_kind": "profile",
+        "runner_id": null,
+        "provider_id": null,
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "repository_id": "00000000-0000-4000-8000-000000000004",
+        "scope": {
+          "kind": "stream",
+          "stream_id": 1,
+          "topic": "Fixture",
+          "participant_user_ids": [],
+          "anchor_message_id": 10
+        },
+        "actions": [
+          "profile.use"
+        ],
+        "policy_version": 1,
+        "expires_at": null
+      }
+    },
+    {
+      "name": "oversized_artifact",
+      "schema": "artifact",
+      "payload": {
+        "id": "00000000-0000-4000-8000-000000000013",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "kind": "diff",
+        "checksum": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "size": 10485761,
+        "media_type": "text/x-diff",
+        "filename": "change.patch",
+        "expires_at": "2026-09-21T12:00:00Z"
+      }
+    },
+    {
+      "name": "approval_force_push",
+      "schema": "approval",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "id": "00000000-0000-4000-8000-000000000014",
+        "operation_id": "00000000-0000-4000-8000-000000000015",
+        "operation_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "policy_version": 1,
+        "version": 1,
+        "arguments": {
+          "action": "git.push",
+          "repository_id": "00000000-0000-4000-8000-000000000004",
+          "remote": "origin",
+          "branch": "grow/task",
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "expected_remote_head": null,
+          "force": true
+        },
+        "tree_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "approver_user_id": 1,
+        "decision": "pending",
+        "expires_at": "2026-09-21T12:00:00Z",
+        "nonce": "00000000-0000-4000-8000-000000000016"
+      }
+    },
+    {
+      "name": "non_draft_pr",
+      "schema": "approval",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "id": "00000000-0000-4000-8000-000000000014",
+        "operation_id": "00000000-0000-4000-8000-000000000015",
+        "operation_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "policy_version": 1,
+        "version": 1,
+        "arguments": {
+          "action": "git.merge",
+          "repository_id": "00000000-0000-4000-8000-000000000004",
+          "remote": "origin",
+          "branch": "grow/task",
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "expected_remote_head": null,
+          "force": false
+        },
+        "tree_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "approver_user_id": 1,
+        "decision": "pending",
+        "expires_at": "2026-09-21T12:00:00Z",
+        "nonce": "00000000-0000-4000-8000-000000000016"
+      }
+    },
+    {
+      "name": "event_payload_mismatch",
+      "schema": "runner_event",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "event_id": "00000000-0000-4000-8000-000000000007",
+        "sequence": 1,
+        "type": "attempt.started",
+        "occurred_at": "2026-09-21T12:00:00Z",
+        "payload": {
+          "process_state": "active",
+          "adapter_session_ref": null,
+          "stop_confirmed": false,
+          "summary": "",
+          "exit_code": 0
+        }
+      }
+    },
+    {
+      "name": "unconfirmed_stop",
+      "schema": "runner_event",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "event_id": "00000000-0000-4000-8000-000000000007",
+        "sequence": 1,
+        "type": "attempt.stopped",
+        "occurred_at": "2026-09-21T12:00:00Z",
+        "payload": {
+          "process_state": "stopped",
+          "adapter_session_ref": null,
+          "stop_confirmed": false,
+          "summary": ""
+        }
+      }
+    },
+    {
+      "name": "naive_deadline",
+      "schema": "attempt_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "tested_configuration": {
+          "schema_version": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "profile_revision": 1,
+          "adapter": {
+            "id": "grow-endpoint",
+            "version": "1.0.0",
+            "mode": "endpoint"
+          },
+          "provider": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "config_version": 1,
+            "base_url": "https://llm.example.test/v1",
+            "api_mode": "chat_completions",
+            "model_id": "fixture",
+            "allowed_models": [
+              "fixture"
+            ],
+            "credential_ref": {
+              "kind": "server",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "version": 1
+            },
+            "context_window_tokens": 8192,
+            "max_output_tokens": 1024,
+            "data_scope": [
+              "synthetic",
+              "selected_repository"
+            ],
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            }
+          },
+          "workspace_binding": {
+            "canonical_origin": "example/fixture",
+            "repository_id": "00000000-0000-4000-8000-000000000004",
+            "workspace_alias": "fixture",
+            "policy_version": 1,
+            "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+            "allowed_refs": [
+              "main"
+            ]
+          },
+          "policy_version": 1,
+          "actions": [
+            "checks.run",
+            "context.read",
+            "repository.edit",
+            "repository.read"
+          ],
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false,
+          "budget": {
+            "active_seconds": 3600,
+            "tool_rounds": 40,
+            "shell_timeout_seconds": 120,
+            "transport_retries": 2,
+            "context_recoveries": 2,
+            "input_tokens": 8192,
+            "output_tokens": 1024,
+            "tool_output_bytes": 51200,
+            "artifact_bytes": 10485760,
+            "job_artifact_bytes": 52428800,
+            "cost_limit_microunits": null
+          }
+        },
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "lease_expires_at": "2026-09-21T12:00:00",
+        "job_kind": "code",
+        "delivery_target": "patch",
+        "request": "Fix fixture",
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "repository": {
+          "id": "00000000-0000-4000-8000-000000000004",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "workspace_alias": "fixture",
+          "canonical_origin": "example/fixture",
+          "allowed_refs": [
+            "main"
+          ],
+          "base_ref": "main",
+          "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "policy_version": 1,
+          "required_checks": [
+            {
+              "id": "unit",
+              "argv": [
+                "python",
+                "-m",
+                "unittest"
+              ],
+              "cwd": ".",
+              "timeout_seconds": 120
+            }
+          ]
+        },
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 1024,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        },
+        "context_refs": [],
+        "inputs": [],
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "invalid_budget",
+      "schema": "attempt_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "tested_configuration": {
+          "schema_version": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "profile_revision": 1,
+          "adapter": {
+            "id": "grow-endpoint",
+            "version": "1.0.0",
+            "mode": "endpoint"
+          },
+          "provider": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "config_version": 1,
+            "base_url": "https://llm.example.test/v1",
+            "api_mode": "chat_completions",
+            "model_id": "fixture",
+            "allowed_models": [
+              "fixture"
+            ],
+            "credential_ref": {
+              "kind": "server",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "version": 1
+            },
+            "context_window_tokens": 8192,
+            "max_output_tokens": 1024,
+            "data_scope": [
+              "synthetic",
+              "selected_repository"
+            ],
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            }
+          },
+          "workspace_binding": {
+            "canonical_origin": "example/fixture",
+            "repository_id": "00000000-0000-4000-8000-000000000004",
+            "workspace_alias": "fixture",
+            "policy_version": 1,
+            "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+            "allowed_refs": [
+              "main"
+            ]
+          },
+          "policy_version": 1,
+          "actions": [
+            "checks.run",
+            "context.read",
+            "repository.edit",
+            "repository.read"
+          ],
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false,
+          "budget": {
+            "active_seconds": 3600,
+            "tool_rounds": 40,
+            "shell_timeout_seconds": 120,
+            "transport_retries": 2,
+            "context_recoveries": 2,
+            "input_tokens": 8192,
+            "output_tokens": 1024,
+            "tool_output_bytes": 51200,
+            "artifact_bytes": 10485760,
+            "job_artifact_bytes": 52428800,
+            "cost_limit_microunits": null
+          }
+        },
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "lease_expires_at": "2026-09-21T12:00:00Z",
+        "job_kind": "code",
+        "delivery_target": "patch",
+        "request": "Fix fixture",
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "repository": {
+          "id": "00000000-0000-4000-8000-000000000004",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "workspace_alias": "fixture",
+          "canonical_origin": "example/fixture",
+          "allowed_refs": [
+            "main"
+          ],
+          "base_ref": "main",
+          "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "policy_version": 1,
+          "required_checks": [
+            {
+              "id": "unit",
+              "argv": [
+                "python",
+                "-m",
+                "unittest"
+              ],
+              "cwd": ".",
+              "timeout_seconds": 120
+            }
+          ]
+        },
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 41,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 1024,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        },
+        "context_refs": [],
+        "inputs": [],
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "untested_provider",
+      "schema": "attempt_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "tested_configuration": {
+          "schema_version": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "profile_revision": 1,
+          "adapter": {
+            "id": "grow-endpoint",
+            "version": "1.0.0",
+            "mode": "endpoint"
+          },
+          "provider": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "config_version": 1,
+            "base_url": "https://llm.example.test/v1",
+            "api_mode": "chat_completions",
+            "model_id": "fixture",
+            "allowed_models": [
+              "fixture"
+            ],
+            "credential_ref": {
+              "kind": "server",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "version": 1
+            },
+            "context_window_tokens": 8192,
+            "max_output_tokens": 1024,
+            "data_scope": [
+              "synthetic",
+              "selected_repository"
+            ],
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            }
+          },
+          "workspace_binding": {
+            "canonical_origin": "example/fixture",
+            "repository_id": "00000000-0000-4000-8000-000000000004",
+            "workspace_alias": "fixture",
+            "policy_version": 1,
+            "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+            "allowed_refs": [
+              "main"
+            ]
+          },
+          "policy_version": 1,
+          "actions": [
+            "checks.run",
+            "context.read",
+            "repository.edit",
+            "repository.read"
+          ],
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false,
+          "budget": {
+            "active_seconds": 3600,
+            "tool_rounds": 40,
+            "shell_timeout_seconds": 120,
+            "transport_retries": 2,
+            "context_recoveries": 2,
+            "input_tokens": 8192,
+            "output_tokens": 1024,
+            "tool_output_bytes": 51200,
+            "artifact_bytes": 10485760,
+            "job_artifact_bytes": 52428800,
+            "cost_limit_microunits": null
+          }
+        },
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "lease_expires_at": "2026-09-21T12:00:00Z",
+        "job_kind": "code",
+        "delivery_target": "patch",
+        "request": "Fix fixture",
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://other.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "repository": {
+          "id": "00000000-0000-4000-8000-000000000004",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "workspace_alias": "fixture",
+          "canonical_origin": "example/fixture",
+          "allowed_refs": [
+            "main"
+          ],
+          "base_ref": "main",
+          "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "policy_version": 1,
+          "required_checks": [
+            {
+              "id": "unit",
+              "argv": [
+                "python",
+                "-m",
+                "unittest"
+              ],
+              "cwd": ".",
+              "timeout_seconds": 120
+            }
+          ]
+        },
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 1024,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        },
+        "context_refs": [],
+        "inputs": [],
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "untested_image",
+      "schema": "attempt_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "tested_configuration": {
+          "schema_version": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "profile_revision": 1,
+          "adapter": {
+            "id": "grow-endpoint",
+            "version": "1.0.0",
+            "mode": "endpoint"
+          },
+          "provider": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "config_version": 1,
+            "base_url": "https://llm.example.test/v1",
+            "api_mode": "chat_completions",
+            "model_id": "fixture",
+            "allowed_models": [
+              "fixture"
+            ],
+            "credential_ref": {
+              "kind": "server",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "version": 1
+            },
+            "context_window_tokens": 8192,
+            "max_output_tokens": 1024,
+            "data_scope": [
+              "synthetic",
+              "selected_repository"
+            ],
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            }
+          },
+          "workspace_binding": {
+            "canonical_origin": "example/fixture",
+            "repository_id": "00000000-0000-4000-8000-000000000004",
+            "workspace_alias": "fixture",
+            "policy_version": 1,
+            "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+            "allowed_refs": [
+              "main"
+            ]
+          },
+          "policy_version": 1,
+          "actions": [
+            "checks.run",
+            "context.read",
+            "repository.edit",
+            "repository.read"
+          ],
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false,
+          "budget": {
+            "active_seconds": 3600,
+            "tool_rounds": 40,
+            "shell_timeout_seconds": 120,
+            "transport_retries": 2,
+            "context_recoveries": 2,
+            "input_tokens": 8192,
+            "output_tokens": 1024,
+            "tool_output_bytes": 51200,
+            "artifact_bytes": 10485760,
+            "job_artifact_bytes": 52428800,
+            "cost_limit_microunits": null
+          }
+        },
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "lease_expires_at": "2026-09-21T12:00:00Z",
+        "job_kind": "code",
+        "delivery_target": "patch",
+        "request": "Fix fixture",
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "repository": {
+          "id": "00000000-0000-4000-8000-000000000004",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "workspace_alias": "fixture",
+          "canonical_origin": "example/fixture",
+          "allowed_refs": [
+            "main"
+          ],
+          "base_ref": "main",
+          "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "policy_version": 1,
+          "required_checks": [
+            {
+              "id": "unit",
+              "argv": [
+                "python",
+                "-m",
+                "unittest"
+              ],
+              "cwd": ".",
+              "timeout_seconds": 120
+            }
+          ]
+        },
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 1024,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        },
+        "context_refs": [],
+        "inputs": [],
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "widened_actions",
+      "schema": "attempt_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "tested_configuration": {
+          "schema_version": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "profile_revision": 1,
+          "adapter": {
+            "id": "grow-endpoint",
+            "version": "1.0.0",
+            "mode": "endpoint"
+          },
+          "provider": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "config_version": 1,
+            "base_url": "https://llm.example.test/v1",
+            "api_mode": "chat_completions",
+            "model_id": "fixture",
+            "allowed_models": [
+              "fixture"
+            ],
+            "credential_ref": {
+              "kind": "server",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "version": 1
+            },
+            "context_window_tokens": 8192,
+            "max_output_tokens": 1024,
+            "data_scope": [
+              "synthetic",
+              "selected_repository"
+            ],
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            }
+          },
+          "workspace_binding": {
+            "canonical_origin": "example/fixture",
+            "repository_id": "00000000-0000-4000-8000-000000000004",
+            "workspace_alias": "fixture",
+            "policy_version": 1,
+            "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+            "allowed_refs": [
+              "main"
+            ]
+          },
+          "policy_version": 1,
+          "actions": [
+            "checks.run",
+            "context.read",
+            "repository.edit",
+            "repository.read"
+          ],
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false,
+          "budget": {
+            "active_seconds": 3600,
+            "tool_rounds": 40,
+            "shell_timeout_seconds": 120,
+            "transport_retries": 2,
+            "context_recoveries": 2,
+            "input_tokens": 8192,
+            "output_tokens": 1024,
+            "tool_output_bytes": 51200,
+            "artifact_bytes": 10485760,
+            "job_artifact_bytes": 52428800,
+            "cost_limit_microunits": null
+          }
+        },
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "lease_expires_at": "2026-09-21T12:00:00Z",
+        "job_kind": "code",
+        "delivery_target": "patch",
+        "request": "Fix fixture",
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "repository": {
+          "id": "00000000-0000-4000-8000-000000000004",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "workspace_alias": "fixture",
+          "canonical_origin": "example/fixture",
+          "allowed_refs": [
+            "main"
+          ],
+          "base_ref": "main",
+          "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "policy_version": 1,
+          "required_checks": [
+            {
+              "id": "unit",
+              "argv": [
+                "python",
+                "-m",
+                "unittest"
+              ],
+              "cwd": ".",
+              "timeout_seconds": 120
+            }
+          ]
+        },
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run",
+            "git.push"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 1024,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        },
+        "context_refs": [],
+        "inputs": [],
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "widened_budget",
+      "schema": "attempt_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "tested_configuration": {
+          "schema_version": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "profile_revision": 1,
+          "adapter": {
+            "id": "grow-endpoint",
+            "version": "1.0.0",
+            "mode": "endpoint"
+          },
+          "provider": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "config_version": 1,
+            "base_url": "https://llm.example.test/v1",
+            "api_mode": "chat_completions",
+            "model_id": "fixture",
+            "allowed_models": [
+              "fixture"
+            ],
+            "credential_ref": {
+              "kind": "server",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "version": 1
+            },
+            "context_window_tokens": 8192,
+            "max_output_tokens": 1024,
+            "data_scope": [
+              "synthetic",
+              "selected_repository"
+            ],
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            }
+          },
+          "workspace_binding": {
+            "canonical_origin": "example/fixture",
+            "repository_id": "00000000-0000-4000-8000-000000000004",
+            "workspace_alias": "fixture",
+            "policy_version": 1,
+            "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+            "allowed_refs": [
+              "main"
+            ]
+          },
+          "policy_version": 1,
+          "actions": [
+            "checks.run",
+            "context.read",
+            "repository.edit",
+            "repository.read"
+          ],
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false,
+          "budget": {
+            "active_seconds": 3600,
+            "tool_rounds": 40,
+            "shell_timeout_seconds": 120,
+            "transport_retries": 2,
+            "context_recoveries": 2,
+            "input_tokens": 8192,
+            "output_tokens": 1024,
+            "tool_output_bytes": 51200,
+            "artifact_bytes": 10485760,
+            "job_artifact_bytes": 52428800,
+            "cost_limit_microunits": null
+          }
+        },
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "lease_expires_at": "2026-09-21T12:00:00Z",
+        "job_kind": "code",
+        "delivery_target": "patch",
+        "request": "Fix fixture",
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "repository": {
+          "id": "00000000-0000-4000-8000-000000000004",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "workspace_alias": "fixture",
+          "canonical_origin": "example/fixture",
+          "allowed_refs": [
+            "main"
+          ],
+          "base_ref": "main",
+          "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "policy_version": 1,
+          "required_checks": [
+            {
+              "id": "unit",
+              "argv": [
+                "python",
+                "-m",
+                "unittest"
+              ],
+              "cwd": ".",
+              "timeout_seconds": 120
+            }
+          ]
+        },
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 2048,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        },
+        "context_refs": [],
+        "inputs": [],
+        "checkpoint": null
+      }
+    },
+    {
+      "name": "boolean_success_exit",
+      "schema": "verification",
+      "payload": {
+        "check_id": "unit",
+        "command": [
+          "python",
+          "-m",
+          "unittest"
+        ],
+        "cwd": ".",
+        "exit_code": false,
+        "started_at": "2026-09-21T12:00:00Z",
+        "finished_at": "2026-09-21T12:00:00Z",
+        "tree_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "artifact_id": "00000000-0000-4000-8000-000000000013",
+        "timed_out": false
+      }
+    },
+    {
+      "name": "string_success_exit",
+      "schema": "verification",
+      "payload": {
+        "check_id": "unit",
+        "command": [
+          "python",
+          "-m",
+          "unittest"
+        ],
+        "cwd": ".",
+        "exit_code": "0",
+        "started_at": "2026-09-21T12:00:00Z",
+        "finished_at": "2026-09-21T12:00:00Z",
+        "tree_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "artifact_id": "00000000-0000-4000-8000-000000000013",
+        "timed_out": false
+      }
+    },
+    {
+      "name": "endpoint_probe_no_provider",
+      "schema": "probe_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "setup_operation_id": "00000000-0000-4000-8000-000000000008",
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": null,
+        "grant": {
+          "id": "00000000-0000-4000-8000-000000000011",
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "provider_id": null,
+          "provider_config_version": null,
+          "profile_revision": 1,
+          "expires_at": "2026-09-21T12:00:00Z",
+          "actions": [
+            "probe"
+          ]
+        },
+        "workspace_binding": {
+          "canonical_origin": "example/fixture",
+          "repository_id": "00000000-0000-4000-8000-000000000004",
+          "workspace_alias": "fixture",
+          "policy_version": 1,
+          "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+          "allowed_refs": [
+            "main"
+          ]
+        },
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 1024,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        }
+      }
+    }
+  ]
+}
