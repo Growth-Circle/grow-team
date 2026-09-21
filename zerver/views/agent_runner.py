@@ -293,7 +293,7 @@ def reconcile_operation(request: HttpRequest) -> HttpResponse:
             data.job_id,
             data.attempt_id,
             data.lease_epoch,
-            expected_version=data.job_version,
+            # Recovery observes immutable authority without a current job-version gate.
             execution=False,
         )
         item = approvals.reconcile_operation(
@@ -443,7 +443,7 @@ def operations(request: HttpRequest) -> HttpResponse:
             data.job_id,
             data.attempt_id,
             data.lease_epoch,
-            expected_version=data.job_version,
+            # Recovery observes immutable authority without a current job-version gate.
             execution=False,
         )
         from zerver.lib.agent_context import require_audience
@@ -530,7 +530,7 @@ def reconcile_local(request: HttpRequest) -> HttpResponse:
             data.job_id,
             data.attempt_id,
             data.lease_epoch,
-            expected_version=data.job_version,
+            # Recovery observes immutable authority without a current job-version gate.
             execution=False,
         )
         operation = approvals.reconcile_local_operation(

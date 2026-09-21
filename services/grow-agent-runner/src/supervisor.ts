@@ -1,6 +1,7 @@
 import {randomUUID} from "node:crypto";
 import {Journal, type JournalLog} from "./journal.js";
 import {Transport} from "./transport.js";
+import {OperationRecovery} from "./operation-recovery.js";
 import type {OwnerRegistry} from "./owner.js";
 import {parse, validateDescriptor, type Data} from "./protocol.js";
 
@@ -162,6 +163,25 @@ export class Coordinator {
         this.scope = journal.identityScope();
         this.journal = journal.partition(this.scope);
     }
+    operationRecovery(attemptId: string): OperationRecovery {
+        this.assertScope();
+        const attempt = this.journal.get(`attempt:${attemptId}`);
+        if (!attempt || attempt.request.descriptor.runner_id !== this.runnerId)
+            throw new Error("No original durable attempt identity");
+        const d = attempt.request.descriptor;
+        return new OperationRecovery(
+            this.journal,
+            this.transport,
+            {
+                schema_version: 1,
+                job_id: d.job_id,
+                attempt_id: d.attempt_id,
+                lease_epoch: d.lease_epoch,
+                job_version: attempt.request.job_version,
+            },
+            () => this.assertScope(),
+        );
+    }
     private assertScope(): void {
         if ((this.transport.currentScope?.() ?? "") !== this.scope)
             throw new Error("Coordinator belongs to a retired runner scope");
@@ -201,9 +221,17 @@ export class Coordinator {
     async contain(): Promise<void> {
         this.generation++;
         this.reconciled = false;
-        if (this.active) this.retire(this.active);
+        const active = this.active;
+        if (active) {
+            this.retire(active);
+            if (!(await this.supervisor.stop({attempt_id: active.descriptor.attempt_id})).confirmed)
+                throw new Error("Cannot confirm process stop");
+        }
         for (const process of await this.supervisor.inspect())
-            if (!(await this.supervisor.stop(process)).confirmed)
+            if (
+                process.attempt_id !== active?.descriptor.attempt_id &&
+                !(await this.supervisor.stop(process)).confirmed
+            )
                 throw new Error("Cannot confirm process stop");
     }
     private newEvent(d: Data, type: string, payload: Data): Data {
@@ -558,6 +586,9 @@ export class Coordinator {
         if (!this.reconciled) await this.recover();
         const session = this.active;
         if (!session) {
+            this.assertScope();
+            await this.transport.request("/runner/heartbeat", {schema_version: 1, leases: []});
+            this.assertScope();
             await this.claim();
             return;
         }
@@ -580,7 +611,7 @@ export class Coordinator {
                 await this.stopSession(session);
                 return;
             }
-            session.version = control.job_version;
+            session.version = Math.max(session.version, control.job_version);
             const response = await this.transport.request("/runner/heartbeat", {
                 schema_version: 1,
                 leases: [{job_id: d.job_id, attempt_id: d.attempt_id, lease_epoch: d.lease_epoch}],
@@ -593,7 +624,7 @@ export class Coordinator {
                 await this.stopSession(session);
                 return;
             }
-            session.version = heartbeat.job_version;
+            session.version = Math.max(session.version, heartbeat.job_version);
             session.expiry = Date.parse(heartbeat.lease_expires_at);
             this.armWatchdog(session);
             const inputs = await this.transport.request("/runner/inputs", this.lease(session));
@@ -655,8 +686,14 @@ export async function runService(
     await coordinator.contain();
     try {
         await transport.poll(async () => {
-            await connection.access();
-            await coordinator.tick();
+            try {
+                await connection.access();
+                await coordinator.tick();
+            } catch (error) {
+                // Stop local effects before polling can enter backoff, even without credentials.
+                await coordinator.contain();
+                throw error;
+            }
         }, signal);
     } finally {
         await coordinator.stopActive();

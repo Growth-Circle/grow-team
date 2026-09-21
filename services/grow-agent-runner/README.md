@@ -125,8 +125,21 @@ A lost consume response never creates execution permission. Query server operati
 A restarted effect cannot run again from its original consume receipt.
 Remote effects require server receipt reconciliation before reporting success.
 
+The trusted host uses `Coordinator.operationRecovery(attemptId)` after stop or restart.
+It exposes only `list`, `remoteReceipt`, and `localReceipt`. It does not expose execution methods to retired channels.
+The interface binds requests to the original journaled runner, job, attempt, epoch, and attempted consume identity.
+A lost receipt response reuses the original durable request. Acknowledged recovery completes uncertain local effect evidence.
+Existing effect receipts remain unchanged. Recovery does not turn an uncertain consume into execution permission.
+
+The operation list, remote receipt, and local receipt routes retain `job_version` for request compatibility.
+These three recovery routes do not use it as a version gate.
+Current access and audience checks still apply. Remote receipts require consumed approval and the exact approved target.
+Local receipts require the stopped latest attempt and a valid workspace observation.
+All receipts remain immutable. Recovery does not resume a job or authorize another effect.
+
+Idle polling sends an empty-lease heartbeat after containment and credential checks. Presence does not certify runtime readiness.
 The coordinator checks controls, heartbeats, and lease expiry. A separate expiry timer stops effects during a blocked request.
-Transport or credential failure stops active work before reconnect. Current authority must still be checked at each broker effect.
+Transport or credential failure confirms local containment before polling backoff or reconnect. Current authority must still be checked at each broker effect.
 Reserved environment values are not inherited. Only the fixed owner-approved environment allowlist reaches adapters.
 The later runtime supplies isolated HOME and credential paths through its own supervisor boundary.
 

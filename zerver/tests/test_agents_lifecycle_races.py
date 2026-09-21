@@ -927,11 +927,101 @@ class AgentLifecycleRaceTests(ZulipTransactionTestCase):
                 operation_id=operation.operation_id,
                 receipt=receipt.model_copy(update={"commit": "d" * 40}),
             )
-        approvals.reconcile_operation(
-            self.runner, job.id, attempt.id, 1, operation_id=operation.operation_id, receipt=receipt
+        import json
+        from datetime import timedelta
+
+        from zerver.lib.agent_secrets import hash_agent_credential
+
+        token = "operation-recovery-synthetic"
+        foreign = agents.AgentRunner.objects.create(
+            realm=self.owner.realm,
+            owner=self.owner,
+            name="Foreign receipt",
+            fingerprint="foreign-receipt",
         )
-        approvals.reconcile_operation(
-            self.runner, job.id, attempt.id, 1, operation_id=operation.operation_id, receipt=receipt
-        )
+        try:
+            for device, bearer in [(self.runner, token), (foreign, "foreign-operation")]:
+                agents.AgentRunnerCredential.objects.create(
+                    realm=self.owner.realm,
+                    runner=device,
+                    token_hash=hash_agent_credential(bearer),
+                    refresh_hash=hash_agent_credential(bearer + "-refresh"),
+                    expires_at=now() + timedelta(hours=1),
+                    refresh_expires_at=now() + timedelta(days=1),
+                )
+            lease: dict[str, Any] = {
+                "schema_version": 1,
+                "job_id": str(job.id),
+                "attempt_id": str(attempt.id),
+                "lease_epoch": 1,
+                "job_version": 1,
+            }
+            self.assertGreater(job.version, lease["job_version"])
+            body: dict[str, Any] = {**lease, "receipt": p.serialize_payload(receipt)}
+            body["operation_id"] = str(operation.operation_id)
+
+            def recovery_post(route: str, data: dict[str, Any], bearer: str = token) -> Any:
+                return self.client.post(
+                    "/api/v1/agent/runner/operations" + route,
+                    data=json.dumps(data),
+                    content_type="application/json",
+                    HTTP_AUTHORIZATION="Bearer " + bearer,
+                )
+
+            listed = self.assert_json_success(recovery_post("", lease))
+            self.assertEqual(listed["operations"][0]["operation_id"], str(operation.operation_id))
+            route = "/reconcile"
+            for selected, payload in [("", lease), (route, body)]:
+                self.assertEqual(
+                    recovery_post(selected, payload, "foreign-operation").status_code, 400
+                )
+                self.assertEqual(
+                    recovery_post(selected, {**payload, "lease_epoch": 2}).status_code, 400
+                )
+            self.assertEqual(
+                recovery_post(
+                    route, {**body, "receipt": {**body["receipt"], "commit": "f" * 40}}
+                ).status_code,
+                400,
+            )
+            accepted = self.assert_json_success(recovery_post(route, body))
+            # Repeat the exact request after a lost acknowledgement.
+            self.assertEqual(accepted, self.assert_json_success(recovery_post(route, body)))
+            self.assertEqual(
+                recovery_post(
+                    route,
+                    {
+                        **body,
+                        "receipt": {
+                            **body["receipt"],
+                            "observed_at": (now() + timedelta(seconds=1)).isoformat(),
+                        },
+                    },
+                ).status_code,
+                400,
+            )
+            attempt.refresh_from_db()
+            current = agents.AgentJob.objects.get(id=job.id)
+            self.assertFalse(attempt.active)
+            self.assertEqual(attempt.process_state, "stopped")
+            self.assertEqual(current.version, job.version)
+            self.assertEqual(current.status, job.status)
+            self.assertEqual(agents.AgentAttempt.objects.filter(job=job).count(), 1)
+            self.assertEqual(
+                recovery_post(
+                    "/consume",
+                    {
+                        **lease,
+                        "job_version": current.version,
+                        "operation_id": str(operation.operation_id),
+                        "expected_version": operation.version,
+                        "operation_hash": operation.argument_digest,
+                    },
+                ).status_code,
+                400,
+            )
+        finally:
+            agents.AgentRunnerCredential.objects.filter(runner__in=[self.runner, foreign]).delete()
+            foreign.delete()
         jobs.resume_job(self.owner, job.id, job.version)
         self.assertEqual(agents.AgentOperation.objects.filter(attempt=attempt).count(), 1)

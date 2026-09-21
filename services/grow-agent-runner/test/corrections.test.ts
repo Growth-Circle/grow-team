@@ -293,7 +293,7 @@ for (const state of ["rotation_uncertain", "expired_refresh"])
         await assert.rejects(() =>
             runService(c, new Connection(store, t), t, new AbortController().signal),
         );
-        assert.deepEqual(log, ["inspect", "stop"]);
+        assert.deepEqual(log, ["inspect", "stop", "inspect", "stop"]);
         j.close();
     });
 test("not_applied permits one fresh delivery and applied reconciliation suppresses duplication", async () => {
@@ -408,3 +408,285 @@ test("lost input reconciliation response reuses its request after stop changes t
     assert.equal(h.j.get(`input:${descriptor(1).attempt_id}:${input.id}`)!.state, "done");
     h.j.close();
 });
+
+test("active polling preserves the attempt heartbeat identity", async () => {
+    const h = await harness(),
+        d = descriptor(1),
+        heartbeats: any[] = [];
+    h.t.request = async (route, data) => {
+        if (route === "/runner/controls")
+            return {
+                controls: [
+                    {
+                        attempt_id: d.attempt_id,
+                        lease_epoch: d.lease_epoch,
+                        control: "continue",
+                        job_version: 1,
+                    },
+                ],
+            };
+        if (route === "/runner/heartbeat") {
+            heartbeats.push(data);
+            return {
+                leases: [
+                    {
+                        attempt_id: d.attempt_id,
+                        lease_epoch: d.lease_epoch,
+                        control: "continue",
+                        job_version: 1,
+                        lease_expires_at: d.lease_expires_at,
+                    },
+                ],
+            };
+        }
+        if (route === "/runner/inputs") return {inputs: []};
+        if (route === "/runner/stop-evidence") return {receipt: {job_version: 2}};
+        throw Error(route);
+    };
+    await h.c.tick();
+    assert.deepEqual(heartbeats, [
+        {
+            schema_version: 1,
+            leases: [{job_id: d.job_id, attempt_id: d.attempt_id, lease_epoch: d.lease_epoch}],
+        },
+    ]);
+    assert.equal(h.channels[0].lease().attempt_id, d.attempt_id);
+    await h.c.stopActive();
+    h.j.close();
+});
+
+for (const confirmed of [true, false]) {
+    test(`refresh failure requires confirmed containment before backoff: ${confirmed}`, async () => {
+        const {runService} = await import("../dist/supervisor.js");
+        const store = new PrivateStore(root()),
+            d = descriptor(1);
+        store.write("connection.json", {
+            origin: "http://localhost",
+            state: "connected",
+            runner_id: d.runner_id,
+            token: "access",
+            refresh_token: "refresh",
+            expires_at: new Date(Date.now() + 300000).toISOString(),
+            refresh_expires_at: "2099-01-01T00:00:00Z",
+        });
+        const journal = new Journal(store.root),
+            transport = new Transport(
+                "http://localhost",
+                journal,
+                () => store.read("connection.json")!.token,
+            );
+        const failure = new TransportError("transient");
+        let alive = false,
+            stops = 0;
+        transport.request = async (route) => {
+            if (route === "/runner/leases" || route === "/runner/heartbeat") return {leases: []};
+            if (route === "/runner/claims") return {attempt: d, job_version: 1};
+            if (route === "/runner/token/refresh") throw failure;
+            throw Error(route);
+        };
+        const coordinator = new Coordinator(
+            journal,
+            transport,
+            {
+                inspect: async () => [],
+                canExecute: () => true,
+                start: async () => {
+                    alive = true;
+                },
+                stop: async () => {
+                    stops++;
+                    if (confirmed) alive = false;
+                    return {confirmed};
+                },
+            } as any,
+            d.runner_id,
+            {assertRuntime: () => {}},
+        );
+        transport.poll = async (callback) => {
+            await callback();
+            store.write("connection.json", {
+                ...store.read("connection.json"),
+                expires_at: "2000-01-01T00:00:00Z",
+            });
+            try {
+                await callback();
+                assert.fail("Expected refresh failure");
+            } catch (error) {
+                // This is the boundary where the real poller classifies errors for backoff.
+                assert.equal(stops, 1);
+                assert.equal(alive, !confirmed);
+                assert.equal(store.read("connection.json")!.state, "rotation_uncertain");
+                if (confirmed) assert.equal(error, failure);
+                else {
+                    assert(!(error instanceof TransportError));
+                    assert.match((error as Error).message, /Cannot confirm process stop/);
+                }
+                throw error;
+            }
+        };
+        await assert.rejects(
+            () =>
+                runService(
+                    coordinator,
+                    new Connection(store, transport),
+                    transport,
+                    new AbortController().signal,
+                ),
+            confirmed ? TransportError : /Cannot confirm process stop/,
+        );
+        journal.close();
+    });
+}
+
+for (const delayed of ["/runner/controls", "/runner/heartbeat"]) {
+    test(`delayed ${delayed} cannot lower a version confirmed by an event`, async () => {
+        const h = await harness(),
+            d = descriptor(1);
+        let release!: () => void, entered!: () => void;
+        const wait = new Promise<void>((resolve) => {
+                release = resolve;
+            }),
+            reached = new Promise<void>((resolve) => {
+                entered = resolve;
+            });
+        h.t.request = async (route, data) => {
+            if (route === delayed) {
+                entered();
+                await wait;
+            }
+            if (route === "/runner/controls")
+                return {
+                    controls: [
+                        {
+                            attempt_id: d.attempt_id,
+                            lease_epoch: d.lease_epoch,
+                            control: "continue",
+                            job_version: 1,
+                        },
+                    ],
+                };
+            if (route === "/runner/heartbeat")
+                return {
+                    leases: [
+                        {
+                            attempt_id: d.attempt_id,
+                            lease_epoch: d.lease_epoch,
+                            control: "continue",
+                            job_version: 1,
+                            lease_expires_at: d.lease_expires_at,
+                        },
+                    ],
+                };
+            if (route === "/runner/events") return {receipts: [{job_version: 2}]};
+            if (route === "/runner/inputs") {
+                assert.equal(data!.job_version, 2);
+                return {inputs: []};
+            }
+            if (route === "/runner/stop-evidence") return {receipt: {job_version: 3}};
+            throw Error(route);
+        };
+        const tick = h.c.tick();
+        await reached;
+        await h.channels[0].event("attempt.started", payload);
+        release();
+        await tick;
+        assert.equal(h.channels[0].lease().job_version, 2);
+        await h.c.stopActive();
+        h.j.close();
+    });
+}
+
+for (const kind of ["local", "remote"] as const) {
+    test(`${kind} operation recovery survives stop, restart, and lost receipt response`, async () => {
+        const h = await harness(),
+            d = descriptor(1),
+            lease = h.channels[0].lease();
+        const operationId = "00000000-0000-4000-8000-000000000031",
+            operationHash = "a".repeat(64);
+        h.j.prepare("consume", `consume:${operationId}`, "/runner/operations/consume", {
+            ...lease,
+            operation_id: operationId,
+            operation_hash: operationHash,
+            expected_version: 1,
+        });
+        h.j.uncertain(`consume:${operationId}`);
+        h.j.prepare("effect", `effect:${operationId}`, "local", {
+            operation: {operation_id: operationId},
+        });
+        h.j.uncertain(`effect:${operationId}`);
+        await h.c.stopActive();
+        await assert.rejects(() => h.channels[0].operations.reconcile(lease), /retired/);
+        h.j.close();
+        const journal = new Journal(h.dir),
+            transport = new Transport("http://localhost", journal, () => "access");
+        const requests: any[] = [];
+        const result = {
+            operation_id: operationId,
+            operation_hash: operationHash,
+            status: kind === "local" ? "cancelled" : "succeeded",
+        };
+        transport.request = async (route, data) => {
+            assert.equal(data!.attempt_id, d.attempt_id);
+            assert.equal(data!.lease_epoch, d.lease_epoch);
+            if (route === "/runner/operations") return {operations: [result]};
+            assert.equal(
+                route,
+                kind === "local"
+                    ? "/runner/operations/reconcile-local"
+                    : "/runner/operations/reconcile",
+            );
+            requests.push(structuredClone(data));
+            if (requests.length === 1) throw new TransportError("transient");
+            return {operation: result};
+        };
+        const coordinator = new Coordinator(journal, transport, h.s, d.runner_id, {
+            assertRuntime: () => {},
+        });
+        const recovery = (coordinator as any).operationRecovery(d.attempt_id);
+        assert.equal(recovery.propose, undefined);
+        assert.equal(recovery.consume, undefined);
+        assert.equal(recovery.beginEffect, undefined);
+        assert.deepEqual((await recovery.list()).operations, [result]);
+        const receipt =
+            kind === "local"
+                ? {
+                      operation_id: operationId,
+                      argument_digest: operationHash,
+                      base_commit: null,
+                      tree_hash: null,
+                      outcome: "no_effect",
+                      observed_at: new Date().toISOString(),
+                  }
+                : {
+                      operation_id: operationId,
+                      remote: "https://example.com/repo",
+                      branch: "grow-agent/result",
+                      commit: "b".repeat(40),
+                      pull_request_id: null,
+                      pull_request_url: null,
+                      observed_at: new Date().toISOString(),
+                  };
+        const submit = () =>
+            kind === "local" ? recovery.localReceipt(receipt) : recovery.remoteReceipt(receipt);
+        await assert.rejects(submit, TransportError);
+        await submit();
+        await submit();
+        assert.equal(requests.length, 2);
+        assert.deepEqual(requests[0], requests[1]);
+        assert.equal(journal.get(`effect:${operationId}`)!.state, "done");
+        await assert.rejects(
+            () =>
+                kind === "local"
+                    ? recovery.localReceipt({...receipt, outcome: "failed"})
+                    : recovery.remoteReceipt({...receipt, commit: "c".repeat(40)}),
+            /conflict/i,
+        );
+        assert.equal(journal.get(`consume:${operationId}`)!.state, "uncertain");
+        transport.currentScope = () => "runner:replacement";
+        await assert.rejects(() => recovery.list(), /retired runner scope/);
+        assert.throws(() =>
+            (coordinator as any).operationRecovery("00000000-0000-4000-8000-000000000099"),
+        );
+        journal.close();
+    });
+}
