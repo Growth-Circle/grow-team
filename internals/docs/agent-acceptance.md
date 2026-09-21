@@ -34,6 +34,14 @@ Lihat [tes lifecycle](../../zerver/tests/test_agents_lifecycle.py) dan
 [tes race PostgreSQL](../../zerver/tests/test_agents_lifecycle_races.py). Runtime
 runner, browser, serta proses native belum disertifikasi dari hasil ini.
 
+Admission pesan pada `9c0ea40` lulus 165 tes gabungan. Koreksi requester pada
+`042b620` kemudian lulus 62 tes terkait dan review akhir. Tiga pemeriksaan
+controller pada commit sebelum koreksi juga lulus. Lihat
+[tes admission](../../zerver/tests/test_agent_message_admission.py) dan
+[tes race pengiriman](../../zerver/tests/test_agent_message_admission_races.py).
+Tiga kegagalan fixture Markdown yang sama direproduksi pada baseline; suite
+Markdown lengkap belum dinyatakan lulus. Runner dan browser belum disertifikasi.
+
 Integrasi backup pada commit `bafbc67` lulus 43 tes dan review independen.
 Lihat [tes file backup](../../zerver/tests/test_agents_backup.py),
 [tes perintah backup](../../zerver/tests/test_agents_backup_command.py), dan
@@ -67,8 +75,8 @@ tersebut tidak menyatakan fitur sudah tersedia di produksi atau spesifikasi sele
 | AT-08 | Endpoint teks tanpa tools | Siap chat; coding tidak diaktifkan. | Belum diuji. |
 | AT-09 | Endpoint localhost/private | Request berasal dari runner yang dipilih, dengan policy jaringan yang sesuai. | Belum diuji. |
 | AT-10 | JSON tool stream terpotong atau invalid | Tidak ada tool mutasi yang dijalankan. | Belum diuji. |
-| AT-11 | Mention di code block atau pesan dari bot | Tidak membuat job coding. | Belum diuji. |
-| AT-12 | Trigger dikirim ulang | Hanya satu job logis terbentuk. | Belum diuji. |
+| AT-11 | Mention di code block atau pesan dari bot | Tidak membuat job coding. | Sebagian: provenance renderer serta penolakan code/bot lulus pada `042b620`; integrasi runner belum diuji. |
+| AT-12 | Trigger dikirim ulang | Hanya satu job logis terbentuk. | Sebagian: deduplikasi pesan, receipt, dan job termasuk race PostgreSQL lulus pada `042b620`; retry browser/runner belum diuji. |
 | AT-13 | Crash setelah commit sebelum queue publish | Outbox dipulihkan; job tidak hilang. | Sebagian: rekonsiliasi outbox tanpa notifikasi lulus pada `8c59211`; daemon dan restart nyata belum diuji. |
 | AT-14 | Claim berhasil tetapi respons hilang | Runner menemukan lease yang sama; tidak ada attempt aktif kedua. | Sebagian: retry claim dan race PostgreSQL lulus pada `8c59211`; journal runner setelah respons hilang belum diuji. |
 | AT-15 | Laptop offline ketika shell berjalan | UI benar, tool baru ditahan, process tree dihentikan sesuai deadline. | Belum diuji. |
@@ -104,24 +112,24 @@ tersebut tidak menyatakan fitur sudah tersedia di produksi atau spesifikasi sele
 | AF-04 | Profil diedit selama probe berlangsung | Hasil revision lama tidak mengaktifkan revision baru. | Sebagian: revision dan descriptor probe lama ditolak pada `3469f2f`; alur edit di browser belum diuji. |
 | AF-05 | Dua profil bernama sama | ID penerima yang dipilih tetap tepat setelah rename dan upload. | Belum diuji. |
 | AF-06 | Presence/query gagal dengan cache Online lama | UI menampilkan unknown tanpa membuat proses duplikat. | Belum diuji. |
-| AF-07 | Mention personal biasa pada profil Coding | Satu pesan, receipt, job, outbox, dan attempt sesuai scope. | Belum diuji. |
-| AF-08 | Agent sama disebut berulang pada satu pesan | Hanya satu job untuk target itu. | Belum diuji. |
-| AF-09 | Mention grup/wildcard yang mencakup agent | Tidak ada job; mention personal bersamaan tetap diproses. | Belum diuji. |
-| AF-10 | Mention pada inline code, fenced code, blockquote, atau silent mention | Tidak ada trigger dari reference tersebut. | Belum diuji. |
-| AF-11 | Bot atau agent lain menyebut agent | Tidak ada loop job baru. | Belum diuji. |
-| AF-12 | Edit pesan menambahkan mention | Tidak ada job baru tanpa tindakan eksplisit. | Belum diuji. |
-| AF-13 | Grant dicabut setelah preflight | Pesan sah boleh tersimpan; receipt rejected dan jumlah spawn nol. | Belum diuji. |
+| AF-07 | Mention personal biasa pada profil Coding | Satu pesan, receipt, job, outbox, dan attempt sesuai scope. | Sebagian: mention Coding lengkap membuat job dan wake atomik pada `042b620`; claim runner dan alur browser belum diuji. |
+| AF-08 | Agent sama disebut berulang pada satu pesan | Hanya satu job untuk target itu. | Sebagian: target personal berulang menghasilkan satu job pada `042b620`; alur browser belum diuji. |
+| AF-09 | Mention grup/wildcard yang mencakup agent | Tidak ada job; mention personal bersamaan tetap diproses. | Sebagian: grup/wildcard tidak menjadi trigger; mention personal terpisah tetap diterima pada `042b620`; browser belum diuji. |
+| AF-10 | Mention pada inline code, fenced code, blockquote, atau silent mention | Tidak ada trigger dari reference tersebut. | Sebagian: inline/fenced code, quote, dan silent mention ditolak renderer pada `042b620`; browser belum diuji. |
+| AF-11 | Bot atau agent lain menyebut agent | Tidak ada loop job baru. | Sebagian: pengirim bot tidak memicu job otomatis pada `042b620`; integrasi balasan runtime belum diuji. |
+| AF-12 | Edit pesan menambahkan mention | Tidak ada job baru tanpa tindakan eksplisit. | Sebagian: edit pesan tidak memicu admission pada `042b620`; tindakan eksplisit di browser belum diuji. |
+| AF-13 | Grant dicabut setelah preflight | Pesan sah boleh tersimpan; receipt rejected dan jumlah spawn nol. | Sebagian: pencabutan grant setelah preflight menolak receipt tanpa job/wake pada `042b620`; jumlah proses runner belum diuji. |
 | AF-14 | Runner start lambat setelah pesan terkirim | Tugas tetap ditemukan dan dijalankan; composer tidak tertahan oleh start. | Belum diuji. |
-| AF-15 | Runner offline kemudian online sebelum deadline | Job yang sama diklaim dengan recheck izin. | Belum diuji. |
+| AF-15 | Runner offline kemudian online sebelum deadline | Job yang sama diklaim dengan recheck izin. | Sebagian: receipt offline/busy/unknown dan antrean durable lulus pada `042b620`; reconnect runner belum diuji. |
 | AF-16 | Job belum mulai hingga deadline | Job blocked; tidak mulai diam-diam setelah deadline. | Sebagian: rekonsiliasi deadline durable lulus pada `8c59211`; polling daemon dan tampilan blocked belum diuji. |
 | AF-17 | Dua tab/worker mengirim wake bersamaan | Paling banyak satu attempt aktif untuk job. | Sebagian: claim bersamaan melalui koneksi PostgreSQL terpisah lulus pada `8c59211`; wake dari runner nyata belum diuji. |
-| AF-18 | Antrean penuh | Admission ditolak secara terlihat; job yang sudah diterima tetap utuh. | Belum diuji. |
+| AF-18 | Antrean penuh | Admission ditolak secara terlihat; job yang sudah diterima tetap utuh. | Sebagian: antrean penuh menghasilkan receipt rejected pada `042b620`; tampilan browser belum diuji. |
 | AF-19 | Pindah A → B → A saat invite/upload/preflight tertahan | Intent lama tidak mengirim ke B atau menimpa draft A yang baru. | Belum diuji. |
 | AF-20 | Pengguna mengedit lalu sengaja mengosongkan draft | Recovery terlambat tidak menghidupkan teks/attachment lama. | Belum diuji. |
-| AF-21 | Respons kirim hilang, client mengulang key sama | Message ID dan receipts sama; tidak ada pesan/job tambahan. | Belum diuji. |
-| AF-22 | Key pengiriman sama dengan payload berbeda | Conflict; tidak mengubah pesan pertama. | Belum diuji. |
-| AF-23 | Group DM tanpa mention versus DM satu agent | Hanya trigger yang didefinisikan pada bagian 6 diterima. | Belum diuji. |
-| AF-24 | Dua job pada topik yang sama | Tombol follow-up menulis input ke job yang dipilih saja. | Belum diuji. |
+| AF-21 | Respons kirim hilang, client mengulang key sama | Message ID dan receipts sama; tidak ada pesan/job tambahan. | Sebagian: retry key yang sama mempertahankan ID, termasuk setelah pesan dihapus, pada `042b620`; pemulihan browser belum diuji. |
+| AF-22 | Key pengiriman sama dengan payload berbeda | Conflict; tidak mengubah pesan pertama. | Sebagian: race key yang sama dengan payload berbeda menolak conflict pada `042b620`; alur browser belum diuji. |
+| AF-23 | Group DM tanpa mention versus DM satu agent | Hanya trigger yang didefinisikan pada bagian 6 diterima. | Sebagian: DM satu manusia/satu agent dan group DM mengikuti target personal pada `042b620`; alur browser belum diuji. |
+| AF-24 | Dua job pada topik yang sama | Tombol follow-up menulis input ke job yang dipilih saja. | Sebagian: API follow-up memakai job eksplisit dan mention biasa membuat tugas baru pada `042b620`; tombol browser belum diuji. |
 | AF-25 | Input datang saat job berjalan | Input durable dan terlihat pending; diterapkan pada batas turn yang sah. | Sebagian: input terurut dan receipt durable lulus pada `8c59211`; penerapan pada turn runtime dan UI belum diuji. |
 | AF-26 | Ack input hilang atau runtime restart | Input tidak ditandai delivered tanpa bukti; recovery tidak menggandakan efek tool. | Sebagian: rekonsiliasi eksplisit untuk input uncertain lulus pada `8c59211`; restart journal runner belum diuji. |
 | AF-27 | Mode Diskusi mendapat instruksi mengedit/push | Tools mutasi tidak tersedia; pengguna diarahkan membuat tugas coding. | Sebagian: penolakan backend terhadap mutasi pada mode answer lulus pada `8c59211`; pembatasan tools runtime belum diuji. |
@@ -180,7 +188,7 @@ tersebut tidak menyatakan fitur sudah tersedia di produksi atau spesifikasi sele
 | --- | --- |
 | Migrasi aditif dan feature flag mati | Sebagian: migrasi backend serta kontrol feature-off lulus pada `8c59211`; image rilis belum diuji. |
 | Matriks ACL negatif, termasuk count dan artifact | Sebagian: backend dan race ACL lulus pada `8c59211`; matriks runtime/browser belum lengkap. |
-| Tes regresi chat existing | Belum diuji. |
+| Tes regresi chat existing | Sebagian: pengiriman pesan dan service bot lulus pada `9c0ea40`; tiga kegagalan Markdown ada pada baseline; regresi UI rilis belum diuji. |
 | Versi serta image runner dipatok | Belum diuji. |
 | Backup database, artifact, dan key eksternal | Sebagian: komponen perintah lulus pada `bafbc67`; dump dan transfer produksi belum diuji. |
 | Restore pada target terpisah | Sebagian: dua database baru dan 997 identitas migrasi cocok pada rehearsal tooling `7fb02b5`; ulangi pada source rilis bersih. |

@@ -225,16 +225,16 @@ self.assertEqual(AgentAttempt.objects.filter(job=job, active=True).count(), 1)
 
 **Interfaces:** Produce transaction-bound receipts and jobs from actual personal mention provenance. Expose preflight, dispatch receipt, and send-intent reconciliation APIs.
 
-- [ ] Add renderer fixtures for personal/group/wildcard/silent/code/blockquote mentions.
-- [ ] Capture personal mention metadata before group expansion. Preserve existing service bots.
-- [ ] Insert admission after message IDs exist and inside the message transaction.
-- [ ] Reject bot authors and edits as automatic triggers.
-- [ ] Apply the exact one-to-one DM and group DM rules.
-- [ ] Add sender-scoped `agent_send_key` and digest conflict handling without changing legacy client behavior.
-- [ ] Deduplicate targets, preserve rejected receipts, and return draft jobs when coding fields are incomplete.
-- [ ] Recheck permission after preflight and verify zero spawn on denial.
-- [ ] Route follow-up only by explicit job identity.
-- [ ] Run message and admission regressions and commit the task.
+- [x] Add renderer fixtures for personal/group/wildcard/silent/code/blockquote mentions.
+- [x] Capture personal mention metadata before group expansion. Preserve existing service bots.
+- [x] Insert admission after message IDs exist and inside the message transaction.
+- [x] Reject bot authors and edits as automatic triggers.
+- [x] Apply the exact one-to-one DM and group DM rules.
+- [x] Add sender-scoped `agent_send_key` and digest conflict handling without changing legacy client behavior.
+- [x] Deduplicate targets, preserve rejected receipts, and return draft jobs when coding fields are incomplete.
+- [x] Recheck permission after preflight and verify zero spawn on denial.
+- [x] Route follow-up only by explicit job identity.
+- [x] Run message and admission regressions and commit the task.
 
 Test example:
 
@@ -246,11 +246,12 @@ self.assertEqual(AgentOutbox.objects.count(), 0)
 
 ## Task 5: Runner package, registration, transport, and durable journal
 
-**Files:** `services/grow-agent-runner/`, workspace manifest, runner CLI/transport/config/journal tests.
+**Files:** `services/grow-agent-runner/`, workspace manifest, required connection API additions, and runner CLI/transport/config/journal tests.
 
 **Interfaces:** Consume Task 1 protocol and Task 2–3 APIs. Produce local registered workspace/adapter catalogs and a supervisor dispatch interface.
 
 - [ ] Pin Node, ACP SDK, adapter, and runtime dependencies from Task 0.
+- [ ] Complete pairing status, credential expiry, and owner-bound workspace registration contracts required by the runner.
 - [ ] Implement pairing, local secret references, token rotation, workspace registration, and owner-controlled adapter catalogs.
 - [ ] Protect configuration and journal files with owner-only permissions.
 - [ ] Persist outgoing events, claims, inputs, and operation receipts before acknowledgement.
