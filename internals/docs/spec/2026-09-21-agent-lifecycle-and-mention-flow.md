@@ -153,8 +153,8 @@ proses model: runner melakukan cold start ketika ada job yang sah.
 6. Mode terpasang menampilkan katalog adapter yang dilaporkan runner beserta status login.
 7. Mode endpoint memilih koneksi model existing atau membuka form koneksi baru.
 8. Pengguna memilih repository, kemampuan, dan siapa yang boleh memberi tugas.
-9. UI menampilkan ringkasan scope dan menjalankan pemeriksaan kesiapan.
-10. Pengguna menyimpan profil, lalu mengaktifkannya setelah pemeriksaan yang diperlukan lulus.
+9. Pengguna meninjau ringkasan scope, lalu menyimpan profil sebagai draft.
+10. Runner memeriksa kesiapan; UI menampilkan hasilnya sebelum pengguna mengaktifkan revision yang lulus.
 
 Mode awal profil baru adalah **Diskusi**. Preset **Coding** mengharuskan repository,
 profil pemeriksaan, dan izin baca/edit/test yang eksplisit. Mengubah mode default
@@ -829,6 +829,12 @@ atau revision sebelum melepaskannya.
 
 Bagian ini memecah P0–P6 pada spec awal menjadi keluaran alur. Ini bukan
 otorisasi implementasi atau jadwal berbasis estimasi hari.
+
+Gunakan S0–S6 sebagai urutan backlog implementasi. P0–P6 pada spec awal tetap
+menjadi daftar cakupan dan gate teknis, bukan urutan pengerjaan kedua. Perubahan
+urutan tidak menghapus gate tersebut. Cancel dasar dan penghentian proses dari
+P1 harus tersedia sebelum fixture coding berjalan; S5 melengkapi recovery dan
+alur approval, bukan menunda kontrol penghentian sampai tahap akhir.
 
 | Urutan | Keluaran yang dapat ditinjau                                                       | Dependensi                                  | Gate                                                              |
 | ------ | ---------------------------------------------------------------------------------- | ------------------------------------------- | ----------------------------------------------------------------- |
