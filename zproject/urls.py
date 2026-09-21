@@ -32,6 +32,7 @@ from zerver.views.agents import (
     create_agent_profile,
     create_agent_provider,
     create_agent_repository,
+    create_provider_probe_view,
     list_agent_profiles,
     pause_agent_profile,
 )
@@ -331,6 +332,7 @@ v1_api_and_json_patterns = [
     rest_path("agents/profiles", GET=list_agent_profiles, POST=create_agent_profile),
     rest_path("agents/pairings/approve", POST=approve_agent_pairing),
     rest_path("agents/providers", POST=create_agent_provider),
+    rest_path("agents/providers/probes", POST=create_provider_probe_view),
     rest_path("agents/repositories", POST=create_agent_repository),
     rest_path("agents/profiles/pause", POST=pause_agent_profile),
     rest_path("agents/profiles/archive", POST=archive_agent_profile),

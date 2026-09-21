@@ -10,9 +10,15 @@ from zerver.actions.agents import (
     attach_profile_to_stream,
     create_agent_grant,
     create_profile,
+    create_provider_probe,
     pause_profile,
     register_provider,
     register_repository,
+)
+from zerver.lib.agent_policy import (
+    AgentAccessDenied,
+    accessible_profiles,
+    require_agent_resource_access,
 )
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.response import json_success
@@ -23,11 +29,13 @@ from zerver.models.streams import Stream
 
 def _runner_for_owner(user_profile: UserProfile, runner_id: UUID) -> agents.AgentRunner:
     try:
-        return agents.AgentRunner.objects.get(
-            id=runner_id, realm=user_profile.realm, owner=user_profile
+        runner = agents.AgentRunner.objects.get(id=runner_id, realm=user_profile.realm)
+        require_agent_resource_access(
+            user_profile, runner, target_kind="runner", action="runner.use"
         )
-    except agents.AgentRunner.DoesNotExist as error:
-        raise JsonableError("Runner is unavailable.") from error
+        return runner
+    except (agents.AgentRunner.DoesNotExist, AgentAccessDenied):
+        raise JsonableError("Runner is unavailable.") from None
 
 
 def _profile_data(profile: agents.AgentProfile) -> dict[str, object]:
@@ -44,9 +52,7 @@ def _profile_data(profile: agents.AgentProfile) -> dict[str, object]:
 
 
 def list_agent_profiles(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
-    profiles = agents.AgentProfile.objects.filter(
-        realm=user_profile.realm, owner=user_profile
-    ).order_by("id")
+    profiles = accessible_profiles(user_profile).order_by("id")
     return json_success(
         request, {"schema_version": 1, "profiles": [_profile_data(profile) for profile in profiles]}
     )
@@ -148,6 +154,22 @@ def create_agent_repository(
 
 
 @typed_endpoint
+def create_provider_probe_view(
+    request: HttpRequest, user_profile: UserProfile, *, provider_id: UUID, retry_key: UUID
+) -> HttpResponse:
+    provider = agents.AgentProvider.objects.filter(id=provider_id, realm=user_profile.realm).first()
+    if provider is None:
+        raise JsonableError("Provider is unavailable.")
+    try:
+        setup = create_provider_probe(user_profile, provider, retry_key=retry_key)
+    except ValueError:
+        raise JsonableError("Agent request rejected.") from None
+    return json_success(
+        request, {"schema_version": 1, "setup_id": str(setup.id), "phase": setup.phase}
+    )
+
+
+@typed_endpoint
 def create_agent_profile(
     request: HttpRequest,
     user_profile: UserProfile,
@@ -167,13 +189,13 @@ def create_agent_profile(
     repository = None
     if provider_id is not None:
         provider = agents.AgentProvider.objects.filter(
-            id=provider_id, realm=user_profile.realm, owner=user_profile
+            id=provider_id, realm=user_profile.realm
         ).first()
         if provider is None:
             raise JsonableError("Provider is unavailable.")
     if repository_id is not None:
         repository = agents.AgentRepository.objects.filter(
-            id=repository_id, realm=user_profile.realm, owner=user_profile
+            id=repository_id, realm=user_profile.realm
         ).first()
         if repository is None:
             raise JsonableError("Repository is unavailable.")

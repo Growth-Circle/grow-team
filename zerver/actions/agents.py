@@ -430,6 +430,130 @@ def build_probe_descriptor(
 
 
 @transaction.atomic(savepoint=False)
+def create_provider_probe(
+    owner: UserProfile, provider: agents.AgentProvider, *, retry_key: uuid.UUID
+) -> agents.AgentSetupOperation:
+    """Create provider-only probe work. It cannot enable a profile."""
+    if provider.realm_id != owner.realm_id:
+        raise ValueError("Provider is unavailable.")
+    existing = agents.AgentSetupOperation.objects.filter(
+        realm=owner.realm, owner=owner, retry_key=retry_key
+    ).first()
+    if existing is not None:
+        if existing.provider_id != provider.id or existing.profile_id is not None:
+            raise ValueError("Probe retry does not match the original request.")
+        return existing
+    catalog = protocol.RunnerCatalog.model_validate(provider.runner.catalog_report)
+    if not catalog.adapters:
+        raise ValueError("Runner catalog is unavailable.")
+    adapter = catalog.adapters[0]
+    setup = agents.AgentSetupOperation.objects.create(
+        realm=owner.realm,
+        owner=owner,
+        provider=provider,
+        runner=provider.runner,
+        profile_revision=1,
+        provider_config_version=provider.config_version,
+        retry_key=retry_key,
+        payload_digest=hashlib.sha256(str(provider.id).encode()).hexdigest(),
+    )
+    grant = agents.AgentProbeGrant.objects.create(
+        realm=owner.realm,
+        setup_operation=setup,
+        runner=provider.runner,
+        provider=provider,
+        profile_revision=1,
+        provider_config_version=provider.config_version,
+        token_hash=hash_agent_credential(secrets.token_urlsafe(32)),
+        expires_at=now() + timedelta(minutes=10),
+    )
+    if provider.secret_id:
+        assert provider.secret is not None
+        credential_ref = {
+            "kind": "server",
+            "id": str(provider.secret_id),
+            "version": provider.secret.version,
+        }
+    else:
+        credential_ref = {"kind": "local", "id": provider.local_credential_ref, "version": 1}
+    descriptor = {
+        "schema_version": 1,
+        "setup_operation_id": str(setup.id),
+        "profile_id": None,
+        "profile_revision": 1,
+        "runner_id": str(provider.runner_id),
+        "descriptor_digest": "0" * 64,
+        "configuration_digest": "0" * 64,
+        "adapter": {"id": adapter.id, "version": adapter.version, "mode": "endpoint"},
+        "provider": {
+            "id": str(provider.id),
+            "owner_user_id": provider.owner_id,
+            "runner_id": str(provider.runner_id),
+            "name": provider.name,
+            "base_url": provider.base_url,
+            "api_mode": provider.api_mode,
+            "model_id": provider.model_id,
+            "allowed_models": provider.allowed_models,
+            "credential_ref": credential_ref,
+            "context_window_tokens": provider.context_window_tokens,
+            "max_output_tokens": provider.max_output_tokens,
+            "config_version": provider.config_version,
+            "data_scope": provider.data_scope,
+            "network": provider.network_policy,
+            "capability_report": provider.capability_report,
+        },
+        "grant": {
+            "id": str(grant.id),
+            "runner_id": str(provider.runner_id),
+            "provider_id": str(provider.id),
+            "provider_config_version": provider.config_version,
+            "profile_revision": 1,
+            "expires_at": grant.expires_at.isoformat(),
+            "actions": ["probe"],
+        },
+        "policy": _default_policy(owner, provider.runner),
+        "budget": _default_budget(),
+    }
+    probe = protocol.ProbeDescriptor.model_validate(descriptor)
+    serialized = protocol.serialize_payload(probe)
+    serialized["configuration_digest"] = protocol.configuration_digest(probe)
+    serialized["descriptor_digest"] = protocol.descriptor_digest(serialized)
+    setup.descriptor = serialized
+    setup.configuration_digest = str(serialized["configuration_digest"])
+    setup.descriptor_digest = str(serialized["descriptor_digest"])
+    setup.save(
+        update_fields=["descriptor", "configuration_digest", "descriptor_digest", "updated_at"]
+    )
+    return setup
+
+
+@transaction.atomic(savepoint=False)
+def record_provider_probe(
+    runner: agents.AgentRunner, setup: agents.AgentSetupOperation, capabilities: dict[str, object]
+) -> agents.AgentProvider:
+    setup = agents.AgentSetupOperation.objects.select_for_update().get(id=setup.id)
+    if setup.profile_id is not None or setup.provider_id is None or setup.runner_id != runner.id:
+        raise ValueError("Provider probe is unavailable.")
+    provider = agents.AgentProvider.objects.select_for_update().get(id=setup.provider_id)
+    grant = agents.AgentProbeGrant.objects.get(setup_operation=setup)
+    if (
+        grant.revoked_at is not None
+        or grant.expires_at <= now()
+        or provider.config_version != setup.provider_config_version
+    ):
+        setup.phase = "stale"
+        setup.save(update_fields=["phase", "updated_at"])
+        raise ValueError("Provider probe is stale.")
+    parsed = protocol.CapabilityReport.model_validate(capabilities)
+    provider.capability_report = protocol.serialize_payload(parsed)
+    provider.save(update_fields=["capability_report", "updated_at"])
+    setup.phase = "ready"
+    setup.finished_at = now()
+    setup.save(update_fields=["phase", "finished_at", "updated_at"])
+    return provider
+
+
+@transaction.atomic(savepoint=False)
 def create_profile(
     owner: UserProfile,
     *,
@@ -446,16 +570,30 @@ def create_profile(
     policy: dict[str, object] | None = None,
     budget: dict[str, object] | None = None,
 ) -> agents.AgentProfile:
-    if runner.realm_id != owner.realm_id or runner.owner_id != owner.id:
-        raise ValueError("Runner is unavailable.")
-    if provider is not None and (
-        provider.realm_id != owner.realm_id or provider.runner_id != runner.id
-    ):
-        raise ValueError("Provider is unavailable.")
-    if repository is not None and (
-        repository.realm_id != owner.realm_id or repository.runner_id != runner.id
-    ):
-        raise ValueError("Repository is unavailable.")
+    from zerver.lib.agent_policy import AgentAccessDenied, require_agent_resource_access
+
+    try:
+        require_agent_resource_access(owner, runner, target_kind="runner", action="runner.use")
+    except AgentAccessDenied:
+        raise ValueError("Runner is unavailable.") from None
+    if provider is not None:
+        if provider.realm_id != owner.realm_id or provider.runner_id != runner.id:
+            raise ValueError("Provider is unavailable.")
+        try:
+            require_agent_resource_access(
+                owner, provider, target_kind="provider", action="provider.use"
+            )
+        except AgentAccessDenied:
+            raise ValueError("Provider is unavailable.") from None
+    if repository is not None:
+        if repository.realm_id != owner.realm_id or repository.runner_id != runner.id:
+            raise ValueError("Repository is unavailable.")
+        try:
+            require_agent_resource_access(
+                owner, repository, target_kind="repository", action="repository.read"
+            )
+        except AgentAccessDenied:
+            raise ValueError("Repository is unavailable.") from None
     if (
         mode not in {"acp", "endpoint"}
         or default_mode not in {"answer", "code"}

@@ -1,6 +1,7 @@
 """Current-revision access checks for agent resources."""
 
 from django.db.models import Q
+from django.db.models import QuerySet
 from django.utils.timezone import now
 
 from zerver.lib.exceptions import JsonableError
@@ -74,6 +75,37 @@ def _owner_or_grant(
         action=action,
         repository=repository,
         source_message=source_message,
+    )
+
+
+def require_agent_resource_access(
+    actor: UserProfile,
+    resource: (
+        agents.AgentRunner | agents.AgentProvider | agents.AgentRepository | agents.AgentProfile
+    ),
+    *,
+    target_kind: str,
+    action: str,
+) -> None:
+    if resource.realm_id != actor.realm_id or not _owner_or_grant(
+        actor, resource, target_kind=target_kind, action=action
+    ):
+        _deny()
+
+
+def accessible_profiles(actor: UserProfile) -> QuerySet[agents.AgentProfile]:
+    """Return profiles visible through current profile grants or ownership."""
+    profile_ids: list[object] = []
+    grants = agents.AgentGrant.objects.filter(
+        realm=actor.realm,
+        target_kind="profile",
+        revoked_at__isnull=True,
+    ).filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now()))
+    for grant in grants:
+        if _principal_matches(actor, grant) and grant.profile_id is not None:
+            profile_ids.append(grant.profile_id)
+    return agents.AgentProfile.objects.filter(realm=actor.realm).filter(
+        Q(owner=actor) | Q(id__in=profile_ids)
     )
 
 
