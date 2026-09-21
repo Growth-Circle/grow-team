@@ -22,6 +22,7 @@ Commit dan push tetap termasuk cakupan yang sudah diminta pengguna.
 ## Kriteria penerimaan
 
 - Ketiga bot yang terlihat memakai `@team.growc.id`.
+- Avatar Notification Bot memakai simbol Grow Team.
 - Daftar bot sistem, lookup notifikasi/welcome/email, serta alamat tersimpan konsisten.
 - ID bot, API key, izin, dan hash pesan sama dengan baseline sebelum perbaikan.
 - Linkifiers tidak menampilkan contoh repo `zulip/zulip`.

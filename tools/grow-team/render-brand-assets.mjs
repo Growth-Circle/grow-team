@@ -33,6 +33,8 @@ const rasters = [
     ["static/images/logo/apple-touch-icon-precomposed.png", "icon.svg", 180],
     ["static/images/static_avatars/welcome-bot.png", "icon.svg", 100],
     ["static/images/static_avatars/welcome-bot-medium.png", "icon.svg", 500],
+    ["static/images/static_avatars/notification-bot.png", "icon.svg", 100],
+    ["static/images/static_avatars/notification-bot-medium.png", "icon.svg", 500],
     ["web/images/zulip-emoji/zulip.png", "icon.svg", 64],
     ["static/images/emails/email_logo.png", "email.svg", 800],
 ];
