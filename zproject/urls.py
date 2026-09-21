@@ -18,6 +18,23 @@ from zerver.forms import LoggingSetPasswordForm
 from zerver.lib.integrations import INCOMING_WEBHOOK_INTEGRATIONS
 from zerver.lib.rest import rest_path
 from zerver.lib.url_redirects import DOCUMENTATION_REDIRECTS, get_integration_category_redirects
+from zerver.views.agent_devices import (
+    exchange_pairing_device,
+    rotate_device_credential,
+    start_pairing_device,
+    update_runner_catalog,
+)
+from zerver.views.agents import (
+    approve_agent_pairing,
+    archive_agent_profile,
+    attach_agent_profile_stream,
+    create_agent_grant_view,
+    create_agent_profile,
+    create_agent_provider,
+    create_agent_repository,
+    list_agent_profiles,
+    pause_agent_profile,
+)
 from zerver.views.alert_words import add_alert_words, list_alert_words, remove_alert_words
 from zerver.views.antispam import get_challenge
 from zerver.views.attachments import list_by_user, remove
@@ -310,6 +327,15 @@ INTEGRATION_CATEGORY_REDIRECT_PATHS = [
 # All of these paths are accessed by either a /json or /api/v1 prefix;
 # e.g. `PATCH /json/realm` or `PATCH /api/v1/realm`.
 v1_api_and_json_patterns = [
+    # Agent configuration uses normal human session or user API authentication.
+    rest_path("agents/profiles", GET=list_agent_profiles, POST=create_agent_profile),
+    rest_path("agents/pairings/approve", POST=approve_agent_pairing),
+    rest_path("agents/providers", POST=create_agent_provider),
+    rest_path("agents/repositories", POST=create_agent_repository),
+    rest_path("agents/profiles/pause", POST=pause_agent_profile),
+    rest_path("agents/profiles/archive", POST=archive_agent_profile),
+    rest_path("agents/grants", POST=create_agent_grant_view),
+    rest_path("agents/profiles/attach-channel", POST=attach_agent_profile_stream),
     # realm-level calls
     rest_path("realm", PATCH=update_realm),
     rest_path("realm/user_settings_defaults", PATCH=update_realm_user_settings_defaults),
@@ -769,6 +795,14 @@ i18n_urls = [
 
 # Make a copy of i18n_urls so that they appear without prefix for english
 urls: list[URLPattern | URLResolver] = list(i18n_urls)
+
+# Runner bearer and pairing endpoints must bypass REST dispatch. They reject browser users.
+urls += [
+    path("api/agents/device/pairings", start_pairing_device),
+    path("api/agents/device/pairings/<uuid:pairing_id>/exchange", exchange_pairing_device),
+    path("api/agents/device/credentials/rotate", rotate_device_credential),
+    path("api/agents/device/catalog", update_runner_catalog),
+]
 
 # Include the dual-use patterns twice
 urls += [

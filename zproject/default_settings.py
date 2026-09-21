@@ -376,6 +376,14 @@ DEFAULT_RATE_LIMITING_RULES = {
         # 10 transfer registration requests per day per IP
         (86400, 10),
     ],
+    "agent_pairing_by_ip": [
+        # Pairing starts require a human approval step.
+        (60, 10),
+    ],
+    "agent_device_exchange_by_ip": [
+        # Device exchanges include high-entropy credentials.
+        (60, 20),
+    ],
 }
 # Rate limiting defaults can be individually overridden by adding
 # entries in this object, which is merged with

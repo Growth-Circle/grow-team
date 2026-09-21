@@ -249,4 +249,6 @@ RATE_LIMITING_RULES = {
     "demo_realm_creation_by_ip": [
         (86400, 1000),
     ],
+    "agent_pairing_by_ip": [],
+    "agent_device_exchange_by_ip": [],
 }
