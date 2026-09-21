@@ -127,12 +127,12 @@ Backend modules have these responsibilities:
 
 **Interfaces:** Produce pinned runtime versions, adapter capability matrix, and reproducible backend/runner test commands.
 
-- [ ] Compare pinned Buzz subprocess behavior with a bounded TypeScript runtime.
-- [ ] Verify real ACP initialization without loading personal credentials or calling a model.
-- [ ] Record permission, environment, persistence, streaming, and sandbox limitations.
-- [ ] Create dedicated local test services and an independent Python environment.
-- [ ] Run an existing Django test before adding application behavior.
-- [ ] Preserve a real browser-to-runner ACP proof as a release gate in Task 11.
+- [x] Compare pinned Buzz subprocess behavior with a bounded TypeScript runtime.
+- [x] Verify real ACP initialization without loading personal credentials or calling a model.
+- [x] Record permission, environment, persistence, streaming, and sandbox limitations.
+- [x] Create dedicated local test services and an independent Python environment.
+- [x] Run an existing Django test before adding application behavior.
+- [x] Preserve a real browser-to-runner ACP proof as a release gate in Task 11.
 
 Probe assertion:
 
@@ -148,13 +148,13 @@ assert.equal(credentialFilesRead, 0);
 
 **Interfaces:** Produce all model names from both specifications, plus `AgentRealmSettings`, `AgentPairing`, and `AgentVerification`. Produce validated version 1 payloads and serializers.
 
-- [ ] Add failing tests for duplicate active attempts, trigger keys, send keys, event IDs, operations, and delivery keys.
-- [ ] Add realm, owner, revision, state, timestamp, and foreign-reference fields required by both specifications.
-- [ ] Add database constraints and queue/audit indexes.
-- [ ] Define exact profile, provider, repository, grant, descriptor, event, approval, and artifact schemas.
-- [ ] Reject unknown event authority, excessive payload size, and invalid state values.
-- [ ] Generate the migration and prove its forward application in the isolated database.
-- [ ] Run model/protocol tests, inspect migration state, and commit the task.
+- [x] Add failing tests for duplicate active attempts, trigger keys, send keys, event IDs, operations, and delivery keys.
+- [x] Add realm, owner, revision, state, timestamp, and foreign-reference fields required by both specifications.
+- [x] Add database constraints and queue/audit indexes.
+- [x] Define exact profile, provider, repository, grant, descriptor, event, approval, and artifact schemas.
+- [x] Reject unknown event authority, excessive payload size, and invalid state values.
+- [x] Generate the migration and prove its forward application in the isolated database.
+- [x] Run model/protocol tests, inspect migration state, and commit the task.
 
 Test example:
 

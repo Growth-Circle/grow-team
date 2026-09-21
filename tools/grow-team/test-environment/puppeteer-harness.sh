@@ -68,8 +68,8 @@ case "${1:---preflight}" in
         cd "$root_dir"
         export PATH="$client_dir:$PATH"
         export PUPPETEER_CACHE_DIR="$environment_dir/.state/puppeteer"
-        export SKIP_CHROME_HEADLESS_SHELL_DOWNLOAD=true
-        export SKIP_FIREFOX_DOWNLOAD=true
+        export PUPPETEER_SKIP_CHROME_HEADLESS_SHELL_DOWNLOAD=true
+        export PUPPETEER_SKIP_FIREFOX_DOWNLOAD=true
         exec "$environment_dir/run.sh" "$root_dir/tools/test-js-with-puppeteer" "$@"
         ;;
     *)
