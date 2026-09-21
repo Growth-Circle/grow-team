@@ -168,3 +168,32 @@ Cleanup artifact dan penghapusan versi kunci masih nonaktif. Operator wajib
 mempertahankan kondisi tersebut sepanjang backup. Implementasi cleanup mendatang
 harus memakai barrier yang sama dengan backup. Bukti restore database lengkap
 tetap menjadi syarat rilis.
+
+## Perbandingan isolasi host
+
+`tools/grow-team/host-isolation.py snapshot` membaca hash konfigurasi Hermes,
+status timer, serta identitas dan kesehatan container Grow Team. Perintah memakai
+SSH tanpa terminal, batas waktu, dan socket Docker khusus Grow Team.
+File bukti baru memakai mode `0600` dalam direktori `0700`.
+
+Bandingkan snapshot sebelum dan sesudah rilis dengan baseline yang ditetapkan:
+
+```bash
+python3 tools/grow-team/host-isolation.py snapshot --baseline /path/to/baseline.json
+python3 tools/grow-team/host-isolation.py compare \
+  --baseline /path/to/baseline.json \
+  --snapshot /path/to/new-snapshot.json \
+  --allow-app-replacement
+```
+
+Opsi terakhir hanya mengizinkan pergantian container aplikasi yang berjalan dan
+sehat. Container pendukung, hash file Hermes, daftar file, dan status timer harus
+sama. Hilangkan opsi tersebut untuk pemeriksaan sebelum rilis.
+
+Baseline awal tetap disimpan. Pemeriksaan yang diperluas mencakup 56 path,
+15 timer, dan lima container. Sebanyak 15 path tambahan merupakan file drop-in
+yang sudah ada sebelum baseline awal. Hash 41 path awal, seluruh status timer,
+dan identitas container tetap cocok saat pemeriksaan 22 September 2026.
+
+Pemeriksaan ini tidak membuktikan seluruh perilaku proses atau data Hermes.
+Rekam juga hasil pemeriksaan aplikasi dan layanan pada gate rilis.

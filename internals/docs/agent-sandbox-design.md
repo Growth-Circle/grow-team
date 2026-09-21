@@ -58,7 +58,7 @@ Streaming SSE dibatasi ukuran, waktu idle, total waktu, dan schema. Broker mengh
 
 Container tool tidak mendapat socket atau relay model. Proses project tidak dapat memanggil model melalui kemampuan milik container native. Pemisahan ini harus diuji, termasuk namespace jaringan, mount, environment, dan file descriptor yang diwariskan.
 
-Semua dynamic tool masuk melalui request `item/tool/call` yang diteruskan adapter ke supervisor. Broker mengikat identitas call ke attempt aktif, memeriksa lease/izin/scope/argumen/budget, lalu mencatat intent lokal secara durable sebelum eksekusi. Hasil dicatat sebelum dikembalikan. ID yang sama dengan argumen berbeda ditolak; hasil tidak pasti harus direkonsiliasi. Spec tidak mewajibkan round-trip PostgreSQL sebelum setiap edit lokal, tetapi receipt server harus durable sebelum ACK.
+Semua dynamic tool masuk melalui request `item/tool/call` yang diteruskan adapter ke supervisor. Broker mengikat identitas call ke attempt aktif, memeriksa lease/izin/scope/argumen/budget, lalu mencatat intent lokal secara durable sebelum eksekusi. Hasil dicatat sebelum dikembalikan. ID yang sama dengan argumen berbeda ditolak; hasil tidak pasti harus direkonsiliasi. Kontrak backend yang dipakai runner mewajibkan proposal dan konsumsi operasi server sebelum setiap efek tool, termasuk read, edit, dan check. Journal lokal melengkapi otorisasi tersebut; respons consume yang hilang tidak memberi izin eksekusi.
 
 Sumber pemeriksaan API Node: [net.Socket pada Node 24.18.0](https://github.com/nodejs/node/blob/v24.18.0/doc/api/net.md). Probe Python membuktikan dukungan kernel Linux, bukan ketersediaan API Node.
 
