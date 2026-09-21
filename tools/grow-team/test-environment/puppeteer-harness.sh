@@ -54,6 +54,21 @@ preflight() {
     printf '%s\n' "Scoped Puppeteer PostgreSQL client is ready: $client_dir/psql"
 }
 
+ensure_language_name_map() {
+    if [[ -s "$root_dir/locale/language_name_map.json" ]]; then
+        return
+    fi
+
+    "$environment_dir/run.sh" "$root_dir/.venv/bin/python" -c '
+import django
+django.setup()
+from zerver.management.commands.compilemessages import Command
+command = Command()
+command.extract_language_options()
+command.create_language_name_map()
+'
+}
+
 case "${1:---preflight}" in
     --preflight)
         preflight
@@ -70,6 +85,7 @@ case "${1:---preflight}" in
         export PUPPETEER_CACHE_DIR="$environment_dir/.state/puppeteer"
         export PUPPETEER_SKIP_CHROME_HEADLESS_SHELL_DOWNLOAD=true
         export PUPPETEER_SKIP_FIREFOX_DOWNLOAD=true
+        ensure_language_name_map
         exec "$environment_dir/run.sh" "$root_dir/tools/test-js-with-puppeteer" "$@"
         ;;
     *)

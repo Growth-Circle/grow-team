@@ -92,11 +92,13 @@ packages or modify PostgreSQL roles, databases, or services.
 
 The run wrapper activates this worktree's virtual environment and native
 libraries. It also uses `.state/puppeteer` and disables browser downloads.
+When the ignored language name map is absent, it creates that map with the
+project Python formatter. It does not require host `msgfmt` or compile catalogs.
 
 The upstream harness resets `zulip_test` after every browser test. Wait for a
 database handoff before this command.
 
 ```bash
 GROW_TEAM_BROWSER_DB_HANDOFF=1 \
-  tools/grow-team/test-environment/puppeteer-harness.sh --run login.test.ts
+  tools/grow-team/test-environment/puppeteer-harness.sh --run navigation.test.ts
 ```
