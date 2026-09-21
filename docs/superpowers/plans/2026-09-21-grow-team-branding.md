@@ -59,8 +59,13 @@ Tambahan permintaan pengguna pada sesi yang sama.
 - [x] Ganti hanya container aplikasi, lalu periksa halaman publik dan sesi anggota.
 - [x] Pastikan konfigurasi layanan Hermes tetap sama dengan baseline.
 - [x] Commit dengan trailer CADIS.
-- [ ] Gabungkan secara fast-forward ke `grow-team` dan push.
-- [ ] Verifikasi SHA lokal sama dengan remote serta working tree bersih.
+- [x] Gabungkan secara fast-forward ke `grow-team` dan push.
+- [x] Verifikasi SHA lokal sama dengan remote serta working tree bersih.
+
+Rilis produksi dan batas pengujian dicatat dalam
+[laporan verifikasi](../../../deploy/grow-team/BRANDING-VERIFICATION.md).
+Push hasil rilis diverifikasi pada commit `b6c20f627773df75d51b8045447f6754a6557bc3`.
+Pembaruan checklist ini hanya mengubah dokumentasi.
 
 ## Antarmuka bersama
 
