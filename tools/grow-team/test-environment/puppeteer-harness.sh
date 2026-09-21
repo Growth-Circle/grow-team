@@ -65,8 +65,12 @@ case "${1:---preflight}" in
         fi
         preflight
         shift
+        cd "$root_dir"
         export PATH="$client_dir:$PATH"
-        exec "$root_dir/tools/test-js-with-puppeteer" "$@"
+        export PUPPETEER_CACHE_DIR="$environment_dir/.state/puppeteer"
+        export SKIP_CHROME_HEADLESS_SHELL_DOWNLOAD=true
+        export SKIP_FIREFOX_DOWNLOAD=true
+        exec "$environment_dir/run.sh" "$root_dir/tools/test-js-with-puppeteer" "$@"
         ;;
     *)
         echo "Usage: $0 [--preflight|--run [puppeteer arguments...]]" >&2

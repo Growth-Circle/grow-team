@@ -90,6 +90,9 @@ The preflight creates a private `psql` wrapper below `.state/`. It uses only
 the `grow-team-agent-test-database-1` container. It does not install host
 packages or modify PostgreSQL roles, databases, or services.
 
+The run wrapper activates this worktree's virtual environment and native
+libraries. It also uses `.state/puppeteer` and disables browser downloads.
+
 The upstream harness resets `zulip_test` after every browser test. Wait for a
 database handoff before this command.
 
