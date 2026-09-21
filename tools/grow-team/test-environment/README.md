@@ -25,6 +25,31 @@ The bootstrap copies reused generated assets from the branding worktree.
 Use them only for local test setup.
 Run the upstream fresh asset build before a production artifact or release.
 
+For browser tests, start the additional cache services:
+
+```bash
+tools/grow-team/test-environment/browser-services.sh
+```
+
+This command starts only Redis and memcached in the same rootless Docker project.
+It binds ports `6379` and `11211` to loopback and rejects ports used by other services.
+It does not restart or reset the test database.
+Redis uses the optional development password through a private, ignored configuration file.
+Without that setting, it accepts passwordless connections on the test loopback port.
+Both caches are temporary and have no persistent data volume.
+
+Keep Puppeteer's browser cache inside this worktree:
+
+```bash
+export PUPPETEER_CACHE_DIR="$PWD/tools/grow-team/test-environment/.state/puppeteer"
+export PUPPETEER_SKIP_CHROME_HEADLESS_SHELL_DOWNLOAD=true
+export PUPPETEER_SKIP_FIREFOX_DOWNLOAD=true
+```
+
+Do not run browser and backend database tests concurrently.
+The upstream browser harness resets the isolated `zulip_test` database between tests.
+Run the application browser suite after the current migrations and test template match.
+
 The bootstrap script creates these ignored local files:
 
 - `.venv/` and `node_modules/` in this worktree.

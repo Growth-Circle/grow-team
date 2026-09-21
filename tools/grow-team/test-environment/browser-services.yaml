@@ -1,0 +1,47 @@
+services:
+  redis:
+    image: redis@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
+    entrypoint: ["redis-server"]
+    command: ["/run/grow-team/redis.conf"]
+    user: "0:0"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          if grep -q '^requirepass ' /run/grow-team/redis.conf; then
+          export REDISCLI_AUTH=$$(sed -n 's/^requirepass //p' /run/grow-team/redis.conf); fi;
+          redis-cli ping | grep -qx PONG
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    networks: [grow_team_agent_test]
+    ports: ["127.0.0.1:6379:6379"]
+    volumes:
+      - ./.state/redis.conf:/run/grow-team/redis.conf:ro
+    read_only: true
+    tmpfs: ["/data:size=16m", "/tmp:size=16m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    cpus: 0.25
+    mem_limit: 256m
+    pids_limit: 64
+    restart: "no"
+
+  memcached:
+    image: memcached@sha256:9e4de012dc607573052061c0bcb38abc775e1dd59b24e7ac38d1892842094aaf
+    command: ["memcached", "-m", "64", "-c", "256", "-U", "0"]
+    healthcheck:
+      test: ["CMD-SHELL", "echo version | nc -w 1 127.0.0.1 11211 | grep -q '^VERSION '"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    networks: [grow_team_agent_test]
+    ports: ["127.0.0.1:11211:11211"]
+    read_only: true
+    tmpfs: ["/tmp:size=16m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    cpus: 0.25
+    mem_limit: 128m
+    pids_limit: 64
+    restart: "no"
