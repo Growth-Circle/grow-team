@@ -275,13 +275,17 @@ test("independent user watchdog kills real containers after supervisor SIGKILL",
     child.kill("SIGKILL");
     await exit;
     for (let n = 0; n < 60; n++) {
-        if (!(await inspect(installation, record.id)).State.Running) break;
+        if (
+            !(await inspect(installation, record.id)).State.Running &&
+            existsSync(join(childRoot, `watchdog-stop-${record.id}.json`))
+        )
+            break;
         await new Promise((r) => setTimeout(r, 100));
     }
     assert.equal((await inspect(installation, record.id)).State.Running, false);
     assert(processes.every((p) => !sameProcess(p)));
     assert.equal(
-        JSON.parse(readFileSync(join(childRoot, `container-${record.id}.json`), "utf8")).state,
+        JSON.parse(readFileSync(join(childRoot, `watchdog-stop-${record.id}.json`), "utf8")).state,
         "stopped",
     );
 });
@@ -378,7 +382,9 @@ import {Journal} from "../dist/journal.js";
 import {OperationBoundary} from "../dist/supervisor.js";
 import {ToolBroker, ArtifactStore} from "../dist/tool-broker.js";
 import {digest, parse} from "../dist/protocol.js";
-async function brokerFixture() {
+async function brokerFixture(
+    actions = ["repository.read", "repository.edit", "checks.run", "shell.run"],
+) {
     const f = fixture();
     f.d.repository.id = randomUUID();
     const w = await workspace(f);
@@ -403,7 +409,7 @@ async function brokerFixture() {
         },
         policy: {
             ...f.d.policy,
-            actions: ["repository.read", "repository.edit", "checks.run", "shell.run"],
+            actions,
             network: {
                 targets: [],
                 public_https_only: true,
@@ -434,7 +440,7 @@ async function brokerFixture() {
                     operation_id: body.operation_id,
                     version: 1,
                     operation_hash: digest(body),
-                    status: "proposed",
+                    status: "authorized",
                     arguments: body.arguments,
                 };
                 proposals.set(body.operation_id, operation);
@@ -652,11 +658,15 @@ test("restart discovery contains owned orphans and installation identity survive
     const id = created.stdout.toString().trim();
     await docker(installation, ["start", id]);
     for (let n = 0; n < 60; n++) {
-        if (!(await inspect(installation, id)).State.Running) break;
+        if (
+            !(await inspect(installation, id)).State.Running &&
+            existsSync(join(root, "containment", `watchdog-stop-${id}.json`))
+        )
+            break;
         await new Promise((r) => setTimeout(r, 100));
     }
     assert.equal((await inspect(installation, id)).State.Running, false);
-    assert(existsSync(join(root, "containment", `container-${id}.json`)));
+    assert(existsSync(join(root, "containment", `watchdog-stop-${id}.json`)));
 });
 
 after(async () => {
@@ -716,4 +726,23 @@ test("watchdog service restarts after SIGKILL and keeps containment authority", 
     assert.notEqual(store.read<any>("watchdog-ready.json").pid, previous.pid);
     f.abort.abort();
     assert((await pending).stopConfirmed);
+});
+
+test("real read-only shell checkpoint permits the next repository read", async () => {
+    const {broker, j} = await brokerFixture(["repository.read", "shell.run"]);
+    try {
+        const shell = await broker.runSandboxedTool(randomUUID(), {
+            kind: "shell",
+            argv: ["node", "--version"],
+            cwd: ".",
+        });
+        assert.equal(shell.result.exitCode, 0);
+        const container = await inspect(sandbox.installation, shell.result.containerId);
+        assert.equal(container.Mounts.find((m) => m.Destination === "/workspace").RW, false);
+        const next = await broker.runSandboxedTool(randomUUID(), {kind: "read", path: "a.txt"});
+        assert.equal(next.result.output.toString(), "base\n");
+        assert.equal(next.tree, shell.tree);
+    } finally {
+        j.close();
+    }
 });

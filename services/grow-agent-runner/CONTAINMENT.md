@@ -29,7 +29,7 @@ Use the returned immutable image ID in the owner catalog. The base is pinned in 
 
 The broker persists local intent before operation proposal and consumption. It uses the consumed `operation_hash` in wire tool events. Lost consumption prevents execution. Repeated tool IDs require reconciliation. Server artifact IDs remain distinct from local artifact IDs. Uploaded checksum and size must match the retained bytes.
 
-An edit or writable shell operation clears the server tree. `publishTree` must finish before another operation. A local snapshot alone cannot authorize checks. Checks use the exact owner-approved argv, cwd, and timeout. They mount the final tree read-only. Checks that require generated files must use `/tmp` or an approved offline toolchain design.
+An edit or shell operation clears the server tree, including a read-only shell. `publishTree` must finish before another operation. A local snapshot alone cannot authorize checks. Checks use the exact owner-approved argv, cwd, and timeout. They mount the final tree read-only. Checks that require generated files must use `/tmp` or an approved offline toolchain design.
 
 `stopAttempt` remains usable after lease revocation. It freezes new launches, waits for pending launches, and confirms process containment. An inspection or stop failure throws. The consumer must report interrupted state and retain the journal. It must not report cancelled or completed.
 
@@ -49,7 +49,7 @@ Writable tools use a labeled, bounded tmpfs volume. The seed mount is read-only.
 
 `temporary_bytes` covers `/tmp` and a 64 KiB shared-memory mount. Memory, swap, CPU, process count, output, file size, and elapsed time have explicit limits. Output uses the descriptor limit, up to 50 KiB. Overflow stops the tool and cannot pass verification. Shell timeouts remain capped by the descriptor. Owner checks can use their approved timeout, up to 20 minutes.
 
-The independent watchdog runs through a scoped user systemd service. It uses monotonic deadlines, supervisor PID start time, and short heartbeats. It discovers owned running orphans. It survives supervisor death and restarts after its own process exits. Engine access failure prevents a confirmed stop. The implementation does not change the Docker service or reboot the host.
+The independent watchdog runs through a scoped user systemd service. It uses monotonic deadlines, supervisor PID start time, and short heartbeats. It discovers owned running orphans. It rechecks current authority after inspection and before kill. Separate watchdog stop receipts preserve supervisor launch and heartbeat records. It survives supervisor death and restarts after its own process exits. Engine access failure prevents a confirmed stop. The implementation does not change the Docker service or reboot the host.
 
 The broker retains stopped containers, volume metadata, snapshots, journals, and checksummed artifacts. Tmpfs contents disappear after unmount. Volume metadata is not a recoverable snapshot. No automatic prune or deletion runs.
 

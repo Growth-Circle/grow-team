@@ -292,7 +292,7 @@ export class ToolBroker {
                       ? "Tool timed out"
                       : "",
             });
-            if (write)
+            if (["repository.edit", "shell.run", "dependencies.install"].includes(args.action))
                 await this.persistence.publishTree(this.workspace, after, [artifact.serverId]);
             this.current();
             return {result, artifact: {...artifact.record, id: artifact.serverId}, tree: after};

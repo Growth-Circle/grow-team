@@ -152,7 +152,11 @@ export async function observe(i: Installation, r: ContainerRecord): Promise<void
         } catch {}
     }
 }
-export async function stopContainer(i: Installation, r: ContainerRecord): Promise<boolean> {
+export async function stopContainer(
+    i: Installation,
+    r: ContainerRecord,
+    authorizeStop: () => boolean = () => true,
+): Promise<boolean> {
     let item = await inspect(i, r.id);
     if (
         item.Config.Labels["digital.cadis.grow.scope"] !== r.scope ||
@@ -161,7 +165,11 @@ export async function stopContainer(i: Installation, r: ContainerRecord): Promis
         throw new Error("Container scope mismatch");
     if (item.State.Running) {
         await observe(i, r).catch(() => {});
-        if (item.State.Paused) await docker(i, ["unpause", r.id]);
+        if (!authorizeStop()) return false;
+        if (item.State.Paused) {
+            await docker(i, ["unpause", r.id]);
+            if (!authorizeStop()) return false;
+        }
         await docker(i, ["kill", "--signal=KILL", r.id]);
     }
     for (let n = 0; n < 30; n++) {
