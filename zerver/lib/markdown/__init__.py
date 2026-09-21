@@ -120,6 +120,7 @@ class MessageRenderingResult:
     mentions_topic_wildcard: bool
     mentions_stream_wildcard: bool
     mentions_user_ids: set[int]
+    personal_mention_user_ids: set[int]
     mentions_user_group_ids: set[int]
     alert_words: set[str]
     links_for_preview: set[str]
@@ -1753,6 +1754,7 @@ class UserMentionPattern(CompiledInlineProcessor):
 
                 if not silent:
                     self.zmd.zulip_rendering_result.mentions_user_ids.add(user.id)
+                    self.zmd.zulip_rendering_result.personal_mention_user_ids.add(user.id)
                 name = user.full_name
                 user_id = str(user.id)
             else:
@@ -2635,6 +2637,7 @@ def do_convert(
         mentions_topic_wildcard=False,
         mentions_stream_wildcard=False,
         mentions_user_ids=set(),
+        personal_mention_user_ids=set(),
         mentions_user_group_ids=set(),
         alert_words=set(),
         links_for_preview=set(),

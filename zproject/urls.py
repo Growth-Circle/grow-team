@@ -342,6 +342,9 @@ INTEGRATION_CATEGORY_REDIRECT_PATHS = [
 v1_api_and_json_patterns = [
     # Human connection routes retain normal Zulip authentication and CSRF checks.
     rest_path("agent/jobs", GET=agent_job_views.list_jobs, POST=agent_job_views.create_job),
+    rest_path("agent/message-preflight", POST=agent_job_views.message_preflight),
+    rest_path("agent/messages/<int:message_id>/dispatch", GET=agent_job_views.message_dispatch),
+    rest_path("agent/send-intents/<uuid:client_key>", GET=agent_job_views.send_intent),
     rest_path("agent/jobs/<uuid:job_id>", GET=agent_job_views.get_job),
     rest_path("agent/jobs/<uuid:job_id>/events", GET=agent_job_views.get_events),
     rest_path(

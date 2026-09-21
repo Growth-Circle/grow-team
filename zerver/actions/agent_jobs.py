@@ -130,6 +130,7 @@ def create_job(
     context_message_ids: list[int] | None = None,
     context_attachment_ids: list[int] | None = None,
     trigger_kind: str = "manual",
+    draft: bool = False,
 ) -> agents.AgentJob:
     if not request or len(request) > 20000:
         raise ValueError("Invalid request.")
@@ -191,10 +192,10 @@ def create_job(
             raise ValueError("Repository requires a new configuration.")
         if job_kind == "code" and repository is None:
             raise ValueError("Coding requires a repository.")
-        if repository is not None and base_ref not in repository.allowed_refs:
+        if repository is not None and not draft and base_ref not in repository.allowed_refs:
             raise ValueError("Base ref is not approved.")
         check_agent_access(actor, profile, repository, source, "profile.use")
-        if (
+        if not draft and (
             agents.AgentJob.objects.filter(realm=actor.realm, status="queued").count()
             >= settings.queued_job_limit
             or agents.AgentJob.objects.filter(profile=profile, status="queued").count()
@@ -231,8 +232,8 @@ def create_job(
             idempotency_key=idempotency_key,
             payload_digest=payload_hash,
             admission_revision=profile.revision,
-            status="queued",
-            start_deadline=now() + timedelta(hours=24),
+            status="draft" if draft else "queued",
+            start_deadline=None if draft else now() + timedelta(hours=24),
             policy=policy,
             budget=profile.budget,
         )
@@ -280,10 +281,11 @@ def create_job(
                 scope=scope,
             )
             selected_context(job, [ref.id])
-        agents.AgentOutbox.objects.create(
-            realm=actor.realm, job=job, delivery_key=f"wake:{job.id}:1", event_type="job.wake"
-        )
-        audit(job, "job.queued", {"status": "queued", "reason": ""}, actor=actor)
+        if not draft:
+            agents.AgentOutbox.objects.create(
+                realm=actor.realm, job=job, delivery_key=f"wake:{job.id}:1", event_type="job.wake"
+            )
+            audit(job, "job.queued", {"status": "queued", "reason": ""}, actor=actor)
         return job
 
 

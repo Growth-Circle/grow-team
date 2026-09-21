@@ -7,9 +7,10 @@ from django.http import HttpRequest, HttpResponse
 from zerver.actions import agent_approvals, agent_jobs
 from zerver.lib import agent_job_requests as r
 from zerver.lib.agent_context import agent_transaction, ensure_budget, require_job_access
-from zerver.lib.agent_policy import AgentAccessDenied
+from zerver.lib.agent_policy import AgentAccessDenied, check_agent_access
 from zerver.lib.agent_results import download_artifact
 from zerver.lib.exceptions import JsonableError
+from zerver.lib.message import access_message
 from zerver.models import Message, UserProfile, agents
 from zerver.views.agents import _success, payload, safe_agent_endpoint
 
@@ -75,6 +76,70 @@ def create_job(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
         context_attachment_ids=data.context_attachment_ids,
     )
     return _success(request, {"job": job_data(user_profile, job)})
+
+
+@safe_agent_endpoint
+def message_preflight(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
+    data = payload(request, r.MessagePreflight)
+    source = (
+        Message.objects.get(id=data.source_message_id, realm=user_profile.realm)
+        if data.source_message_id is not None
+        else None
+    )
+    if source is not None:
+        access_message(user_profile, source.id, is_modifying_message=False)
+    decisions = []
+    for profile_id in data.profile_ids:
+        profile = agents.AgentProfile.objects.get(id=profile_id, realm=user_profile.realm)
+        try:
+            agent_jobs.require_ready(profile)
+            check_agent_access(user_profile, profile, profile.default_repository, source, "profile.use")
+        except (AgentAccessDenied, ValueError):
+            decisions.append({"profile_id": str(profile.id), "decision": "rejected"})
+        else:
+            decisions.append(
+                {
+                    "profile_id": str(profile.id),
+                    "decision": "needs_input" if profile.default_mode == "code" else "accepted",
+                }
+            )
+    return _success(request, {"decisions": decisions})
+
+
+@safe_agent_endpoint
+def message_dispatch(request: HttpRequest, user_profile: UserProfile, message_id: int) -> HttpResponse:
+    with agent_transaction():
+        access_message(user_profile, message_id, is_modifying_message=False)
+        receipts = agents.AgentDispatchReceipt.objects.filter(
+            realm=user_profile.realm, source_message_id=message_id, requester=user_profile
+        ).select_related("job")
+        return _success(
+            request,
+            {
+                "source_message_id": message_id,
+                "dispatch_receipts": [
+                    {
+                        "profile_id": str(item.profile_id),
+                        "decision": item.decision,
+                        "reason": item.reason,
+                        "job_id": str(item.job_id) if item.job_id else None,
+                        "job_status": item.job.status if item.job is not None else None,
+                    }
+                    for item in receipts
+                ],
+            },
+        )
+
+
+@safe_agent_endpoint
+def send_intent(request: HttpRequest, user_profile: UserProfile, client_key: UUID) -> HttpResponse:
+    intent = agents.AgentSendIntent.objects.get(
+        realm=user_profile.realm, sender=user_profile, client_key=client_key
+    )
+    if intent.source_message_id is None:
+        raise ValueError("Send intent is pending.")
+    access_message(user_profile, intent.source_message_id, is_modifying_message=False)
+    return _success(request, {"source_message_id": intent.source_message_id})
 
 
 @safe_agent_endpoint

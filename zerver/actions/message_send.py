@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from email.headerregistry import Address
 from typing import Any, Literal, TypedDict, cast
+from uuid import UUID
 
 import orjson
 from django.conf import settings
@@ -664,6 +665,7 @@ def build_message_send_dict(
     recipients_for_user_creation_events: dict[UserProfile, set[int]] | None = None,
     acting_user: UserProfile | None = None,
     no_previews: bool = False,
+    agent_send_key: UUID | None = None,
 ) -> SendMessageRequest:
     """Returns a dictionary that can be passed into do_send_messages.  In
     production, this is always called by check_message, but some
@@ -769,6 +771,7 @@ def build_message_send_dict(
         realm=realm,
         mention_data=mention_data,
         mentioned_user_groups_map=mentioned_user_groups_map,
+        agent_send_key=agent_send_key,
         message=message,
         rendering_result=rendering_result,
         active_user_ids=info.active_user_ids,
@@ -949,10 +952,74 @@ def do_send_messages(
         if send_request is not None
     ]
 
+    # Claim a sender-scoped retry identity before writing a new message. The
+    # intent is part of this transaction, so a failed send leaves no retry key.
+    replayed_results: dict[int, SentMessageResult] = {}
+    for send_request in list(send_message_requests):
+        if send_request.agent_send_key is None:
+            continue
+        from zerver.actions.agent_jobs import digest
+        from zerver.models import agents
+
+        payload_digest = digest(
+            {
+                "recipient_id": send_request.message.recipient_id,
+                "type": send_request.message.recipient.type,
+                "topic": send_request.message.topic_name(),
+                "content": send_request.message.content,
+                "attachments": sorted(
+                    send_request.rendering_result.potential_attachment_path_ids
+                ),
+                "profiles": sorted(send_request.rendering_result.personal_mention_user_ids),
+            }
+        )
+        try:
+            intent = agents.AgentSendIntent.objects.select_for_update().get(
+                realm=send_request.realm,
+                sender=send_request.message.sender,
+                client_key=send_request.agent_send_key,
+            )
+        except agents.AgentSendIntent.DoesNotExist:
+            try:
+                with transaction.atomic():
+                    intent = agents.AgentSendIntent.objects.create(
+                        realm=send_request.realm,
+                        sender=send_request.message.sender,
+                        client_key=send_request.agent_send_key,
+                        payload_digest=payload_digest,
+                    )
+            except IntegrityError:
+                intent = agents.AgentSendIntent.objects.select_for_update().get(
+                    realm=send_request.realm,
+                    sender=send_request.message.sender,
+                    client_key=send_request.agent_send_key,
+                )
+        if intent.payload_digest != payload_digest:
+            raise JsonableError(_("Agent send key conflicts with an earlier message."))
+        if intent.source_message_id is not None:
+            replayed_results[id(send_request)] = SentMessageResult(intent.source_message_id)
+
+    send_message_requests = [
+        item for item in send_message_requests if id(item) not in replayed_results
+    ]
+    if not send_message_requests:
+        return [replayed_results[id(item)] for item in send_message_requests_maybe_none if item is not None]
+
     # Save the message receipts in the database
     user_message_flags: dict[int, dict[int, list[str]]] = defaultdict(dict)
 
     Message.objects.bulk_create(send_request.message for send_request in send_message_requests)
+
+    from zerver.models import agents
+
+    for send_request in send_message_requests:
+        if send_request.agent_send_key is not None:
+            agents.AgentSendIntent.objects.filter(
+                realm=send_request.realm,
+                sender=send_request.message.sender,
+                client_key=send_request.agent_send_key,
+                source_message__isnull=True,
+            ).update(source_message=send_request.message)
 
     # Claim attachments in message
     for send_request in send_message_requests:
@@ -1026,6 +1093,25 @@ def do_send_messages(
         )
 
     bulk_insert_ums(ums)
+
+    # Messages and their access rows now have durable IDs. Use renderer
+    # provenance captured before group expansion, never raw message text.
+    from zerver.actions.agent_dispatch import admit_message
+
+    for send_request in send_message_requests:
+        has_personal_bot_candidate = bool(
+            send_request.rendering_result.personal_mention_user_ids
+            & send_request.default_bot_user_ids
+        )
+        if not has_personal_bot_candidate and (
+            send_request.message.recipient.type != Recipient.DIRECT_MESSAGE_GROUP
+            or not send_request.default_bot_user_ids
+        ):
+            continue
+        admit_message(
+            send_request.message,
+            personal_mention_user_ids=send_request.rendering_result.personal_mention_user_ids,
+        )
 
     for send_request in send_message_requests:
         do_widget_post_save_actions(send_request)
@@ -1489,6 +1575,7 @@ def check_send_message(
     local_id: str | None = None,
     sender_queue_id: str | None = None,
     widget_content: str | None = None,
+    agent_send_key: UUID | None = None,
     *,
     skip_stream_access_check: bool = False,
     read_by_sender: bool = False,
@@ -1506,6 +1593,7 @@ def check_send_message(
         local_id,
         sender_queue_id,
         widget_content,
+        agent_send_key=agent_send_key,
         skip_stream_access_check=skip_stream_access_check,
     )
     return do_send_messages(
@@ -1761,6 +1849,7 @@ def check_message(
     archived_channel_notice: bool = False,
     no_previews: bool = False,
     acting_user: UserProfile | None = None,
+    agent_send_key: UUID | None = None,
 ) -> SendMessageRequest:
     """See
     https://zulip.readthedocs.io/en/latest/subsystems/sending-messages.html
@@ -1921,6 +2010,7 @@ def check_message(
         recipients_for_user_creation_events=recipients_for_user_creation_events,
         acting_user=acting_user,
         no_previews=no_previews,
+        agent_send_key=agent_send_key,
     )
 
     if (

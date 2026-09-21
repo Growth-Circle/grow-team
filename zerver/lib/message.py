@@ -4,6 +4,7 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Literal, TypedDict
+from uuid import UUID
 
 from django.conf import settings
 from django.db import connection
@@ -185,6 +186,7 @@ class SendMessageRequest:
     recipients_for_user_creation_events: dict[UserProfile, set[int]] | None = None
     reminder_target_message_id: int | None = None
     reminder_note: str | None = None
+    agent_send_key: UUID | None = None
 
 
 @dataclass

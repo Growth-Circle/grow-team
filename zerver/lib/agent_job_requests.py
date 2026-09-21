@@ -25,6 +25,11 @@ class CreateJob(Request):
     context_attachment_ids: list[p.Positive] = Field(default_factory=list, max_length=20)
 
 
+class MessagePreflight(Request):
+    profile_ids: list[UUID] = Field(min_length=1, max_length=20)
+    source_message_id: p.Positive | None = None
+
+
 class JobControl(Request):
     expected_version: p.Positive
 

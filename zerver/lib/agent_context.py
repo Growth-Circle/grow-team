@@ -57,7 +57,7 @@ def ensure_budget() -> None:
 
 
 @contextmanager
-def agent_transaction() -> Iterator[None]:
+def agent_transaction(*, retain_nested_limits: bool = False) -> Iterator[None]:
     """Use bounded rollback on contention; this is not a deadlock-free lock order."""
     outermost = not connection.in_atomic_block
     token = _deadline.set(_deadline.get() or monotonic() + 5)
@@ -79,7 +79,7 @@ def agent_transaction() -> Iterator[None]:
             ensure_budget()
             yield
             ensure_budget()
-            if not outermost:
+            if not outermost and not retain_nested_limits:
                 # Nested admission retains locks. Its caller owns commit-time deadlines.
                 with connection.cursor() as cursor:
                     for name, value in previous.items():
