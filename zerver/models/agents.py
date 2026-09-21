@@ -759,6 +759,7 @@ class AgentSetupOperation(AgentRecord):
     descriptor_digest = models.CharField(max_length=64, default="")
     descriptor = models.JSONField(default=dict)
     phase = models.CharField(max_length=30, default="pending")
+    result = models.JSONField(default=None, null=True)
     requirements = models.JSONField(default=list)
     retry_key = models.UUIDField()
     payload_digest = models.CharField(max_length=64)

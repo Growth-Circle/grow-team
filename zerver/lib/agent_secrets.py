@@ -26,12 +26,14 @@ def _keyring() -> tuple[str, dict[str, bytes]]:
     try:
         payload = json.loads(Path(path).read_text())
         current = payload["current"]
+        if not isinstance(current, str) or not isinstance(payload["keys"], dict):
+            raise ValueError
         keys = {
             key_id: base64.b64decode(value, validate=True)
             for key_id, value in payload["keys"].items()
         }
-    except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as error:
-        raise ValueError("Agent secret storage is not configured.") from error
+    except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError):
+        raise ValueError("Agent secret storage is not configured.") from None
     if current not in keys or any(len(key) != 32 for key in keys.values()):
         raise ValueError("Agent secret storage is not configured.")
     return current, keys
@@ -74,5 +76,5 @@ def decrypt_agent_secret(
     try:
         data_key = AESGCM(keys[key_id]).decrypt(wrapped_key[:12], wrapped_key[12:], associated_data)
         return AESGCM(data_key).decrypt(ciphertext[:12], ciphertext[12:], associated_data).decode()
-    except Exception as error:
-        raise ValueError("Agent secret cannot be decrypted.") from error
+    except Exception:
+        raise ValueError("Agent secret cannot be decrypted.") from None

@@ -19,8 +19,11 @@ from zerver.lib.integrations import INCOMING_WEBHOOK_INTEGRATIONS
 from zerver.lib.rest import rest_path
 from zerver.lib.url_redirects import DOCUMENTATION_REDIRECTS, get_integration_category_redirects
 from zerver.views.agent_devices import (
+    claim_setup_device,
     exchange_pairing_device,
+    list_setups_device,
     rotate_device_credential,
+    setup_result_device,
     start_pairing_device,
     update_runner_catalog,
 )
@@ -33,8 +36,15 @@ from zerver.views.agents import (
     create_agent_provider,
     create_agent_repository,
     create_provider_probe_view,
+    enable_agent_profile,
+    get_agent_profile,
+    get_agent_setup,
     list_agent_profiles,
+    list_agent_runners,
     pause_agent_profile,
+    retry_profile_setup,
+    revoke_agent_grant,
+    revoke_agent_runner,
 )
 from zerver.views.alert_words import add_alert_words, list_alert_words, remove_alert_words
 from zerver.views.antispam import get_challenge
@@ -328,16 +338,23 @@ INTEGRATION_CATEGORY_REDIRECT_PATHS = [
 # All of these paths are accessed by either a /json or /api/v1 prefix;
 # e.g. `PATCH /json/realm` or `PATCH /api/v1/realm`.
 v1_api_and_json_patterns = [
-    # Agent configuration uses normal human session or user API authentication.
-    rest_path("agents/profiles", GET=list_agent_profiles, POST=create_agent_profile),
-    rest_path("agents/pairings/approve", POST=approve_agent_pairing),
-    rest_path("agents/providers", POST=create_agent_provider),
-    rest_path("agents/providers/probes", POST=create_provider_probe_view),
-    rest_path("agents/repositories", POST=create_agent_repository),
-    rest_path("agents/profiles/pause", POST=pause_agent_profile),
-    rest_path("agents/profiles/archive", POST=archive_agent_profile),
-    rest_path("agents/grants", POST=create_agent_grant_view),
-    rest_path("agents/profiles/attach-channel", POST=attach_agent_profile_stream),
+    # Human connection routes retain normal Zulip authentication and CSRF checks.
+    rest_path("agent/profiles", GET=list_agent_profiles, POST=create_agent_profile),
+    rest_path("agent/profiles/<uuid:profile_id>", GET=get_agent_profile),
+    rest_path("agent/pairings/approve", POST=approve_agent_pairing),
+    rest_path("agent/runners", GET=list_agent_runners),
+    rest_path("agent/runners/<uuid:runner_id>/revoke", POST=revoke_agent_runner),
+    rest_path("agent/providers", POST=create_agent_provider),
+    rest_path("agent/providers/<uuid:provider_id>/probe", POST=create_provider_probe_view),
+    rest_path("agent/repositories", POST=create_agent_repository),
+    rest_path("agent/profiles/<uuid:profile_id>/pause", POST=pause_agent_profile),
+    rest_path("agent/profiles/<uuid:profile_id>/archive", POST=archive_agent_profile),
+    rest_path("agent/profiles/<uuid:profile_id>/enable", POST=enable_agent_profile),
+    rest_path("agent/profiles/<uuid:profile_id>/readiness", POST=retry_profile_setup),
+    rest_path("agent/setups/<uuid:setup_id>", GET=get_agent_setup),
+    rest_path("agent/grants", POST=create_agent_grant_view),
+    rest_path("agent/grants/<uuid:grant_id>/revoke", POST=revoke_agent_grant),
+    rest_path("agent/profiles/<uuid:profile_id>/attach-channel", POST=attach_agent_profile_stream),
     # realm-level calls
     rest_path("realm", PATCH=update_realm),
     rest_path("realm/user_settings_defaults", PATCH=update_realm_user_settings_defaults),
@@ -800,10 +817,13 @@ urls: list[URLPattern | URLResolver] = list(i18n_urls)
 
 # Runner bearer and pairing endpoints must bypass REST dispatch. They reject browser users.
 urls += [
-    path("api/agents/device/pairings", start_pairing_device),
-    path("api/agents/device/pairings/<uuid:pairing_id>/exchange", exchange_pairing_device),
-    path("api/agents/device/credentials/rotate", rotate_device_credential),
-    path("api/agents/device/catalog", update_runner_catalog),
+    path("api/v1/agent/pairings", start_pairing_device),
+    path("api/v1/agent/pairings/exchange", exchange_pairing_device),
+    path("api/v1/agent/runner/token/refresh", rotate_device_credential),
+    path("api/v1/agent/runner/catalog", update_runner_catalog),
+    path("api/v1/agent/runner/setups", list_setups_device),
+    path("api/v1/agent/runner/setups/claim", claim_setup_device),
+    path("api/v1/agent/runner/setups/result", setup_result_device),
 ]
 
 # Include the dual-use patterns twice

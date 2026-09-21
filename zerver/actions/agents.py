@@ -1,17 +1,21 @@
 """Transactional connection actions. Runner execution belongs to Task 3."""
 
 import hashlib
+import re
 import secrets
 import uuid
 from datetime import datetime, timedelta
 from urllib.parse import urlsplit
 
 from django.db import transaction
+from django.db.models import F
 from django.utils.timezone import now
 
 from zerver.actions.create_user import do_create_user
 from zerver.actions.streams import bulk_add_subscriptions
 from zerver.lib import agent_protocol as protocol
+from zerver.lib.agent_policy import check_agent_access, require_agent_resource_access
+from zerver.lib.agent_requests import SetupResult
 from zerver.lib.agent_secrets import credential_matches, encrypt_agent_secret, hash_agent_credential
 from zerver.lib.streams import filter_stream_authorization_for_adding_subscribers
 from zerver.lib.users import (
@@ -29,7 +33,7 @@ ACCESS_TOKEN_TTL = timedelta(hours=24)
 REFRESH_TOKEN_TTL = timedelta(days=30)
 
 
-@transaction.atomic(savepoint=False)
+@transaction.atomic()
 def start_pairing(
     device_name: str,
     fingerprint: str,
@@ -38,7 +42,12 @@ def start_pairing(
     *,
     expires_at: datetime | None = None,
 ) -> agents.AgentPairing:
-    if not device_name or not fingerprint or not user_code or not polling_secret:
+    if (
+        not 1 <= len(device_name) <= 200
+        or not 1 <= len(fingerprint) <= 128
+        or not 4 <= len(user_code) <= 64
+        or not 32 <= len(polling_secret) <= 512
+    ):
         raise ValueError("Invalid pairing request.")
     return agents.AgentPairing.objects.create(
         realm=None,
@@ -58,7 +67,7 @@ def approve_pairing(
     owner: UserProfile, pairing: agents.AgentPairing, user_code: str
 ) -> agents.AgentPairing:
     unavailable = False
-    with transaction.atomic(savepoint=False):
+    with transaction.atomic():
         pairing = agents.AgentPairing.objects.select_for_update().get(id=pairing.id)
         if pairing.state != "pending" or pairing.expires_at <= now():
             pairing.state = "expired" if pairing.expires_at <= now() else pairing.state
@@ -83,7 +92,7 @@ def approve_pairing(
 
 def exchange_pairing(pairing: agents.AgentPairing, polling_secret: str) -> tuple[str, str]:
     unavailable = False
-    with transaction.atomic(savepoint=False):
+    with transaction.atomic():
         pairing = agents.AgentPairing.objects.select_for_update().get(id=pairing.id)
         if pairing.state != "approved" or pairing.owner is None or pairing.expires_at <= now():
             unavailable = True
@@ -123,7 +132,8 @@ def rotate_runner_credential(
     credential: agents.AgentRunnerCredential, refresh_token: str
 ) -> tuple[agents.AgentRunnerCredential, str, str]:
     unavailable = False
-    with transaction.atomic(savepoint=False):
+    with transaction.atomic():
+        agents.AgentRunner.objects.select_for_update().get(id=credential.runner_id)
         credential = agents.AgentRunnerCredential.objects.select_for_update().get(id=credential.id)
         if (
             credential.revoked_at is not None
@@ -152,21 +162,22 @@ def rotate_runner_credential(
     return replacement, token, refresh
 
 
-@transaction.atomic(savepoint=False)
+@transaction.atomic()
 def revoke_runner(runner: agents.AgentRunner) -> None:
     runner = agents.AgentRunner.objects.select_for_update().get(id=runner.id)
-    if runner.revoked_at is None:
-        runner.revoked_at = now()
-        runner.status = "revoked"
-        runner.save(update_fields=["revoked_at", "status", "updated_at"])
+    if runner.revoked_at is not None:
+        return
+    runner.revoked_at = now()
+    runner.status = "revoked"
+    runner.save(update_fields=["revoked_at", "status", "updated_at"])
     agents.AgentRunnerCredential.objects.filter(runner=runner, revoked_at__isnull=True).update(
-        revoked_at=now()
+        revoked_at=runner.revoked_at
     )
     # Task 3 consumes this durable stopping state and records runner stop evidence.
     active_attempts = agents.AgentAttempt.objects.filter(runner=runner, active=True)
     active_attempts.update(process_state="stopping")
     agents.AgentJob.objects.filter(agentattempt__runner=runner, agentattempt__active=True).update(
-        status="cancel_requested"
+        status="cancel_requested", version=F("version") + 1
     )
 
 
@@ -233,7 +244,7 @@ def _safe_origin(value: str) -> str:
     return value
 
 
-@transaction.atomic(savepoint=False)
+@transaction.atomic()
 def register_provider(
     owner: UserProfile,
     runner: agents.AgentRunner,
@@ -246,8 +257,15 @@ def register_provider(
     max_output_tokens: int,
     credential: str | None = None,
     local_credential_ref: str = "",
+    api_mode: str = "chat_completions",
+    network: dict[str, object] | None = None,
+    data_scope: list[str] | None = None,
 ) -> agents.AgentProvider:
-    if runner.realm_id != owner.realm_id or runner.owner_id != owner.id:
+    if (
+        runner.realm_id != owner.realm_id
+        or runner.owner_id != owner.id
+        or runner.revoked_at is not None
+    ):
         raise ValueError("Runner is unavailable.")
     if (credential is None) == (local_credential_ref == ""):
         raise ValueError("Provider credential is required.")
@@ -278,32 +296,44 @@ def register_provider(
         local_credential_ref=local_credential_ref,
         context_window_tokens=context_window_tokens,
         max_output_tokens=max_output_tokens,
-        data_scope=["synthetic"],
-        network_policy=protocol.serialize_payload(protocol.NetworkPolicy()),
+        api_mode=api_mode,
+        data_scope=data_scope or ["synthetic"],
+        network_policy=protocol.serialize_payload(
+            protocol.NetworkPolicy.model_validate(network or {})
+        ),
         capability_report={"config_version": 1},
     )
     try:
         provider.clean()
+        provider_config(provider)
     except Exception:
         raise ValueError("Invalid provider configuration.") from None
     return provider
 
 
-@transaction.atomic(savepoint=False)
+@transaction.atomic()
 def register_repository(
     owner: UserProfile,
     runner: agents.AgentRunner,
     *,
     workspace_alias: str,
-    canonical_origin: str,
+    canonical_origin: str | None,
     allowed_refs: list[str],
     required_checks: list[dict[str, object]] | None = None,
 ) -> agents.AgentRepository:
-    if runner.realm_id != owner.realm_id or runner.owner_id != owner.id:
+    if (
+        runner.realm_id != owner.realm_id
+        or runner.owner_id != owner.id
+        or runner.revoked_at is not None
+    ):
         raise ValueError("Runner is unavailable.")
     if canonical_origin:
         _safe_origin(canonical_origin)
-    if not workspace_alias or not allowed_refs or any(not item for item in allowed_refs):
+    if (
+        not re.fullmatch(r"[a-zA-Z0-9_-]{1,80}", workspace_alias)
+        or not allowed_refs
+        or any(not item for item in allowed_refs)
+    ):
         raise ValueError("Invalid repository configuration.")
     try:
         normalized_checks = [
@@ -317,7 +347,7 @@ def register_repository(
         owner=owner,
         runner=runner,
         workspace_alias=workspace_alias,
-        canonical_origin=canonical_origin,
+        canonical_origin=canonical_origin or "",
         allowed_refs=allowed_refs,
         required_checks=normalized_checks,
     )
@@ -326,7 +356,11 @@ def register_repository(
 
 def _default_sandbox(runner: agents.AgentRunner) -> dict[str, object]:
     catalog = protocol.RunnerCatalog.model_validate(runner.catalog_report)
-    if not catalog.sandboxes:
+    if (
+        catalog.revision != runner.catalog_revision
+        or any(item.catalog_revision != catalog.revision for item in catalog.sandboxes)
+        or not catalog.sandboxes
+    ):
         raise ValueError("Runner catalog is unavailable.")
     return protocol.serialize_payload(catalog.sandboxes[0])
 
@@ -353,35 +387,8 @@ def build_probe_descriptor(
     profile = agents.AgentProfile.objects.select_related("provider", "runner").get(id=profile.id)
     provider = profile.provider
     grant = agents.AgentProbeGrant.objects.get(setup_operation=setup)
-    provider_payload = None
-    if provider is not None:
-        credential_ref = None
-        if provider.secret_id is not None:
-            assert provider.secret is not None
-            credential_ref = {
-                "kind": "server",
-                "id": str(provider.secret_id),
-                "version": provider.secret.version,
-            }
-        elif provider.local_credential_ref:
-            credential_ref = {"kind": "local", "id": provider.local_credential_ref, "version": 1}
-        provider_payload = {
-            "id": str(provider.id),
-            "owner_user_id": provider.owner_id,
-            "runner_id": str(provider.runner_id),
-            "name": provider.name,
-            "base_url": provider.base_url,
-            "api_mode": provider.api_mode,
-            "model_id": provider.model_id,
-            "allowed_models": provider.allowed_models,
-            "credential_ref": credential_ref,
-            "context_window_tokens": provider.context_window_tokens,
-            "max_output_tokens": provider.max_output_tokens,
-            "config_version": provider.config_version,
-            "data_scope": provider.data_scope,
-            "network": provider.network_policy,
-            "capability_report": provider.capability_report,
-        }
+    validate_runtime(profile)
+    provider_payload = provider_config(provider) if provider is not None else None
     descriptor = {
         "schema_version": 1,
         "setup_operation_id": str(setup.id),
@@ -398,13 +405,18 @@ def build_probe_descriptor(
         "provider": provider_payload,
         "workspace_binding": (
             {
-                "canonical_origin": profile.default_repository.canonical_origin,
+                "canonical_origin": profile.default_repository.canonical_origin or None,
                 "repository_id": str(profile.default_repository_id),
                 "workspace_alias": profile.default_repository.workspace_alias,
                 "policy_version": profile.default_repository.policy_version,
                 "allowed_refs": profile.default_repository.allowed_refs,
                 "checks_digest": hashlib.sha256(
-                    protocol.canonical_json(profile.default_repository.required_checks)
+                    protocol.canonical_json(
+                        [
+                            protocol.serialize_payload(protocol.RequiredCheck.model_validate(item))
+                            for item in profile.default_repository.required_checks
+                        ]
+                    )
                 ).hexdigest(),
             }
             if profile.default_repository_id is not None and profile.default_repository is not None
@@ -429,131 +441,214 @@ def build_probe_descriptor(
     return serialized
 
 
-@transaction.atomic(savepoint=False)
-def create_provider_probe(
-    owner: UserProfile, provider: agents.AgentProvider, *, retry_key: uuid.UUID
-) -> agents.AgentSetupOperation:
-    """Create provider-only probe work. It cannot enable a profile."""
-    if provider.realm_id != owner.realm_id:
+def provider_config(provider: agents.AgentProvider) -> dict[str, object]:
+    if provider.disabled_at is not None or (
+        provider.secret is not None and provider.secret.revoked_at is not None
+    ):
         raise ValueError("Provider is unavailable.")
+    secret = provider.secret
+    reference = (
+        {"kind": "server", "id": str(secret.id), "version": secret.version}
+        if secret is not None
+        else {
+            "kind": "local",
+            "id": provider.local_credential_ref,
+            "version": provider.config_version,
+        }
+    )
+    return protocol.serialize_payload(
+        protocol.ProviderConfig.model_validate(
+            {
+                "id": str(provider.id),
+                "owner_user_id": provider.owner_id,
+                "runner_id": str(provider.runner_id),
+                "name": provider.name,
+                "base_url": provider.base_url,
+                "api_mode": provider.api_mode,
+                "model_id": provider.model_id,
+                "allowed_models": provider.allowed_models,
+                "credential_ref": reference,
+                "context_window_tokens": provider.context_window_tokens,
+                "max_output_tokens": provider.max_output_tokens,
+                "config_version": provider.config_version,
+                "data_scope": provider.data_scope,
+                "network": provider.network_policy,
+                "capability_report": provider.capability_report,
+            }
+        )
+    )
+
+
+def validate_runtime(profile: agents.AgentProfile) -> None:
+    require_agent_resource_access(
+        profile.owner, profile.runner, target_kind="runner", action="runner.use"
+    )
+    catalog = protocol.RunnerCatalog.model_validate(profile.runner.catalog_report)
+    policy = protocol.Policy.model_validate(profile.policy)
+    if (
+        catalog.revision != profile.runner.catalog_revision
+        or not any(
+            entry.id == profile.adapter_id and entry.version == profile.adapter_version
+            for entry in catalog.adapters
+        )
+        or policy.sandbox not in catalog.sandboxes
+        or policy.sandbox.catalog_revision != catalog.revision
+    ):
+        raise ValueError("Runtime configuration is unavailable.")
+    if profile.provider is not None:
+        if profile.provider.runner_id != profile.runner_id:
+            raise ValueError("Provider is unavailable.")
+        require_agent_resource_access(
+            profile.owner, profile.provider, target_kind="provider", action="provider.use"
+        )
+        provider_config(profile.provider)
+    if profile.default_repository is not None:
+        if profile.default_repository.runner_id != profile.runner_id:
+            raise ValueError("Repository is unavailable.")
+        require_agent_resource_access(
+            profile.owner,
+            profile.default_repository,
+            target_kind="repository",
+            action="repository.read",
+        )
+        for action in policy.actions:
+            if action != "context.read":
+                require_agent_resource_access(
+                    profile.owner,
+                    profile.default_repository,
+                    target_kind="repository",
+                    action=action,
+                )
+
+
+def _save_descriptor(setup: agents.AgentSetupOperation, descriptor: dict[str, object]) -> None:
+    setup.descriptor = descriptor
+    setup.configuration_digest = str(descriptor["configuration_digest"])
+    setup.descriptor_digest = str(descriptor["descriptor_digest"])
+    setup.save(
+        update_fields=["descriptor", "configuration_digest", "descriptor_digest", "updated_at"]
+    )
+
+
+def build_provider_probe(setup: agents.AgentSetupOperation) -> dict[str, object]:
+    provider = setup.provider
+    assert provider is not None
+    require_agent_resource_access(
+        setup.owner, provider, target_kind="provider", action="provider.use"
+    )
+    require_agent_resource_access(
+        setup.owner, provider.runner, target_kind="runner", action="runner.use"
+    )
+    grant = agents.AgentProbeGrant.objects.get(setup_operation=setup)
+    catalog = protocol.RunnerCatalog.model_validate(provider.runner.catalog_report)
+    if not catalog.adapters:
+        raise ValueError("Runner catalog is unavailable.")
+    adapter_data = setup.descriptor.get("adapter")
+    adapter = (
+        protocol.AdapterConfig.model_validate(adapter_data)
+        if adapter_data
+        else protocol.AdapterConfig(
+            id=catalog.adapters[0].id, version=catalog.adapters[0].version, mode="endpoint"
+        )
+    )
+    if not any(
+        item.id == adapter.id and item.version == adapter.version for item in catalog.adapters
+    ):
+        raise ValueError("Adapter is unavailable.")
+    descriptor = protocol.ProbeDescriptor.model_validate(
+        {
+            "schema_version": 1,
+            "setup_operation_id": str(setup.id),
+            "profile_id": None,
+            "profile_revision": setup.profile_revision,
+            "runner_id": str(provider.runner_id),
+            "descriptor_digest": "0" * 64,
+            "configuration_digest": "0" * 64,
+            "adapter": protocol.serialize_payload(adapter),
+            "provider": provider_config(provider),
+            "grant": {
+                "id": str(grant.id),
+                "runner_id": str(provider.runner_id),
+                "provider_id": str(provider.id),
+                "provider_config_version": provider.config_version,
+                "profile_revision": setup.profile_revision,
+                "expires_at": grant.expires_at.isoformat(),
+                "actions": ["probe"],
+            },
+            "policy": _default_policy(setup.owner, provider.runner),
+            "budget": _default_budget(),
+        }
+    )
+    serialized = protocol.serialize_payload(descriptor)
+    serialized["configuration_digest"] = protocol.configuration_digest(descriptor)
+    serialized["descriptor_digest"] = protocol.descriptor_digest(serialized)
+    return serialized
+
+
+def _create_probe_grant(setup: agents.AgentSetupOperation) -> None:
+    agents.AgentProbeGrant.objects.create(
+        realm=setup.realm,
+        setup_operation=setup,
+        runner=setup.runner,
+        provider=setup.provider,
+        profile_revision=setup.profile_revision,
+        provider_config_version=setup.provider_config_version,
+        token_hash=hash_agent_credential(secrets.token_urlsafe(32)),
+        expires_at=now() + PAIRING_TTL,
+    )
+
+
+@transaction.atomic()
+def create_provider_probe(
+    owner: UserProfile,
+    provider: agents.AgentProvider,
+    *,
+    retry_key: uuid.UUID,
+    expected_revision: int | None = None,
+) -> agents.AgentSetupOperation:
+    # Lock order: optional retry-key owner, then runner, then setup and resource rows.
+    # The runner guard serializes setup creation, retry, claim, result, and catalog changes.
+    UserProfile.objects.select_for_update().get(id=owner.id)
+    runner = agents.AgentRunner.objects.select_for_update().get(id=provider.runner_id)
+    provider = agents.AgentProvider.objects.select_for_update().get(id=provider.id)
+    if provider.runner_id != runner.id:
+        raise ValueError("Runner binding changed.")
+    require_agent_resource_access(owner, provider, target_kind="provider", action="provider.use")
+    require_agent_resource_access(owner, provider.runner, target_kind="runner", action="runner.use")
+    if expected_revision is not None and expected_revision != provider.config_version:
+        raise ValueError("Provider revision is stale.")
+    digest = hashlib.sha256(
+        protocol.canonical_json(
+            {"provider_id": str(provider.id), "version": provider.config_version}
+        )
+    ).hexdigest()
     existing = agents.AgentSetupOperation.objects.filter(
         realm=owner.realm, owner=owner, retry_key=retry_key
     ).first()
     if existing is not None:
-        if existing.provider_id != provider.id or existing.profile_id is not None:
-            raise ValueError("Probe retry does not match the original request.")
+        if existing.profile_id is not None or existing.payload_digest != digest:
+            raise ValueError("Probe retry does not match.")
         return existing
-    catalog = protocol.RunnerCatalog.model_validate(provider.runner.catalog_report)
-    if not catalog.adapters:
-        raise ValueError("Runner catalog is unavailable.")
-    adapter = catalog.adapters[0]
+    previous = agents.AgentSetupOperation.objects.filter(
+        provider=provider, profile__isnull=True, phase__in=["pending", "claimed", "probing"]
+    )
+    agents.AgentProbeGrant.objects.filter(setup_operation__in=previous).update(revoked_at=now())
+    previous.update(phase="cancelled")
     setup = agents.AgentSetupOperation.objects.create(
         realm=owner.realm,
         owner=owner,
         provider=provider,
         runner=provider.runner,
-        profile_revision=1,
         provider_config_version=provider.config_version,
         retry_key=retry_key,
-        payload_digest=hashlib.sha256(str(provider.id).encode()).hexdigest(),
+        payload_digest=digest,
     )
-    grant = agents.AgentProbeGrant.objects.create(
-        realm=owner.realm,
-        setup_operation=setup,
-        runner=provider.runner,
-        provider=provider,
-        profile_revision=1,
-        provider_config_version=provider.config_version,
-        token_hash=hash_agent_credential(secrets.token_urlsafe(32)),
-        expires_at=now() + timedelta(minutes=10),
-    )
-    if provider.secret_id:
-        assert provider.secret is not None
-        credential_ref = {
-            "kind": "server",
-            "id": str(provider.secret_id),
-            "version": provider.secret.version,
-        }
-    else:
-        credential_ref = {"kind": "local", "id": provider.local_credential_ref, "version": 1}
-    descriptor = {
-        "schema_version": 1,
-        "setup_operation_id": str(setup.id),
-        "profile_id": None,
-        "profile_revision": 1,
-        "runner_id": str(provider.runner_id),
-        "descriptor_digest": "0" * 64,
-        "configuration_digest": "0" * 64,
-        "adapter": {"id": adapter.id, "version": adapter.version, "mode": "endpoint"},
-        "provider": {
-            "id": str(provider.id),
-            "owner_user_id": provider.owner_id,
-            "runner_id": str(provider.runner_id),
-            "name": provider.name,
-            "base_url": provider.base_url,
-            "api_mode": provider.api_mode,
-            "model_id": provider.model_id,
-            "allowed_models": provider.allowed_models,
-            "credential_ref": credential_ref,
-            "context_window_tokens": provider.context_window_tokens,
-            "max_output_tokens": provider.max_output_tokens,
-            "config_version": provider.config_version,
-            "data_scope": provider.data_scope,
-            "network": provider.network_policy,
-            "capability_report": provider.capability_report,
-        },
-        "grant": {
-            "id": str(grant.id),
-            "runner_id": str(provider.runner_id),
-            "provider_id": str(provider.id),
-            "provider_config_version": provider.config_version,
-            "profile_revision": 1,
-            "expires_at": grant.expires_at.isoformat(),
-            "actions": ["probe"],
-        },
-        "policy": _default_policy(owner, provider.runner),
-        "budget": _default_budget(),
-    }
-    probe = protocol.ProbeDescriptor.model_validate(descriptor)
-    serialized = protocol.serialize_payload(probe)
-    serialized["configuration_digest"] = protocol.configuration_digest(probe)
-    serialized["descriptor_digest"] = protocol.descriptor_digest(serialized)
-    setup.descriptor = serialized
-    setup.configuration_digest = str(serialized["configuration_digest"])
-    setup.descriptor_digest = str(serialized["descriptor_digest"])
-    setup.save(
-        update_fields=["descriptor", "configuration_digest", "descriptor_digest", "updated_at"]
-    )
+    _create_probe_grant(setup)
+    _save_descriptor(setup, build_provider_probe(setup))
     return setup
 
 
-@transaction.atomic(savepoint=False)
-def record_provider_probe(
-    runner: agents.AgentRunner, setup: agents.AgentSetupOperation, capabilities: dict[str, object]
-) -> agents.AgentProvider:
-    setup = agents.AgentSetupOperation.objects.select_for_update().get(id=setup.id)
-    if setup.profile_id is not None or setup.provider_id is None or setup.runner_id != runner.id:
-        raise ValueError("Provider probe is unavailable.")
-    provider = agents.AgentProvider.objects.select_for_update().get(id=setup.provider_id)
-    grant = agents.AgentProbeGrant.objects.get(setup_operation=setup)
-    if (
-        grant.revoked_at is not None
-        or grant.expires_at <= now()
-        or provider.config_version != setup.provider_config_version
-    ):
-        setup.phase = "stale"
-        setup.save(update_fields=["phase", "updated_at"])
-        raise ValueError("Provider probe is stale.")
-    parsed = protocol.CapabilityReport.model_validate(capabilities)
-    provider.capability_report = protocol.serialize_payload(parsed)
-    provider.save(update_fields=["capability_report", "updated_at"])
-    setup.phase = "ready"
-    setup.finished_at = now()
-    setup.save(update_fields=["phase", "finished_at", "updated_at"])
-    return provider
-
-
-@transaction.atomic(savepoint=False)
+@transaction.atomic()
 def create_profile(
     owner: UserProfile,
     *,
@@ -570,8 +665,10 @@ def create_profile(
     policy: dict[str, object] | None = None,
     budget: dict[str, object] | None = None,
 ) -> agents.AgentProfile:
-    from zerver.lib.agent_policy import AgentAccessDenied, require_agent_resource_access
+    from zerver.lib.agent_policy import AgentAccessDenied
 
+    UserProfile.objects.select_for_update().get(id=owner.id)
+    runner = agents.AgentRunner.objects.select_for_update().get(id=runner.id)
     try:
         require_agent_resource_access(owner, runner, target_kind="runner", action="runner.use")
     except AgentAccessDenied:
@@ -616,11 +713,13 @@ def create_profile(
         budget_data = protocol.serialize_payload(protocol.Budget.model_validate(budget_data))
     except Exception:
         raise ValueError("Invalid profile configuration.") from None
+    name = check_full_name(name, user_profile=None, realm=None)
     payload_digest = hashlib.sha256(
         protocol.canonical_json(
             {
                 "name": name,
                 "description": description,
+                "default_mode": default_mode,
                 "runner": str(runner.id),
                 "adapter": [adapter_id, adapter_version, mode],
                 "provider": str(provider.id) if provider else None,
@@ -704,98 +803,304 @@ def create_profile(
     return profile
 
 
+def _current_setup_descriptor(setup: agents.AgentSetupOperation) -> dict[str, object]:
+    return (
+        build_probe_descriptor(setup.profile, setup)
+        if setup.profile is not None
+        else build_provider_probe(setup)
+    )
+
+
+def _validate_setup(setup: agents.AgentSetupOperation, runner: agents.AgentRunner) -> None:
+    if (
+        setup.runner_id != runner.id
+        or setup.realm_id != runner.realm_id
+        or runner.revoked_at is not None
+    ):
+        raise ValueError("Setup is unavailable.")
+    if setup.profile_id is not None:
+        setup.profile = agents.AgentProfile.objects.select_for_update().get(id=setup.profile_id)
+        check_agent_access(setup.owner, setup.profile, None, None, "profile.manage")
+        if setup.profile.default_repository_id is not None:
+            agents.AgentRepository.objects.select_for_update().get(
+                id=setup.profile.default_repository_id
+            )
+    if setup.provider_id is not None:
+        setup.provider = agents.AgentProvider.objects.select_for_update().get(id=setup.provider_id)
+        if setup.provider.secret_id is not None:
+            agents.AgentSecret.objects.select_for_update().get(id=setup.provider.secret_id)
+    grant = agents.AgentProbeGrant.objects.select_for_update().get(setup_operation=setup)
+    if grant.revoked_at is not None or grant.expires_at <= now():
+        raise ValueError("Probe authority is unavailable.")
+    if setup.profile is not None and setup.profile.revision != setup.profile_revision:
+        raise ValueError("Setup revision is stale.")
+    current = _current_setup_descriptor(setup)
+    if current["configuration_digest"] != setup.configuration_digest:
+        raise ValueError("Setup configuration is stale.")
+
+
+@transaction.atomic()
+def claim_setup(
+    runner: agents.AgentRunner, setup_id: uuid.UUID, claim_key: uuid.UUID
+) -> agents.AgentSetupOperation:
+    runner = agents.AgentRunner.objects.select_for_update().get(id=runner.id)
+    if not agents.AgentRealmSettings.objects.filter(realm=runner.realm, enabled=True).exists():
+        raise ValueError("Agent connections are disabled.")
+    setup = agents.AgentSetupOperation.objects.select_for_update().get(
+        id=setup_id, runner=runner, realm=runner.realm
+    )
+    _validate_setup(setup, runner)
+    if (
+        setup.claim_key == claim_key
+        and setup.lease_expires_at is not None
+        and setup.lease_expires_at > now()
+    ):
+        return setup
+    if setup.phase not in {"pending", "claimed", "probing"} or (
+        setup.lease_expires_at is not None and setup.lease_expires_at > now()
+    ):
+        raise ValueError("Setup cannot be claimed.")
+    setup.claim_key = claim_key
+    setup.lease_epoch += 1
+    setup.lease_expires_at = min(
+        now() + timedelta(minutes=5),
+        agents.AgentProbeGrant.objects.get(setup_operation=setup).expires_at,
+    )
+    setup.phase = "probing"
+    setup.save(
+        update_fields=["claim_key", "lease_epoch", "lease_expires_at", "phase", "updated_at"]
+    )
+    return setup
+
+
+@transaction.atomic()
+def record_setup_result(
+    runner: agents.AgentRunner, result: SetupResult
+) -> agents.AgentSetupOperation:
+    runner = agents.AgentRunner.objects.select_for_update().get(id=runner.id)
+    setup = agents.AgentSetupOperation.objects.select_for_update().get(
+        id=result.setup_id, runner=runner, realm=runner.realm
+    )
+    normalized = protocol.serialize_payload(result)
+    # Exact receipt replay never changes readiness or restores expired authority.
+    if setup.result is not None:
+        if runner.revoked_at is not None or setup.result != normalized:
+            raise ValueError("Setup result does not match.")
+        return setup
+    _validate_setup(setup, runner)
+    if (
+        setup.claim_key != result.claim_key
+        or setup.lease_epoch != result.lease_epoch
+        or setup.lease_expires_at is None
+        or setup.lease_expires_at <= now()
+        or setup.descriptor_digest != result.descriptor_digest
+        or setup.configuration_digest != result.configuration_digest
+    ):
+        raise ValueError("Setup result is stale.")
+    if setup.phase != "probing":
+        raise ValueError("Setup result is stale.")
+    expected_capability_version = setup.provider_config_version or setup.profile_revision
+    if result.capabilities.config_version != expected_capability_version:
+        raise ValueError("Capability version is stale.")
+    if setup.profile is not None:
+        profile = agents.AgentProfile.objects.select_for_update().get(id=setup.profile.id)
+        probe = protocol.ProbeDescriptor.model_validate(setup.descriptor)
+        ready = (
+            result.state == "ready"
+            and result.capabilities.chat_ready
+            and (profile.default_mode != "code" or result.capabilities.code_ready)
+        )
+        profile.readiness_state = "ready" if ready else "needs_action"
+        profile.readiness_revision = profile.revision
+        profile.readiness_digest = setup.descriptor_digest
+        profile.readiness_configuration_digest = setup.configuration_digest
+        profile.readiness_configuration = (
+            protocol.serialize_payload(protocol.execution_configuration(probe)) if ready else None
+        )
+        profile.capability_report = protocol.serialize_payload(result.capabilities)
+        if ready and profile.desired_state == "draft":
+            profile.desired_state = "enabled"
+            profile.enabled_revision = profile.revision
+        profile.save()
+        setup.phase = "ready" if ready else "needs_action"
+    else:
+        assert setup.provider_id is not None
+        provider = agents.AgentProvider.objects.select_for_update().get(id=setup.provider_id)
+        provider.capability_report = protocol.serialize_payload(result.capabilities)
+        provider.save(update_fields=["capability_report", "updated_at"])
+        setup.phase = (
+            "ready"
+            if result.state == "ready" and result.capabilities.chat_ready
+            else "needs_action"
+        )
+    if result.state == "failed":
+        setup.phase = "failed"
+    setup.result = normalized
+    setup.requirements = [protocol.serialize_payload(item) for item in result.requirements]
+    setup.finished_at = now()
+    setup.save(update_fields=["result", "phase", "requirements", "finished_at", "updated_at"])
+    return setup
+
+
 def record_readiness(
     runner: agents.AgentRunner, setup: agents.AgentSetupOperation, report: dict[str, object]
 ) -> agents.AgentProfile:
+    """Internal compatibility entry point. Device requests use the explicit lease API."""
     parsed = protocol.ReadinessReport.model_validate(report)
-    stale = False
-    with transaction.atomic(savepoint=False):
-        setup = agents.AgentSetupOperation.objects.select_for_update().get(id=setup.id)
-        current_runner = agents.AgentRunner.objects.select_for_update().get(id=setup.runner_id)
-        probe_grant = agents.AgentProbeGrant.objects.filter(setup_operation=setup).first()
-        if (
-            setup.profile is None
-            or setup.runner_id != runner.id
-            or current_runner.revoked_at is not None
-            or probe_grant is None
-            or probe_grant.revoked_at is not None
-            or probe_grant.expires_at <= now()
-        ):
-            stale = True
-            profile = None
-        else:
-            assert setup.profile_id is not None
-            profile = agents.AgentProfile.objects.select_for_update().get(id=setup.profile_id)
-            stale = (
-                setup.phase not in {"pending", "probing"}
-                or profile.revision != setup.profile_revision
-                or parsed.profile_id != profile.id
-                or parsed.profile_revision != profile.revision
-                or parsed.runner_id != runner.id
-                or parsed.descriptor_digest != setup.descriptor_digest
-                or parsed.configuration_digest != setup.configuration_digest
-            )
-            if not stale:
-                current_descriptor = build_probe_descriptor(profile, setup)
-                stale = current_descriptor["descriptor_digest"] != setup.descriptor_digest
-        if stale:
-            setup.phase = "stale"
-            setup.save(update_fields=["phase", "updated_at"])
-        else:
-            assert profile is not None
-            probe = protocol.ProbeDescriptor.model_validate(setup.descriptor)
-            configuration = protocol.serialize_payload(protocol.execution_configuration(probe))
-            profile.readiness_state = parsed.state
-            profile.readiness_revision = profile.revision
-            profile.readiness_digest = setup.descriptor_digest
-            profile.readiness_configuration_digest = setup.configuration_digest
-            profile.readiness_configuration = configuration
-            profile.capability_report = protocol.serialize_payload(parsed.capabilities)
-            ready_for_mode = parsed.capabilities.chat_ready and (
-                profile.default_mode != "code" or parsed.capabilities.code_ready
-            )
-            if parsed.state == "ready" and ready_for_mode and profile.desired_state == "draft":
-                profile.desired_state = "enabled"
-                profile.enabled_revision = profile.revision
-            profile.save()
-            setup.phase = "ready" if parsed.state == "ready" else "needs_action"
-            setup.finished_at = now()
-            setup.save(update_fields=["phase", "finished_at", "updated_at"])
-    if stale:
+    if (
+        parsed.runner_id != runner.id
+        or parsed.profile_id != setup.profile_id
+        or parsed.profile_revision != setup.profile_revision
+    ):
         raise ValueError("Readiness report is stale.")
-    assert profile is not None
+    setup.refresh_from_db()
+    setup = claim_setup(runner, setup.id, setup.claim_key or uuid.uuid4())
+    assert setup.claim_key is not None
+    result = SetupResult(
+        schema_version=1,
+        setup_id=setup.id,
+        claim_key=setup.claim_key,
+        lease_epoch=setup.lease_epoch,
+        descriptor_digest=parsed.descriptor_digest,
+        configuration_digest=parsed.configuration_digest,
+        state="ready" if parsed.state == "ready" else "needs_action",
+        capabilities=parsed.capabilities,
+        requirements=parsed.requirements,
+    )
+    completed = record_setup_result(runner, result)
+    assert completed.profile is not None
+    return completed.profile
+
+
+@transaction.atomic()
+def retry_profile_setup(
+    owner: UserProfile,
+    profile: agents.AgentProfile,
+    *,
+    expected_revision: int,
+    retry_key: uuid.UUID,
+) -> agents.AgentSetupOperation:
+    UserProfile.objects.select_for_update().get(id=owner.id)
+    runner = agents.AgentRunner.objects.select_for_update().get(id=profile.runner_id)
+    profile = agents.AgentProfile.objects.select_for_update().get(id=profile.id)
+    if profile.runner_id != runner.id:
+        raise ValueError("Runner binding changed.")
+    check_agent_access(owner, profile, None, None, "profile.manage")
+    if profile.revision != expected_revision or profile.desired_state == "archived":
+        raise ValueError("Profile revision is stale.")
+    digest = hashlib.sha256(
+        protocol.canonical_json({"retry_profile": str(profile.id), "revision": profile.revision})
+    ).hexdigest()
+    existing = agents.AgentSetupOperation.objects.filter(
+        realm=owner.realm, owner=owner, retry_key=retry_key
+    ).first()
+    if existing is not None:
+        if existing.payload_digest != digest:
+            raise ValueError("Setup retry does not match.")
+        return existing
+    previous = agents.AgentSetupOperation.objects.filter(
+        profile=profile, phase__in=["pending", "claimed", "probing"]
+    )
+    agents.AgentProbeGrant.objects.filter(setup_operation__in=previous).update(revoked_at=now())
+    previous.update(phase="cancelled")
+    setup = agents.AgentSetupOperation.objects.create(
+        realm=owner.realm,
+        owner=owner,
+        profile=profile,
+        runner=profile.runner,
+        provider=profile.provider,
+        profile_revision=profile.revision,
+        provider_config_version=(
+            profile.provider.config_version if profile.provider is not None else None
+        ),
+        retry_key=retry_key,
+        payload_digest=digest,
+    )
+    _create_probe_grant(setup)
+    _save_descriptor(setup, build_probe_descriptor(profile, setup))
+    return setup
+
+
+@transaction.atomic()
+def enable_profile(
+    owner: UserProfile, profile: agents.AgentProfile, *, expected_revision: int
+) -> agents.AgentProfile:
+    profile = agents.AgentProfile.objects.select_for_update().get(id=profile.id)
+    check_agent_access(owner, profile, None, None, "profile.manage")
+    if (
+        profile.revision != expected_revision
+        or profile.readiness_revision != profile.revision
+        or profile.readiness_state != "ready"
+        or profile.readiness_configuration is None
+        or profile.desired_state == "archived"
+    ):
+        raise ValueError("Profile is not ready.")
+    setup = agents.AgentSetupOperation.objects.filter(
+        profile=profile, phase="ready", configuration_digest=profile.readiness_configuration_digest
+    ).latest("finished_at")
+    current = _current_setup_descriptor(setup)
+    if current["configuration_digest"] != profile.readiness_configuration_digest:
+        raise ValueError("Profile configuration is stale.")
+    profile.desired_state = "enabled"
+    profile.enabled_revision = profile.revision
+    profile.save(update_fields=["desired_state", "enabled_revision", "updated_at"])
     return profile
 
 
-@transaction.atomic(savepoint=False)
-def pause_profile(owner: UserProfile, profile: agents.AgentProfile) -> agents.AgentProfile:
+@transaction.atomic()
+def pause_profile(
+    owner: UserProfile, profile: agents.AgentProfile, *, expected_revision: int | None = None
+) -> agents.AgentProfile:
     profile = agents.AgentProfile.objects.select_for_update().get(id=profile.id)
-    if profile.realm_id != owner.realm_id or profile.owner_id != owner.id:
+    check_agent_access(owner, profile, None, None, "profile.manage")
+    if profile.desired_state == "archived" or (
+        expected_revision is not None and expected_revision != profile.revision
+    ):
         raise ValueError("Profile is unavailable.")
     profile.desired_state = "paused"
-    profile.save(update_fields=["desired_state", "updated_at"])
+    profile.revision += 1
+    profile.enabled_revision = None
+    profile.save(update_fields=["desired_state", "revision", "enabled_revision", "updated_at"])
     return profile
 
 
-@transaction.atomic(savepoint=False)
-def archive_profile(owner: UserProfile, profile: agents.AgentProfile) -> agents.AgentProfile:
+@transaction.atomic()
+def archive_profile(
+    owner: UserProfile, profile: agents.AgentProfile, *, expected_revision: int | None = None
+) -> agents.AgentProfile:
     profile = agents.AgentProfile.objects.select_for_update().get(id=profile.id)
     has_active_attempt = agents.AgentAttempt.objects.filter(
         job__profile=profile, active=True
     ).exists()
-    if profile.realm_id != owner.realm_id or profile.owner_id != owner.id or has_active_attempt:
+    check_agent_access(owner, profile, None, None, "profile.manage")
+    if (
+        expected_revision is not None and expected_revision != profile.revision
+    ) or has_active_attempt:
         raise ValueError("Profile cannot be archived.")
     profile.desired_state = "archived"
+    profile.revision += 1
+    profile.enabled_revision = None
     profile.archived_at = now()
-    profile.save(update_fields=["desired_state", "archived_at", "updated_at"])
+    profile.save(
+        update_fields=["desired_state", "revision", "enabled_revision", "archived_at", "updated_at"]
+    )
     return profile
 
 
-@transaction.atomic(savepoint=False)
+@transaction.atomic()
 def attach_profile_to_stream(
-    owner: UserProfile, profile: agents.AgentProfile, stream: Stream
+    owner: UserProfile,
+    profile: agents.AgentProfile,
+    stream: Stream,
+    *,
+    expected_revision: int | None = None,
 ) -> None:
-    if profile.realm_id != owner.realm_id or stream.realm_id != owner.realm_id:
+    profile = agents.AgentProfile.objects.select_for_update().get(id=profile.id)
+    if (
+        profile.realm_id != owner.realm_id
+        or stream.realm_id != owner.realm_id
+        or (expected_revision is not None and expected_revision != profile.revision)
+    ):
         raise ValueError("Channel is unavailable.")
     from zerver.lib.agent_policy import check_agent_access
 
@@ -803,10 +1108,10 @@ def attach_profile_to_stream(
     allowed = filter_stream_authorization_for_adding_subscribers(owner, [stream], True)
     if allowed.authorized_streams != [stream]:
         raise ValueError("Channel is unavailable.")
-    agents.AgentGrant.objects.get_or_create(
+    agents.AgentGrant.objects.filter(revoked_at__isnull=True).get_or_create(
         realm=owner.realm,
         owner=profile.owner,
-        principal_user=profile.bot_user,
+        principal_user=owner,
         target_kind="profile",
         profile=profile,
         scope={"kind": "stream", "stream_id": stream.id},
@@ -815,7 +1120,7 @@ def attach_profile_to_stream(
     bulk_add_subscriptions(owner.realm, [stream], [profile.bot_user], acting_user=owner)
 
 
-@transaction.atomic(savepoint=False)
+@transaction.atomic()
 def create_agent_grant(
     owner: UserProfile,
     *,
@@ -826,7 +1131,9 @@ def create_agent_grant(
         agents.AgentRunner | agents.AgentProvider | agents.AgentRepository | agents.AgentProfile
     ),
     actions: list[str],
-    expires_at: object | None = None,
+    expires_at: datetime | None = None,
+    scope: dict[str, object] | None = None,
+    repository: agents.AgentRepository | None = None,
 ) -> agents.AgentGrant:
     if target.realm_id != owner.realm_id or getattr(target, "owner_id", None) != owner.id:
         raise ValueError("Grant target is unavailable.")
@@ -849,12 +1156,55 @@ def create_agent_grant(
         "target_kind": target_kind,
         "actions": actions,
         "expires_at": expires_at,
+        "scope": scope,
     }
+    if repository is not None:
+        if target_kind != "profile" or repository.realm_id != owner.realm_id:
+            raise ValueError("Invalid repository grant.")
+        fields["repository"] = repository
     fields[target_kind] = target
     grant = agents.AgentGrant(**fields)
     try:
         grant.clean()
-    except Exception as error:
-        raise ValueError("Invalid grant.") from error
+    except Exception:
+        raise ValueError("Invalid grant.") from None
     grant.save()
     return grant
+
+
+def authenticate_runner_stop_token(
+    token: str, *, job_id: uuid.UUID, attempt_id: uuid.UUID, lease_epoch: int, job_version: int
+) -> agents.AgentAttempt:
+    """Authorize only stop evidence for an existing revoked runner attempt.
+
+    Task 3 must recheck these bindings under locks before recording process evidence.
+    This function never marks a process stopped and never returns an execution principal.
+    """
+    credential = (
+        agents.AgentRunnerCredential.objects.select_related("runner")
+        .filter(token_hash=hash_agent_credential(token))
+        .first()
+    )
+    if (
+        credential is None
+        or credential.runner.revoked_at is None
+        or credential.rotated_at is not None
+        or credential.revoked_at != credential.runner.revoked_at
+        or credential.expires_at <= now()
+        or not credential_matches(token, credential.token_hash)
+    ):
+        raise ValueError("Stop credential is unavailable.")
+    attempt = agents.AgentAttempt.objects.filter(
+        id=attempt_id,
+        job_id=job_id,
+        runner=credential.runner,
+        realm=credential.realm,
+        job__realm=credential.realm,
+        lease_epoch=lease_epoch,
+        job__version=job_version,
+        active=True,
+        process_state="stopping",
+    ).first()
+    if attempt is None:
+        raise ValueError("Stop attempt is unavailable.")
+    return attempt

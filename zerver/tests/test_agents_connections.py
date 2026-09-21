@@ -33,30 +33,37 @@ class AgentConnectionTests(ZulipTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.owner = self.example_user("hamlet")
+        agents.AgentRealmSettings.objects.update_or_create(
+            realm=self.owner.realm, defaults={"enabled": True}
+        )
 
     def test_pairing_is_bound_only_by_authenticated_approval_and_exchanges_once(self) -> None:
-        pairing = start_pairing("Laptop", "a" * 64, "ABCD-EFGH", "polling-secret")
+        pairing = start_pairing(
+            "Laptop", "a" * 64, "ABCD-EFGH", "polling-secretxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        )
         self.assertIsNone(pairing.realm_id)
         approve_pairing(self.owner, pairing, "ABCD-EFGH")
-        token, refresh = exchange_pairing(pairing, "polling-secret")
+        token, refresh = exchange_pairing(pairing, "polling-secretxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
         self.assertTrue(token)
         self.assertTrue(refresh)
         with self.assertRaises(ValueError):
-            exchange_pairing(pairing, "polling-secret")
+            exchange_pairing(pairing, "polling-secretxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 
     def test_expired_and_failed_pairing_are_rejected(self) -> None:
         pairing = start_pairing(
             "Laptop",
             "b" * 64,
             "WXYZ-ABCD",
-            "polling-secret",
+            "polling-secretxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
             expires_at=now() - timedelta(seconds=1),
         )
         with self.assertRaises(ValueError):
             approve_pairing(self.owner, pairing, "WXYZ-ABCD")
 
     def test_failed_approval_is_recorded_before_the_safe_error(self) -> None:
-        pairing = start_pairing("Laptop", "i" * 64, "CODE-FOUR", "polling-four")
+        pairing = start_pairing(
+            "Laptop", "i" * 64, "CODE-FOUR", "polling-fourxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        )
         with self.assertRaises(ValueError):
             approve_pairing(self.owner, pairing, "wrong-code")
         pairing.refresh_from_db()
@@ -64,9 +71,11 @@ class AgentConnectionTests(ZulipTestCase):
         self.assertEqual(pairing.state, "pending")
 
     def test_credential_rotation_and_revocation_do_not_revive_old_tokens(self) -> None:
-        pairing = start_pairing("Laptop", "c" * 64, "ABCD-WXYZ", "polling")
+        pairing = start_pairing(
+            "Laptop", "c" * 64, "ABCD-WXYZ", "pollingxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        )
         approve_pairing(self.owner, pairing, "ABCD-WXYZ")
-        _, refresh = exchange_pairing(pairing, "polling")
+        _, refresh = exchange_pairing(pairing, "pollingxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
         pairing.refresh_from_db()
         credential = agents.AgentRunnerCredential.objects.get(runner=pairing.runner)
         self.assertGreater(credential.expires_at, now() + timedelta(hours=23))
@@ -83,7 +92,9 @@ class AgentConnectionTests(ZulipTestCase):
             rotate_runner_credential(replacement, replacement_refresh)
 
     def test_failed_exchange_rejects_a_pairing_after_a_small_bounded_number(self) -> None:
-        pairing = start_pairing("Laptop", "d" * 64, "CODE-ONE", "polling")
+        pairing = start_pairing(
+            "Laptop", "d" * 64, "CODE-ONE", "pollingxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        )
         approve_pairing(self.owner, pairing, "CODE-ONE")
         for _ in range(4):
             with self.assertRaises(ValueError):
@@ -227,9 +238,11 @@ class AgentConnectionTests(ZulipTestCase):
                     canonical_origin="file:///srv/repo",
                     allowed_refs=["main"],
                 )
-        pairing = start_pairing("Laptop", "g" * 64, "CODE-TWO", "polling-two")
+        pairing = start_pairing(
+            "Laptop", "g" * 64, "CODE-TWO", "polling-twoxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        )
         approve_pairing(self.owner, pairing, "CODE-TWO")
-        token, _ = exchange_pairing(pairing, "polling-two")
+        token, _ = exchange_pairing(pairing, "polling-twoxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
         pairing.refresh_from_db()
         self.assertEqual(authenticate_runner_token(token).runner_id, pairing.runner_id)
         with self.assertRaises(ValueError):
@@ -303,26 +316,114 @@ class AgentConnectionTests(ZulipTestCase):
 
     def test_device_routes_keep_pairing_secrets_out_of_the_start_response(self) -> None:
         response = self.client.post(
-            "/api/agents/device/pairings",
+            "/api/v1/agent/pairings",
             data=json.dumps(
                 {
                     "schema_version": 1,
                     "device_name": "Laptop",
                     "fingerprint": "h" * 64,
                     "user_code": "CODE-THREE",
-                    "polling_secret": "pairing-secret",
+                    "polling_secret": "pairing-secretxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                 }
             ),
             content_type="application/json",
         )
         data = self.assert_json_success(response)
         self.assertEqual(data["state"], "pending")
-        self.assertNotIn("pairing-secret", response.content.decode())
+        self.assertNotIn(
+            "pairing-secretxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", response.content.decode()
+        )
 
     def test_device_bearer_route_rejects_a_browser_user(self) -> None:
         request = RequestFactory().post(
-            "/api/agents/device/credentials/rotate", data="{}", content_type="application/json"
+            "/api/v1/agent/runner/token/refresh", data="{}", content_type="application/json"
         )
         request.user = self.owner
         response = rotate_device_credential(request)
         self.assertEqual(response.status_code, 401)
+
+    def test_key_rotation_restore_preserves_matching_old_key(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "keys.json"
+            old = base64.b64encode(b"a" * 32).decode()
+            new = base64.b64encode(b"b" * 32).decode()
+            path.write_text(json.dumps({"current": "old", "keys": {"old": old}}))
+            with override_settings(AGENT_SECRET_MASTER_KEY_FILE=str(path)):
+                ciphertext, wrapped, key_id = encrypt_agent_secret(
+                    "synthetic-restored-secret",
+                    realm_id=self.owner.realm_id,
+                    owner_id=self.owner.id,
+                    version=7,
+                )
+                path.write_text(json.dumps({"current": "new", "keys": {"old": old, "new": new}}))
+                self.assertEqual(
+                    decrypt_agent_secret(
+                        ciphertext,
+                        wrapped,
+                        key_id=key_id,
+                        realm_id=self.owner.realm_id,
+                        owner_id=self.owner.id,
+                        version=7,
+                    ),
+                    "synthetic-restored-secret",
+                )
+                path.write_text(json.dumps({"current": "new", "keys": {"new": new}}))
+                with self.assertRaises(ValueError):
+                    decrypt_agent_secret(
+                        ciphertext,
+                        wrapped,
+                        key_id=key_id,
+                        realm_id=self.owner.realm_id,
+                        owner_id=self.owner.id,
+                        version=7,
+                    )
+                path.write_text(json.dumps({"current": "old", "keys": {"old": old}}))
+                self.assertEqual(
+                    decrypt_agent_secret(
+                        ciphertext,
+                        wrapped,
+                        key_id=key_id,
+                        realm_id=self.owner.realm_id,
+                        owner_id=self.owner.id,
+                        version=7,
+                    ),
+                    "synthetic-restored-secret",
+                )
+
+    def test_secret_configuration_error_has_no_sensitive_chain(self) -> None:
+        import traceback
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "keys.json"
+            path.write_text('{"secret-marker": "do-not-echo"')
+            with override_settings(AGENT_SECRET_MASTER_KEY_FILE=str(path)):
+                try:
+                    encrypt_agent_secret(
+                        "never-show",
+                        realm_id=self.owner.realm_id,
+                        owner_id=self.owner.id,
+                        version=1,
+                    )
+                except ValueError as error:
+                    rendered = "".join(traceback.format_exception(error))
+                    self.assertNotIn("secret-marker", rendered)
+                    self.assertTrue(error.__suppress_context__)
+                else:
+                    self.fail("Invalid key configuration was accepted")
+
+    def test_device_method_and_rate_limit_errors_keep_versioned_envelopes(self) -> None:
+        from unittest.mock import patch
+
+        from zerver.lib.exceptions import RateLimitedError
+
+        response = self.client.get("/api/v1/agent/pairings")
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.json()["schema_version"], 1)
+        with patch(
+            "zerver.views.agent_devices.rate_limit_request_by_ip", side_effect=RateLimitedError(30)
+        ):
+            response = self.client.post(
+                "/api/v1/agent/pairings", data="{}", content_type="application/json"
+            )
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.json()["schema_version"], 1)
