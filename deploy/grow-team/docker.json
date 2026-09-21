@@ -1,0 +1,26 @@
+{
+  "data-root": "/var/lib/grow-team/docker",
+  "exec-root": "/run/grow-team-docker",
+  "pidfile": "/run/grow-team-docker/dockerd.pid",
+  "hosts": [
+    "unix:///run/grow-team-docker/docker.sock"
+  ],
+  "bip": "172.29.250.1/24",
+  "default-address-pools": [
+    {
+      "base": "172.30.0.0/16",
+      "size": 24
+    }
+  ],
+  "ip-forward-no-drop": true,
+  "log-driver": "local",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  },
+  "userland-proxy-path": "/opt/grow-team/bin/docker-proxy",
+  "exec-opts": [
+    "native.cgroupdriver=systemd"
+  ],
+  "cgroup-parent": "grow-team.slice"
+}

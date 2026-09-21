@@ -1,0 +1,13 @@
+[Unit]
+Description=Grow Team database, uploads, and configuration backup
+Requires=grow-team.service
+After=grow-team.service
+
+[Service]
+Type=oneshot
+Slice=grow-team.slice
+Nice=10
+IOSchedulingClass=idle
+UMask=0077
+ExecStart=/opt/grow-team/deploy/backup.sh
+TimeoutStartSec=1800

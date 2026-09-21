@@ -1,0 +1,10 @@
+[Unit]
+Description=Grow Team resource limits
+
+[Slice]
+CPUQuota=300%
+CPUWeight=50
+IOWeight=50
+MemoryHigh=5G
+MemoryMax=6G
+TasksMax=4096

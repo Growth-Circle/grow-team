@@ -1,0 +1,12 @@
+{
+  "name": "grow-team-email",
+  "account_id": "ba7401c904e8adc0e35e1fa42cbc2580",
+  "main": "index.mjs",
+  "compatibility_date": "2026-09-21",
+  "workers_dev": true,
+  "preview_urls": false,
+  "send_email": [
+    { "name": "EMAIL", "allowed_sender_addresses": ["noreply@growc.id"] }
+  ],
+  "observability": { "enabled": true }
+}

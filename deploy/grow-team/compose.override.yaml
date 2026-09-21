@@ -1,0 +1,54 @@
+services:
+  database:
+    image: zulip/zulip-postgresql:14@sha256:e71ba8616fa42cdc1b248f51263d9290c29681cb8c1992eb9b498af0bb656b29
+    cpus: 0.75
+    mem_limit: 1g
+  memcached:
+    image: memcached:alpine@sha256:9e4de012dc607573052061c0bcb38abc775e1dd59b24e7ac38d1892842094aaf
+    cpus: 0.25
+    mem_limit: 256m
+  rabbitmq:
+    image: rabbitmq:4.2@sha256:5488df395c966135565a74151a0ff8ab8c3f18f21e1b0d1513bc9dad00839f1e
+    cpus: 0.5
+    mem_limit: 768m
+  redis:
+    image: redis:alpine@sha256:ef216d85ec44f4fdf7c0e6df2d1757a4734ed32fbb278cabd3181b5a27353b79
+    cpus: 0.25
+    mem_limit: 256m
+  zulip:
+    image: ghcr.io/zulip/zulip-server:12.2-0@sha256:765f0ab3caa49041989132ee1879d98dbab1df7695c27e713eac1f114d167755
+    cpus: 2
+    mem_limit: 3g
+    ports: !override
+      - "127.0.0.1:18300:80"
+    environment:
+      SETTING_EXTERNAL_HOST: team.growc.id
+      SETTING_ZULIP_ADMINISTRATOR: rama.aditya@growthcircle.id
+      SETTING_DEFAULT_FROM_EMAIL: noreply@growc.id
+      SETTING_NOREPLY_EMAIL_ADDRESS: noreply@growc.id
+      SETTING_ADD_TOKENS_TO_NOREPLY_ADDRESS: "False"
+      SETTING_EMAIL_BACKEND: grow_team.cloudflare_email_backend.EmailBackend
+      SETTING_ZULIP_SERVICE_PUSH_NOTIFICATIONS: "False"
+      SETTING_ZULIP_SERVICE_SUBMIT_USAGE_STATISTICS: "False"
+      CONFIG_application_server__queue_workers_multiprocess: "False"
+      TRUST_GATEWAY_IP: "True"
+      ZULIP_AUTH_BACKENDS: EmailAuthBackend
+      LINK_SETTINGS_TO_DATA: "True"
+    env_file:
+      - /etc/grow-team/zulip-settings.env
+    volumes:
+      - ./:/home/zulip/deployments/current/grow_team:ro
+
+secrets:
+  zulip__postgres_password:
+    file: /etc/grow-team/secrets/postgres
+  zulip__memcached_password:
+    file: /etc/grow-team/secrets/memcached
+  zulip__rabbitmq_password:
+    file: /etc/grow-team/secrets/rabbitmq
+  zulip__redis_password:
+    file: /etc/grow-team/secrets/redis
+  zulip__secret_key:
+    file: /etc/grow-team/secrets/django
+  zulip__email_password:
+    file: /etc/grow-team/secrets/email

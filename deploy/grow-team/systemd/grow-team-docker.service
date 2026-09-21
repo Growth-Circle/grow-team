@@ -1,0 +1,21 @@
+[Unit]
+Description=Grow Team container engine
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+Slice=grow-team.slice
+Environment=PATH=/opt/grow-team/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/opt/grow-team/bin/dockerd --config-file=/etc/grow-team/docker.json
+Restart=on-failure
+RestartSec=5
+RuntimeDirectory=grow-team-docker
+Delegate=yes
+KillMode=process
+LimitNOFILE=1048576
+LimitNPROC=infinity
+TasksMax=infinity
+
+[Install]
+WantedBy=multi-user.target

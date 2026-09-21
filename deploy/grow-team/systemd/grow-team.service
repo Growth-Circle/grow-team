@@ -1,0 +1,16 @@
+[Unit]
+Description=Grow Team web application
+Requires=grow-team-docker.service
+After=grow-team-docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Slice=grow-team.slice
+ExecStart=/opt/grow-team/deploy/compose.sh up -d --wait --wait-timeout 300
+ExecStop=/opt/grow-team/deploy/compose.sh stop --timeout 60
+TimeoutStartSec=360
+TimeoutStopSec=180
+
+[Install]
+WantedBy=multi-user.target
