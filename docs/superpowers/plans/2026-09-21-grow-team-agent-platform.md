@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Track each step with checkboxes.
 
-**Goal:** Complete both approved agent specifications, verify the supported Linux modes, and move completed specifications to `internals/docs/done/`.
+**Goal:** Complete all three agent specifications, verify the supported Linux modes, and move completed specifications to `internals/docs/done/`.
 
 **Architecture:** Django owns identity, permissions, configuration, jobs, leases, approvals, and publication. A separate TypeScript runner owns local execution. Rootless containers isolate project code and native agents. PostgreSQL stores the durable journal.
 
@@ -11,6 +11,7 @@
 **Spec:**
 - `internals/docs/spec/2026-09-21-agent-connections-and-coding-harness.md`
 - `internals/docs/spec/2026-09-21-agent-lifecycle-and-mention-flow.md`
+- `internals/docs/spec/2026-09-22-agent-settings-connections-and-team-defaults.md`
 
 ## Global Constraints
 
@@ -352,6 +353,10 @@ assert.equal(provider.createdPullRequests(operationId), 1);
 **Interfaces:** Consume only human APIs and versioned DTOs. Browser code never receives device credentials or plaintext stored secrets.
 
 - [ ] Complete authorized discovery, edit, readiness, ownership, and check-evidence contracts needed by the browser.
+- [ ] Add the Agent directory, Devices, Model connections, and Team default settings areas.
+- [ ] Add owner-declared runner location metadata with a separate metadata revision.
+- [ ] Add realm default selection with explicit audience grants, current policy checks, and compare-and-set revisions.
+- [ ] Keep profile drafts, probe readiness, and explicit activation separate through stale callback and reload recovery.
 - [ ] Add runner pairing/approval, status, revocation, repository registration guidance, and explicit grants.
 - [ ] Add provider forms, write-only secret input, local references, versioned probes, and capability limits.
 - [ ] Add profile create/edit/check/enable/pause/archive and channel attachment flows with recoverable drafts.
@@ -377,6 +382,8 @@ assert.equal(spawnRequests.length, 0);
 **Interfaces:** Send the exact captured profile IDs, destination, draft revision, visit token, send key, and explicit target job. Reconcile receipts through Task 4 APIs.
 
 - [ ] Add agent selection and message-to-task actions using stable identities.
+- [ ] Resolve eligible team defaults for new task forms without changing existing choices or deliberately cleared drafts.
+- [ ] Submit the captured profile identity and recheck current authority without silently selecting another profile.
 - [ ] Capture an immutable send snapshot before preflight or upload.
 - [ ] Cancel stale continuations before publish and preserve edited or deliberately cleared drafts.
 - [ ] Keep chat send independent of runner start; distinguish sent message from accepted task.
@@ -399,7 +406,7 @@ assert.equal(currentDraftText(), "");
 
 **Files:** acceptance matrix, backend/frontend/runner tests, OpenAPI/changelog, runtime decision and certification documents.
 
-**Interfaces:** Produce an evidence row for every AT-01–AT-36 and AF-01–AF-38 requirement on supported modes.
+**Interfaces:** Produce evidence for every AT-01–AT-36, AF-01–AF-38, and AS-01–AS-32 requirement on supported modes.
 
 - [ ] Test database crash windows, row-lock races, expiry, ACL revocation, and publication deduplication.
 - [ ] Test fake-provider failure modes and real Linux process boundaries.
@@ -407,6 +414,7 @@ assert.equal(currentDraftText(), "");
 - [ ] Exercise browser-to-Django-to-background-runner flows in both modes without a desktop app.
 - [ ] Use owner, authorized member, unauthorized member, private channel, and isolated fixture repository.
 - [ ] Verify tab-close persistence, explicit follow-up, cancel, offline queue recovery, and cross-realm denial.
+- [ ] Verify shared defaults with two browser users, stale revisions, explicit choices, offline runners, and revoked grants.
 - [ ] Complete OpenAPI and unmerged API changelog without manually changing feature level.
 - [ ] Record supported versions, license sources, limits, and actual command results.
 - [ ] Run broad branch review and repair confirmed findings before deployment.
@@ -419,7 +427,7 @@ Acceptance mapping:
 | Tasks 3–4 | AT-11–17, AT-21–28, AT-31; AF-07–18, AF-21–26, AF-28–36 |
 | Tasks 5–7 | AT-04–10, AT-15–20, AT-27–29, AT-32, AT-34; AF-14–18, AF-25–32, AF-37–38 |
 | Task 8 | AT-24–26, AT-30, AT-32; AF-30–32 |
-| Tasks 9–10 | AT-33, AT-36; AF-01–06, AF-19–26, AF-28–37 |
+| Tasks 9–10 | AT-33, AT-36; AF-01–06, AF-19–26, AF-28–37; AS-01–32 |
 | Tasks 11–12 | Every preceding row, AT-35, production and recovery evidence |
 
 ## Task 12: Release, recovery proof, and specification completion
