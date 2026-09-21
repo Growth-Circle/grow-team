@@ -15,7 +15,12 @@ if pwd.getpwuid(os.geteuid()).pw_name != "zulip":
 module = importlib.import_module("zproject.prod_settings_template")
 module.EXTERNAL_HOST = "build.invalid"
 module.ZULIP_ADMINISTRATOR = "noreply@build.invalid"
+module.AUTHENTICATION_BACKENDS = ("zproject.backends.EmailAuthBackend",)
 sys.modules["zproject.prod_settings"] = module
+config = importlib.import_module("zproject.config")
+config.secrets_file.read_dict(
+    {"secrets": dict.fromkeys(("secret_key", "shared_secret", "avatar_salt"), "image-check-only")}
+)
 os.environ["DJANGO_SETTINGS_MODULE"] = "zproject.settings"
 os.environ["DISABLE_MANDATORY_SECRET_CHECK"] = "True"
 
