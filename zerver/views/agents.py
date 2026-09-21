@@ -65,8 +65,8 @@ def approve_agent_pairing(
         raise JsonableError("Pairing is unavailable.")
     try:
         pairing = approve_pairing(user_profile, pairing, user_code)
-    except ValueError as error:
-        raise JsonableError(str(error)) from error
+    except ValueError:
+        raise JsonableError("Agent request rejected.") from None
     return json_success(
         request, {"schema_version": 1, "pairing": {"id": str(pairing.id), "state": pairing.state}}
     )
@@ -100,8 +100,8 @@ def create_agent_provider(
             credential=credential,
             local_credential_ref=local_credential_ref,
         )
-    except ValueError as error:
-        raise JsonableError(str(error)) from error
+    except ValueError:
+        raise JsonableError("Agent request rejected.") from None
     # Do not serialize credential input, ciphertext, wrapped key, or local reference.
     return json_success(
         request,
@@ -136,8 +136,8 @@ def create_agent_repository(
             allowed_refs=allowed_refs,
             required_checks=required_checks,
         )
-    except ValueError as error:
-        raise JsonableError(str(error)) from error
+    except ValueError:
+        raise JsonableError("Agent request rejected.") from None
     return json_success(
         request,
         {
@@ -190,8 +190,8 @@ def create_agent_profile(
             repository=repository,
             idempotency_key=idempotency_key,
         )
-    except ValueError as error:
-        raise JsonableError(str(error)) from error
+    except ValueError:
+        raise JsonableError("Agent request rejected.") from None
     return json_success(request, {"schema_version": 1, "profile": _profile_data(profile)})
 
 
@@ -204,8 +204,8 @@ def pause_agent_profile(
         raise JsonableError("Profile is unavailable.")
     try:
         profile = pause_profile(user_profile, profile)
-    except ValueError as error:
-        raise JsonableError(str(error)) from error
+    except ValueError:
+        raise JsonableError("Agent request rejected.") from None
     return json_success(request, {"schema_version": 1, "profile": _profile_data(profile)})
 
 
@@ -218,8 +218,8 @@ def archive_agent_profile(
         raise JsonableError("Profile is unavailable.")
     try:
         profile = archive_profile(user_profile, profile)
-    except ValueError as error:
-        raise JsonableError(str(error)) from error
+    except ValueError:
+        raise JsonableError("Agent request rejected.") from None
     return json_success(request, {"schema_version": 1, "profile": _profile_data(profile)})
 
 
@@ -234,17 +234,31 @@ def create_agent_grant_view(
     principal_user_id: int | None = None,
     principal_group_id: int | None = None,
 ) -> HttpResponse:
-    model = {
-        "runner": agents.AgentRunner,
-        "provider": agents.AgentProvider,
-        "repository": agents.AgentRepository,
-        "profile": agents.AgentProfile,
-    }.get(target_kind)
-    if model is None:
+    target: (
+        agents.AgentRunner
+        | agents.AgentProvider
+        | agents.AgentRepository
+        | agents.AgentProfile
+        | None
+    )
+    if target_kind == "runner":
+        target = agents.AgentRunner.objects.filter(
+            id=target_id, realm=user_profile.realm, owner=user_profile
+        ).first()
+    elif target_kind == "provider":
+        target = agents.AgentProvider.objects.filter(
+            id=target_id, realm=user_profile.realm, owner=user_profile
+        ).first()
+    elif target_kind == "repository":
+        target = agents.AgentRepository.objects.filter(
+            id=target_id, realm=user_profile.realm, owner=user_profile
+        ).first()
+    elif target_kind == "profile":
+        target = agents.AgentProfile.objects.filter(
+            id=target_id, realm=user_profile.realm, owner=user_profile
+        ).first()
+    else:
         raise JsonableError("Invalid grant.")
-    target = model.objects.filter(
-        id=target_id, realm=user_profile.realm, owner=user_profile
-    ).first()
     principal = None
     if principal_user_id is not None:
         principal = UserProfile.objects.filter(
@@ -261,8 +275,8 @@ def create_agent_grant_view(
             target=target,
             actions=actions,
         )
-    except ValueError as error:
-        raise JsonableError(str(error)) from error
+    except ValueError:
+        raise JsonableError("Agent request rejected.") from None
     return json_success(
         request,
         {"schema_version": 1, "grant": {"id": str(grant.id), "target_kind": grant.target_kind}},
@@ -279,6 +293,6 @@ def attach_agent_profile_stream(
         raise JsonableError("Channel is unavailable.")
     try:
         attach_profile_to_stream(user_profile, profile, stream)
-    except ValueError as error:
-        raise JsonableError(str(error)) from error
+    except ValueError:
+        raise JsonableError("Agent request rejected.") from None
     return json_success(request, {"schema_version": 1})

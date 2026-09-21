@@ -74,7 +74,10 @@ class AgentConnectionTests(ZulipTestCase):
         replacement, _, replacement_refresh = rotate_runner_credential(credential, refresh)
         with self.assertRaises(ValueError), transaction.atomic():
             rotate_runner_credential(credential, refresh)
-        revoke_runner(pairing.runner)
+        self.assertIsNotNone(pairing.runner)
+        runner = pairing.runner
+        assert runner is not None
+        revoke_runner(runner)
         with self.assertRaises(ValueError):
             rotate_runner_credential(replacement, replacement_refresh)
 
@@ -193,11 +196,14 @@ class AgentConnectionTests(ZulipTestCase):
         }
         record_readiness(runner, setup, report)
         profile.refresh_from_db()
+        self.assertIsNotNone(profile.readiness_configuration)
+        configuration = profile.readiness_configuration
+        assert configuration is not None
         self.assertEqual(profile.desired_state, "enabled")
         self.assertEqual(profile.readiness_configuration_digest, setup.configuration_digest)
-        self.assertNotIn("runner_supplied", profile.readiness_configuration)
+        self.assertNotIn("runner_supplied", configuration)
         self.assertEqual(
-            profile.readiness_configuration["workspace_binding"]["repository_id"],
+            configuration["workspace_binding"]["repository_id"],
             str(repository.id),
         )
         self.assertEqual(profile.policy["scope"]["participant_user_ids"], [self.owner.id])

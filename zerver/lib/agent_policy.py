@@ -58,7 +58,9 @@ def _grant_matches(
 
 def _owner_or_grant(
     actor: UserProfile,
-    resource: object,
+    resource: (
+        agents.AgentRunner | agents.AgentProvider | agents.AgentRepository | agents.AgentProfile
+    ),
     *,
     target_kind: str,
     action: str,

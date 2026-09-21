@@ -4,6 +4,7 @@ These endpoints never use session or Zulip user API authentication.
 """
 
 import json
+from typing import cast
 from uuid import UUID
 
 from django.http import HttpRequest, HttpResponse
@@ -17,9 +18,8 @@ from zerver.actions.agents import (
     rotate_runner_credential,
     start_pairing,
 )
-from zerver.lib.exceptions import JsonableError
 from zerver.lib.rate_limiter import rate_limit_request_by_ip
-from zerver.lib.response import json_response_from_error, json_success, json_unauthorized
+from zerver.lib.response import json_response, json_success, json_unauthorized
 from zerver.models import agents
 
 
@@ -31,6 +31,7 @@ def _payload(request: HttpRequest, *, fields: dict[str, type[object]]) -> dict[s
     if (
         not isinstance(value, dict)
         or set(value) != {"schema_version", *fields}
+        or type(value.get("schema_version")) is not int
         or value.get("schema_version") != 1
         or any(not isinstance(value[name], field_type) for name, field_type in fields.items())
         or any(field_type is str and not value[name] for name, field_type in fields.items())
@@ -49,8 +50,8 @@ def _device_token(request: HttpRequest) -> str | None:
     return value[len(prefix) :]
 
 
-def _device_error(error: ValueError) -> HttpResponse:
-    return json_response_from_error(JsonableError(str(error)))
+def _device_error(_error: ValueError) -> HttpResponse:
+    return json_response("error", "Invalid device request.", {"schema_version": 1}, status=400)
 
 
 @csrf_exempt
@@ -68,7 +69,10 @@ def start_pairing_device(request: HttpRequest) -> HttpResponse:
             },
         )
         pairing = start_pairing(
-            data["device_name"], data["fingerprint"], data["user_code"], data["polling_secret"]
+            cast(str, data["device_name"]),
+            cast(str, data["fingerprint"]),
+            cast(str, data["user_code"]),
+            cast(str, data["polling_secret"]),
         )
     except ValueError as error:
         return _device_error(error)
@@ -84,7 +88,7 @@ def exchange_pairing_device(request: HttpRequest, pairing_id: UUID) -> HttpRespo
     try:
         data = _payload(request, fields={"polling_secret": str})
         pairing = agents.AgentPairing.objects.get(id=pairing_id)
-        token, refresh_token = exchange_pairing(pairing, data["polling_secret"])
+        token, refresh_token = exchange_pairing(pairing, cast(str, data["polling_secret"]))
     except (agents.AgentPairing.DoesNotExist, ValueError):
         return _device_error(ValueError("Pairing is unavailable."))
     return json_success(
@@ -100,10 +104,9 @@ def rotate_device_credential(request: HttpRequest) -> HttpResponse:
         return json_unauthorized("Runner bearer authentication is required.")
     try:
         data = _payload(request, fields={"refresh_token": str})
-        credential = authenticate_runner_refresh(data["refresh_token"])
-        _replacement, new_token, refresh_token = rotate_runner_credential(
-            credential, data["refresh_token"]
-        )
+        refresh_token = cast(str, data["refresh_token"])
+        credential = authenticate_runner_refresh(refresh_token)
+        _replacement, new_token, refresh_token = rotate_runner_credential(credential, refresh_token)
     except ValueError:
         return _device_error(ValueError("Runner credential is unavailable."))
     return json_success(
@@ -128,9 +131,19 @@ def update_runner_catalog(request: HttpRequest) -> HttpResponse:
 
         parsed = protocol.RunnerCatalog.model_validate(catalog)
         runner = credential.runner
+        if parsed.revision <= runner.catalog_revision:
+            raise ValueError
         runner.catalog_revision = parsed.revision
         runner.catalog_report = protocol.serialize_payload(parsed)
         runner.save(update_fields=["catalog_revision", "catalog_report", "updated_at"])
+        agents.AgentProfile.objects.filter(runner=runner, readiness_state="ready").update(
+            readiness_state="unchecked",
+            readiness_revision=None,
+            readiness_digest="",
+            readiness_configuration_digest="",
+            readiness_configuration=None,
+            enabled_revision=None,
+        )
     except ValueError:
         return _device_error(ValueError("Invalid runner catalog."))
     return json_success(request, {"schema_version": 1, "catalog_revision": runner.catalog_revision})

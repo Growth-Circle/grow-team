@@ -46,10 +46,7 @@ class AgentPolicyTests(ZulipTestCase):
         with self.assertRaises(AgentAccessDenied):
             check_agent_access(self.member, self.profile, None, None, "profile.use")
         self.grant(target_kind="runner", action="runner.use")
-        self.assertEqual(
-            check_agent_access(self.member, self.profile, None, None, "profile.use"),
-            None,
-        )
+        check_agent_access(self.member, self.profile, None, None, "profile.use")
 
     def test_realm_admin_does_not_bypass_runner_grant(self) -> None:
         admin = self.mit_user("sipbtest")
@@ -91,7 +88,7 @@ class AgentPolicyTests(ZulipTestCase):
                 target_kind: target,
             }
             agents.AgentGrant.objects.create(**fields)
-        self.assertIsNone(check_agent_access(self.member, self.profile, None, None, "profile.use"))
+        check_agent_access(self.member, self.profile, None, None, "profile.use")
         UserGroupMembership.objects.filter(user_group=group, user_profile=self.member).delete()
         with self.assertRaises(AgentAccessDenied):
             check_agent_access(self.member, self.profile, None, None, "profile.use")
