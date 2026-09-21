@@ -72,3 +72,22 @@ tools/grow-team/test-environment/run.sh \
 
 Tes tersebut memakai file sementara. Tes ini belum membuktikan restore database,
 pemulihan runner, atau pemulihan layanan produksi.
+
+## Rekonsiliasi terjadwal
+
+`deploy/grow-team/reconcile-agents.sh` menjalankan `reconcile_agents --limit 100`
+sebagai user aplikasi melalui engine Grow Team. Timer menjalankannya setiap
+15 detik setelah proses sebelumnya selesai, dengan jeda acak maksimal 2 detik.
+Timer tidak menyalakan aplikasi yang sengaja dihentikan.
+
+Lock berada di dalam container. Request berikutnya tidak berjalan bersamaan jika
+koneksi Docker dari host terputus. Batas proses remote adalah 60 detik, diikuti
+SIGKILL setelah tambahan 5 detik jika proses belum berhenti.
+
+Sebelum mengaktifkan timer, siapkan `/data/grow-team-agent-private` dengan pemilik
+`zulip` dan mode `0700`. Direktori tersebut memakai volume aplikasi yang sudah ada.
+Simpan artifact dalam subdirektori `artifacts` dan keyring pada `keyring.json`.
+Keduanya terpisah dari lokasi unggahan publik.
+
+Wrapper dan unit ini masih berupa konfigurasi rilis. Aktivasi serta pemeriksaan
+rekonsiliasi setelah restart dilakukan bersama gate produksi.

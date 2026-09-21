@@ -1,0 +1,14 @@
+[Unit]
+Description=Reconcile durable Grow Team agent jobs
+Requisite=grow-team.service
+After=grow-team.service
+ConditionPathExists=/run/grow-team-docker/docker.sock
+
+[Service]
+Type=oneshot
+Slice=grow-team.slice
+Nice=10
+UMask=0077
+ExecStart=/opt/grow-team/deploy/reconcile-agents.sh
+SuccessExitStatus=75
+TimeoutStartSec=90
