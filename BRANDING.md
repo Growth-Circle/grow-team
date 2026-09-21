@@ -38,7 +38,7 @@ Pesan dan unggahan anggota tidak diubah oleh perubahan sumber ini.
 
 ## Penerapan
 
-Image fork `grow-team/server:12.2-grow-team.1` memuat sumber, katalog bahasa,
+Image fork `grow-team/server:12.2-grow-team.3` memuat sumber, katalog bahasa,
 bantuan, dan aset produksi. Base image dipatok pada Zulip 12.2.
 Commit dan push sumber harus diikuti build image serta pergantian container aplikasi.
 Ikuti [prosedur deployment](deploy/grow-team/README.md#image-fork).
@@ -53,5 +53,12 @@ Ikon organisasi juga memakai aset Grow Team.
 Hash isi dan topik tiga pesan anggota tetap sama dengan baseline sebelum perubahan.
 Script `deploy/grow-team/rebrand_pilot.py` hanya menerima seed yang diaudit dan menolak penerapan ulang.
 
+Bot sistem memakai domain `team.growc.id` pada konfigurasi dan alamat dalam database.
+Perubahan alamat mempertahankan ID akun, API key, izin, serta riwayat pesan.
+Avatar Welcome Bot dan Notification Bot memakai simbol Grow Team.
+Contoh Linkifiers mengarah ke repo `Growth-Circle/grow-team`.
+Ikuti [prosedur domain bot](deploy/grow-team/README.md#domain-bot-sistem) untuk audit dan pemulihan.
+
 Hasil pemeriksaan perubahan tersedia di
-[laporan verifikasi branding](deploy/grow-team/BRANDING-VERIFICATION.md).
+[laporan branding awal](deploy/grow-team/BRANDING-VERIFICATION.md) dan
+[verifikasi bot serta Linkifiers](deploy/grow-team/SYSTEM-BOT-VERIFICATION.md).

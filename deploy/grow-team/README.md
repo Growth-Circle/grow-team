@@ -29,7 +29,7 @@ Gunakan topik untuk memisahkan pekerjaan di dalam setiap channel.
 Branch `grow-team` dimulai dari tag upstream `12.2`, commit `1e73e1d754761b73c18135a3f25d0673f31cd8b3`.
 Remote `upstream` menunjuk ke `zulip/zulip`; `origin` menunjuk ke `Growth-Circle/grow-team`.
 Image resmi `ghcr.io/zulip/zulip-server:12.2-0` menjadi base image runtime.
-Image fork `grow-team/server:12.2-grow-team.1` membawa identitas Grow Team.
+Image fork `grow-team/server:12.2-grow-team.3` membawa identitas Grow Team.
 Base image dan image pendukung dipatok dengan digest.
 Image fork dibangun lokal dan mencatat commit sumber pada label serta `build_id`.
 
@@ -65,7 +65,7 @@ sudo env DOCKER_HOST=unix:///run/grow-team-docker/docker.sock \
   DOCKER_CONFIG=/opt/grow-team/lib/docker \
   /opt/grow-team/bin/docker buildx build --network none --progress plain --load \
   --build-arg GROW_TEAM_REVISION=<commit-penuh> \
-  --tag grow-team/server:12.2-grow-team.1 <direktori-build>
+  --tag grow-team/server:12.2-grow-team.3 <direktori-build>
 ```
 
 Docker Buildx 0.30.0 terpasang pada direktori plugin engine Grow Team.
@@ -82,7 +82,7 @@ sudo env DOCKER_HOST=unix:///run/grow-team-docker/docker.sock \
   DOCKER_CONFIG=/opt/grow-team/lib/docker \
   /opt/grow-team/bin/docker run --rm --network none --no-healthcheck \
   --user zulip --entrypoint /home/zulip/deployments/current/.venv/bin/python \
-  grow-team/server:12.2-grow-team.1 /opt/grow-team-build/check_image.py
+  grow-team/server:12.2-grow-team.3 /opt/grow-team-build/check_image.py
 ```
 
 Sebelum mengganti aplikasi:
@@ -105,7 +105,55 @@ Sesudah backup dan audit lulus, `run(apply=True)` menerapkan perubahan dalam sat
 Bersihkan cache Grow Team dan restart proses aplikasi setelah penerapan.
 Script menolak penerapan ulang atau data yang tidak lagi sama dengan seed yang diaudit.
 Penerapan pilot pada 2026-09-21 sudah selesai; jangan jalankan kembali.
-Lihat [bukti rilis branding](BRANDING-VERIFICATION.md) untuk image aktif dan hasil pemeriksaan.
+Lihat [rilis branding awal](BRANDING-VERIFICATION.md) dan
+[verifikasi bot serta Linkifiers](SYSTEM-BOT-VERIFICATION.md) untuk hasil pemeriksaan.
+
+## Domain bot sistem
+
+Konfigurasi `SETTING_INTERNAL_BOT_DOMAIN=team.growc.id` menentukan alamat bot sistem.
+Nama setting, daftar bot lintas realm, dan pembuatan bot memakai domain yang sama.
+Gunakan setting domain ini untuk deployment Grow Team.
+Prosedur ini tidak mendukung override alamat per bot yang berbeda dari domain tersebut.
+Alamat bot adalah identitas aplikasi; pengirim email transaksi tetap `noreply@growc.id`.
+
+Database instalasi lama memerlukan perubahan alamat yang terpisah dari konfigurasi.
+`rebrand_system_bots.py` hanya menerima host `team.growc.id` dan realm sistem ID 1.
+Script mempertahankan akun dan hanya memperbarui `email` serta `delivery_email`.
+Script menolak data campuran, akun yang tidak sesuai, atau benturan alamat.
+
+Setelah backup, salin script ke folder deployment dan jalankan audit sebagai user aplikasi:
+
+```bash
+sudo /opt/grow-team/deploy/compose.sh exec -T --interactive=false --user zulip zulip \
+  /home/zulip/deployments/current/.venv/bin/python \
+  /home/zulip/deployments/current/grow_team/rebrand_system_bots.py \
+  --audit --source-domain zulip.com --target-domain team.growc.id
+```
+
+Jika audit melaporkan tujuh bot pada domain sumber:
+
+1. Hentikan proses dalam container aplikasi dengan `supervisorctl stop all`.
+2. Jalankan perintah audit di atas dengan `--apply` sebagai pengganti `--audit`.
+3. Bersihkan cache default Grow Team sementara proses aplikasi masih berhenti.
+4. Pasang konfigurasi domain dan image baru, lalu buat ulang hanya container aplikasi.
+5. Jalankan audit kembali; hasilnya harus menyebut domain target.
+6. Periksa daftar bot, lookup bot, avatar, pesan, dan event queue.
+
+Audit tidak menulis data. Jangan jalankan `--apply` lagi setelah alamat sudah berubah.
+Untuk pemulihan, hentikan proses aplikasi dan gunakan `--reverse` pada script yang sama.
+Bersihkan cache, pulihkan konfigurasi serta image sebelumnya, lalu hidupkan aplikasi.
+Jangan hidupkan proses aplikasi dengan alamat database dan konfigurasi yang berbeda.
+Pertahankan ID bot dan riwayat pesan saat memulihkan perubahan ini.
+
+Uji prosedur secara terpisah dengan database SQLite sementara:
+
+```bash
+.venv/bin/python deploy/grow-team/tests/test_system_bot_rebrand.py
+```
+
+Pengujian ini mengganti modul model dan cache hanya dalam proses pengujian tersebut.
+Jangan gabungkan dengan proses suite Django utama.
+Pengujian ini tidak memeriksa penguncian PostgreSQL atau perilaku cache produksi.
 
 ## Layout server
 

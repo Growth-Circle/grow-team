@@ -43,6 +43,8 @@ def main() -> None:
         "images/logo/zulip-org-logo.svg",
         "images/favicon.svg",
         "images/logo/zulip-icon-128x128.png",
+        "images/static_avatars/notification-bot.png",
+        "images/static_avatars/notification-bot-medium.png",
     ):
         source = root / "static" / name
         if source.read_bytes() != (served / name).read_bytes():
