@@ -42,6 +42,13 @@ controller pada commit sebelum koreksi juga lulus. Lihat
 Tiga kegagalan fixture Markdown yang sama direproduksi pada baseline; suite
 Markdown lengkap belum dinyatakan lulus. Runner dan browser belum disertifikasi.
 
+Fondasi runner pada `deb9e64` lulus 97 tes Node dan 62 tes backend terkait.
+Review akhir lulus. Pemeriksaan controller memverifikasi 1.383 hash berkas paket,
+20 paket dependensi, delapan modul hasil build, dan satu tes pemulihan operasi.
+Lihat [tes runner](../../services/grow-agent-runner/test/) dan
+[kontrak runner](../../services/grow-agent-runner/README.md). Paket belum
+menyatakan mode runtime tersertifikasi; sandbox dan eksekusi model belum selesai.
+
 Integrasi backup pada commit `bafbc67` lulus 43 tes dan review independen.
 Lihat [tes file backup](../../zerver/tests/test_agents_backup.py),
 [tes perintah backup](../../zerver/tests/test_agents_backup_command.py), dan
@@ -65,8 +72,8 @@ tersebut tidak menyatakan fitur sudah tersedia di produksi atau spesifikasi sele
 
 | ID | Skenario | Hasil wajib | Status dan bukti |
 | --- | --- | --- | --- |
-| AT-01 | Pairing normal | Perangkat terikat pengguna dan realm yang menyetujui. | Sebagian: pairing dan binding backend lulus pada `3469f2f`; alur CLI dan browser belum diuji. |
-| AT-02 | Kode pairing expired, replay, atau brute force | Ditolak tanpa menerbitkan credential. | Sebagian: expiry, replay, dan batas percobaan backend lulus pada `3469f2f`; integrasi runner belum diuji. |
+| AT-01 | Pairing normal | Perangkat terikat pengguna dan realm yang menyetujui. | Sebagian: pairing, binding, polling CLI, dan pemulihan koneksi lulus pada `deb9e64`; alur browser lengkap belum diuji. |
+| AT-02 | Kode pairing expired, replay, atau brute force | Ditolak tanpa menerbitkan credential. | Sebagian: expiry, replay, batas percobaan, dan respons credential runner lulus pada `deb9e64`; alur browser lengkap belum diuji. |
 | AT-03 | Runner/token dicabut | Claim baru ditolak; lease dan eksekusi aktif masuk jalur penghentian. | Sebagian: rotasi, pencabutan credential, dan permintaan stop backend lulus pada `3469f2f`; penghentian proses nyata belum diuji. |
 | AT-04 | Agent ACP terpilih | Handshake, prompt, progres, izin, dan cancel sesuai kemampuan yang dinegosiasikan. | Belum diuji. |
 | AT-05 | ACP tanpa `loadSession` | Resume memakai sesi baru dan checkpoint; tidak memanggil metode yang tidak didukung. | Belum diuji. |
@@ -78,9 +85,9 @@ tersebut tidak menyatakan fitur sudah tersedia di produksi atau spesifikasi sele
 | AT-11 | Mention di code block atau pesan dari bot | Tidak membuat job coding. | Sebagian: provenance renderer serta penolakan code/bot lulus pada `042b620`; integrasi runner belum diuji. |
 | AT-12 | Trigger dikirim ulang | Hanya satu job logis terbentuk. | Sebagian: deduplikasi pesan, receipt, dan job termasuk race PostgreSQL lulus pada `042b620`; retry browser/runner belum diuji. |
 | AT-13 | Crash setelah commit sebelum queue publish | Outbox dipulihkan; job tidak hilang. | Sebagian: rekonsiliasi outbox tanpa notifikasi lulus pada `8c59211`; daemon dan restart nyata belum diuji. |
-| AT-14 | Claim berhasil tetapi respons hilang | Runner menemukan lease yang sama; tidak ada attempt aktif kedua. | Sebagian: retry claim dan race PostgreSQL lulus pada `8c59211`; journal runner setelah respons hilang belum diuji. |
+| AT-14 | Claim berhasil tetapi respons hilang | Runner menemukan lease yang sama; tidak ada attempt aktif kedua. | Sebagian: retry backend dan journal runner mempertahankan identitas claim pada `deb9e64`; restart dengan proses native belum diuji. |
 | AT-15 | Laptop offline ketika shell berjalan | UI benar, tool baru ditahan, process tree dihentikan sesuai deadline. | Belum diuji. |
-| AT-16 | Event attempt lama setelah resume | Ditolak berdasarkan lease epoch. | Sebagian: penolakan event, context, dan artifact dengan epoch lama lulus pada `8c59211`; reconnect runner belum diuji. |
+| AT-16 | Event attempt lama setelah resume | Ditolak berdasarkan lease epoch. | Sebagian: backend menolak epoch lama dan runner memagari channel attempt lama pada `deb9e64`; proses native belum diuji. |
 | AT-17 | Cancel saat menunggu approval | Approval tidak dipakai; request ACP diberi outcome yang sesuai. | Sebagian: race cancel dan konsumsi approval lulus pada `8c59211`; respons ACP belum diuji. |
 | AT-18 | Process child membuat grandchild | Cancel/timeout menghentikan seluruh tree pada platform yang didukung. | Belum diuji. |
 | AT-19 | Working tree pengguna sudah dirty | WIP tetap utuh; pekerjaan berjalan pada salinan terpisah dari commit terpilih. | Belum diuji. |
@@ -111,7 +118,7 @@ tersebut tidak menyatakan fitur sudah tersedia di produksi atau spesifikasi sele
 | AF-03 | Kanal gagal ditambahkan setelah create | UI membedakan profil berhasil dari akses kanal gagal. | Sebagian: grant dan retry penambahan kanal lulus pada `3469f2f`; pemulihan UI belum diuji. |
 | AF-04 | Profil diedit selama probe berlangsung | Hasil revision lama tidak mengaktifkan revision baru. | Sebagian: revision dan descriptor probe lama ditolak pada `3469f2f`; alur edit di browser belum diuji. |
 | AF-05 | Dua profil bernama sama | ID penerima yang dipilih tetap tepat setelah rename dan upload. | Belum diuji. |
-| AF-06 | Presence/query gagal dengan cache Online lama | UI menampilkan unknown tanpa membuat proses duplikat. | Belum diuji. |
+| AF-06 | Presence/query gagal dengan cache Online lama | UI menampilkan unknown tanpa membuat proses duplikat. | Sebagian: heartbeat runner idle terpisah dari readiness lulus pada `deb9e64`; cache dan tampilan browser belum diuji. |
 | AF-07 | Mention personal biasa pada profil Coding | Satu pesan, receipt, job, outbox, dan attempt sesuai scope. | Sebagian: mention Coding lengkap membuat job dan wake atomik pada `042b620`; claim runner dan alur browser belum diuji. |
 | AF-08 | Agent sama disebut berulang pada satu pesan | Hanya satu job untuk target itu. | Sebagian: target personal berulang menghasilkan satu job pada `042b620`; alur browser belum diuji. |
 | AF-09 | Mention grup/wildcard yang mencakup agent | Tidak ada job; mention personal bersamaan tetap diproses. | Sebagian: grup/wildcard tidak menjadi trigger; mention personal terpisah tetap diterima pada `042b620`; browser belum diuji. |
@@ -131,7 +138,7 @@ tersebut tidak menyatakan fitur sudah tersedia di produksi atau spesifikasi sele
 | AF-23 | Group DM tanpa mention versus DM satu agent | Hanya trigger yang didefinisikan pada bagian 6 diterima. | Sebagian: DM satu manusia/satu agent dan group DM mengikuti target personal pada `042b620`; alur browser belum diuji. |
 | AF-24 | Dua job pada topik yang sama | Tombol follow-up menulis input ke job yang dipilih saja. | Sebagian: API follow-up memakai job eksplisit dan mention biasa membuat tugas baru pada `042b620`; tombol browser belum diuji. |
 | AF-25 | Input datang saat job berjalan | Input durable dan terlihat pending; diterapkan pada batas turn yang sah. | Sebagian: input terurut dan receipt durable lulus pada `8c59211`; penerapan pada turn runtime dan UI belum diuji. |
-| AF-26 | Ack input hilang atau runtime restart | Input tidak ditandai delivered tanpa bukti; recovery tidak menggandakan efek tool. | Sebagian: rekonsiliasi eksplisit untuk input uncertain lulus pada `8c59211`; restart journal runner belum diuji. |
+| AF-26 | Ack input hilang atau runtime restart | Input tidak ditandai delivered tanpa bukti; recovery tidak menggandakan efek tool. | Sebagian: journal, retry receipt, dan pemulihan input stopped lulus pada `deb9e64`; restart runtime nyata dan UI belum diuji. |
 | AF-27 | Mode Diskusi mendapat instruksi mengedit/push | Tools mutasi tidak tersedia; pengguna diarahkan membuat tugas coding. | Sebagian: penolakan backend terhadap mutasi pada mode answer lulus pada `8c59211`; pembatasan tools runtime belum diuji. |
 | AF-28 | Native agent menyelesaikan turn tanpa hasil valid | Job tidak completed; UI memberikan sebab dan tindakan lanjut. | Sebagian: penolakan completion yang hanya berdasarkan event model lulus pada `8c59211`; turn native dan pesan UI belum diuji. |
 | AF-29 | Runner gagal sebelum dapat membalas | UI/sistem melaporkan start failure dari record, tanpa membutuhkan output model. | Belum diuji. |

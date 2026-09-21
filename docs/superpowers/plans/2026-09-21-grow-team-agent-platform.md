@@ -250,16 +250,16 @@ self.assertEqual(AgentOutbox.objects.count(), 0)
 
 **Interfaces:** Consume Task 1 protocol and Task 2–3 APIs. Produce local registered workspace/adapter catalogs and a supervisor dispatch interface.
 
-- [ ] Pin Node, ACP SDK, adapter, and runtime dependencies from Task 0.
-- [ ] Complete pairing status, credential expiry, and owner-bound workspace registration contracts required by the runner.
-- [ ] Implement pairing, local secret references, token rotation, workspace registration, and owner-controlled adapter catalogs.
-- [ ] Protect configuration and journal files with owner-only permissions.
-- [ ] Persist outgoing events, claims, inputs, and operation receipts before acknowledgement.
-- [ ] Poll with bounded requests and backoff. Reconcile leases after reconnect.
-- [ ] Freeze control-plane identity and reserved environment keys.
-- [ ] Test restart with lost claim/event acknowledgements and expired/revoked credentials.
-- [ ] Supply a user service and doctor command without exposing inbound ports.
-- [ ] Run runner transport tests and commit the task.
+- [x] Pin Node, ACP SDK, adapter, and runtime dependencies from Task 0.
+- [x] Complete pairing status, credential expiry, and owner-bound workspace registration contracts required by the runner.
+- [x] Implement pairing, local secret references, token rotation, workspace registration, and owner-controlled adapter catalogs.
+- [x] Protect configuration and journal files with owner-only permissions.
+- [x] Persist outgoing events, claims, inputs, and operation receipts before acknowledgement.
+- [x] Poll with bounded requests and backoff. Reconcile leases after reconnect.
+- [x] Freeze control-plane identity and reserved environment keys.
+- [x] Test restart with lost claim/event acknowledgements and expired/revoked credentials.
+- [x] Supply a user service and doctor command without exposing inbound ports.
+- [x] Run runner transport tests and commit the task.
 
 Test example:
 
