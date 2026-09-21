@@ -5,7 +5,7 @@ from typing_extensions import override
 
 from zerver.lib.agent_policy import AgentAccessDenied, check_agent_access
 from zerver.lib.test_classes import ZulipTestCase
-from zerver.models import agents
+from zerver.models import UserProfile, agents
 from zerver.models.groups import UserGroup, UserGroupMembership
 
 
@@ -49,7 +49,9 @@ class AgentPolicyTests(ZulipTestCase):
         check_agent_access(self.member, self.profile, None, None, "profile.use")
 
     def test_realm_admin_does_not_bypass_runner_grant(self) -> None:
-        admin = self.mit_user("sipbtest")
+        admin = self.member
+        admin.role = UserProfile.ROLE_REALM_ADMINISTRATOR
+        admin.save(update_fields=["role"])
         with self.assertRaises(AgentAccessDenied):
             check_agent_access(admin, self.profile, None, None, "profile.use")
 

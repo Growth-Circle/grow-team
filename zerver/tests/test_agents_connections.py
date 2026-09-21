@@ -16,6 +16,7 @@ from zerver.actions.agents import (
     create_profile,
     exchange_pairing,
     record_readiness,
+    register_provider,
     register_repository,
     revoke_runner,
     rotate_runner_credential,
@@ -233,6 +234,72 @@ class AgentConnectionTests(ZulipTestCase):
         self.assertEqual(authenticate_runner_token(token).runner_id, pairing.runner_id)
         with self.assertRaises(ValueError):
             authenticate_runner_token("not-a-token")
+
+    def test_readiness_rejects_changed_provider_configuration(self) -> None:
+        runner = agents.AgentRunner.objects.create(
+            realm=self.owner.realm,
+            owner=self.owner,
+            name="runner",
+            fingerprint="j" * 64,
+            catalog_report={
+                "revision": 1,
+                "adapters": [
+                    {
+                        "id": "acp",
+                        "version": "1",
+                        "auth_state": "ready",
+                        "capabilities": {"config_version": 1},
+                    }
+                ],
+                "sandboxes": [
+                    {
+                        "alias": "default",
+                        "image_digest": "sha256:" + "a" * 64,
+                        "toolchain_digest": "b" * 64,
+                        "catalog_revision": 1,
+                        "cpu_millicores": 100,
+                        "memory_bytes": 67108864,
+                        "pids_limit": 16,
+                        "temporary_bytes": 1048576,
+                    }
+                ],
+            },
+        )
+        provider = register_provider(
+            self.owner,
+            runner,
+            name="provider",
+            base_url="https://example.com",
+            model_id="model",
+            allowed_models=["model"],
+            context_window_tokens=1000,
+            max_output_tokens=100,
+            local_credential_ref="local-key",
+        )
+        profile = create_profile(
+            self.owner,
+            name="Agent",
+            runner=runner,
+            adapter_id="acp",
+            adapter_version="1",
+            provider=provider,
+            idempotency_key=uuid4(),
+        )
+        setup = agents.AgentSetupOperation.objects.get(profile=profile)
+        provider.config_version += 1
+        provider.save(update_fields=["config_version"])
+        report = {
+            "schema_version": 1,
+            "profile_id": str(profile.id),
+            "profile_revision": 1,
+            "runner_id": str(runner.id),
+            "descriptor_digest": setup.descriptor_digest,
+            "configuration_digest": setup.configuration_digest,
+            "state": "ready",
+            "capabilities": {"chat_ready": True, "config_version": 1},
+        }
+        with self.assertRaises(ValueError):
+            record_readiness(runner, setup, report)
 
     def test_device_routes_keep_pairing_secrets_out_of_the_start_response(self) -> None:
         response = self.client.post(
