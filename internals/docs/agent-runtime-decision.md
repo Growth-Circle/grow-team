@@ -158,3 +158,13 @@ Sumber: [AgentMode.ts pinned](https://github.com/agentclientprotocol/codex-acp/b
 - [ ] Pin runner image digest dan package lock ke hasil conformance yang benar-benar dirilis.
 
 P0 comparison saat ini berupa source comparison plus adapter handshake. Tidak ada benchmark kedua runtime, build Buzz pinned, atau klaim provider/coding lulus. Semua kode probe berada di `/tmp`; repository Grow Team tetap tidak diubah oleh pekerjaan ini.
+
+
+## Base Linux untuk paket native
+
+Base implementasi adalah `node:24.18.0-trixie-slim` pada digest
+`sha256:ae91dcc111a68c9d2d81ff2a17bda61be126426176fde6fe7d08ab13b7f50573`.
+Probe lokal mengonfirmasi Node dan Zsh dari payload yang dipatok dapat berjalan.
+Bookworm awal gagal memenuhi kebutuhan `GLIBC_2.38` dari binary Zsh.
+Rincian batas dan bukti terdapat pada [desain sandbox](agent-sandbox-design.md).
+Sertifikasi runtime penuh tetap merupakan gate terpisah.

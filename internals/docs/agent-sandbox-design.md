@@ -126,6 +126,26 @@ Nilai cgroup sesuai flag probe: RAM `268435456`, PID `32`, CPU `25000 100000`.
 Ini memeriksa versi dan pengaturan cgroup. Image runner lengkap, toolchain,
 dan tes pelanggaran batas resource masih harus dibangun dan diuji.
 
+### Base image untuk payload native lengkap
+
+Pemeriksaan tambahan 22 September 2026 menemukan bahwa Zsh pada paket Codex
+memerlukan `GLIBC_2.38`. Binary tersebut gagal pada image Bookworm di atas.
+Node tetap berjalan, sehingga pemeriksaan Node saja tidak cukup.
+
+Gunakan base `node:24.18.0-trixie-slim` dengan digest berikut untuk implementasi:
+
+```text
+sha256:ae91dcc111a68c9d2d81ff2a17bda61be126426176fde6fe7d08ab13b7f50573
+```
+
+Probe image ini mengembalikan Node `v24.18.0`, Zsh `5.9.0.3-test`, dan
+Debian GLIBC `2.41-12+deb13u3`. Probe memakai UID `65532`, network `none`,
+root filesystem read-only, serta batas CPU, RAM, dan jumlah proses.
+Kedua container probe telah berhenti dan bukti tetap tersimpan.
+
+Hasil tersebut membuktikan kompatibilitas binary yang diuji. Image runner akhir,
+seluruh toolchain, watchdog, dan batas akses tetap harus disertifikasi.
+
 ## Kompatibilitas sandbox native pada container pilot
 
 Probe Codex `0.154.0` menemukan bahwa `workspaceWrite` gagal membuat namespace
@@ -213,7 +233,7 @@ tidak menggantikan pembuktian jalur ACP dan broker yang akan dipasang.
 
 Probe `/tmp/grow-team-native-dynamic-probe/probe.mjs` menjalankan paket ACP dan
 Codex asli dengan patch yang diperiksa per target. Bundle asli tidak diubah.
-Container memakai image Node di atas, UID 65532, network none, read-only root,
+Probe kelayakan ini memakai image Bookworm awal, UID 65532, network none, read-only root,
 cap-drop ALL, no-new-privileges, 512 MiB RAM, 128 PID, dan 0,5 CPU.
 
 Verifier independen `/tmp/grow-team-native-dynamic-probe/verify.py` lulus:
