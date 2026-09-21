@@ -170,16 +170,16 @@ self.assertEqual(AgentAttempt.objects.filter(job=job, active=True).count(), 1)
 
 **Interfaces:** Produce `check_agent_access(actor, profile, repository, source_message, action)`, profile DTOs, probe descriptors, and device principals. No model call occurs in Django.
 
-- [ ] Test anonymous pairing expiry, replay, brute force, approval realm derivation, rotation, and revocation.
-- [ ] Add immutable device ownership and hashed credentials with constant-time checks.
-- [ ] Implement encrypted write-only provider credentials and owner-local secret references.
-- [ ] Implement owner-registered repository aliases without accepting browser host paths or shell commands.
-- [ ] Implement explicit member/group grants and intersection checks across all resources.
-- [ ] Create bot, profile, and setup records atomically with idempotency keys.
-- [ ] Reject stale probe revisions; enable only the descriptor that passed readiness.
-- [ ] Implement pause, archive, and channel membership/grant retry without duplicate identities.
-- [ ] Test denied cross-realm list/count/detail and admin-without-device-grant cases.
-- [ ] Run focused tests and commit the task.
+- [x] Test anonymous pairing expiry, replay, brute force, approval realm derivation, rotation, and revocation.
+- [x] Add immutable device ownership and hashed credentials with constant-time checks.
+- [x] Implement encrypted write-only provider credentials and owner-local secret references.
+- [x] Implement owner-registered repository aliases without accepting browser host paths or shell commands.
+- [x] Implement explicit member/group grants and intersection checks across all resources.
+- [x] Create bot, profile, and setup records atomically with idempotency keys.
+- [x] Reject stale probe revisions; enable only the descriptor that passed readiness.
+- [x] Implement pause, archive, and channel membership/grant retry without duplicate identities.
+- [x] Test denied cross-realm list/count/detail and admin-without-device-grant cases.
+- [x] Run focused tests and commit the task.
 
 Test example:
 
