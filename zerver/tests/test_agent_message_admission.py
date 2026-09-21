@@ -603,3 +603,120 @@ class AgentMessageAdmissionTests(ZulipTestCase):
         self.assertEqual(detail.json()["job"]["requirements"][0]["action"], "probe_again")
         with self.assertRaises(ValueError):
             agent_jobs.resume_job(self.owner, receipt.job.id, receipt.job.version)
+
+    def test_owner_completes_member_draft_without_rebinding_requester(self) -> None:
+        from copy import deepcopy
+
+        from django.utils.timezone import now
+
+        from zerver.actions.agents import register_repository, retry_profile_setup
+
+        member = self.example_user("iago")
+        self.subscribe(self.profile.bot_user, "Denmark")
+        agents.AgentProfile.objects.filter(id=self.profile.id).update(default_mode="code")
+        actions = [
+            "profile.use",
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run",
+        ]
+        grant = agents.AgentGrant.objects.create(
+            realm=self.owner.realm,
+            owner=self.owner,
+            target_kind="profile",
+            profile=self.profile,
+            principal_user=member,
+            actions=actions,
+        )
+        agents.AgentGrant.objects.create(
+            realm=self.owner.realm,
+            owner=self.owner,
+            target_kind="runner",
+            runner=self.runner,
+            principal_user=member,
+            actions=["runner.use"],
+        )
+        mention = f"@**{self.profile.bot_user.full_name}|{self.profile.bot_user_id}**"
+        source_id = self.send_stream_message(member, "Denmark", mention)
+        draft = agents.AgentJob.objects.get(source_message_id=source_id)
+        self.assertEqual(draft.status, "draft")
+        original_conversation = draft.conversation_id
+        original_binding = deepcopy(draft.conversation.audience_binding)
+        repository = register_repository(
+            self.owner,
+            self.runner,
+            workspace_alias="member-code",
+            canonical_origin=None,
+            allowed_refs=["main"],
+            required_checks=[{"id": "test", "argv": ["true"]}],
+        )
+        agents.AgentGrant.objects.create(
+            realm=self.owner.realm,
+            owner=self.owner,
+            target_kind="repository",
+            repository=repository,
+            principal_user=member,
+            actions=["repository.read", "repository.edit", "checks.run"],
+        )
+        policy = deepcopy(self.profile.policy)
+        policy["actions"] = actions[1:]
+        agents.AgentProfile.objects.filter(id=self.profile.id).update(
+            default_repository=repository,
+            policy=policy,
+            revision=2,
+            enabled_revision=2,
+            readiness_state="checking",
+        )
+        self.profile.refresh_from_db()
+        setup = retry_profile_setup(
+            self.owner, self.profile, retry_key=uuid4(), expected_revision=2
+        )
+        record_readiness(
+            self.runner,
+            setup,
+            {
+                "schema_version": 1,
+                "profile_id": str(self.profile.id),
+                "profile_revision": 2,
+                "runner_id": str(self.runner.id),
+                "descriptor_digest": setup.descriptor_digest,
+                "configuration_digest": setup.configuration_digest,
+                "state": "ready",
+                "capabilities": {
+                    "chat_ready": True,
+                    "code_ready": True,
+                    "tool_calling": "passed",
+                    "sandbox": "passed",
+                    "config_version": 2,
+                },
+            },
+        )
+        body = {
+            "schema_version": 1,
+            "expected_version": draft.version,
+            "repository_id": str(repository.id),
+            "base_ref": "main",
+        }
+        url = f"/api/v1/agent/jobs/{draft.id}/configure"
+        grant.revoked_at = now()
+        grant.save(update_fields=["revoked_at"])
+        denied = self.api_post(self.owner, url, {"payload": json.dumps(body)})
+        self.assertEqual(denied.status_code, 400)
+        draft.refresh_from_db()
+        self.assertEqual(draft.status, "draft")
+        self.assertEqual(draft.requester_id, member.id)
+        self.assertFalse(agents.AgentOutbox.objects.filter(job=draft).exists())
+        grant.revoked_at = None
+        grant.save(update_fields=["revoked_at"])
+        completed = self.api_post(self.owner, url, {"payload": json.dumps(body)})
+        self.assert_json_success(completed)
+        draft.refresh_from_db()
+        self.assertEqual(draft.status, "queued")
+        self.assertEqual(draft.requester_id, member.id)
+        self.assertEqual(draft.conversation_id, original_conversation)
+        self.assertEqual(draft.conversation.audience_binding, original_binding)
+        self.assertEqual(
+            agents.AgentAuditEvent.objects.get(job=draft, type="job.queued").actor_id, self.owner.id
+        )
+        self.assertEqual(agents.AgentOutbox.objects.filter(job=draft).count(), 1)

@@ -167,7 +167,12 @@ def create_job(
         }
     )
     with agent_transaction():
-        actor = UserProfile.objects.get(id=actor.id, is_active=True)
+        control_actor = actor
+        actor = UserProfile.objects.get(
+            id=completing.requester_id if completing is not None else actor.id,
+            realm=actor.realm,
+            is_active=True,
+        )
         prior = agents.AgentJob.objects.filter(
             realm=actor.realm, requester=actor, idempotency_key=idempotency_key
         ).first()
@@ -330,7 +335,7 @@ def create_job(
             agents.AgentOutbox.objects.create(
                 realm=actor.realm, job=job, delivery_key=f"wake:{job.id}:1", event_type="job.wake"
             )
-            audit(job, "job.queued", {"status": "queued", "reason": ""}, actor=actor)
+            audit(job, "job.queued", {"status": "queued", "reason": ""}, actor=control_actor)
         return job
 
 
