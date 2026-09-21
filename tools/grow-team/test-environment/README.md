@@ -78,3 +78,22 @@ Test a fake ACP child process for deterministic unit and integration checks.
 Certify each installed and approved ACP adapter separately before production use.
 Assert timeout, cancellation, process-group cleanup, read-only workspace mounts, no network, and resource limits.
 Use `bwrap` only for small local mount and process-tree helper tests.
+## Upstream Puppeteer harness
+
+Run this preflight before an upstream browser test.
+
+```bash
+tools/grow-team/test-environment/puppeteer-harness.sh --preflight
+```
+
+The preflight creates a private `psql` wrapper below `.state/`. It uses only
+the `grow-team-agent-test-database-1` container. It does not install host
+packages or modify PostgreSQL roles, databases, or services.
+
+The upstream harness resets `zulip_test` after every browser test. Wait for a
+database handoff before this command.
+
+```bash
+GROW_TEAM_BROWSER_DB_HANDOFF=1 \
+  tools/grow-team/test-environment/puppeteer-harness.sh --run login.test.ts
+```
