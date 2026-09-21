@@ -29,3 +29,9 @@ Commit dan push tetap termasuk cakupan yang sudah diminta pengguna.
 - Perubahan konfigurasi tidak membuat bot duplikat saat startup ulang.
 - Login, tampilan pesan, event queue, dan akses tanpa autentikasi tetap sesuai.
 - Backup dan langkah pemulihan tersedia; Hermes tidak berubah.
+
+## Bukti penerapan
+
+Image produksi memakai source `07987acf6103e38ba9e86c5990f40a6295afb277`.
+Hasil pengujian, perubahan data, dan pemeriksaan publik dicatat dalam
+[verifikasi bot serta Linkifiers](../../../deploy/grow-team/SYSTEM-BOT-VERIFICATION.md).

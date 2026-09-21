@@ -105,7 +105,8 @@ Sesudah backup dan audit lulus, `run(apply=True)` menerapkan perubahan dalam sat
 Bersihkan cache Grow Team dan restart proses aplikasi setelah penerapan.
 Script menolak penerapan ulang atau data yang tidak lagi sama dengan seed yang diaudit.
 Penerapan pilot pada 2026-09-21 sudah selesai; jangan jalankan kembali.
-Lihat [bukti rilis branding](BRANDING-VERIFICATION.md) untuk image aktif dan hasil pemeriksaan.
+Lihat [rilis branding awal](BRANDING-VERIFICATION.md) dan
+[verifikasi bot serta Linkifiers](SYSTEM-BOT-VERIFICATION.md) untuk hasil pemeriksaan.
 
 ## Domain bot sistem
 

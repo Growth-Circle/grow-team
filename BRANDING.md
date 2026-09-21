@@ -60,4 +60,5 @@ Contoh Linkifiers mengarah ke repo `Growth-Circle/grow-team`.
 Ikuti [prosedur domain bot](deploy/grow-team/README.md#domain-bot-sistem) untuk audit dan pemulihan.
 
 Hasil pemeriksaan perubahan tersedia di
-[laporan verifikasi branding](deploy/grow-team/BRANDING-VERIFICATION.md).
+[laporan branding awal](deploy/grow-team/BRANDING-VERIFICATION.md) dan
+[verifikasi bot serta Linkifiers](deploy/grow-team/SYSTEM-BOT-VERIFICATION.md).

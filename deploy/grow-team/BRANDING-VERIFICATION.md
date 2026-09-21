@@ -2,6 +2,9 @@
 
 Tanggal: 2026-09-21.
 
+Dokumen ini mencatat rilis branding awal pada pukul 14:04 UTC.
+Perbaikan berikutnya dicatat dalam [verifikasi bot dan Linkifiers](SYSTEM-BOT-VERIFICATION.md).
+
 ## Pemeriksaan sumber
 
 - Build webpack produksi dan pemeriksaan TypeScript lulus.
@@ -19,11 +22,11 @@ Tanggal: 2026-09-21.
 Suite integrasi Django lengkap belum dijalankan pada lingkungan pengembangan terprovisi.
 Pemeriksaan parser dan template tidak menggantikan suite tersebut.
 
-## Rilis produksi
+## Rilis produksi awal
 
 Screenshot awal masih menampilkan Zulip karena container produksi memakai image resmi.
 Perubahan Git belum masuk ke image tersebut.
-Image fork kini memuat source, aset produksi, bantuan, serta katalog bahasa Grow Team.
+Image fork pertama memuat source, aset produksi, bantuan, serta katalog bahasa Grow Team.
 Hanya container aplikasi yang dibuat ulang; database dan tiga layanan pendukung tetap berjalan.
 
 | Identitas rilis | Nilai |
