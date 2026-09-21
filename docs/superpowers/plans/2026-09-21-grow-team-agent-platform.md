@@ -347,10 +347,11 @@ assert.equal(provider.createdPullRequests(operationId), 1);
 
 ## Task 9: Browser settings and job panel
 
-**Files:** settings/agent jobs TypeScript, Handlebars, styles, settings registration, frontend tests.
+**Files:** human API projections and edit actions, browser state, settings/job TypeScript, Handlebars, styles, and focused tests.
 
 **Interfaces:** Consume only human APIs and versioned DTOs. Browser code never receives device credentials or plaintext stored secrets.
 
+- [ ] Complete authorized discovery, edit, readiness, ownership, and check-evidence contracts needed by the browser.
 - [ ] Add runner pairing/approval, status, revocation, repository registration guidance, and explicit grants.
 - [ ] Add provider forms, write-only secret input, local references, versioned probes, and capability limits.
 - [ ] Add profile create/edit/check/enable/pause/archive and channel attachment flows with recoverable drafts.
