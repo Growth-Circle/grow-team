@@ -6,7 +6,7 @@ import {PrivateStore, controlOrigin} from "./config.js";
 import {Journal} from "./journal.js";
 import {Transport, Connection} from "./transport.js";
 import {OwnerRegistry, doctor} from "./owner.js";
-import {Coordinator, type Supervisor} from "./supervisor.js";
+import {Coordinator, runService, type Supervisor} from "./supervisor.js";
 
 export async function main(args = process.argv.slice(2)): Promise<void> {
     if (process.versions.node !== "24.18.0") throw new Error("Node 24.18.0 is required");
@@ -116,10 +116,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
                 process.once("SIGTERM", stop);
                 process.once("SIGINT", stop);
                 try {
-                    await transport.poll(async () => {
-                        await connection.access();
-                        await c.tick();
-                    }, abort.signal);
+                    await runService(c, connection, transport, abort.signal);
                 } finally {
                     await c.stopActive();
                     process.removeListener("SIGTERM", stop);

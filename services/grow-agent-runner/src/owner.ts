@@ -13,6 +13,26 @@ export class OwnerRegistry {
     read(): Data {
         return this.store.read("registry.json") ?? {workspaces: {}, secrets: {}, catalog: null};
     }
+    private connected(): Data {
+        const scope = this.transport.currentScope?.() ?? "";
+        const state = this.read();
+        if (state.server_scope !== scope) {
+            // Preserve local approvals. Server bindings belong to one runner only.
+            state.previous_bindings = [
+                ...(state.previous_bindings ?? []),
+                {
+                    server_scope: state.server_scope ?? null,
+                    workspaces: structuredClone(state.workspaces),
+                    catalog: state.catalog,
+                },
+            ];
+            for (const item of Object.values(state.workspaces) as Data[]) item.repository = null;
+            state.server_scope = scope;
+            state.catalog_reported = false;
+            this.store.write("registry.json", state);
+        }
+        return state;
+    }
     async workspace(alias: string, path: string, metadata: Data): Promise<void> {
         if (!/^[a-zA-Z0-9_-]{1,80}$/.test(alias)) throw new Error("Invalid workspace alias");
         if (
@@ -43,7 +63,7 @@ export class OwnerRegistry {
             };
         if (!Number.isSafeInteger(metadata.revision) || metadata.revision < 1)
             throw new Error("Invalid workspace revision");
-        const state = this.read(),
+        const state = this.connected(),
             old = state.workspaces[alias];
         if (old && old.path !== localPath && metadata.revision <= old.metadata.revision)
             throw new Error("Workspace mapping requires a new revision");
@@ -64,7 +84,7 @@ export class OwnerRegistry {
         this.store.write("registry.json", state);
     }
     assertWorkspace(repository: Data): string {
-        const item = this.read().workspaces[repository.workspace_alias];
+        const item = this.connected().workspaces[repository.workspace_alias];
         if (
             !item ||
             item.repository?.id !== repository.id ||
@@ -81,7 +101,7 @@ export class OwnerRegistry {
         const catalog = parse("runner_catalog", value);
         if (catalog.sandboxes.some((s: Data) => s.catalog_revision !== catalog.revision))
             throw new Error("Catalog revision mismatch");
-        const state = this.read();
+        const state = this.connected();
         if (
             state.catalog &&
             (catalog.revision < state.catalog.revision ||
@@ -95,10 +115,13 @@ export class OwnerRegistry {
             schema_version: 1,
             catalog,
         });
+        state.catalog_reported = true;
+        this.store.write("registry.json", state);
     }
     assertRuntime(descriptor: Data): void {
-        const catalog = this.read().catalog;
-        if (!catalog) throw new Error("Approve a local catalog first");
+        const state = this.connected();
+        const catalog = state.catalog;
+        if (!catalog || !state.catalog_reported) throw new Error("Approve a local catalog first");
         if (
             !catalog.adapters.some(
                 (a: Data) =>
@@ -117,7 +140,7 @@ export class OwnerRegistry {
         if (descriptor.repository) this.assertWorkspace(descriptor.repository);
         if (descriptor.workspace_binding) {
             const binding = descriptor.workspace_binding,
-                item = this.read().workspaces[binding.workspace_alias];
+                item = state.workspaces[binding.workspace_alias];
             if (
                 !item ||
                 item.repository?.id !== binding.repository_id ||

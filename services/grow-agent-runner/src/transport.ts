@@ -121,23 +121,36 @@ export class Transport {
             clearTimeout(timer);
         }
     }
+    currentScope(): string {
+        return this.journal.connectionScope();
+    }
+    scopedJournal() {
+        return this.journal.partition(this.currentScope());
+    }
     async send(entry: Entry): Promise<Data> {
+        const scope = this.currentScope();
+        if (entry.scope !== scope)
+            throw new Error("Journal request belongs to another runner scope");
+        const log = this.journal.partition(scope);
+        const id = entry.id.startsWith(`${scope}/`) ? entry.id.slice(scope.length + 1) : entry.id;
         if (entry.state === "done") return entry.response!;
         if (entry.kind === "consume" && entry.state === "uncertain")
             throw new Error(
                 "Operation consume is uncertain; reconcile authority before any effect",
             );
-        this.journal.uncertain(entry.id);
+        log.uncertain(id);
         const response = await this.request(entry.route, entry.request);
-        this.journal.complete(entry.id, response);
+        // Keep the original receipt in its original partition, even if pairing changed during the request.
+        log.complete(id, response);
+        if (this.currentScope() !== scope) throw new Error("Runner scope changed during request");
         return response;
     }
     async mutate(kind: string, id: string, route: string, request: Data): Promise<Data> {
-        return this.send(this.journal.prepare(kind, id, route, request));
+        return this.send(this.scopedJournal().prepare(kind, id, route, request));
     }
     async flush(): Promise<void> {
         // Input and operation records describe local effects. Only explicit outgoing records are replayed.
-        for (const entry of this.journal.list())
+        for (const entry of this.scopedJournal().list())
             if (
                 [
                     "event",
@@ -198,7 +211,16 @@ export class Connection {
         const old = this.read();
         if (old && !explicitRepair)
             throw new Error("Connection exists; use status or explicit re-pair");
+        const archive = old ? `connection-history-${randomUUID()}.json` : null;
+        if (old) {
+            if (old.runner_id)
+                this.transport.journal.preserveLegacyScope(`runner:${old.runner_id}`);
+            this.store.write(archive!, old);
+            const registry = this.store.read("registry.json");
+            if (registry) this.store.write(`registry-history-${randomUUID()}.json`, registry);
+        }
         const state: Data = {
+            recovery_history: [...(old?.recovery_history ?? []), ...(archive ? [archive] : [])],
             origin: this.transport.origin,
             state: "pairing_start_uncertain",
             device_name: deviceName,
@@ -278,6 +300,7 @@ export class Connection {
         )
             throw new TransportError("protocol", "invalid_expiry");
         this.store.write("connection.json", {
+            recovery_history: old.recovery_history ?? [],
             origin: old.origin,
             fingerprint: old.fingerprint,
             state: "connected",

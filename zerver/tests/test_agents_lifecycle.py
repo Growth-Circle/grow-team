@@ -1502,3 +1502,150 @@ class AgentLifecycleTests(ZulipTestCase):
             self.assertEqual(
                 self.client_get(f"/json/agent/artifacts/{artifact.id}").content, b"scoped artifact"
             )
+
+    def test_stopped_input_http_receipt_ignores_stale_job_version_only(self) -> None:
+        import json
+        from datetime import timedelta
+
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib import agent_protocol as p
+        from zerver.lib.agent_secrets import hash_agent_credential
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Receipt recovery",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+        job.refresh_from_db()
+        item = actions.add_input(
+            self.owner, job.id, expected_version=job.version, client_key=uuid4(), text="steer"
+        )
+        actions.deliver_inputs(self.runner, job.id, attempt.id, 1)
+        actions.record_event(
+            self.runner,
+            p.RunnerEvent.model_validate(
+                {
+                    "schema_version": 1,
+                    "job_id": str(job.id),
+                    "attempt_id": str(attempt.id),
+                    "lease_epoch": 1,
+                    "sequence": 1,
+                    "event_id": str(uuid4()),
+                    "occurred_at": now().isoformat(),
+                    "type": "attempt.stopped",
+                    "payload": {"process_state": "stopped", "stop_confirmed": True},
+                }
+            ),
+        )
+        job.refresh_from_db()
+        stale_version = job.version
+        actions.cancel_job(self.owner, job.id, job.version)
+        job.refresh_from_db()
+        self.assertGreater(job.version, stale_version)
+        token = "receipt-recovery-synthetic"
+        agents.AgentRunnerCredential.objects.create(
+            realm=self.owner.realm,
+            runner=self.runner,
+            token_hash=hash_agent_credential(token),
+            refresh_hash=hash_agent_credential("receipt-refresh-synthetic"),
+            expires_at=now() + timedelta(hours=1),
+            refresh_expires_at=now() + timedelta(days=1),
+        )
+        payload = {
+            "schema_version": 1,
+            "job_id": str(job.id),
+            "attempt_id": str(attempt.id),
+            "lease_epoch": 1,
+            "job_version": stale_version,
+            "input_id": str(item.id),
+            "input_sequence": item.sequence,
+            "outcome": "not_applied",
+            "receipt_id": str(uuid4()),
+        }
+
+        def post(data: dict[str, object], bearer: str = token) -> Any:
+            return self.client.post(
+                "/api/v1/agent/runner/inputs/reconcile",
+                data=json.dumps(data),
+                content_type="application/json",
+                HTTP_AUTHORIZATION="Bearer " + bearer,
+            )
+
+        first = self.assert_json_success(post(payload))
+        self.assertEqual(first, self.assert_json_success(post(payload)))
+        self.assertEqual(first["input"]["delivery_state"], "pending")
+        self.assertEqual(post({**payload, "outcome": "applied"}).status_code, 400)
+        self.assertEqual(post({**payload, "lease_epoch": 2}).status_code, 400)
+        foreign = agents.AgentRunner.objects.create(
+            realm=self.owner.realm, owner=self.owner, name="Foreign", fingerprint="different"
+        )
+        agents.AgentRunnerCredential.objects.create(
+            realm=self.owner.realm,
+            runner=foreign,
+            token_hash=hash_agent_credential("foreign-receipt"),
+            refresh_hash=hash_agent_credential("foreign-refresh"),
+            expires_at=now() + timedelta(hours=1),
+            refresh_expires_at=now() + timedelta(days=1),
+        )
+        self.assertEqual(post(payload, "foreign-receipt").status_code, 400)
+        attempt.refresh_from_db()
+        job.refresh_from_db()
+        self.assertFalse(attempt.active)
+        self.assertEqual(attempt.process_state, "stopped")
+        self.assertEqual(agents.AgentAttempt.objects.filter(job=job).count(), 1)
+        # Only the separate owner resume action can create another attempt.
+        actions.resume_job(self.owner, job.id, job.version)
+        actions.claim_work(self.runner, claim_key=uuid4())
+        self.assertEqual(post(payload).status_code, 400)
+
+        second = agents.AgentAttempt.objects.get(job=job, number=2)
+        actions.deliver_inputs(self.runner, job.id, second.id, second.lease_epoch)
+        actions.record_event(
+            self.runner,
+            p.RunnerEvent.model_validate(
+                {
+                    "schema_version": 1,
+                    "job_id": str(job.id),
+                    "attempt_id": str(second.id),
+                    "lease_epoch": second.lease_epoch,
+                    "sequence": 1,
+                    "event_id": str(uuid4()),
+                    "occurred_at": now().isoformat(),
+                    "type": "attempt.stopped",
+                    "payload": {"process_state": "stopped", "stop_confirmed": True},
+                }
+            ),
+        )
+        next_payload = {
+            **payload,
+            "attempt_id": str(second.id),
+            "lease_epoch": second.lease_epoch,
+            "outcome": "applied",
+            "receipt_id": str(uuid4()),
+        }
+        # A receipt ID cannot describe a different attempt or outcome.
+        self.assertEqual(
+            post({**next_payload, "receipt_id": payload["receipt_id"]}).status_code, 400
+        )
+        applied = self.assert_json_success(post(next_payload))
+        self.assertEqual(applied["input"]["delivery_state"], "applied")
+        self.assertEqual(applied, self.assert_json_success(post(next_payload)))
+        self.assertEqual(post({**next_payload, "receipt_id": str(uuid4())}).status_code, 400)
+        item.refresh_from_db()
+        assert item.reconciliation_receipt is not None
+        self.assertEqual(item.reconciliation_receipt["attempt_id"], str(second.id))
+        self.assertEqual(
+            item.reconciliation_receipt["history"][0]["receipt_id"], payload["receipt_id"]
+        )
+        second.refresh_from_db()
+        self.assertFalse(second.active)
+        self.assertEqual(second.process_state, "stopped")
+        self.assertEqual(agents.AgentAttempt.objects.filter(job=job).count(), 2)

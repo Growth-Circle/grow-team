@@ -1361,10 +1361,21 @@ def reconcile_input(
             "attempt_id": str(attempt.id),
             "lease_epoch": epoch,
         }
+        history: list[dict[str, Any]] = []
         if item.reconciliation_receipt is not None:
-            if item.reconciliation_receipt != receipt:
+            previous = item.reconciliation_receipt
+            latest = {key: value for key, value in previous.items() if key != "history"}
+            history = [*previous.get("history", []), latest]
+            for recorded in history:
+                if recorded["receipt_id"] == receipt["receipt_id"]:
+                    if recorded != receipt:
+                        raise ValueError("Input reconciliation conflict.")
+                    return item
+            # Each attempt has one immutable outcome. Only a later attempt can retry.
+            if any(recorded["attempt_id"] == receipt["attempt_id"] for recorded in history):
                 raise ValueError("Input reconciliation conflict.")
-            return item
+            if latest["outcome"] != "not_applied":
+                raise ValueError("Input reconciliation conflict.")
         if item.delivered_attempt_id != attempt.id or item.delivery_state != "delivery_uncertain":
             raise ValueError("Input is not uncertain for this attempt.")
         if outcome == "applied":
@@ -1379,7 +1390,7 @@ def reconcile_input(
         else:
             item.delivery_state = "pending"
             item.delivered_attempt = None
-        item.reconciliation_receipt = receipt
+        item.reconciliation_receipt = {**receipt, "history": history}
         item.save(
             update_fields=[
                 "delivery_state",

@@ -418,7 +418,7 @@ def reconcile_input(request: HttpRequest) -> HttpResponse:
             data.job_id,
             data.attempt_id,
             data.lease_epoch,
-            expected_version=data.job_version,
+            # Receipt recovery does not grant execution or require a current job version.
             execution=False,
         )
         item = jobs.reconcile_input(

@@ -116,19 +116,36 @@ test("input effect is fenced before application and never replayed after uncerta
         d = descriptor();
     let calls = 0;
     const supervisor: any = {
+        inspect: async () => [],
+        canExecute: () => true,
+        start: async () => {},
+        stop: async () => ({confirmed: true}),
         applyInput: async () => {
             calls++;
             throw new Error("lost runtime reply");
         },
     };
-    const c = new Coordinator(j, {} as any, supervisor, d.runner_id, {assertRuntime: () => {}});
+    const c = new Coordinator(
+        j,
+        {
+            request: async () => ({leases: []}),
+            mutate: async (k: string) =>
+                k === "claim" ? {attempt: d, job_version: 1} : {receipt: {job_version: 2}},
+        } as any,
+        supervisor,
+        d.runner_id,
+        {assertRuntime: () => {}},
+    );
     const input = {
         ...fixtures.valid.find((c: any) => c.schema === "input").payload,
         delivery_state: "delivered",
     };
+    await c.recover();
+    await c.claim();
     await assert.rejects(() => c.applyInput(d, input));
     await assert.rejects(() => c.applyInput(d, input), /uncertain/);
     assert.equal(calls, 1);
+    await c.stopActive();
     j.close();
 });
 test("owner runtime approval is required before launch", async () => {

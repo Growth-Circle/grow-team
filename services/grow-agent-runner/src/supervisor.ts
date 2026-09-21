@@ -1,5 +1,5 @@
 import {randomUUID} from "node:crypto";
-import {Journal} from "./journal.js";
+import {Journal, type JournalLog} from "./journal.js";
 import {Transport} from "./transport.js";
 import type {OwnerRegistry} from "./owner.js";
 import {parse, validateDescriptor, type Data} from "./protocol.js";
@@ -30,17 +30,27 @@ export interface AttemptChannel {
     lease: () => Data;
 }
 export class OperationBoundary {
+    private identity: Data;
     constructor(
-        private journal: Journal,
+        private journal: JournalLog,
         private transport: Transport,
         private currentLease: () => Data,
-    ) {}
+    ) {
+        this.identity = structuredClone(currentLease());
+    }
+    private assertLease(lease: Data): void {
+        const current = this.currentLease();
+        for (const key of ["job_id", "attempt_id", "lease_epoch"])
+            if (current[key] !== lease[key])
+                throw new Error("Operation belongs to another attempt");
+    }
     async propose(lease: Data, id: string, args: Data, extras: Data = {}): Promise<Data> {
+        this.assertLease(lease);
         for (const key of Object.keys(extras))
             if (!["tree_hash", "diff_artifact_id"].includes(key))
                 throw new Error("Invalid operation metadata");
         parse("operation_arguments", args);
-        return (
+        const result = (
             await this.transport.mutate(
                 "proposal",
                 `proposal:${id}`,
@@ -48,9 +58,11 @@ export class OperationBoundary {
                 {...lease, ...extras, operation_id: id, arguments: args},
             )
         ).operation;
+        this.assertLease(lease);
+        return result;
     }
     async consume(lease: Data, proposal: Data): Promise<Data> {
-        this.currentLease();
+        this.assertLease(lease);
         const id = proposal.operation_id;
         const result = await this.transport.mutate(
             "consume",
@@ -64,6 +76,7 @@ export class OperationBoundary {
                 ...(proposal.nonce ? {nonce: proposal.nonce} : {}),
             },
         );
+        this.assertLease(lease);
         if (
             result.operation.operation_id !== id ||
             result.operation.operation_hash !== proposal.operation_hash ||
@@ -93,52 +106,130 @@ export class OperationBoundary {
         return authority.request.operation;
     }
     finishEffect(operationId: string, receipt: Data): void {
+        const authority = this.journal.get(`authority:${operationId}`);
+        if (
+            !authority ||
+            ["job_id", "attempt_id", "lease_epoch"].some(
+                (k) => authority.request.lease[k] !== this.identity[k],
+            )
+        )
+            throw new Error("Effect receipt belongs to another attempt");
         this.journal.complete(`effect:${operationId}`, receipt);
     }
     async reconcile(lease: Data): Promise<Data> {
-        return this.transport.request("/runner/operations", lease);
+        this.assertLease(lease);
+        const result = await this.transport.request("/runner/operations", lease);
+        this.assertLease(lease);
+        return result;
     }
     async remoteReceipt(lease: Data, receipt: Data): Promise<Data> {
+        this.assertLease(lease);
         parse("remote_receipt", receipt);
-        return this.transport.mutate(
+        const response = await this.transport.mutate(
             "remote_receipt",
             `remote:${receipt.operation_id}`,
             "/runner/operations/reconcile",
             {...lease, operation_id: receipt.operation_id, receipt},
         );
+        this.assertLease(lease);
+        return response;
     }
 }
+interface Session {
+    descriptor: Data;
+    valid: boolean;
+    version: number;
+    expiry: number;
+    queue: Promise<void>;
+    watchdog: NodeJS.Timeout | null;
+}
 export class Coordinator {
-    private eventTail: Promise<void> = Promise.resolve();
+    private journal: JournalLog;
+    private scope: string;
+    private active: Session | null = null;
     private reconciled = false;
-    private active: Data | null = null;
-    private jobVersion = 0;
-    private expiry = 0;
-    private watchdog: NodeJS.Timeout | null = null;
+    private generation = 0;
+    private claiming: Promise<void> | null = null;
+    private stopping: Promise<void> | null = null;
     private stopFailure: Error | null = null;
     constructor(
-        private journal: Journal,
+        journal: Journal,
         private transport: Transport,
         private supervisor: Supervisor,
         private runnerId: string,
         private registry: Pick<OwnerRegistry, "assertRuntime">,
-    ) {}
-    private lease(): Data {
+    ) {
+        this.scope = journal.identityScope();
+        this.journal = journal.partition(this.scope);
+    }
+    private assertScope(): void {
+        if ((this.transport.currentScope?.() ?? "") !== this.scope)
+            throw new Error("Coordinator belongs to a retired runner scope");
+    }
+    private lease(session: Session): Data {
+        this.assertScope();
         if (this.stopFailure) throw this.stopFailure;
-        if (!this.active || Date.now() >= this.expiry)
-            throw new Error("No current lease authority");
+        if (!session.valid || this.active !== session)
+            throw new Error("Attempt channel is retired");
+        if (Date.now() >= session.expiry) throw new Error("No current lease authority");
+        const d = session.descriptor;
         return {
             schema_version: 1,
-            job_id: this.active.job_id,
-            attempt_id: this.active.attempt_id,
-            lease_epoch: this.active.lease_epoch,
-            job_version: this.jobVersion,
+            job_id: d.job_id,
+            attempt_id: d.attempt_id,
+            lease_epoch: d.lease_epoch,
+            job_version: session.version,
         };
     }
+    private sessionFor(d: Data): Session {
+        const session = this.active;
+        if (
+            !session ||
+            ["job_id", "attempt_id", "lease_epoch"].some((k) => d[k] !== session.descriptor[k])
+        )
+            throw new Error("Attempt channel is retired");
+        this.lease(session);
+        return session;
+    }
+    private retire(session: Session): void {
+        session.valid = false;
+        if (session.watchdog) clearTimeout(session.watchdog);
+        session.watchdog = null;
+        if (this.active === session) this.active = null;
+    }
+    // Containment does not require credentials or control-plane availability.
+    async contain(): Promise<void> {
+        this.generation++;
+        this.reconciled = false;
+        if (this.active) this.retire(this.active);
+        for (const process of await this.supervisor.inspect())
+            if (!(await this.supervisor.stop(process)).confirmed)
+                throw new Error("Cannot confirm process stop");
+    }
+    private newEvent(d: Data, type: string, payload: Data): Data {
+        let sequence = 0;
+        for (const entry of this.journal.list())
+            for (const event of entry.request.events ??
+                (entry.request.event ? [entry.request.event] : []))
+                if (event.attempt_id === d.attempt_id && event.lease_epoch === d.lease_epoch)
+                    sequence = Math.max(sequence, event.sequence);
+        return parse("runner_event", {
+            schema_version: 1,
+            job_id: d.job_id,
+            attempt_id: d.attempt_id,
+            lease_epoch: d.lease_epoch,
+            event_id: randomUUID(),
+            sequence: sequence + 1,
+            type,
+            occurred_at: new Date().toISOString(),
+            payload,
+        });
+    }
     private async stopped(d: Data, cursor?: number): Promise<void> {
+        this.assertScope();
         const base = `stop:${d.attempt_id}:${d.lease_epoch}`;
-        let id = base;
-        let entry = this.journal.get(id);
+        let id = base,
+            entry = this.journal.get(id);
         if (
             entry &&
             entry.state !== "done" &&
@@ -163,228 +254,376 @@ export class Coordinator {
             });
         }
         await this.transport.mutate("stop", id, "/runner/stop-evidence", entry.request);
+        this.assertScope();
     }
     async recover(): Promise<void> {
-        this.reconciled = false;
-        // Stop host effects first, even when the control plane is unavailable or credentials were revoked.
-        const processes = await this.supervisor.inspect();
-        for (const process of processes)
-            if (!(await this.supervisor.stop(process)).confirmed)
-                throw new Error("Cannot confirm process stop");
+        await this.contain();
+        this.assertScope();
         for (const entry of this.journal.list("claim"))
-            if (entry.state !== "done") await this.transport.send(entry);
+            if (entry.state !== "done") {
+                await this.transport.send(entry);
+                this.assertScope();
+            }
         const response = await this.transport.request("/runner/leases");
-        for (const item of response.leases) {
-            const d = validateDescriptor(item.descriptor, this.runnerId);
-            await this.stopped(d, item.event_cursor);
-        }
+        this.assertScope();
+        for (const item of response.leases)
+            await this.stopped(
+                validateDescriptor(item.descriptor, this.runnerId),
+                item.event_cursor,
+            );
         const activeIds = new Set(response.leases.map((item: Data) => item.descriptor.attempt_id));
         for (const entry of this.journal.list("stop"))
             if (entry.state !== "done" && !activeIds.has(entry.request.event.attempt_id))
                 await this.transport.send(entry);
-        // Do not replay stale lease mutations after cleanup.
-        this.active = null;
+        this.assertScope();
         this.reconciled = true;
     }
-    async claim(): Promise<void> {
+    claim(): Promise<void> {
+        if (this.claiming) return this.claiming;
+        const result = this.claimOnce();
+        this.claiming = result;
+        void result
+            .finally(() => {
+                if (this.claiming === result) this.claiming = null;
+            })
+            .catch(() => {});
+        return result;
+    }
+    private async claimOnce(): Promise<void> {
+        this.assertScope();
         if (this.stopFailure) throw this.stopFailure;
         if (!this.reconciled) throw new Error("Must reconcile before claims");
-        if (this.active || !this.supervisor.canExecute()) return;
-        const pending = this.journal.list("claim").find((e) => e.state !== "done");
-        const id = pending?.id ?? `claim:${randomUUID()}`;
-        const request = pending?.request ?? {
-            schema_version: 1,
-            claim_key: id.slice(6),
-            capacity: 1,
-            runner_version: "0.1.0",
-        };
-        const response = await this.transport.mutate("claim", id, "/runner/claims", request);
+        if (this.active || this.stopping || !this.supervisor.canExecute()) return;
+        const generation = this.generation;
+        const pending = this.journal.list("claim").find((e) => e.state !== "done"),
+            id = pending?.id ?? `claim:${randomUUID()}`;
+        const response = await this.transport.mutate(
+            "claim",
+            id,
+            "/runner/claims",
+            pending?.request ?? {
+                schema_version: 1,
+                claim_key: id.slice(6),
+                capacity: 1,
+                runner_version: "0.1.0",
+            },
+        );
+        this.assertScope();
         if (!response.attempt) return;
         const d = validateDescriptor(response.attempt, this.runnerId);
-        if (Date.parse(d.lease_expires_at) <= Date.now()) throw new Error("Claim lease expired");
         this.journal.prepare("attempt", `attempt:${d.attempt_id}`, "local", {
             descriptor: d,
             job_version: response.job_version,
         });
+        if (generation !== this.generation) {
+            await this.stopped(d);
+            return;
+        }
+        if (Date.parse(d.lease_expires_at) <= Date.now()) throw new Error("Claim lease expired");
         this.registry.assertRuntime(d);
-        this.active = d;
-        this.expiry = Date.parse(d.lease_expires_at);
-        this.jobVersion = response.job_version;
-        this.armWatchdog();
+        const session: Session = {
+            descriptor: structuredClone(d),
+            valid: true,
+            version: response.job_version,
+            expiry: Date.parse(d.lease_expires_at),
+            queue: Promise.resolve(),
+            watchdog: null,
+        };
+        this.active = session;
+        this.armWatchdog(session);
         try {
-            await this.supervisor.start(d, {
-                event: (type, payload) => this.event(type, payload),
-                operations: new OperationBoundary(this.journal, this.transport, () => this.lease()),
-                lease: () => this.lease(),
+            await this.supervisor.start(structuredClone(d), {
+                event: (type, payload) => this.enqueue(session, type, payload),
+                operations: new OperationBoundary(this.journal, this.transport, () =>
+                    this.lease(session),
+                ),
+                lease: () => this.lease(session),
             });
-        } catch (e) {
-            await this.stopActive();
-            throw e;
+            this.lease(session);
+        } catch (error) {
+            if (session.valid) await this.stopSession(session);
+            throw error;
         }
     }
-    private newEvent(d: Data, type: string, payload: Data): Data {
-        let sequence = 0;
-        for (const entry of this.journal.list()) {
-            const events =
-                entry.request.events ?? (entry.request.event ? [entry.request.event] : []);
-            for (const event of events)
-                if (event.attempt_id === d.attempt_id)
-                    sequence = Math.max(sequence, event.sequence);
-        }
-        return parse("runner_event", {
-            schema_version: 1,
-            job_id: d.job_id,
-            attempt_id: d.attempt_id,
-            lease_epoch: d.lease_epoch,
-            event_id: randomUUID(),
-            sequence: sequence + 1,
-            type,
-            occurred_at: new Date().toISOString(),
-            payload,
+    private armWatchdog(session: Session): void {
+        if (session.watchdog) clearTimeout(session.watchdog);
+        session.watchdog = setTimeout(
+            () => {
+                void this.stopSession(session).catch(() => {
+                    this.stopFailure = new Error("Lease shutdown requires owner recovery");
+                    this.reconciled = false;
+                });
+            },
+            Math.max(0, session.expiry - Date.now()),
+        );
+        session.watchdog.unref();
+    }
+    private enqueue(session: Session, type: string, payload: Data): Promise<void> {
+        const snapshot = structuredClone(payload);
+        const result = session.queue.then(async () => {
+            this.lease(session);
+            await this.replayEvents(session);
+            const lease = this.lease(session),
+                event = this.newEvent(session.descriptor, type, snapshot);
+            const response = await this.transport.mutate(
+                "event",
+                event.event_id,
+                "/runner/events",
+                {schema_version: 1, job_version: lease.job_version, events: [event]},
+            );
+            this.lease(session);
+            for (const receipt of response.receipts)
+                session.version = Math.max(session.version, receipt.job_version);
         });
+        // The caller keeps its failure. Later work first reconciles the durable pending event.
+        session.queue = result.catch(() => {});
+        return result;
     }
     event(type: string, payload: Data): Promise<void> {
-        this.eventTail = this.eventTail.then(() => this.sendEvent(type, payload));
-        return this.eventTail;
+        if (!this.active) return Promise.reject(new Error("Attempt channel is retired"));
+        return this.enqueue(this.active, type, payload);
     }
-    private async sendEvent(type: string, payload: Data): Promise<void> {
-        const lease = this.lease(),
-            event = this.newEvent(this.active!, type, payload);
-        const response = await this.transport.mutate("event", event.event_id, "/runner/events", {
-            schema_version: 1,
-            job_version: lease.job_version,
-            events: [event],
-        });
-        for (const receipt of response.receipts)
-            this.jobVersion = Math.max(this.jobVersion, receipt.job_version);
+    private async replayEvents(session: Session): Promise<void> {
+        this.lease(session);
+        for (const entry of this.journal.list("event"))
+            if (
+                entry.state !== "done" &&
+                entry.request.events[0].attempt_id === session.descriptor.attempt_id &&
+                entry.request.events[0].lease_epoch === session.descriptor.lease_epoch
+            ) {
+                this.lease(session);
+                const response = await this.transport.send(entry);
+                this.lease(session);
+                for (const receipt of response.receipts)
+                    session.version = Math.max(session.version, receipt.job_version);
+            }
+    }
+    private inputsFor(attemptId: string, inputId: string) {
+        return this.journal
+            .list("input")
+            .filter((e) => e.request.attempt_id === attemptId && e.request.input.id === inputId);
     }
     async applyInput(d: Data, input: Data): Promise<void> {
+        const session = this.sessionFor(d),
+            lease = this.lease(session);
         parse("input", input);
-        const id = `input:${d.attempt_id}:${input.id}`;
-        const entry = this.journal.prepare("input", id, "local", {attempt_id: d.attempt_id, input});
-        if (entry.state === "done") return;
-        if (entry.state === "uncertain" || input.delivery_state === "delivery_uncertain")
+        const previous = this.inputsFor(d.attempt_id, input.id).at(-1);
+        if (previous?.state === "done" && previous.response?.outcome === "applied") return;
+        if (previous && previous.state !== "done")
             throw new Error("Input delivery is uncertain; reconcile its receipt");
+        if (input.delivery_state === "delivery_uncertain")
+            throw new Error("Input delivery is uncertain; reconcile its receipt");
+        if (previous) {
+            await this.stopSession(session);
+            throw new Error("Input requires owner recovery and a fresh attempt");
+        }
+        if (input.delivery_state !== "delivered")
+            throw new Error("Input has no delivery authority");
+        const id = `input:${d.attempt_id}:${input.id}`;
+        this.journal.prepare("input", id, "local", {
+            attempt_id: d.attempt_id,
+            lease,
+            input: structuredClone(input),
+        });
         this.journal.uncertain(id);
-        const receipt = await this.supervisor.applyInput(d, input);
+        const receipt = await this.supervisor.applyInput(
+            structuredClone(session.descriptor),
+            structuredClone(input),
+        );
+        // Record a late runtime receipt without granting any further execution authority.
         this.journal.complete(id, receipt);
+        this.lease(session);
         if (receipt.outcome === "applied")
-            await this.event("input.applied", {
+            await this.enqueue(session, "input.applied", {
                 input_id: input.id,
                 input_sequence: input.sequence,
                 delivery_state: "applied",
             });
     }
-    private armWatchdog(): void {
-        if (this.watchdog) clearTimeout(this.watchdog);
-        this.watchdog = setTimeout(
-            () => {
-                void this.stopActive().catch(() => {
-                    this.stopFailure = new Error("Lease shutdown requires owner recovery");
-                    this.reconciled = false;
-                });
-            },
-            Math.max(0, this.expiry - Date.now()),
-        );
-        this.watchdog.unref();
-    }
     async reconcileInput(
+        attemptId: string,
         input: Data,
         receipt: {outcome: "applied" | "not_applied"; receipt_id: string},
     ): Promise<void> {
-        const lease = this.lease();
-        await this.transport.mutate(
-            "input_receipt",
-            `input_receipt:${receipt.receipt_id}`,
-            "/runner/inputs/reconcile",
-            {...lease, input_id: input.id, input_sequence: input.sequence, ...receipt},
+        this.assertScope();
+        parse("input", input);
+        const priorResolution = this.journal
+            .list("input_resolution")
+            .find((e) => e.request.receipt.receipt_id === receipt.receipt_id);
+        const entry = priorResolution
+            ? this.journal.get(priorResolution.request.input_entry_id)
+            : this.inputsFor(attemptId, input.id).at(-1);
+        if (
+            !entry ||
+            entry.request.attempt_id !== attemptId ||
+            entry.request.input.id !== input.id ||
+            entry.request.input.sequence !== input.sequence
+        )
+            throw new Error("No durable input delivery identity");
+        const attempt = this.journal.get(`attempt:${attemptId}`);
+        const lease =
+            entry.request.lease ??
+            (attempt
+                ? {
+                      schema_version: 1,
+                      job_id: attempt.request.descriptor.job_id,
+                      attempt_id: attemptId,
+                      lease_epoch: attempt.request.descriptor.lease_epoch,
+                      job_version: attempt.request.job_version,
+                  }
+                : null);
+        if (!lease || lease.attempt_id !== attemptId)
+            throw new Error("No original attempt receipt authority");
+        if (
+            entry.state === "done" &&
+            (entry.response?.outcome !== receipt.outcome ||
+                entry.response?.receipt_id !== receipt.receipt_id)
+        )
+            throw new Error("Input receipt conflicts with local effect evidence");
+        const localResolution = this.journal.prepare(
+            "input_resolution",
+            `${entry.id}:resolution`,
+            "local",
+            {input_entry_id: entry.id, receipt},
         );
+        let version = lease.job_version;
+        for (const stopped of this.journal.list("stop"))
+            if (
+                stopped.state === "done" &&
+                stopped.request.event.attempt_id === attemptId &&
+                stopped.response?.receipt?.job_version
+            )
+                version = Math.max(version, stopped.response.receipt.job_version);
+        const resolutionId = `input_receipt:${receipt.receipt_id}`;
+        const response = await this.transport.mutate(
+            "input_receipt",
+            resolutionId,
+            "/runner/inputs/reconcile",
+            this.journal.get(resolutionId)?.request ?? {
+                ...lease,
+                job_version: version,
+                input_id: input.id,
+                input_sequence: input.sequence,
+                ...receipt,
+            },
+        );
+        this.assertScope();
+        if (
+            response.input.id !== input.id ||
+            response.input.sequence !== input.sequence ||
+            response.input.delivery_state !==
+                (receipt.outcome === "applied" ? "applied" : "pending")
+        )
+            throw new Error("Invalid input reconciliation response");
+        this.journal.complete(localResolution.id, {input: response.input});
+        if (entry.state !== "done")
+            this.journal.complete(entry.id, {...receipt, server_confirmed: true});
+        else if (entry.response?.outcome !== receipt.outcome)
+            throw new Error("Input receipt conflicts with local effect evidence");
     }
-    async stopActive(): Promise<void> {
-        if (this.watchdog) {
-            clearTimeout(this.watchdog);
-            this.watchdog = null;
-        }
-        if (!this.active) return;
-        const d = this.active;
-        if (!(await this.supervisor.stop({attempt_id: d.attempt_id})).confirmed)
-            throw new Error("Cannot confirm process stop");
-        this.active = null;
-        await this.stopped(d);
+    stopActive(): Promise<void> {
+        this.generation++;
+        if (this.stopping) return this.stopping;
+        if (!this.active) return Promise.resolve();
+        return this.stopSession(this.active);
+    }
+    private stopSession(session: Session): Promise<void> {
+        if (!session.valid) return this.stopping ?? Promise.resolve();
+        this.retire(session);
+        this.generation++;
+        const result = (async () => {
+            if (
+                !(await this.supervisor.stop({attempt_id: session.descriptor.attempt_id})).confirmed
+            ) {
+                this.stopFailure = new Error("Cannot confirm process stop");
+                this.reconciled = false;
+                throw this.stopFailure;
+            }
+            try {
+                await this.stopped(session.descriptor);
+            } catch (error) {
+                this.reconciled = false;
+                throw error;
+            }
+        })();
+        this.stopping = result;
+        void result
+            .finally(() => {
+                if (this.stopping === result) this.stopping = null;
+            })
+            .catch(() => {});
+        return result;
     }
     async tick(): Promise<void> {
         if (!this.reconciled) await this.recover();
-        if (!this.active) {
+        const session = this.active;
+        if (!session) {
             await this.claim();
             return;
         }
-        if (Date.now() >= this.expiry) {
-            await this.stopActive();
+        if (Date.now() >= session.expiry) {
+            await this.stopSession(session);
             return;
         }
         try {
-            for (const entry of this.journal.list("event"))
-                if (
-                    entry.state !== "done" &&
-                    entry.request.events[0].attempt_id === this.active!.attempt_id
-                ) {
-                    const response = await this.transport.send(entry);
-                    for (const receipt of response.receipts)
-                        this.jobVersion = Math.max(this.jobVersion, receipt.job_version);
-                }
+            // Use the event queue so replay cannot race an adapter event.
+            const replay = session.queue.then(() => this.replayEvents(session));
+            session.queue = replay.catch(() => {});
+            await replay;
             const controls = await this.transport.request("/runner/controls");
-            const control = controls.controls.find(
-                (c: Data) =>
-                    c.attempt_id === this.active!.attempt_id &&
-                    c.lease_epoch === this.active!.lease_epoch,
-            );
+            this.lease(session);
+            const d = session.descriptor,
+                control = controls.controls.find(
+                    (c: Data) => c.attempt_id === d.attempt_id && c.lease_epoch === d.lease_epoch,
+                );
             if (!control || control.control === "stop") {
-                await this.stopActive();
+                await this.stopSession(session);
                 return;
             }
-            this.jobVersion = control.job_version;
+            session.version = control.job_version;
             const response = await this.transport.request("/runner/heartbeat", {
                 schema_version: 1,
-                leases: [
-                    {
-                        job_id: this.active.job_id,
-                        attempt_id: this.active.attempt_id,
-                        lease_epoch: this.active.lease_epoch,
-                    },
-                ],
+                leases: [{job_id: d.job_id, attempt_id: d.attempt_id, lease_epoch: d.lease_epoch}],
             });
+            this.lease(session);
             const heartbeat = response.leases.find(
-                (c: Data) =>
-                    c.attempt_id === this.active!.attempt_id &&
-                    c.lease_epoch === this.active!.lease_epoch,
+                (c: Data) => c.attempt_id === d.attempt_id && c.lease_epoch === d.lease_epoch,
             );
             if (!heartbeat || heartbeat.control === "stop") {
-                await this.stopActive();
+                await this.stopSession(session);
                 return;
             }
-            this.jobVersion = heartbeat.job_version;
-            this.expiry = Date.parse(heartbeat.lease_expires_at);
-            this.armWatchdog();
-            const inputs = await this.transport.request("/runner/inputs", this.lease());
-            for (const input of inputs.inputs) await this.applyInput(this.active, input);
-        } catch (e) {
-            await this.stopActive();
-            this.reconciled = false;
-            throw e;
+            session.version = heartbeat.job_version;
+            session.expiry = Date.parse(heartbeat.lease_expires_at);
+            this.armWatchdog(session);
+            const inputs = await this.transport.request("/runner/inputs", this.lease(session));
+            this.lease(session);
+            for (const input of inputs.inputs) {
+                this.lease(session);
+                await this.applyInput(d, input);
+            }
+        } catch (error) {
+            if (session.valid) {
+                await this.stopSession(session);
+                this.reconciled = false;
+            }
+            throw error;
         }
     }
     async setup(setupId: string): Promise<void> {
+        this.assertScope();
         if (!this.reconciled) throw new Error("Must reconcile before setup");
         const previous = this.journal
-            .list("setup_claim")
-            .find((e) => e.request.setup_id === setupId);
-        const id = previous?.id ?? `setup:${randomUUID()}`;
+                .list("setup_claim")
+                .find((e) => e.request.setup_id === setupId),
+            id = previous?.id ?? `setup:${randomUUID()}`;
         const claimed = await this.transport.mutate(
             "setup_claim",
             id,
             "/runner/setups/claim",
             previous?.request ?? {schema_version: 1, setup_id: setupId, claim_key: id.slice(6)},
         );
+        this.assertScope();
         const d = validateDescriptor(claimed.descriptor, this.runnerId, true);
         this.registry.assertRuntime(d);
         if (
@@ -392,8 +631,8 @@ export class Coordinator {
             Date.parse(d.grant.expires_at) <= Date.now()
         )
             throw new Error("Setup lease expired");
-        const resultId = `setup_result:${setupId}:${claimed.lease_epoch}`;
-        const previousResult = this.journal.get(resultId);
+        const resultId = `setup_result:${setupId}:${claimed.lease_epoch}`,
+            previousResult = this.journal.get(resultId);
         const result = previousResult?.request ?? {
             schema_version: 1,
             setup_id: setupId,
@@ -403,6 +642,23 @@ export class Coordinator {
             configuration_digest: d.configuration_digest,
             ...(await this.supervisor.probe(d)),
         };
+        this.assertScope();
         await this.transport.mutate("setup_result", resultId, "/runner/setups/result", result);
+    }
+}
+export async function runService(
+    coordinator: Coordinator,
+    connection: {access(): Promise<void>},
+    transport: Pick<Transport, "poll">,
+    signal: AbortSignal,
+): Promise<void> {
+    await coordinator.contain();
+    try {
+        await transport.poll(async () => {
+            await connection.access();
+            await coordinator.tick();
+        }, signal);
+    } finally {
+        await coordinator.stopActive();
     }
 }

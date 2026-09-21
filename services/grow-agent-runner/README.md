@@ -92,17 +92,31 @@ Process death releases ownership without a stale PID lock. The journal has no au
 Persist each request before sending it. Preserve claim keys, event IDs, input IDs, operation IDs, hashes, versions, and nonces.
 A request becomes uncertain before transmission. A response becomes complete only after its receipt is durable.
 The transport replays only the original request. It does not manufacture revisions or retry identities.
+Journal records and server registry bindings belong to one runner identity.
+Explicit re-pair preserves old connection and registry snapshots in private history files.
+It preserves old journal partitions, local workspace mappings, and secret references.
+It requires new catalog and workspace reports before runtime use.
+Old requests cannot use new runner credentials. History files never restore credentials automatically.
 
 `Coordinator` consumes a `Supervisor` and an owner registry. Tasks 6–8 must implement the interface in `src/supervisor.ts`.
 `inspect` must enumerate all owned processes and containers, including unknown journal entries.
-`stop` must confirm that effects have stopped. Recovery stops host processes before contacting the server.
+`stop` must confirm that effects have stopped. Recovery stops host processes before credential checks or server requests.
 It recovers pending claim identities, reconciles server leases, and reports stopped evidence before new claims.
 The server lease cursor permits ordered cleanup after a lost event response.
 
 `start` must return after process launch. It must not apply descriptor inputs itself.
 Input delivery goes through `applyInput`. The journal fences each input before calling the runtime.
 An uncertain input requires receipt reconciliation. It must not be delivered again.
-Events also enter the journal before transport. A lost acknowledgement replays the same event.
+`reconcileInput(attemptId, input, receipt)` uses the original durable attempt and epoch after stop or restart.
+It does not require or restore an execution lease.
+The input receipt route accepts `job_version` for compatibility, but does not apply a version comparison.
+The server still checks runner identity, current access, input order, and the latest attempt.
+Each attempt has one immutable input outcome. The server preserves previous outcomes in append-only receipt history.
+An `applied` receipt prevents duplicate application. A `not_applied` receipt clears uncertainty for owner recovery.
+The same attempt cannot apply that input again. A redelivery request stops that attempt and requires a fresh owner-authorized attempt.
+Events also enter the journal before transport. A lost acknowledgement replays the same event before later events.
+Each runtime channel holds one immutable attempt session. Retired channels cannot access a later attempt.
+Queued callbacks and delayed responses check the original session before further use.
 
 An operation must use `propose`, `consume`, `beginEffect`, and `finishEffect` in that order.
 `consume` checks the returned operation identity and hash. The server returns status `started` after consume.

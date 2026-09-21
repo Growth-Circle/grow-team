@@ -383,6 +383,25 @@ export function parse(name: string, value: unknown): Data {
         };
         requireThat(payloads[parsed.type] in parsed.payload, "Wrong event payload");
     }
+    if (name === "authority_event") {
+        const models: Record<string, string> = {
+            "job.queued": "JobStatePayload",
+            "attempt.starting": "JobStatePayload",
+            "attempt.interrupted": "JobStatePayload",
+            "job.completed": "JobStatePayload",
+            "attempt.stop_requested": "JobStatePayload",
+            "input.received": "InputPayload",
+            "approval.requested": "ApprovalPayload",
+            "approval.resolved": "ApprovalPayload",
+            "result.published": "PublicationPayload",
+            "publication.blocked": "PublicationPayload",
+        };
+        const model = models[parsed.type];
+        requireThat(model, "Unknown authority event type");
+        z.fromJSONSchema({$ref: `#/$defs/${model}`, $defs: schemas.authority_event.$defs}).parse(
+            parsed.payload,
+        );
+    }
     return parsed;
 }
 export function validateDescriptor(value: unknown, runnerId: string, probe = false): Data {
