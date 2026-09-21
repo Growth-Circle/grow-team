@@ -22,9 +22,9 @@ execFileSync("npm", ["ci", "--omit=dev", "--ignore-scripts", "--no-audit", "--no
     cwd: output,
     stdio: "inherit",
 });
-for (const name of ["dist", "protocol", "notices", "systemd"])
+for (const name of ["dist", "protocol", "notices", "systemd", "image"])
     cpSync(join(root, name), join(output, name), {recursive: true});
-for (const name of ["README.md", ".node-version"])
+for (const name of ["README.md", "CONTAINMENT.md", ".node-version"])
     copyFileSync(join(root, name), join(output, name));
 mkdirSync(join(output, "bin"));
 copyFileSync(process.execPath, join(output, "bin/node"));

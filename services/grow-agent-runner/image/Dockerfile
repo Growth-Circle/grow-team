@@ -1,0 +1,5 @@
+FROM node:24.18.0-trixie-slim@sha256:ae91dcc111a68c9d2d81ff2a17bda61be126426176fde6fe7d08ab13b7f50573
+COPY --chmod=0555 worker.mjs /grow/worker.mjs
+USER 65532:0
+WORKDIR /workspace
+ENV HOME=/tmp/home LANG=C.UTF-8

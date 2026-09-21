@@ -1,0 +1,12 @@
+[Unit]
+Description=Grow Runner containment watchdog for %i
+
+[Service]
+Type=simple
+ExecStart=%h/.local/lib/grow-agent/bin/node %h/.local/lib/grow-agent/dist/watchdog.js %h/.local/state/grow-agent/containment/%i
+Restart=always
+RestartSec=1
+UMask=0077
+
+[Install]
+WantedBy=default.target
