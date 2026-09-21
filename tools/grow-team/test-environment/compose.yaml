@@ -1,0 +1,33 @@
+name: grow-team-agent-test
+
+services:
+  database:
+    image: zulip/zulip-postgresql:14@sha256:e71ba8616fa42cdc1b248f51263d9290c29681cb8c1992eb9b498af0bb656b29
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run bootstrap.sh first.}
+      POSTGRES_USER: postgres
+      TEST_DB_PASSWORD: ${TEST_DB_PASSWORD:?Run bootstrap.sh first.}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    networks:
+      grow_team_agent_test:
+        aliases: [database]
+    ports:
+      - "127.0.0.1:5432:5432"
+    security_opt:
+      - no-new-privileges:true
+    shm_size: 256m
+    cpus: 0.75
+    mem_limit: 1g
+    pids_limit: 256
+    restart: "no"
+
+networks:
+  grow_team_agent_test:
+    name: grow-team-agent-test-network
+    driver: bridge

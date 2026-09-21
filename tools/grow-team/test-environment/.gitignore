@@ -1,0 +1,6 @@
+.env
+.state/
+.wheelhouse/
+.runtime-lib/
+.runtime-vips-lib/
+.runtime-vips-host-libs/
