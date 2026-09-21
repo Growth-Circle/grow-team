@@ -837,7 +837,8 @@ class AgentLifecycleTests(ZulipTestCase):
             content_type="application/json",
             HTTP_AUTHORIZATION="Bearer " + token,
         )
-        self.assertEqual(forbidden.status_code, 400)
+        self.assertEqual(forbidden.status_code, 401)
+        self.assertEqual(forbidden.json()["code"], "credential_revoked")
         event = {
             "schema_version": 1,
             "job_id": str(job.id),

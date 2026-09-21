@@ -1,0 +1,29 @@
+{
+  "name": "@grow-team/agent-runner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.18.0"
+  },
+  "bin": {
+    "grow-agent": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test test/*.test.ts",
+    "check": "tsc --noEmit",
+    "assemble": "node scripts/assemble.mjs"
+  },
+  "dependencies": {
+    "@agentclientprotocol/sdk": "1.5.0",
+    "@agentclientprotocol/codex-acp": "1.12.0",
+    "@openai/codex": "0.154.0",
+    "@openai/codex-linux-x64": "npm:@openai/codex@0.154.0-linux-x64",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "@types/node": "24.10.1"
+  }
+}

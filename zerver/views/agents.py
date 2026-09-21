@@ -29,6 +29,13 @@ def safe_agent_endpoint(view: Callable[P, HttpResponse]) -> Callable[P, HttpResp
     def wrapped(*args: P.args, **kwargs: P.kwargs) -> HttpResponse:
         try:
             return view(*args, **kwargs)
+        except actions.RunnerCredentialError as error:
+            return json_response(
+                "error",
+                "Runner credential rejected.",
+                {"schema_version": 1, "code": error.code},
+                status=401,
+            )
         except AgentBusy:
             response = json_response(
                 "error",

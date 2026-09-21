@@ -74,6 +74,7 @@ def leases(request: HttpRequest) -> HttpResponse:
                 "job_version": item.job.version,
                 "lease_expires_at": item.lease_expires_at.isoformat(),
                 "process_state": item.process_state,
+                "event_cursor": item.event_cursor,
             }
             for item in agents.AgentAttempt.objects.filter(
                 runner=device, realm=device.realm, active=True

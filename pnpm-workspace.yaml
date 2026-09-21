@@ -1,2 +1,5 @@
 packages:
   - starlight_help
+
+  # The runner uses its own Node runtime and npm lockfile.
+  - "!services/grow-agent-runner"

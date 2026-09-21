@@ -1,0 +1,96 @@
+[
+  {
+    "name": "code_descriptor",
+    "payload_digest": "490e7f84410310d5abe109e55013eb5ef0d0914abe76b4c45e4116a2736f2710",
+    "descriptor_digest": "3462e84e956dc2f55f267b8202aa381a73112011900b6f701d405788dd19e04e",
+    "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365"
+  },
+  {
+    "name": "runner_started",
+    "payload_digest": "3e3751039491bf69e4c5d352063aae2305494a78724387bee87a0c425d216a1e"
+  },
+  {
+    "name": "provider_probe",
+    "payload_digest": "1ed040115dc4e005bdfd234c1f63d9012a1785c091fcd9fb31e0e72034317693",
+    "descriptor_digest": "c5282b5d06c9d02f0cd37ac927be85c7eeadd877de92aabb929e537939de16bb",
+    "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365"
+  },
+  {
+    "name": "provider",
+    "payload_digest": "97c0d253d75ea81baa6f2cf28519b10e7c11dfd54b6336254b046282638816fe"
+  },
+  {
+    "name": "repository",
+    "payload_digest": "dd67aeefedffaf3fb7551c406baa28cf6686691fbbc66ec9ced1886b5bc20524"
+  },
+  {
+    "name": "profile",
+    "payload_digest": "d759de6a98c9f1415bb6a36fdeb075fec82e14aab0e05a0baafc2c98f319a9b3"
+  },
+  {
+    "name": "grant",
+    "payload_digest": "2e46b308cf342c633663a9b0c0e3608dfbc61aabd4825e4e6fbb5b316fad9507"
+  },
+  {
+    "name": "artifact",
+    "payload_digest": "65ab851d9a8d456da9f774c38b4f6225a3c59b415b737e9866731fab742f6d89"
+  },
+  {
+    "name": "verification",
+    "payload_digest": "aaeacb4cd4278adc6233d5af9852a8061d3692762609c4155e108e9194ef1ae4"
+  },
+  {
+    "name": "approval",
+    "payload_digest": "fbbb22164a77f44012a82f9548e45d3d3dd286f9439e05710e34c73e3f0118b4"
+  },
+  {
+    "name": "readiness",
+    "payload_digest": "8e6a5e12991aa7c4883a44a8300ad5958e1fcb7e0f8a4298987f1f57537842ca"
+  },
+  {
+    "name": "answer_job",
+    "payload_digest": "8ac58c748e8890962503c260735fa249c36a54d29e98428051a31465bb210d7c"
+  },
+  {
+    "name": "claim",
+    "payload_digest": "78b9fbefc43e51d96f79f4c10ad6ecd9579a96f8714157617b5efdde7fbefe0d"
+  },
+  {
+    "name": "input",
+    "payload_digest": "7a855ec70858093cd58bbc957b5c9751a6a30bffdd5b6125fb07db01482f5488"
+  },
+  {
+    "name": "context",
+    "payload_digest": "0851c3c874e68c65b64864d9c4c1095f9a1526b308748b75d0b4acf169bb445f"
+  },
+  {
+    "name": "checkpoint",
+    "payload_digest": "19701180d6d17aafd3099775ffcabcc6fa513d770d325620ef6ad735e165a276"
+  },
+  {
+    "name": "narrowed_answer_descriptor",
+    "payload_digest": "3b07ec738809ded75ebfe02064db0d660ba8fe9a14ffb64d0851b51183597037",
+    "descriptor_digest": "f0f19f2bbf55f01883ab8ad38aa35a8a06cdc19c9616c0ef8a3be6a1d08ddb47",
+    "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365"
+  },
+  {
+    "name": "operation_repository.read",
+    "payload_digest": "161f250e1b18ce051a3f3b80b793f59ffc099c68a197be81bdff22bcf6caa662"
+  },
+  {
+    "name": "operation_repository.edit",
+    "payload_digest": "299c048475b2b098f6529b36d885135064b6f6e4d2cc43d9a0295b1a35585a11"
+  },
+  {
+    "name": "operation_checks.run",
+    "payload_digest": "34de32ba83bf051e150e4ff1dcec7e3b76dff95601a4f692369a2603d48a6ae3"
+  },
+  {
+    "name": "operation_git.commit",
+    "payload_digest": "20ff18bfc4bff3b24da49259c2ba97c684c6ed339a07307bb60fd6a856646fd6"
+  },
+  {
+    "name": "operation_context.read",
+    "payload_digest": "a36dccf4dd1917c2cf0bf2f6689da354de2c78a9eefe0c0331778a465e55e947"
+  }
+]

@@ -181,39 +181,35 @@ def revoke_runner(runner: agents.AgentRunner) -> None:
     )
 
 
-def authenticate_runner_token(token: str) -> agents.AgentRunnerCredential:
-    """Return an active credential for a device bearer token."""
-    digest = hash_agent_credential(token)
+class RunnerCredentialError(ValueError):
+    def __init__(self, code: str) -> None:
+        super().__init__("Runner credential is unavailable.")
+        self.code = code
+
+
+def _authenticate_runner(value: str, *, refresh: bool) -> agents.AgentRunnerCredential:
+    field = "refresh_hash" if refresh else "token_hash"
     credential = (
         agents.AgentRunnerCredential.objects.select_related("runner")
-        .filter(token_hash=digest, revoked_at__isnull=True)
+        .filter(**{field: hash_agent_credential(value)})
         .first()
     )
-    if (
-        credential is None
-        or credential.runner.revoked_at is not None
-        or credential.expires_at <= now()
-        or not credential_matches(token, credential.token_hash)
-    ):
-        raise ValueError("Runner credential is unavailable.")
+    if credential is None or not credential_matches(value, getattr(credential, field)):
+        raise RunnerCredentialError("credential_invalid")
+    if credential.revoked_at is not None or credential.runner.revoked_at is not None:
+        raise RunnerCredentialError("credential_revoked")
+    expiry = credential.refresh_expires_at if refresh else credential.expires_at
+    if expiry <= now():
+        raise RunnerCredentialError("credential_expired")
     return credential
+
+
+def authenticate_runner_token(token: str) -> agents.AgentRunnerCredential:
+    return _authenticate_runner(token, refresh=False)
 
 
 def authenticate_runner_refresh(refresh_token: str) -> agents.AgentRunnerCredential:
-    digest = hash_agent_credential(refresh_token)
-    credential = (
-        agents.AgentRunnerCredential.objects.select_related("runner")
-        .filter(refresh_hash=digest, revoked_at__isnull=True)
-        .first()
-    )
-    if (
-        credential is None
-        or credential.runner.revoked_at is not None
-        or credential.refresh_expires_at <= now()
-        or not credential_matches(refresh_token, credential.refresh_hash)
-    ):
-        raise ValueError("Runner credential is unavailable.")
-    return credential
+    return _authenticate_runner(refresh_token, refresh=True)
 
 
 def _safe_provider_url(value: str) -> str:

@@ -98,3 +98,11 @@ class SetupResult(Request):
     state: Literal["ready", "needs_action", "failed"]
     capabilities: p.CapabilityReport
     requirements: list[p.Requirement] = Field(default_factory=list, max_length=32)
+
+
+class WorkspaceReport(Request):
+    workspace_alias: Annotated[str, Field(pattern=r"^[a-zA-Z0-9_-]{1,80}$")]
+    canonical_origin: str | None = None
+    allowed_refs: list[p.Text] = Field(min_length=1, max_length=100)
+    required_checks: list[p.RequiredCheck] = Field(default_factory=list, max_length=64)
+    revision: p.Positive

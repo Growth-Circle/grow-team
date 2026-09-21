@@ -1,0 +1,7 @@
+node_modules/
+dist/
+release/
+*.tgz
+
+# This independent distribution requires its npm lockfile.
+!package-lock.json
