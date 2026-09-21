@@ -166,10 +166,6 @@ export async function stopContainer(
     if (item.State.Running) {
         await observe(i, r).catch(() => {});
         if (!authorizeStop()) return false;
-        if (item.State.Paused) {
-            await docker(i, ["unpause", r.id]);
-            if (!authorizeStop()) return false;
-        }
         await docker(i, ["kill", "--signal=KILL", r.id]);
     }
     for (let n = 0; n < 30; n++) {

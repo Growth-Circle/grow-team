@@ -746,3 +746,36 @@ test("real read-only shell checkpoint permits the next repository read", async (
         j.close();
     }
 });
+
+test("implementation confirms direct stop of a real paused container", async () => {
+    const f = fixture(),
+        w = await workspace(f);
+    const pending = sandbox.runSandboxedTool(
+        f.d,
+        f.guard,
+        w,
+        node("process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"),
+        {write: false, timeoutMs: 15000},
+    );
+    let id = "";
+    for (let n = 0; n < 50; n++) {
+        const handle = (await sandbox.inspect()).find((x) => x.attempt_id === f.d.attempt_id);
+        if (handle) {
+            id = handle.container_id;
+            if ((await inspect(sandbox.installation, id)).State.Running) break;
+        }
+        await new Promise((r) => setTimeout(r, 100));
+    }
+    await new Promise((r) => setTimeout(r, 400));
+    assert.equal((await docker(sandbox.installation, ["pause", id])).code, 0);
+    assert.equal((await inspect(sandbox.installation, id)).State.Paused, true);
+    const record = new PrivateStore(join(root, "containment")).read<any>(`container-${id}.json`);
+    assert(await stopContainer(sandbox.installation, record, () => true));
+    const result = await pending;
+    assert(result.stopConfirmed);
+    const final = await inspect(sandbox.installation, id);
+    assert.equal(final.State.Running, false);
+    assert.equal(final.State.Paused, false);
+    assert.equal(final.State.Pid, 0);
+    assert.equal(final.State.ExitCode, 137);
+});
