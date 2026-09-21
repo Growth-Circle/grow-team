@@ -31,5 +31,5 @@ Keep all application state separate from HermesTrading.
 - [x] Move the existing Cloudflare connector to the Grow Team service.
 - [x] Test public HTTPS, sign-in, invitations, messages, live events, and backups.
 - [x] Verify HermesTrading against the recorded baseline.
-- [ ] Commit and push the deployment configuration and operations guide.
-- [ ] Deliver the workspace link and private account access instructions.
+- [x] Commit and push the deployment configuration and operations guide.
+- [x] Prepare the workspace link and private account access instructions.

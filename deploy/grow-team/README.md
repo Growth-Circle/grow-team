@@ -95,6 +95,7 @@ Wrangler OAuth digunakan untuk deployment. Pengiriman saat runtime menggunakan b
 Runtime tidak bergantung pada token OAuth yang dapat kedaluwarsa.
 Secret `RELAY_TOKEN` di Worker harus sama dengan `/etc/grow-team/secrets/email` di server.
 Secret tersebut hanya memberi akses ke penghubung email ini, bukan API akun Cloudflare.
+Saat merotasi secret, perbarui kedua sisi lalu buat ulang container Zulip dengan `compose.sh up -d --force-recreate zulip`.
 
 ```bash
 npx wrangler deploy --config deploy/grow-team/mail-worker/wrangler.jsonc
