@@ -63,15 +63,27 @@ Ekstrak arsip dalam direktori tersebut, lalu jalankan build melalui engine khusu
 ```bash
 sudo env DOCKER_HOST=unix:///run/grow-team-docker/docker.sock \
   DOCKER_CONFIG=/opt/grow-team/lib/docker \
-  /opt/grow-team/bin/docker build --network none \
-  --cpu-quota 100000 --memory 2g \
+  /opt/grow-team/bin/docker buildx build --network none --progress plain --load \
   --build-arg GROW_TEAM_REVISION=<commit-penuh> \
   --tag grow-team/server:12.2-grow-team.1 <direktori-build>
 ```
 
+Docker Buildx 0.30.0 terpasang pada direktori plugin engine Grow Team.
 Build memakai dependensi base image, mengumpulkan aset, dan mengompilasi katalog bahasa.
+Perakitan berjalan sebagai user `zulip` agar kepemilikan file sesuai dengan runtime.
+Engine dan proses build berada dalam batas sumber daya `grow-team.slice`.
 Konfigurasi build hanya berlaku dalam proses build; credentials produksi tidak diperlukan.
 Gunakan tag baru pada rilis berikutnya, lalu perbarui `compose.override.yaml`.
+Build menjalankan pemeriksaan Django sebagai user aplikasi setelah aset dirakit.
+Ulangi pemeriksaan pada image hasil ekspor sebelum deployment:
+
+```bash
+sudo env DOCKER_HOST=unix:///run/grow-team-docker/docker.sock \
+  DOCKER_CONFIG=/opt/grow-team/lib/docker \
+  /opt/grow-team/bin/docker run --rm --network none --no-healthcheck \
+  --user zulip --entrypoint /home/zulip/deployments/current/.venv/bin/python \
+  grow-team/server:12.2-grow-team.1 /opt/grow-team-build/check_image.py
+```
 
 Sebelum mengganti aplikasi:
 
@@ -84,6 +96,14 @@ Sebelum mengganti aplikasi:
 Jika pemeriksaan gagal, pulihkan file Compose sebelumnya dan jalankan perintah pada langkah empat.
 Database dan layanan pendukung tidak dibuat ulang untuk rilis branding ini.
 Pertahankan image lama sampai pemeriksaan selesai.
+
+`rebrand_pilot.py` hanya berlaku untuk data bawaan pilot pertama di `team.growc.id`.
+Script memeriksa realm, kanal, bot, riwayat edit, dan hash isi enam pesan sebelum perubahan.
+Script tidak mengubah pesan anggota dan tidak membuat pesan atau email baru.
+Jalankan `run()` melalui `manage.py shell` untuk audit tanpa perubahan.
+Sesudah backup dan audit lulus, `run(apply=True)` menerapkan perubahan dalam satu transaksi.
+Bersihkan cache Grow Team dan restart proses aplikasi setelah penerapan.
+Script menolak penerapan ulang atau data yang tidak lagi sama dengan seed yang diaudit.
 
 ## Layout server
 

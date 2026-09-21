@@ -68,6 +68,7 @@ def main() -> None:
             archive.add(root / name, arcname=f"app/{name}")
         archive.add(root / "deploy/grow-team/Dockerfile", arcname="Dockerfile")
         archive.add(root / "deploy/grow-team/assemble_image.py", arcname="assemble_image.py")
+        archive.add(root / "deploy/grow-team/check_image.py", arcname="check_image.py")
     print(
         json.dumps(
             {"revision": revision, "archive": str(args.output), "bytes": args.output.stat().st_size}

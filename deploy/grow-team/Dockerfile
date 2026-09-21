@@ -8,7 +8,8 @@ LABEL org.opencontainers.image.title="Grow Team" \
 WORKDIR /home/zulip/deployments/current
 COPY --chown=zulip:zulip app/ ./
 COPY assemble_image.py /opt/grow-team-build/assemble_image.py
-RUN .venv/bin/python /opt/grow-team-build/assemble_image.py "${GROW_TEAM_REVISION}"
+COPY check_image.py /opt/grow-team-build/check_image.py
+RUN su zulip -c '.venv/bin/python /opt/grow-team-build/assemble_image.py "$GROW_TEAM_REVISION" && .venv/bin/python /opt/grow-team-build/check_image.py'
 
 # Keep the upstream entrypoint and health check.
 WORKDIR /root
