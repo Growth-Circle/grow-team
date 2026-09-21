@@ -9,6 +9,25 @@
         "job_id": "00000000-0000-4000-8000-000000000005",
         "attempt_id": "00000000-0000-4000-8000-000000000006",
         "lease_epoch": 1,
+        "audience": {
+          "conversation_id": "11111111-1111-4111-8111-111111111111",
+          "epoch": 1,
+          "realm_id": 1,
+          "profile_id": "00000000-0000-4000-8000-000000000002",
+          "requester_user_id": 1,
+          "bot_user_id": 2,
+          "anchor_message_id": 10,
+          "recipient_id": 1,
+          "kind": "stream",
+          "stream_id": 1,
+          "invite_only": false,
+          "is_web_public": false,
+          "history_public_to_subscribers": true,
+          "audience_user_ids": [
+            1,
+            2
+          ]
+        },
         "tested_configuration": {
           "schema_version": 1,
           "runner_id": "00000000-0000-4000-8000-000000000001",
@@ -674,6 +693,7 @@
       "name": "verification",
       "schema": "verification",
       "payload": {
+        "operation_id": "a0000000-0000-4000-8000-000000000001",
         "check_id": "unit",
         "command": [
           "python",
@@ -778,6 +798,25 @@
           "job_id": "00000000-0000-4000-8000-000000000005",
           "attempt_id": "00000000-0000-4000-8000-000000000006",
           "lease_epoch": 1,
+          "audience": {
+            "conversation_id": "11111111-1111-4111-8111-111111111111",
+            "epoch": 1,
+            "realm_id": 1,
+            "profile_id": "00000000-0000-4000-8000-000000000002",
+            "requester_user_id": 1,
+            "bot_user_id": 2,
+            "anchor_message_id": 10,
+            "recipient_id": 1,
+            "kind": "stream",
+            "stream_id": 1,
+            "invite_only": false,
+            "is_web_public": false,
+            "history_public_to_subscribers": true,
+            "audience_user_ids": [
+              1,
+              2
+            ]
+          },
           "tested_configuration": {
             "schema_version": 1,
             "runner_id": "00000000-0000-4000-8000-000000000001",
@@ -1040,6 +1079,7 @@
           "inputs": [],
           "checkpoint": null
         },
+        "job_version": null,
         "probe": null
       }
     },
@@ -1101,6 +1141,25 @@
         "job_id": "00000000-0000-4000-8000-000000000005",
         "attempt_id": "00000000-0000-4000-8000-000000000006",
         "lease_epoch": 1,
+        "audience": {
+          "conversation_id": "11111111-1111-4111-8111-111111111111",
+          "epoch": 1,
+          "realm_id": 1,
+          "profile_id": "00000000-0000-4000-8000-000000000002",
+          "requester_user_id": 1,
+          "bot_user_id": 2,
+          "anchor_message_id": 10,
+          "recipient_id": 1,
+          "kind": "stream",
+          "stream_id": 1,
+          "invite_only": false,
+          "is_web_public": false,
+          "history_public_to_subscribers": true,
+          "audience_user_ids": [
+            1,
+            2
+          ]
+        },
         "tested_configuration": {
           "schema_version": 1,
           "runner_id": "00000000-0000-4000-8000-000000000001",
@@ -1662,7 +1721,26 @@
         },
         "context_refs": [],
         "inputs": [],
-        "checkpoint": null
+        "checkpoint": null,
+        "audience": {
+          "conversation_id": "11111111-1111-4111-8111-111111111111",
+          "epoch": 1,
+          "realm_id": 1,
+          "profile_id": "00000000-0000-4000-8000-000000000002",
+          "requester_user_id": 1,
+          "bot_user_id": 2,
+          "anchor_message_id": 10,
+          "recipient_id": 1,
+          "kind": "stream",
+          "stream_id": 1,
+          "invite_only": false,
+          "is_web_public": false,
+          "history_public_to_subscribers": true,
+          "audience_user_ids": [
+            1,
+            2
+          ]
+        }
       }
     },
     {
@@ -1966,7 +2044,26 @@
         },
         "context_refs": [],
         "inputs": [],
-        "checkpoint": null
+        "checkpoint": null,
+        "audience": {
+          "conversation_id": "11111111-1111-4111-8111-111111111111",
+          "epoch": 1,
+          "realm_id": 1,
+          "profile_id": "00000000-0000-4000-8000-000000000002",
+          "requester_user_id": 1,
+          "bot_user_id": 2,
+          "anchor_message_id": 10,
+          "recipient_id": 1,
+          "kind": "stream",
+          "stream_id": 1,
+          "invite_only": false,
+          "is_web_public": false,
+          "history_public_to_subscribers": true,
+          "audience_user_ids": [
+            1,
+            2
+          ]
+        }
       }
     },
     {
@@ -2296,7 +2393,26 @@
         },
         "context_refs": [],
         "inputs": [],
-        "checkpoint": null
+        "checkpoint": null,
+        "audience": {
+          "conversation_id": "11111111-1111-4111-8111-111111111111",
+          "epoch": 1,
+          "realm_id": 1,
+          "profile_id": "00000000-0000-4000-8000-000000000002",
+          "requester_user_id": 1,
+          "bot_user_id": 2,
+          "anchor_message_id": 10,
+          "recipient_id": 1,
+          "kind": "stream",
+          "stream_id": 1,
+          "invite_only": false,
+          "is_web_public": false,
+          "history_public_to_subscribers": true,
+          "audience_user_ids": [
+            1,
+            2
+          ]
+        }
       }
     },
     {
@@ -2681,7 +2797,26 @@
         },
         "context_refs": [],
         "inputs": [],
-        "checkpoint": null
+        "checkpoint": null,
+        "audience": {
+          "conversation_id": "11111111-1111-4111-8111-111111111111",
+          "epoch": 1,
+          "realm_id": 1,
+          "profile_id": "00000000-0000-4000-8000-000000000002",
+          "requester_user_id": 1,
+          "bot_user_id": 2,
+          "anchor_message_id": 10,
+          "recipient_id": 1,
+          "kind": "stream",
+          "stream_id": 1,
+          "invite_only": false,
+          "is_web_public": false,
+          "history_public_to_subscribers": true,
+          "audience_user_ids": [
+            1,
+            2
+          ]
+        }
       }
     },
     {
@@ -3504,7 +3639,26 @@
         },
         "context_refs": [],
         "inputs": [],
-        "checkpoint": null
+        "checkpoint": null,
+        "audience": {
+          "conversation_id": "11111111-1111-4111-8111-111111111111",
+          "epoch": 1,
+          "realm_id": 1,
+          "profile_id": "00000000-0000-4000-8000-000000000002",
+          "requester_user_id": 1,
+          "bot_user_id": 2,
+          "anchor_message_id": 10,
+          "recipient_id": 1,
+          "kind": "stream",
+          "stream_id": 1,
+          "invite_only": false,
+          "is_web_public": false,
+          "history_public_to_subscribers": true,
+          "audience_user_ids": [
+            1,
+            2
+          ]
+        }
       }
     },
     {
@@ -3775,7 +3929,26 @@
         },
         "context_refs": [],
         "inputs": [],
-        "checkpoint": null
+        "checkpoint": null,
+        "audience": {
+          "conversation_id": "11111111-1111-4111-8111-111111111111",
+          "epoch": 1,
+          "realm_id": 1,
+          "profile_id": "00000000-0000-4000-8000-000000000002",
+          "requester_user_id": 1,
+          "bot_user_id": 2,
+          "anchor_message_id": 10,
+          "recipient_id": 1,
+          "kind": "stream",
+          "stream_id": 1,
+          "invite_only": false,
+          "is_web_public": false,
+          "history_public_to_subscribers": true,
+          "audience_user_ids": [
+            1,
+            2
+          ]
+        }
       }
     },
     {
@@ -4046,7 +4219,26 @@
         },
         "context_refs": [],
         "inputs": [],
-        "checkpoint": null
+        "checkpoint": null,
+        "audience": {
+          "conversation_id": "11111111-1111-4111-8111-111111111111",
+          "epoch": 1,
+          "realm_id": 1,
+          "profile_id": "00000000-0000-4000-8000-000000000002",
+          "requester_user_id": 1,
+          "bot_user_id": 2,
+          "anchor_message_id": 10,
+          "recipient_id": 1,
+          "kind": "stream",
+          "stream_id": 1,
+          "invite_only": false,
+          "is_web_public": false,
+          "history_public_to_subscribers": true,
+          "audience_user_ids": [
+            1,
+            2
+          ]
+        }
       }
     },
     {
@@ -4317,7 +4509,26 @@
         },
         "context_refs": [],
         "inputs": [],
-        "checkpoint": null
+        "checkpoint": null,
+        "audience": {
+          "conversation_id": "11111111-1111-4111-8111-111111111111",
+          "epoch": 1,
+          "realm_id": 1,
+          "profile_id": "00000000-0000-4000-8000-000000000002",
+          "requester_user_id": 1,
+          "bot_user_id": 2,
+          "anchor_message_id": 10,
+          "recipient_id": 1,
+          "kind": "stream",
+          "stream_id": 1,
+          "invite_only": false,
+          "is_web_public": false,
+          "history_public_to_subscribers": true,
+          "audience_user_ids": [
+            1,
+            2
+          ]
+        }
       }
     },
     {
@@ -4589,7 +4800,26 @@
         },
         "context_refs": [],
         "inputs": [],
-        "checkpoint": null
+        "checkpoint": null,
+        "audience": {
+          "conversation_id": "11111111-1111-4111-8111-111111111111",
+          "epoch": 1,
+          "realm_id": 1,
+          "profile_id": "00000000-0000-4000-8000-000000000002",
+          "requester_user_id": 1,
+          "bot_user_id": 2,
+          "anchor_message_id": 10,
+          "recipient_id": 1,
+          "kind": "stream",
+          "stream_id": 1,
+          "invite_only": false,
+          "is_web_public": false,
+          "history_public_to_subscribers": true,
+          "audience_user_ids": [
+            1,
+            2
+          ]
+        }
       }
     },
     {
@@ -4860,7 +5090,26 @@
         },
         "context_refs": [],
         "inputs": [],
-        "checkpoint": null
+        "checkpoint": null,
+        "audience": {
+          "conversation_id": "11111111-1111-4111-8111-111111111111",
+          "epoch": 1,
+          "realm_id": 1,
+          "profile_id": "00000000-0000-4000-8000-000000000002",
+          "requester_user_id": 1,
+          "bot_user_id": 2,
+          "anchor_message_id": 10,
+          "recipient_id": 1,
+          "kind": "stream",
+          "stream_id": 1,
+          "invite_only": false,
+          "is_web_public": false,
+          "history_public_to_subscribers": true,
+          "audience_user_ids": [
+            1,
+            2
+          ]
+        }
       }
     },
     {
@@ -4879,7 +5128,8 @@
         "finished_at": "2026-09-21T12:00:00Z",
         "tree_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "artifact_id": "00000000-0000-4000-8000-000000000013",
-        "timed_out": false
+        "timed_out": false,
+        "operation_id": "a0000000-0000-4000-8000-000000000001"
       }
     },
     {
@@ -4898,7 +5148,8 @@
         "finished_at": "2026-09-21T12:00:00Z",
         "tree_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "artifact_id": "00000000-0000-4000-8000-000000000013",
-        "timed_out": false
+        "timed_out": false,
+        "operation_id": "a0000000-0000-4000-8000-000000000001"
       }
     },
     {

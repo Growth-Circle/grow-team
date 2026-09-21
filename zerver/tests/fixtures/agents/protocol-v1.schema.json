@@ -1,4 +1,130 @@
 {
+  "audience": {
+    "additionalProperties": false,
+    "properties": {
+      "conversation_id": {
+        "format": "uuid",
+        "title": "Conversation Id",
+        "type": "string"
+      },
+      "epoch": {
+        "minimum": 1,
+        "title": "Epoch",
+        "type": "integer"
+      },
+      "realm_id": {
+        "minimum": 1,
+        "title": "Realm Id",
+        "type": "integer"
+      },
+      "profile_id": {
+        "format": "uuid",
+        "title": "Profile Id",
+        "type": "string"
+      },
+      "requester_user_id": {
+        "minimum": 1,
+        "title": "Requester User Id",
+        "type": "integer"
+      },
+      "bot_user_id": {
+        "minimum": 1,
+        "title": "Bot User Id",
+        "type": "integer"
+      },
+      "anchor_message_id": {
+        "minimum": 1,
+        "title": "Anchor Message Id",
+        "type": "integer"
+      },
+      "recipient_id": {
+        "minimum": 1,
+        "title": "Recipient Id",
+        "type": "integer"
+      },
+      "kind": {
+        "enum": [
+          "stream",
+          "direct"
+        ],
+        "title": "Kind",
+        "type": "string"
+      },
+      "stream_id": {
+        "anyOf": [
+          {
+            "minimum": 1,
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Stream Id"
+      },
+      "invite_only": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Invite Only"
+      },
+      "is_web_public": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Is Web Public"
+      },
+      "history_public_to_subscribers": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "History Public To Subscribers"
+      },
+      "audience_user_ids": {
+        "items": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maxItems": 10000,
+        "minItems": 1,
+        "title": "Audience User Ids",
+        "type": "array"
+      }
+    },
+    "required": [
+      "conversation_id",
+      "epoch",
+      "realm_id",
+      "profile_id",
+      "requester_user_id",
+      "bot_user_id",
+      "anchor_message_id",
+      "recipient_id",
+      "kind",
+      "audience_user_ids"
+    ],
+    "title": "AudienceBinding",
+    "type": "object"
+  },
   "runner_catalog": {
     "$defs": {
       "AdapterCatalogEntry": {
@@ -1768,6 +1894,132 @@
         "title": "AdapterConfig",
         "type": "object"
       },
+      "AudienceBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "conversation_id": {
+            "format": "uuid",
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "epoch": {
+            "minimum": 1,
+            "title": "Epoch",
+            "type": "integer"
+          },
+          "realm_id": {
+            "minimum": 1,
+            "title": "Realm Id",
+            "type": "integer"
+          },
+          "profile_id": {
+            "format": "uuid",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "requester_user_id": {
+            "minimum": 1,
+            "title": "Requester User Id",
+            "type": "integer"
+          },
+          "bot_user_id": {
+            "minimum": 1,
+            "title": "Bot User Id",
+            "type": "integer"
+          },
+          "anchor_message_id": {
+            "minimum": 1,
+            "title": "Anchor Message Id",
+            "type": "integer"
+          },
+          "recipient_id": {
+            "minimum": 1,
+            "title": "Recipient Id",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "stream",
+              "direct"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "stream_id": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Stream Id"
+          },
+          "invite_only": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Invite Only"
+          },
+          "is_web_public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Is Web Public"
+          },
+          "history_public_to_subscribers": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "History Public To Subscribers"
+          },
+          "audience_user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 10000,
+            "minItems": 1,
+            "title": "Audience User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "epoch",
+          "realm_id",
+          "profile_id",
+          "requester_user_id",
+          "bot_user_id",
+          "anchor_message_id",
+          "recipient_id",
+          "kind",
+          "audience_user_ids"
+        ],
+        "title": "AudienceBinding",
+        "type": "object"
+      },
       "Budget": {
         "additionalProperties": false,
         "properties": {
@@ -3050,6 +3302,9 @@
         "title": "Lease Epoch",
         "type": "integer"
       },
+      "audience": {
+        "$ref": "#/$defs/AudienceBinding"
+      },
       "tested_configuration": {
         "$ref": "#/$defs/ExecutionConfiguration"
       },
@@ -3167,6 +3422,7 @@
       "job_id",
       "attempt_id",
       "lease_epoch",
+      "audience",
       "tested_configuration",
       "profile_id",
       "profile_revision",
@@ -4308,6 +4564,11 @@
       "VerificationRecord": {
         "additionalProperties": false,
         "properties": {
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
           "check_id": {
             "maxLength": 4096,
             "minLength": 1,
@@ -4369,6 +4630,7 @@
           }
         },
         "required": [
+          "operation_id",
           "check_id",
           "command",
           "cwd",
@@ -4981,6 +5243,11 @@
   "verification": {
     "additionalProperties": false,
     "properties": {
+      "operation_id": {
+        "format": "uuid",
+        "title": "Operation Id",
+        "type": "string"
+      },
       "check_id": {
         "maxLength": 4096,
         "minLength": 1,
@@ -5042,6 +5309,7 @@
       }
     },
     "required": [
+      "operation_id",
       "check_id",
       "command",
       "cwd",
@@ -5381,6 +5649,9 @@
             "title": "Lease Epoch",
             "type": "integer"
           },
+          "audience": {
+            "$ref": "#/$defs/AudienceBinding"
+          },
           "tested_configuration": {
             "$ref": "#/$defs/ExecutionConfiguration"
           },
@@ -5498,6 +5769,7 @@
           "job_id",
           "attempt_id",
           "lease_epoch",
+          "audience",
           "tested_configuration",
           "profile_id",
           "profile_revision",
@@ -5515,6 +5787,132 @@
           "budget"
         ],
         "title": "AttemptDescriptor",
+        "type": "object"
+      },
+      "AudienceBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "conversation_id": {
+            "format": "uuid",
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "epoch": {
+            "minimum": 1,
+            "title": "Epoch",
+            "type": "integer"
+          },
+          "realm_id": {
+            "minimum": 1,
+            "title": "Realm Id",
+            "type": "integer"
+          },
+          "profile_id": {
+            "format": "uuid",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "requester_user_id": {
+            "minimum": 1,
+            "title": "Requester User Id",
+            "type": "integer"
+          },
+          "bot_user_id": {
+            "minimum": 1,
+            "title": "Bot User Id",
+            "type": "integer"
+          },
+          "anchor_message_id": {
+            "minimum": 1,
+            "title": "Anchor Message Id",
+            "type": "integer"
+          },
+          "recipient_id": {
+            "minimum": 1,
+            "title": "Recipient Id",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "stream",
+              "direct"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "stream_id": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Stream Id"
+          },
+          "invite_only": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Invite Only"
+          },
+          "is_web_public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Is Web Public"
+          },
+          "history_public_to_subscribers": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "History Public To Subscribers"
+          },
+          "audience_user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 10000,
+            "minItems": 1,
+            "title": "Audience User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "epoch",
+          "realm_id",
+          "profile_id",
+          "requester_user_id",
+          "bot_user_id",
+          "anchor_message_id",
+          "recipient_id",
+          "kind",
+          "audience_user_ids"
+        ],
+        "title": "AudienceBinding",
         "type": "object"
       },
       "Budget": {
@@ -6973,6 +7371,19 @@
         ],
         "default": null
       },
+      "job_version": {
+        "anyOf": [
+          {
+            "minimum": 1,
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Job Version"
+      },
       "probe": {
         "anyOf": [
           {
@@ -8188,6 +8599,8 @@
       "type": {
         "enum": [
           "job.queued",
+          "attempt.starting",
+          "attempt.interrupted",
           "input.received",
           "approval.requested",
           "approval.resolved",
@@ -8296,6 +8709,69 @@
       "observed_at"
     ],
     "title": "RemoteReceipt",
+    "type": "object"
+  },
+  "local_operation_receipt": {
+    "additionalProperties": false,
+    "properties": {
+      "operation_id": {
+        "format": "uuid",
+        "title": "Operation Id",
+        "type": "string"
+      },
+      "argument_digest": {
+        "pattern": "^[0-9a-f]{64}$",
+        "title": "Argument Digest",
+        "type": "string"
+      },
+      "base_commit": {
+        "anyOf": [
+          {
+            "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Base Commit"
+      },
+      "tree_hash": {
+        "anyOf": [
+          {
+            "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Tree Hash"
+      },
+      "outcome": {
+        "enum": [
+          "succeeded",
+          "failed",
+          "no_effect"
+        ],
+        "title": "Outcome",
+        "type": "string"
+      },
+      "observed_at": {
+        "format": "date-time",
+        "title": "Observed At",
+        "type": "string"
+      }
+    },
+    "required": [
+      "operation_id",
+      "argument_digest",
+      "base_commit",
+      "tree_hash",
+      "outcome",
+      "observed_at"
+    ],
+    "title": "LocalOperationReceipt",
     "type": "object"
   },
   "context_ref": {

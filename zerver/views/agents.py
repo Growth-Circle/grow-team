@@ -13,6 +13,7 @@ from django.utils.timezone import now
 from zerver.actions import agents as actions
 from zerver.lib import agent_protocol as p
 from zerver.lib import agent_requests as r
+from zerver.lib.agent_context import AgentBusy
 from zerver.lib.agent_policy import accessible_profiles, require_agent_resource_access
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.response import json_response, json_success
@@ -28,7 +29,16 @@ def safe_agent_endpoint(view: Callable[P, HttpResponse]) -> Callable[P, HttpResp
     def wrapped(*args: P.args, **kwargs: P.kwargs) -> HttpResponse:
         try:
             return view(*args, **kwargs)
-        except (ValueError, ValidationError, ObjectDoesNotExist, JsonableError):
+        except AgentBusy:
+            response = json_response(
+                "error",
+                "Agent authority is busy. Retry this request.",
+                {"schema_version": 1},
+                status=503,
+            )
+            response["Retry-After"] = "1"
+            return response
+        except (ValueError, ValidationError, ObjectDoesNotExist, JsonableError, OSError):
             return json_response(
                 "error", "Agent request rejected.", {"schema_version": 1}, status=400
             )

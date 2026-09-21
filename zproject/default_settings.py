@@ -179,6 +179,9 @@ S3_UPLOADS_STORAGE_CLASS: Literal[
 S3_AVATAR_PUBLIC_URL_PREFIX: str | None = None
 S3_SKIP_CHECKSUM: bool = False
 LOCAL_UPLOADS_DIR: str | None = None
+
+# Configure a private directory outside public upload and static trees.
+AGENT_ARTIFACT_ROOT: str | None = None
 LOCAL_AVATARS_DIR: str | None = None
 LOCAL_FILES_DIR: str | None = None
 MAX_FILE_UPLOAD_SIZE = 100

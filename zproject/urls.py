@@ -18,6 +18,8 @@ from zerver.forms import LoggingSetPasswordForm
 from zerver.lib.integrations import INCOMING_WEBHOOK_INTEGRATIONS
 from zerver.lib.rest import rest_path
 from zerver.lib.url_redirects import DOCUMENTATION_REDIRECTS, get_integration_category_redirects
+from zerver.views import agent_jobs as agent_job_views
+from zerver.views import agent_runner as agent_runner_views
 from zerver.views.agent_devices import (
     claim_setup_device,
     exchange_pairing_device,
@@ -339,6 +341,16 @@ INTEGRATION_CATEGORY_REDIRECT_PATHS = [
 # e.g. `PATCH /json/realm` or `PATCH /api/v1/realm`.
 v1_api_and_json_patterns = [
     # Human connection routes retain normal Zulip authentication and CSRF checks.
+    rest_path("agent/jobs", GET=agent_job_views.list_jobs, POST=agent_job_views.create_job),
+    rest_path("agent/jobs/<uuid:job_id>", GET=agent_job_views.get_job),
+    rest_path("agent/jobs/<uuid:job_id>/events", GET=agent_job_views.get_events),
+    rest_path(
+        "agent/jobs/<uuid:job_id>/inputs", GET=agent_job_views.inputs, POST=agent_job_views.inputs
+    ),
+    rest_path("agent/jobs/<uuid:job_id>/cancel", POST=agent_job_views.cancel),
+    rest_path("agent/jobs/<uuid:job_id>/resume", POST=agent_job_views.resume),
+    rest_path("agent/approvals/<uuid:approval_id>/decision", POST=agent_job_views.decide),
+    rest_path("agent/artifacts/<uuid:artifact_id>", GET=agent_job_views.artifact),
     rest_path("agent/profiles", GET=list_agent_profiles, POST=create_agent_profile),
     rest_path("agent/profiles/<uuid:profile_id>", GET=get_agent_profile),
     rest_path("agent/pairings/approve", POST=approve_agent_pairing),
@@ -817,6 +829,25 @@ urls: list[URLPattern | URLResolver] = list(i18n_urls)
 
 # Runner bearer and pairing endpoints must bypass REST dispatch. They reject browser users.
 urls += [
+    path("api/v1/agent/runner/claims", agent_runner_views.claims),
+    path("api/v1/agent/runner/operations", agent_runner_views.operations),
+    path("api/v1/agent/runner/leases", agent_runner_views.leases),
+    path("api/v1/agent/runner/controls", agent_runner_views.controls),
+    path("api/v1/agent/runner/heartbeat", agent_runner_views.heartbeat),
+    path("api/v1/agent/runner/events", agent_runner_views.events),
+    path("api/v1/agent/runner/stop-evidence", agent_runner_views.stopped),
+    path("api/v1/agent/runner/context", agent_runner_views.context),
+    path("api/v1/agent/runner/context-file", agent_runner_views.context_file),
+    path("api/v1/agent/runner/inputs", agent_runner_views.inputs),
+    path("api/v1/agent/runner/inputs/reconcile", agent_runner_views.reconcile_input),
+    path("api/v1/agent/runner/artifacts", agent_runner_views.artifacts),
+    path("api/v1/agent/runner/operations/propose", agent_runner_views.propose),
+    path("api/v1/agent/runner/operations/consume", agent_runner_views.consume),
+    path("api/v1/agent/runner/operations/reconcile", agent_runner_views.reconcile_operation),
+    path("api/v1/agent/runner/operations/reconcile-local", agent_runner_views.reconcile_local),
+    path("api/v1/agent/runner/checkpoints", agent_runner_views.checkpoint),
+    path("api/v1/agent/runner/credential-access", agent_runner_views.credential),
+    path("api/v1/agent/runner/probe-credential-access", agent_runner_views.probe_credential),
     path("api/v1/agent/pairings", start_pairing_device),
     path("api/v1/agent/pairings/exchange", exchange_pairing_device),
     path("api/v1/agent/runner/token/refresh", rotate_device_credential),

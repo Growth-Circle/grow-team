@@ -272,6 +272,38 @@ class ConversationScope(Record):
         return self
 
 
+class AudienceBinding(Record):
+    conversation_id: UUID
+    epoch: Positive
+    realm_id: Positive
+    profile_id: UUID
+    requester_user_id: Positive
+    bot_user_id: Positive
+    anchor_message_id: Positive
+    recipient_id: Positive
+    kind: Literal["stream", "direct"]
+    stream_id: Positive | None = None
+    invite_only: StrictBool | None = None
+    is_web_public: StrictBool | None = None
+    history_public_to_subscribers: StrictBool | None = None
+    audience_user_ids: list[Positive] = Field(min_length=1, max_length=10000)
+
+    @model_validator(mode="after")
+    def matching_audience(self) -> Self:
+        if (self.kind == "stream") != (self.stream_id is not None):
+            raise ValueError("Audience route does not match its kind")
+        visibility = [self.invite_only, self.is_web_public, self.history_public_to_subscribers]
+        if (self.kind == "stream" and any(value is None for value in visibility)) or (
+            self.kind == "direct" and any(value is not None for value in visibility)
+        ):
+            raise ValueError("Audience visibility does not match its route")
+        if self.audience_user_ids != sorted(set(self.audience_user_ids)):
+            raise ValueError("Audience members must be unique and sorted")
+        if not {self.requester_user_id, self.bot_user_id} <= set(self.audience_user_ids):
+            raise ValueError("Audience must include both principals")
+        return self
+
+
 class GrantConfig(Record):
     id: UUID
     principal_user_id: Positive | None = None
@@ -509,6 +541,7 @@ class ExecutionConfiguration(Versioned):
 
 
 class AttemptDescriptor(LeaseIdentity, Versioned):
+    audience: AudienceBinding
     tested_configuration: ExecutionConfiguration
     profile_id: UUID
     profile_revision: Positive
@@ -530,6 +563,23 @@ class AttemptDescriptor(LeaseIdentity, Versioned):
 
     @model_validator(mode="after")
     def constrain_execution(self) -> Self:
+        if (
+            self.audience.profile_id != self.profile_id
+            or (
+                self.policy.scope.anchor_message_id is not None
+                and self.policy.scope.anchor_message_id != self.audience.anchor_message_id
+            )
+            or (
+                self.policy.scope.kind == "stream"
+                and self.policy.scope.stream_id != self.audience.stream_id
+            )
+            or (
+                self.policy.scope.kind == "direct"
+                and sorted(self.policy.scope.participant_user_ids)
+                != self.audience.audience_user_ids
+            )
+        ):
+            raise ValueError("Attempt audience does not match its scope")
         if self.job_kind == "answer":
             if self.delivery_target != "answer" or set(self.policy.actions) - {
                 "context.read",
@@ -602,6 +652,7 @@ class ProbeDescriptor(Versioned):
 
 
 class VerificationRecord(Record):
+    operation_id: UUID
     check_id: Text
     command: list[Text] = Field(min_length=1, max_length=64)
     cwd: Text
@@ -875,6 +926,7 @@ class ClaimResponse(Versioned):
     result: Literal["success"] = "success"
     msg: Literal[""] = ""
     attempt: AttemptDescriptor | None = None
+    job_version: Positive | None = None
     probe: ProbeDescriptor | None = None
 
     @model_validator(mode="after")
@@ -897,6 +949,15 @@ class JobRecord(Versioned):
         if (self.job_kind == "answer") != (self.delivery_target == "answer"):
             raise ValueError("Delivery target does not match job kind")
         return self
+
+
+class LocalOperationReceipt(Record):
+    operation_id: UUID
+    argument_digest: Digest
+    base_commit: GitHash | None
+    tree_hash: GitHash | None
+    outcome: Literal["succeeded", "failed", "no_effect"]
+    observed_at: AwareDatetime
 
 
 class RemoteReceipt(Record):
@@ -934,6 +995,8 @@ class AuthorityEvent(Versioned):
     sequence: Positive
     type: Literal[
         "job.queued",
+        "attempt.starting",
+        "attempt.interrupted",
         "input.received",
         "approval.requested",
         "approval.resolved",
@@ -952,6 +1015,8 @@ class AuthorityEvent(Versioned):
             return data
         models: dict[str, type[BaseModel]] = {
             "job.queued": JobStatePayload,
+            "attempt.starting": JobStatePayload,
+            "attempt.interrupted": JobStatePayload,
             "job.completed": JobStatePayload,
             "attempt.stop_requested": JobStatePayload,
             "input.received": InputPayload,
@@ -975,6 +1040,8 @@ class AuthorityEvent(Versioned):
         if isinstance(self.payload, JobStatePayload):
             expected = {
                 "job.queued": "queued",
+                "attempt.starting": "running",
+                "attempt.interrupted": "interrupted",
                 "job.completed": "completed",
                 "attempt.stop_requested": "cancel_requested",
             }
@@ -1003,6 +1070,8 @@ class AuthorityEvent(Versioned):
 EVENT_AUTHORITIES = {
     "server": {
         "job.queued",
+        "attempt.starting",
+        "attempt.interrupted",
         "input.received",
         "approval.requested",
         "approval.resolved",
@@ -1108,6 +1177,7 @@ def configuration_digest(value: AttemptDescriptor | ProbeDescriptor) -> str:
 
 
 PAYLOAD_MODELS: dict[str, type[BaseModel]] = {
+    "audience": AudienceBinding,
     "runner_catalog": RunnerCatalog,
     "sandbox": SandboxConfig,
     "profile": ProfileConfig,
@@ -1129,6 +1199,7 @@ PAYLOAD_MODELS: dict[str, type[BaseModel]] = {
     "configuration": ExecutionConfiguration,
     "authority_event": AuthorityEvent,
     "remote_receipt": RemoteReceipt,
+    "local_operation_receipt": LocalOperationReceipt,
     "context_ref": ContextReference,
     "input": InputRecord,
     "checkpoint": Checkpoint,

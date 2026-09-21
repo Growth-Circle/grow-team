@@ -42,6 +42,15 @@ def validate_agent_references(instance: models.Model) -> None:
     job_id = getattr(instance, "job_id", None)
     if attempt is not None and job_id is not None and attempt.job_id != job_id:
         raise ValidationError("Attempt does not belong to this job.")
+    delivered = getattr(instance, "delivered_attempt", None)
+    if delivered is not None and delivered.job_id != job_id:
+        raise ValidationError("Input attempt does not belong to this job.")
+    checkpoint = getattr(instance, "source_checkpoint", None)
+    if checkpoint is not None and checkpoint.attempt.job_id != job_id:
+        raise ValidationError("Checkpoint does not belong to this job.")
+    resume = getattr(instance, "resume_checkpoint", None)
+    if resume is not None and resume.attempt.job_id != instance.pk:
+        raise ValidationError("Resume checkpoint does not belong to this job.")
     operation = getattr(instance, "operation", None)
     if operation is not None and operation.attempt_id != getattr(instance, "attempt_id", None):
         raise ValidationError("Operation does not belong to this attempt.")
@@ -399,15 +408,28 @@ class AgentGrant(AgentRecord):
 
 
 class AgentConversation(AgentRecord):
+    audience_epoch = models.PositiveBigIntegerField(default=1)
+    audience_binding = models.JSONField(null=True, default=None)
     profile = models.ForeignKey(AgentProfile, on_delete=models.PROTECT)
     repository = models.ForeignKey(AgentRepository, on_delete=models.PROTECT, null=True)
     anchor_message = models.ForeignKey("zerver.Message", on_delete=models.SET_NULL, null=True)
     scope = models.JSONField(default=dict)
     session_reference = models.CharField(max_length=512, default="")
-    protocol_fields = {"scope": protocol.ConversationScope}
+    protocol_fields = {
+        "scope": protocol.ConversationScope,
+        "audience_binding": protocol.AudienceBinding | None,
+    }
 
 
 class AgentJob(AgentRecord):
+    resume_checkpoint = models.ForeignKey(
+        "AgentCheckpoint", on_delete=models.PROTECT, null=True, related_name="resume_jobs"
+    )
+    event_sequence = models.PositiveBigIntegerField(default=0)
+    input_sequence = models.PositiveBigIntegerField(default=0)
+    result_proposal = models.JSONField(null=True, default=None)
+    result_receipt = models.JSONField(null=True, default=None)
+    stop_target = models.CharField(max_length=20, default="cancelled")
     requester = models.ForeignKey("zerver.UserProfile", on_delete=models.PROTECT)
     conversation = models.ForeignKey(AgentConversation, on_delete=models.PROTECT)
     profile = models.ForeignKey(AgentProfile, on_delete=models.PROTECT)
@@ -472,6 +494,9 @@ class AgentJob(AgentRecord):
 
 
 class AgentAttempt(AgentRecord):
+    audience_binding = models.JSONField(null=True, default=None)
+    tool_rounds = models.PositiveIntegerField(default=0)
+    stop_receipt = models.JSONField(null=True, default=None)
     job = models.ForeignKey(AgentJob, on_delete=models.PROTECT)
     runner = models.ForeignKey(AgentRunner, on_delete=models.PROTECT)
     number = models.PositiveIntegerField()
@@ -500,7 +525,10 @@ class AgentAttempt(AgentRecord):
     source_checkpoint = models.ForeignKey(
         "AgentCheckpoint", on_delete=models.PROTECT, null=True, related_name="resumed_attempts"
     )
-    protocol_fields = {"descriptor": protocol.AttemptDescriptor}
+    protocol_fields = {
+        "descriptor": protocol.AttemptDescriptor,
+        "audience_binding": protocol.AudienceBinding | None,
+    }
 
     class Meta:
         constraints = [
@@ -539,6 +567,7 @@ class AgentContextRef(AgentRecord):
 
 
 class AgentOperation(AgentRecord):
+    scope_binding = models.JSONField(default=dict)
     attempt = models.ForeignKey(AgentAttempt, on_delete=models.PROTECT)
     operation_id = models.UUIDField(unique=True)
     tool_class = models.CharField(max_length=40)
@@ -551,9 +580,11 @@ class AgentOperation(AgentRecord):
     started_at = models.DateTimeField(null=True)
     finished_at = models.DateTimeField(null=True)
     remote_receipt = models.JSONField(null=True, default=None)
+    local_receipt = models.JSONField(null=True, default=None)
     protocol_fields = {
         "arguments": protocol.OperationArguments,
         "remote_receipt": protocol.RemoteReceipt | None,
+        "local_receipt": protocol.LocalOperationReceipt | None,
     }
 
     class Meta:
@@ -608,6 +639,7 @@ class AgentApproval(AgentRecord):
 
 
 class AgentArtifact(AgentRecord):
+    audience_binding = models.JSONField(null=True, default=None)
     attempt = models.ForeignKey(AgentAttempt, on_delete=models.PROTECT)
     kind = models.CharField(max_length=30)
     checksum = models.CharField(max_length=64)
@@ -619,7 +651,10 @@ class AgentArtifact(AgentRecord):
     unavailable_at = models.DateTimeField(null=True)
     # Access is inherited from the current job ACL, never a public URL.
     acl_scope = models.JSONField(default=dict)
-    protocol_fields = {"acl_scope": protocol.ConversationScope}
+    protocol_fields = {
+        "acl_scope": protocol.ConversationScope,
+        "audience_binding": protocol.AudienceBinding | None,
+    }
 
     class Meta:
         constraints = [
@@ -630,6 +665,7 @@ class AgentArtifact(AgentRecord):
 
 
 class AgentVerification(AgentRecord):
+    operation = models.ForeignKey(AgentOperation, on_delete=models.PROTECT, null=True)
     attempt = models.ForeignKey(AgentAttempt, on_delete=models.PROTECT)
     check_id = models.CharField(max_length=80)
     command = models.JSONField()
@@ -657,6 +693,7 @@ class AgentVerification(AgentRecord):
 
 
 class AgentCheckpoint(AgentRecord):
+    audience_binding = models.JSONField(null=True, default=None)
     attempt = models.ForeignKey(AgentAttempt, on_delete=models.PROTECT, related_name="checkpoints")
     base_commit = models.CharField(max_length=64, default="")
     tree_hash = models.CharField(max_length=64, default="")
@@ -668,6 +705,7 @@ class AgentCheckpoint(AgentRecord):
     adapter_session_ref = models.CharField(max_length=512, default="")
     input_cursor = models.PositiveBigIntegerField(default=0)
     protocol_fields = {
+        "audience_binding": protocol.AudienceBinding | None,
         "context_refs": list[uuid.UUID],
         "artifact_ids": list[uuid.UUID],
         "remaining_work": list[protocol.Text],
@@ -851,6 +889,7 @@ class AgentDispatchReceipt(AgentRecord):
 
 
 class AgentInput(AgentRecord):
+    reconciliation_receipt = models.JSONField(null=True, default=None)
     job = models.ForeignKey(AgentJob, on_delete=models.PROTECT)
     author = models.ForeignKey("zerver.UserProfile", on_delete=models.PROTECT)
     source_message = models.ForeignKey("zerver.Message", on_delete=models.SET_NULL, null=True)
