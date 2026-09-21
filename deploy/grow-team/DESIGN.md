@@ -4,7 +4,7 @@ Date: 2026-09-21
 
 ## Approved scope
 
-Deploy Zulip for Rama's internal team at `https://team.growc.id`.
+Deploy Grow Team for Rama's internal team at `https://team.growc.id`.
 Use `Growth-Circle/grow-team` as the source fork.
 Use `/home/ramaaditya/Project/grow-team` as the local checkout.
 Use `server-gteam` as the project SSH alias.
@@ -12,7 +12,9 @@ Keep landing pages, billing, and product redesign outside this release.
 
 ## Architecture
 
-Use stable Zulip 12.2 and the corresponding official container image.
+Use the Grow Team fork of stable Zulip 12.2.
+Build the fork image from a pinned official base image.
+Include the application source, production assets, help pages, and translation catalogs.
 Store deployment configuration in the fork without credentials.
 Run a dedicated Docker engine and Compose project on the shared VPS.
 Use separate PostgreSQL, Redis, RabbitMQ, Memcached, and application volumes.
@@ -33,10 +35,10 @@ Keep the original HermesTrading SSH alias.
 
 ## Acceptance
 
-The public HTTPS endpoint serves Zulip.
+The public HTTPS endpoint serves Grow Team.
 The owner can sign in through a browser.
 Team invitations and email verification work with the configured mail provider.
 Authenticated users can send messages and receive live updates.
 Containers and the tunnel restart through their service configuration.
 Database and file backups can be inspected and restored.
-HermesTrading unit hashes remain unchanged and its timers remain enabled.
+HermesTrading unit hashes remain unchanged and its enabled timers remain enabled.

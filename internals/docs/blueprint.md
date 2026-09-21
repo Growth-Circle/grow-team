@@ -11,7 +11,7 @@ Grow Team adalah ruang kerja kolaborasi web untuk tim internal kecil, awalnya li
 ```mermaid
 flowchart LR
   Browser[Browser anggota] --> CF[Cloudflare Tunnel]
-  CF --> App[Grow Team: image Zulip 12.2]
+  CF --> App[Grow Team: fork Zulip 12.2]
   App --> PG[(PostgreSQL 14)]
   App --> Redis[(Redis)]
   App --> MQ[RabbitMQ]
@@ -20,15 +20,12 @@ flowchart LR
   HostTunnel[Unit tunnel AI host] -. Tailscale SSH .-> Wulan[Gateway AI privat]
 ```
 
-Runtime produksi memakai image fork Grow Team. Pemeriksaan publik dan browser pada
-13:52 UTC lulus untuk login, registrasi, reset password, assets, help, owner session,
-event queue, dan anon 401. Audit visual kemudian menemukan ikon Z upstream pada
-spinner feed pesan. Koreksi ikon dan rebuild akhir masih berjalan, sehingga identitas
-runtime belum boleh dinyatakan tuntas. Kandidat pertama gagal karena ownership log,
-lalu rollback ke image resmi sehat sebelum image baru dibangun ulang dengan user
-`zulip` dan pemeriksaan startup Django lulus. Engine Docker, data, volume, systemd
-slice, dan tunnel dipisahkan dari Hermes. Aplikasi hanya dipublikasikan lewat
-loopback lalu tunnel. Lihat
+Runtime produksi memakai image fork Grow Team. Login, registrasi, reset password,
+aset, bantuan, sesi admin, tampilan pesan, dan event queue lulus pemeriksaan browser.
+Endpoint profil tanpa autentikasi memberi 401. Logo, favicon, footer, serta indikator
+pemuatan memakai identitas Grow Team. Engine Docker, data, volume, systemd slice,
+dan tunnel dipisahkan dari Hermes. Aplikasi hanya dipublikasikan lewat loopback lalu
+tunnel. Cakupan pengujian dan identitas image dicatat dalam
 [verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md).
 
 ## Target AI, belum diimplementasikan
@@ -61,6 +58,6 @@ boleh dipakai untuk tugas opsional; aplikasi realtime tidak tidur.
 
 1. Pilih isolasi pelanggan: instance per klien atau realm bersama sebelum rilis komersial.
 2. Tetapkan kontrak gateway AI, kelas data, retensi audit, dan batas retry.
-3. Selesaikan browser smoke penuh dan catat bukti rilis terpisah.
+3. Lengkapi pengujian akses privat, pencarian, peran, kapasitas, dan pemulihan stack penuh.
 
 Rujukan: [tech stack](techstack.md), [ERD](erd.md), [security](security.md), dan [roadmap](roadmap.md).

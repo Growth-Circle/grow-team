@@ -14,7 +14,7 @@ Tim kecil membutuhkan percakapan kerja yang dapat dibaca kembali menurut kanal d
 
 ## Ruang lingkup saat ini
 
-Chat, kanal, topik, DM, pencarian, unggah, peran, undangan, reset password, dan email transaksi tersedia pada fork. Smoke yang sudah teramati mencakup login, kanal/topik, unggah, undangan, email, dan backup. ACL, DM, pencarian, serta role belum diuji penuh. Aplikasi browser adalah jalur utama. Image fork Grow Team sudah dideploy ke `team.growc.id`; pemeriksaan publik dan browser inti lulus, tetapi audit visual menemukan ikon Z upstream pada spinner feed. Koreksi dan rebuild akhir masih berjalan.
+Chat, kanal, topik, DM, pencarian, unggah, peran, undangan, reset password, dan email transaksi tersedia pada fork. Smoke yang sudah teramati mencakup login, kanal/topik, unggah, undangan, email, dan backup. ACL, DM, pencarian, serta role belum diuji penuh. Aplikasi browser adalah jalur utama. Image fork Grow Team sudah dideploy ke `team.growc.id`; pemeriksaan halaman publik, sesi admin, tampilan pesan, dan identitas produk lulus. Cakupan dan batas pengujian tersedia dalam [laporan verifikasi](../../deploy/grow-team/BRANDING-VERIFICATION.md).
 
 ## Target pilot AI
 

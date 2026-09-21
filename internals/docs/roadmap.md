@@ -3,7 +3,7 @@
 Tidak ada tanggal komitmen dalam roadmap ini.
 
 1. **Stabilisasi internal — terverifikasi sebagian.** Operasikan browser app, undangan, email, backup, dan monitoring. Gate: restore stack penuh/reboot test dan review kapasitas.
-2. **Rilis image fork — dideploy, verifikasi identitas belum lengkap.** Image fork Grow Team berjalan di `team.growc.id`. Pemeriksaan publik dan browser inti lulus. Kandidat awal rollback sehat sesudah kegagalan ownership log; image berikutnya melewati pemeriksaan startup Django. Audit visual menemukan ikon Z upstream pada spinner feed. Gate tersisa: koreksi ikon, rebuild akhir, dan catatan bukti rilis.
+2. **Rilis image fork — selesai.** Image Grow Team berjalan di `team.growc.id`. Build, startup sebagai user aplikasi, pemeriksaan publik, sesi admin, dan identitas produk lulus. Backup tersedia sebelum serta sesudah penyesuaian konten bawaan. Bukti dan batas pengujian ada dalam [laporan verifikasi](../../deploy/grow-team/BRANDING-VERIFICATION.md).
 3. **Pilot AI internal.** Rancang dan implementasikan FR-08–FR-18. Gate: izin,
    audit, idempotency/retry, cancel/resume, approval, model allowlist, dan uji gateway.
 4. **Kesiapan B2B.** Putuskan model isolasi pelanggan. Gate: provisioning,

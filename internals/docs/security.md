@@ -10,6 +10,7 @@
 - Backup memakai checksum; restore database sementara sudah diuji tanpa mengubah database aktif.
 - Gateway AI privat dapat dicapai melalui jalur Tailscale/SSH dan menolak request tanpa key.
 - Backup sebelum deploy `20260921T132110Z-zulip` memiliki checksum database, uploads, dan konfigurasi yang lulus secara lokal serta remote.
+- Backup sesudah penyesuaian konten bawaan `20260921T135739Z-zulip` juga memiliki salinan lokal dengan checksum yang cocok.
 - Image fork Grow Team berjalan. Pemeriksaan publik dan browser inti memberi hasil lulus untuk alur yang dicatat dalam verifikasi branding.
 
 ## Batas/gap terverifikasi
@@ -17,7 +18,7 @@
 - Status email `delivered` bukan bukti email masuk inbox.
 - Pemulihan seluruh stack pada VPS kedua dan reboot host belum diuji.
 - Uji beban tim belum tercatat.
-- Audit visual menemukan ikon Z upstream pada spinner feed. Koreksi ikon dan rebuild akhir masih berjalan. Pemeriksaan browser inti tidak membuktikan seluruh alur browser atau ACL.
+- Pemeriksaan browser inti tidak membuktikan seluruh alur browser atau ACL.
 - Push mobile, billing, landing, dan AI agent belum diimplementasikan.
 - Fitur upstream untuk role, DM, search, dan realm tersedia di source, tetapi tes
   otorisasi negatif untuk setiap kombinasi ACL, search, DM, dan tenant belum tercatat.

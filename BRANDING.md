@@ -47,5 +47,11 @@ Untuk organisasi yang sudah dibuat, pesan onboarding dan nama kanal bawaan tersi
 Perubahan sumber berlaku untuk konten baru.
 Penyesuaian konten lama memerlukan pemeriksaan tersendiri agar pesan anggota tetap aman.
 
+Pada pilot `team.growc.id`, penyesuaian terjaga sudah diterapkan pada 2026-09-21.
+Kanal bawaan, deskripsi dua kanal, dan enam pesan Welcome Bot memakai Grow Team.
+Ikon organisasi juga memakai aset Grow Team.
+Hash isi dan topik tiga pesan anggota tetap sama dengan baseline sebelum perubahan.
+Script `deploy/grow-team/rebrand_pilot.py` hanya menerima seed yang diaudit dan menolak penerapan ulang.
+
 Hasil pemeriksaan perubahan tersedia di
 [laporan verifikasi branding](deploy/grow-team/BRANDING-VERIFICATION.md).
