@@ -430,6 +430,7 @@ DEVELOPMENT_DISABLE_PUSH_BOUNCER_DOMAIN_CHECK = False
 # the operator has no direct way to set under Helm.
 RUNNING_IN_HELM = False
 
+INTERNAL_BOT_DOMAIN = "zulip.com"
 NOTIFICATION_BOT = "notification-bot@zulip.com"
 EMAIL_GATEWAY_BOT = "emailgateway@zulip.com"
 NAGIOS_SEND_BOT = "nagios-send-bot@zulip.com"

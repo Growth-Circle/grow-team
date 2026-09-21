@@ -11,6 +11,7 @@ from scripts.lib.zulip_tools import get_tornado_ports
 from zerver.lib.db import TimeTrackingConnection, TimeTrackingCursor
 from zerver.lib.types import AnalyticsDataUploadLevel
 
+from . import configured_settings as configured_settings
 from .config import (
     DEPLOY_ROOT,
     config_file,
@@ -590,7 +591,35 @@ if PRODUCTION:
         },
     ]
 
-INTERNAL_BOT_DOMAIN = "zulip.com"
+# Keep site-specific bot address overrides. Otherwise, derive every named
+# system-bot address from the configured internal domain.
+_DEFAULT_INTERNAL_BOT_DOMAIN = "zulip.com"
+_INTERNAL_BOT_EMAIL_TEMPLATES = {
+    "NOTIFICATION_BOT": "notification-bot@%s",
+    "EMAIL_GATEWAY_BOT": "emailgateway@%s",
+    "NAGIOS_SEND_BOT": "nagios-send-bot@%s",
+    "NAGIOS_RECEIVE_BOT": "nagios-receive-bot@%s",
+    "WELCOME_BOT": "welcome-bot@%s",
+    "REMINDER_BOT": "reminder-bot@%s",
+    "NAGIOS_STAGING_SEND_BOT": "nagios-staging-send-bot@%s",
+    "NAGIOS_STAGING_RECEIVE_BOT": "nagios-staging-receive-bot@%s",
+}
+_CONFIGURED_INTERNAL_BOT_DOMAIN = configured_settings.INTERNAL_BOT_DOMAIN
+_CONFIGURED_INTERNAL_BOT_ADDRESSES = {
+    bot_setting: getattr(configured_settings, bot_setting)
+    for bot_setting in _INTERNAL_BOT_EMAIL_TEMPLATES
+}
+if _CONFIGURED_INTERNAL_BOT_DOMAIN != _DEFAULT_INTERNAL_BOT_DOMAIN:
+    for _bot_setting, _email_template in _INTERNAL_BOT_EMAIL_TEMPLATES.items():
+        if (
+            _CONFIGURED_INTERNAL_BOT_ADDRESSES[_bot_setting]
+            == _email_template % _DEFAULT_INTERNAL_BOT_DOMAIN
+        ):
+            _CONFIGURED_INTERNAL_BOT_ADDRESSES[_bot_setting] = (
+                _email_template % _CONFIGURED_INTERNAL_BOT_DOMAIN
+            )
+globals().update(_CONFIGURED_INTERNAL_BOT_ADDRESSES)
+INTERNAL_BOT_DOMAIN = _CONFIGURED_INTERNAL_BOT_DOMAIN
 
 ########################################################################
 # CAMO HTTPS CACHE CONFIGURATION
@@ -1266,9 +1295,9 @@ if PRODUCTION:
 PROFILE_ALL_REQUESTS = False
 
 CROSS_REALM_BOT_EMAILS = {
-    "notification-bot@zulip.com",
-    "welcome-bot@zulip.com",
-    "emailgateway@zulip.com",
+    _CONFIGURED_INTERNAL_BOT_ADDRESSES["NOTIFICATION_BOT"],
+    _CONFIGURED_INTERNAL_BOT_ADDRESSES["WELCOME_BOT"],
+    _CONFIGURED_INTERNAL_BOT_ADDRESSES["EMAIL_GATEWAY_BOT"],
 }
 
 MOBILE_NOTIFICATIONS_SHARDS = int(

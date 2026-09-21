@@ -16,7 +16,7 @@ services:
     cpus: 0.25
     mem_limit: 256m
   zulip:
-    image: grow-team/server:12.2-grow-team.1
+    image: grow-team/server:12.2-grow-team.2
     pull_policy: never
     build: !reset null
     cpus: 2
@@ -25,6 +25,7 @@ services:
       - "127.0.0.1:18300:80"
     environment:
       SETTING_EXTERNAL_HOST: team.growc.id
+      SETTING_INTERNAL_BOT_DOMAIN: team.growc.id
       SETTING_ZULIP_ADMINISTRATOR: rama.aditya@growthcircle.id
       SETTING_DEFAULT_FROM_EMAIL: noreply@growc.id
       SETTING_NOREPLY_EMAIL_ADDRESS: noreply@growc.id
