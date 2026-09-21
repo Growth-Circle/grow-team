@@ -1,0 +1,69 @@
+name: ${GROW_TEAM_RECOVERY_PROJECT:?Set by run.sh.}
+
+services:
+  source:
+    image: zulip/zulip-postgresql:14@sha256:e71ba8616fa42cdc1b248f51263d9290c29681cb8c1992eb9b498af0bb656b29
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set by run.sh.}
+      POSTGRES_USER: postgres
+      TEST_DB_PASSWORD: ${TEST_DB_PASSWORD:?Set by run.sh.}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    networks:
+      recovery:
+        aliases: [source]
+    ports:
+      - "127.0.0.1:${GROW_TEAM_RECOVERY_SOURCE_PORT:?Set by run.sh.}:5432"
+    volumes:
+      - source_data:/var/lib/postgresql/data
+    labels:
+      com.grow-team.recovery.invocation: ${GROW_TEAM_RECOVERY_ID:?Set by run.sh.}
+    security_opt: ["no-new-privileges:true"]
+    restart: "no"
+
+  target:
+    image: zulip/zulip-postgresql:14@sha256:e71ba8616fa42cdc1b248f51263d9290c29681cb8c1992eb9b498af0bb656b29
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set by run.sh.}
+      POSTGRES_USER: postgres
+      TEST_DB_PASSWORD: ${TEST_DB_PASSWORD:?Set by run.sh.}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    networks:
+      recovery:
+        aliases: [target]
+    ports:
+      - "127.0.0.1:${GROW_TEAM_RECOVERY_TARGET_PORT:?Set by run.sh.}:5432"
+    volumes:
+      - target_data:/var/lib/postgresql/data
+    labels:
+      com.grow-team.recovery.invocation: ${GROW_TEAM_RECOVERY_ID:?Set by run.sh.}
+    security_opt: ["no-new-privileges:true"]
+    restart: "no"
+
+networks:
+  recovery:
+    name: ${GROW_TEAM_RECOVERY_NETWORK:?Set by run.sh.}
+    driver: bridge
+    labels:
+      com.grow-team.recovery.invocation: ${GROW_TEAM_RECOVERY_ID:?Set by run.sh.}
+
+volumes:
+  source_data:
+    name: ${GROW_TEAM_RECOVERY_SOURCE_VOLUME:?Set by run.sh.}
+    labels:
+      com.grow-team.recovery.invocation: ${GROW_TEAM_RECOVERY_ID:?Set by run.sh.}
+  target_data:
+    name: ${GROW_TEAM_RECOVERY_TARGET_VOLUME:?Set by run.sh.}
+    labels:
+      com.grow-team.recovery.invocation: ${GROW_TEAM_RECOVERY_ID:?Set by run.sh.}

@@ -1,7 +1,8 @@
 # Pemulihan data agen
 
-Status: perintah backup sudah mencakup artifact dan keyring. Pemasangan produksi
-dan restore database lengkap masih menunggu gate rilis.
+Status: perintah backup sudah mencakup artifact dan keyring. Restore database
+sintetis berhasil pada target terpisah. Pemulihan source rilis dan produksi masih
+menunggu gate rilis.
 
 ## Data yang wajib dipulihkan bersama
 
@@ -83,6 +84,29 @@ PY
 Sebanyak 43 tes memakai file sementara dan tar yang nyata. Tes perintah memakai
 mock untuk query database. Bukti ini belum membuktikan restore database, pemulihan
 runner, atau pemulihan layanan produksi.
+
+## Rehearsal database terpisah
+
+Jalankan dari root worktree yang sudah memiliki lingkungan tes:
+
+```bash
+tools/grow-team/recovery-check/run.sh
+```
+
+[Petunjuk rehearsal](../../tools/grow-team/recovery-check/README.md) menjelaskan
+prasyarat dan penyimpanan bukti privat. Script memakai endpoint Docker rootless
+lokal yang diperiksa. Setiap percobaan membuat database, network, volume, dan
+direktori bukti baru. Target yang sudah berisi data ditolak sebelum restore.
+
+Rehearsal 22 September 2026 memakai dump dari perintah backup sebenarnya.
+Pemeriksaan mencocokkan 997 identitas migrasi serta relasi dan status data agen.
+Checksum artifact dan dekripsi secret sintetis dengan kunci `v1` serta `v2` lulus.
+Container percobaan berhenti setelah pemeriksaan; volume dan bukti tetap tersimpan.
+Perbaikan tooling lulus review independen dan pemeriksaan target terakhir.
+
+Source saat rehearsal masih dalam pengembangan. Ulangi pada source rilis yang
+bersih sebelum aktivasi. Bukti ini belum mencakup transfer backup produksi,
+rollback runner, atau pemulihan layanan produksi.
 
 ## Rekonsiliasi terjadwal
 
