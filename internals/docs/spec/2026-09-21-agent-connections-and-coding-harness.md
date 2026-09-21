@@ -4,6 +4,9 @@ Tanggal: 2026-09-21.
 
 Status: **rancangan untuk ditinjau; belum diimplementasikan**.
 
+Alur operasional dan kasus regresi dijabarkan dalam
+[spesifikasi lifecycle dan mention](2026-09-21-agent-lifecycle-and-mention-flow.md).
+
 Baseline source Grow Team: `6937f019670f27f04f7d18e3c77a5f8e08321e0b`, branch `grow-team`.
 Referensi pembelajaran Buzz: `ef2aa1ae38fadcc0bc22b8bf6ed96b35933146be`.
 Pemeriksaan tambahan web Buzz: `5079c770fe30bb3d8204822ce6c2431eacac6d4b`.
