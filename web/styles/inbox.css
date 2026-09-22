@@ -76,9 +76,10 @@
 
             .inbox-focus-border {
                 display: flex;
-                min-height: 1.875em; /* 30px at 16px em */
+                /* Tenang topic-row height: 30px at 14px/1em. */
+                min-height: var(--height-sidebar-topic-row);
                 border: 2px solid transparent;
-                border-radius: 3px;
+                border-radius: var(--radius-xs);
                 box-sizing: border-box;
                 justify-content: space-between;
             }
@@ -86,10 +87,12 @@
             .inbox-header {
                 user-select: none;
                 display: block;
-                height: 1.875em; /* 30px at 16px em */
+                /* Tenang channel-row height: 34px at 14px/1em. */
+                height: var(--height-menu-row);
 
                 .inbox-focus-border {
-                    height: 1.875em; /* 30px at 16px em */
+                    /* Tenang channel-row height: 34px at 14px/1em. */
+                    height: var(--height-menu-row);
                 }
 
                 .inbox-left-part {
@@ -220,7 +223,7 @@
             .visibility-policy-indicator {
                 display: flex;
                 align-items: center;
-                border-radius: 3px;
+                border-radius: var(--radius-xs);
                 margin-left: 3px;
             }
 
@@ -235,7 +238,7 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                border-radius: 3px;
+                border-radius: var(--radius-xs);
                 padding: 0 5px;
                 /* Stretch to the row to keep unread
                    count from affecting overall row
@@ -384,7 +387,7 @@
 
         .inbox-action-button {
             display: flex;
-            border-radius: 3px;
+            border-radius: var(--radius-xs);
             outline: none;
             opacity: 0;
 
@@ -462,7 +465,7 @@
         width: calc(var(--left-sidebar-vdots-width) - 4px);
         cursor: pointer;
         place-items: center center;
-        border-radius: 3px;
+        border-radius: var(--radius-xs);
         margin: 2px;
         color: var(--color-vdots-visible);
 
@@ -496,6 +499,7 @@
 .inbox-empty-title {
     /* Matches the font-size used for .empty-list-message */
     font-size: 1.5em;
+    font-weight: 600;
     color: var(--color-background-inbox-no-unreads-illustration);
 }
 
@@ -665,7 +669,7 @@
 }
 
 .inbox-folder-components {
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
     border: var(--inbox-view-folder-component-border-width) solid
         var(--color-border-inbox-folder-component);
     overflow: hidden;
@@ -736,8 +740,10 @@
     .inbox-row {
         &:focus-visible {
             .inbox-focus-border {
+                /* border-radius already set to --radius-xs by the
+                   base .inbox-focus-border rule; no need to restate
+                   it here since this state never changes the shape. */
                 border: 2px solid var(--color-outline-focus);
-                border-radius: 3px;
             }
 
             outline: 0;

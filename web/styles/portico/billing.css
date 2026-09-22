@@ -107,7 +107,7 @@
         color: hsl(0deg 0% 100%);
         background: linear-gradient(
             145deg,
-            hsl(191deg 56% 55%),
+            hsl(172deg 56% 55%),
             hsl(169deg 65% 42%)
         );
         box-shadow: 0 3px 10px hsl(0deg 0% 0% / 20%);
@@ -299,7 +299,7 @@ input[name="licenses"] {
     /* This is needed to avoid button background changing
     when clicking on it due to "button:active" CSS in
     legacy_landing_page.css. */
-    background-color: hsl(240deg 96% 68%);
+    background-color: light-dark(hsl(172.44deg 88.15% 26.47%), hsl(171.36deg 58.41% 44.31%));
 }
 
 #account-deactivated-success-page .white-box,

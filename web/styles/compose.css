@@ -1404,6 +1404,13 @@ textarea.new_message_textarea {
     color: var(--color-compose-send-button-icon-color);
     background-color: var(--color-compose-send-button-background);
 
+    @media (width < $sm_min) {
+        /* #send_later detaches into its own square button at this
+           width (see below); match its shape instead of staying a
+           half-circle with nothing next to it. */
+        border-radius: var(--radius-md);
+    }
+
     &:active {
         transition: transform 80ms;
         transform: scale(0.96);
@@ -1877,7 +1884,7 @@ textarea.new_message_textarea {
        below, so as to make for a maximum
        clickable vdots area. */
     margin-left: -2px;
-    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
     /* Flex items respect z-index values;
        this is needed to keep the vdots
        background beneath the send button. */

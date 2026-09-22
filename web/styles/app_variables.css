@@ -838,12 +838,12 @@
         hsl(171deg 58% 50% / 70%)
     );
     --color-selected-gif-in-grid-picker: light-dark(
-        hsl(217deg 75% 59%),
-        hsl(217deg 95% 59%)
+        hsl(172deg 60% 40%),
+        hsl(171deg 58% 50%)
     );
     --color-hovered-gif-in-grid-picker: light-dark(
-        hsl(217deg 75% 59% / 50%),
-        hsl(217deg 95% 59% / 60%)
+        hsl(172deg 60% 40% / 50%),
+        hsl(171deg 58% 50% / 60%)
     );
     --color-message-list-border: light-dark(
         hsl(170deg 10% 90%),
@@ -876,7 +876,7 @@
     --color-background: light-dark(hsl(170deg 8% 96%), hsl(185deg 14% 10%));
     --color-background-widget-input: light-dark(
         hsl(0deg 0% 100%),
-        hsl(225deg 6% 10%)
+        hsl(185deg 13% 13%)
     );
     --color-background-widget-button: light-dark(
         hsl(0deg 0% 100%),
@@ -966,19 +966,19 @@
     );
     --color-background-overlay: light-dark(
         hsl(0deg 0% 13% / 80%),
-        hsl(212deg 28% 8% / 75%)
+        hsl(185deg 28% 8% / 75%)
     );
     --color-background-non-empty-overlay-indicator: light-dark(
         hsl(0deg 0% 100% / 90%),
         hsl(212deg 28% 8% / 75%)
     );
     --color-modal-selectable-icon: light-dark(
-        hsl(240deg 30% 40%),
-        hsl(240deg 35% 68%)
+        hsl(172deg 30% 40%),
+        hsl(172deg 35% 68%)
     );
     --color-modal-selectable-icon-hover: light-dark(
-        hsl(240deg 100% 15%),
-        hsl(240deg 100% 90%)
+        hsl(172deg 100% 15%),
+        hsl(172deg 100% 90%)
     );
     --background-color-modal-selectable-icon-hover: light-dark(
         hsl(240deg 100% 50% / 7%),
@@ -1005,7 +1005,7 @@
         hsl(0deg 0% 0% / 60%)
     );
     --focus-border-color-textarea: light-dark(
-        hsl(206.5deg 80% 62% / 80%),
+        hsl(172.44deg 88.15% 26.47% / 80%),
         hsl(0deg 0% 0% / 90%)
     );
     --color-background-pill-container-without-placeholder: light-dark(
@@ -1191,18 +1191,21 @@
     );
     --color-border-tip: light-dark(hsl(49deg 20% 84%), hsl(49deg 38% 46%));
     --color-box-shadow-animated-purple-button-focus: light-dark(
-        hsl(235deg 18% 7%),
+        hsl(172deg 18% 7%),
         hsl(0deg 0% 100% / 66.6%)
     );
     --color-background-animated-button: light-dark(
         hsl(0deg 0% 90%),
-        hsl(211deg 29% 14%)
+        hsl(185deg 12% 14%)
     );
     --color-animated-button-text: light-dark(
         hsl(0deg 0% 0%),
         hsl(0deg 0% 100%)
     );
-    --color-background-animated-button-hover: hsl(240deg 96% 68%);
+    --color-background-animated-button-hover: light-dark(
+        hsl(172.44deg 88.15% 26.47%),
+        hsl(171.36deg 58.41% 44.31%)
+    );
     --color-invalid-input-border: light-dark(
         hsl(3deg 57% 33%),
         hsl(3deg 73% 74%)
@@ -1216,11 +1219,17 @@
         hsl(0deg 0% 100%),
         hsl(0deg 0% 0% / 20%)
     );
-    --color-stream-group-row-checked-icon: hsl(240deg 96% 68%);
-    --color-stream-group-row-checked-icon-hover: hsl(240deg 41% 50%);
+    --color-stream-group-row-checked-icon: light-dark(
+        hsl(172.44deg 88.15% 26.47%),
+        hsl(171.36deg 58.41% 44.31%)
+    );
+    --color-stream-group-row-checked-icon-hover: light-dark(
+        hsl(172.58deg 85.84% 22.16%),
+        hsl(172deg 58% 50%)
+    );
     --color-stream-group-row-checked-icon-disabled: light-dark(
-        hsl(240deg 96% 68% / 100%),
-        hsl(240deg 96% 68% / 50%)
+        hsl(172.44deg 88.15% 26.47% / 50%),
+        hsl(171.36deg 58.41% 44.31% / 50%)
     );
     --color-stream-group-row-plus-icon: light-dark(
         hsl(0deg 0% 72%),
@@ -1334,7 +1343,10 @@
         hsl(172.58deg 85.84% 22.16%),
         hsl(172deg 58% 50%)
     );
-    --color-compose-send-button-focus-border: hsl(180deg 20% 10%);
+    --color-compose-send-button-focus-border: light-dark(
+        hsl(180deg 20% 10%),
+        hsl(171.36deg 58.41% 44.31%)
+    );
     --color-compose-send-button-focus-shadow: light-dark(
         hsl(172deg 100% 20%),
         hsl(0deg 0% 100% / 80%)
@@ -1568,8 +1580,8 @@
         hsl(184deg 52% 63% / 100%)
     );
     --color-text-show-more-less-button: light-dark(
-        hsl(240deg 52% 53%),
-        hsl(240deg 30% 65%)
+        hsl(172.44deg 88.15% 26.47%),
+        hsl(168deg 55% 72%)
     );
     --color-text-search: light-dark(hsl(0deg 0% 35%), hsl(0deg 0% 100% / 75%));
     --color-text-search-hover: light-dark(hsl(0deg 0% 0%), hsl(0deg 0% 100%));
@@ -1615,10 +1627,13 @@
         var(--grey-550),
         var(--grey-400)
     );
-    --color-text-url: hsl(200deg 100% 40%);
+    --color-text-url: light-dark(
+        hsl(172.44deg 88.15% 26.47%),
+        hsl(168deg 55% 72%)
+    );
     --color-text-url-hover: light-dark(
-        hsl(200deg 100% 25%),
-        hsl(200deg 79% 66%)
+        hsl(172.09deg 90.1% 19.8%),
+        hsl(168deg 60% 78%)
     );
     --color-text-settings-field-hint: light-dark(
         hsl(0deg 0% 57%),
@@ -1754,7 +1769,10 @@
         hsl(156deg 41% 90%),
         hsl(185deg 40% 35%)
     );
-    --color-poll-names: light-dark(hsl(0deg 0% 45%), hsl(236deg 15% 70%));
+    --color-poll-names: light-dark(
+        hsl(172.44deg 88.15% 26.47%),
+        hsl(168deg 55% 72%)
+    );
     /* TODO Widget */
     --color-border-todo-checkbox: light-dark(
         hsl(156deg 28% 70%),
@@ -1778,10 +1796,10 @@
     );
 
     /* KBD colors */
-    --color-kbd-background: light-dark(hsl(0deg 0% 98%), hsl(211deg 29% 14%));
-    --color-kbd-border: light-dark(hsl(0deg 0% 80%), hsl(211deg 29% 14%));
-    --color-kbd-text: light-dark(hsl(0deg 0% 20%), hsl(236deg 33% 90%));
-    --color-kbd-enter-sends: light-dark(hsl(0deg 0% 40%), hsl(236deg 33% 90%));
+    --color-kbd-background: light-dark(hsl(0deg 0% 98%), hsl(185deg 12% 18%));
+    --color-kbd-border: light-dark(hsl(0deg 0% 80%), hsl(180deg 10% 22%));
+    --color-kbd-text: light-dark(hsl(0deg 0% 20%), hsl(170deg 10% 90%));
+    --color-kbd-enter-sends: light-dark(hsl(0deg 0% 40%), hsl(170deg 8% 72%));
 
     /* Settings */
     --color-realm-enable-spectator-access-link: light-dark(
@@ -1890,12 +1908,12 @@
         var(--color-markdown-pre-border)
     );
     --color-markdown-link: light-dark(
-        hsl(200deg 100% 40%),
+        hsl(172.44deg 88.15% 26.47%),
         var(--color-text-generic-link)
     );
     --color-markdown-code-link: var(--color-markdown-link);
     --color-markdown-link-hover: light-dark(
-        hsl(200deg 100% 25%),
+        hsl(172.09deg 90.1% 19.8%),
         var(--color-text-generic-link-interactive)
     );
     --color-markdown-code-link-hover: var(--color-markdown-link-hover);
@@ -1941,7 +1959,10 @@
     --color-vdots-hint: light-dark(hsl(170deg 12% 78%), hsl(180deg 10% 32%));
     --color-vdots-visible: light-dark(hsl(180deg 8% 45%), hsl(170deg 6% 60%));
     --color-vdots-hover: light-dark(hsl(180deg 12% 20%), hsl(170deg 10% 90%));
-    --color-tab-picker-icon: light-dark(hsl(172.58deg 85.84% 22.16%), hsl(168deg 55% 72%));
+    --color-tab-picker-icon: light-dark(
+        hsl(172.58deg 85.84% 22.16%),
+        hsl(168deg 55% 72%)
+    );
     --color-user-circle-active: light-dark(
         hsl(172.44deg 88.15% 26.47%),
         hsl(171.36deg 58.41% 44.31%)
@@ -2087,20 +2108,20 @@
         hsl(0deg 0% 27%),
         hsl(0deg 0% 100% / 60%)
     );
-    --color-zulip-logo-z: light-dark(hsl(0deg 0% 100%), hsl(214deg 27% 18%));
+    --color-zulip-logo-z: light-dark(hsl(0deg 0% 100%), hsl(172deg 40% 20%));
 
     /* Message collapsing/condensing button colors */
     --color-show-more-less-button-background: light-dark(
-        hsl(240deg 44% 56% / 8%),
-        hsl(240deg 44% 56% / 15%)
+        hsl(172deg 44% 56% / 8%),
+        hsl(172deg 44% 56% / 15%)
     );
     --color-show-more-less-button-background-hover: light-dark(
-        hsl(240deg 44% 56% / 15%),
-        hsl(240deg 44% 56% / 25%)
+        hsl(172deg 44% 56% / 15%),
+        hsl(172deg 44% 56% / 25%)
     );
     --color-show-more-less-button-background-active: light-dark(
-        hsl(240deg 44% 56% / 20%),
-        hsl(240deg 44% 56% / 15%)
+        hsl(172deg 44% 56% / 20%),
+        hsl(172deg 44% 56% / 15%)
     );
 
     /* Message edit history colors */
@@ -2217,48 +2238,51 @@
     --width-inbox-search: calc(27.4375em); /* 439px / 16px em */
     --width-inbox-filters-dropdown: 10.7142em; /* 150px / 14px em */
     --color-background-inbox-no-unreads-illustration: light-dark(
-        hsl(147deg 57% 25%),
-        hsl(147deg 40% 55%)
+        hsl(172.44deg 88.15% 26.47%),
+        hsl(171.36deg 58.41% 44.31%)
     );
     --color-background-inbox: var(--color-background);
-    --color-border-inbox-folder-component: hsl(0deg 0% 0% / 13%);
+    --color-border-inbox-folder-component: light-dark(
+        hsl(0deg 0% 0% / 13%),
+        hsl(0deg 0% 100% / 13%)
+    );
     --color-icon-search-inbox: light-dark(hsl(0deg 0% 0%), hsl(0deg 0% 100%));
     --color-inbox-search-text: light-dark(hsl(0deg 0% 0%), hsl(0deg 0% 95%));
     --color-border-inbox-search: light-dark(
-        hsl(229.09deg 21.57% 10% / 30%),
+        hsl(180deg 21.57% 10% / 30%),
         hsl(0deg 0% 100% / 20%)
     );
     --color-border-inbox-search-hover: light-dark(
-        hsl(229.09deg 21.57% 10% / 60%),
+        hsl(180deg 21.57% 10% / 60%),
         hsl(0deg 0% 100% / 40%)
     );
     --color-background-inbox-search: light-dark(
         hsl(0deg 0% 100%),
-        hsl(225deg 6% 10%)
+        hsl(185deg 6% 10%)
     );
     --color-background-inbox-search-hover: light-dark(
         hsl(0deg 0% 100%),
-        hsl(225deg 6% 8%)
+        hsl(185deg 6% 8%)
     );
     --color-background-inbox-search-focus: light-dark(
         hsl(0deg 0% 100%),
-        hsl(225deg 6% 7%)
+        hsl(185deg 6% 7%)
     );
     --color-border-inbox-search-focus: light-dark(
-        hsl(229.09deg 21.57% 10% / 80%),
+        hsl(180deg 21.57% 10% / 80%),
         hsl(0deg 0% 100% / 50%)
     );
     --color-box-shadow-inbox-search-focus: light-dark(
-        hsl(228deg 9.8% 20% / 30%),
+        hsl(180deg 9.8% 20% / 30%),
         hsl(0deg 0% 100% / 40%)
     );
     --color-background-inbox-row: light-dark(
         hsl(0deg 0% 100%),
-        hsl(0deg 0% 14%)
+        hsl(185deg 12% 14%)
     );
     --color-background-inbox-row-hover: light-dark(
         color-mix(in srgb, hsl(0deg 0% 0%) 5%, hsl(0deg 0% 100%)),
-        color-mix(in srgb, hsl(0deg 0% 100%) 5%, hsl(0deg 0% 14%))
+        color-mix(in srgb, hsl(0deg 0% 100%) 5%, hsl(185deg 12% 14%))
     );
     --color-background-button-inbox-selected: light-dark(
         hsl(0deg 0% 0% / 5%),
@@ -2268,11 +2292,16 @@
         hsl(0deg 0% 80%),
         hsl(0deg 0% 20%)
     );
-    --color-icons-inbox: light-dark(hsl(0deg 0% 0%), hsl(0deg 0% 100%));
-    --color-folder-header: light-dark(hsl(216deg 43% 20%), hsl(216deg 50% 75%));
-    /* Light mode uses the --grey-600 equivalent;
-       dark mode uses the --grey-300 equivalent. */
-    --color-inbox-row-chevron: light-dark(#535663, #aaadba);
+    --color-icons-inbox: light-dark(hsl(180deg 12% 14%), hsl(170deg 10% 90%));
+    --color-folder-header: light-dark(
+        hsl(172.09deg 90.1% 19.8%),
+        hsl(172deg 40% 75%)
+    );
+    /* Matches --color-vdots-visible, a subtle icon tone. */
+    --color-inbox-row-chevron: light-dark(
+        hsl(180deg 8% 45%),
+        hsl(170deg 6% 60%)
+    );
 
     /* Navbar dropdown menu constants - Values from Figma design */
     --box-shadow-popover-menu: 0 12px 28px hsl(180deg 20% 20% / 10%);
@@ -2285,33 +2314,33 @@
         0 41px 80px 0 hsl(0deg 0% 0% / 20%);
     --color-navbar-icon: light-dark(hsl(180deg 8% 45%), hsl(170deg 6% 60%));
     --color-navbar-spectator-low-attention-brand-button-text: light-dark(
-        hsl(240deg 40% 50%),
-        hsl(240deg 55% 72% / 100%)
+        hsl(172.44deg 88.15% 26.47%),
+        hsl(168deg 55% 72% / 100%)
     );
     --color-navbar-spectator-low-attention-brand-button-background: transparent;
     --color-navbar-spectator-low-attention-brand-button-background-hover: light-dark(
-        hsl(240deg 100% 30% / 5%),
-        hsl(240deg 56% 70% / 10%)
+        hsl(172deg 100% 30% / 5%),
+        hsl(168deg 100% 70% / 10%)
     );
     --color-navbar-spectator-low-attention-brand-button-background-active: light-dark(
-        hsl(240deg 100% 30% / 8%),
-        hsl(240deg 56% 70% / 13%)
+        hsl(172deg 100% 30% / 8%),
+        hsl(168deg 100% 70% / 13%)
     );
     --color-navbar-spectator-medium-attention-brand-button-text: light-dark(
-        hsl(240deg 40% 40% / 100%),
-        hsl(240deg 64% 76% / 100%)
+        hsl(172.44deg 88.15% 26.47% / 100%),
+        hsl(168deg 55% 72% / 100%)
     );
     --color-navbar-spectator-medium-attention-brand-button-background: light-dark(
-        hsl(244deg 64% 47% / 10%),
-        hsl(240deg 56% 70% / 12%)
+        hsl(172deg 100% 30% / 10%),
+        hsl(168deg 100% 70% / 12%)
     );
     --color-navbar-spectator-medium-attention-brand-button-background-hover: light-dark(
-        hsl(244deg 64% 47% / 15%),
-        hsl(240deg 56% 70% / 17%)
+        hsl(172deg 100% 30% / 15%),
+        hsl(168deg 100% 70% / 17%)
     );
     --color-navbar-spectator-medium-attention-brand-button-background-active: light-dark(
-        hsl(244deg 64% 47% / 18%),
-        hsl(240deg 56% 70% / 12%)
+        hsl(172deg 100% 30% / 18%),
+        hsl(168deg 100% 70% / 12%)
     );
     --color-gear-menu-lighter-text: light-dark(
         hsl(0deg 0% 40%),
@@ -2355,7 +2384,10 @@
         color-mix(in srgb, hsl(0deg 0% 0%) 8%, hsl(0deg 0% 97%)),
         color-mix(in srgb, hsl(0deg 0% 100%) 7%, hsl(0deg 0% 13%))
     );
-    --color-fill-hover-copy-icon: hsl(200deg 100% 40%);
+    --color-fill-hover-copy-icon: light-dark(
+        hsl(172.44deg 88.15% 26.47%),
+        hsl(171.36deg 58.41% 44.31%)
+    );
     --color-fill-user-invite-copy-icon: light-dark(
         hsl(0deg 0% 46.7%),
         hsl(236deg 33% 90%)
@@ -2906,7 +2938,10 @@
        aside colors. Do grep for these variable when changing them
        and confirm on CZO on whether the colors there need to change
        as well. */
-    --color-text-link-banner: hsl(210deg 94% 42%);
+    --color-text-link-banner: light-dark(
+        hsl(172.44deg 88.15% 26.47%),
+        hsl(168deg 55% 72%)
+    );
     /* Banners - Neutral Variant */
     --color-text-neutral-banner: light-dark(
         hsl(229deg 12% 25%),
@@ -2922,16 +2957,16 @@
     );
     /* Banners - Brand Variant */
     --color-text-brand-banner: light-dark(
-        hsl(264deg 95% 34%),
-        hsl(244deg 96% 82%)
+        hsl(172.58deg 85.84% 22.16%),
+        hsl(172deg 40% 82%)
     );
     --color-border-brand-banner: light-dark(
-        color-mix(in oklch, hsl(254deg 60% 50%) 40%, transparent),
-        color-mix(in oklch, hsl(253deg 70% 89%) 40%, transparent)
+        color-mix(in oklch, hsl(172deg 60% 40%) 40%, transparent),
+        color-mix(in oklch, hsl(172deg 40% 82%) 40%, transparent)
     );
     --color-background-brand-banner: light-dark(
-        hsl(254deg 42% 94%),
-        hsl(254deg 49% 16%)
+        hsl(172deg 55% 95%),
+        hsl(172deg 40% 20%)
     );
     /* Banners - Info Variant */
     --color-text-info-banner: light-dark(
@@ -2998,7 +3033,7 @@
         hsl(0deg 0% 0% / 60%)
     );
     --color-border-legacy-input-focus: light-dark(
-        hsl(206deg 80% 62% / 80%),
+        hsl(172.44deg 88.15% 26.47% / 80%),
         hsl(0deg 0% 0% / 90%)
     );
     --color-background-disabled-settings-select: light-dark(
@@ -3021,7 +3056,7 @@
     );
     --color-background-input-focus: light-dark(
         hsl(0deg 0% 100%),
-        hsl(225deg 6% 7%)
+        hsl(185deg 6% 7%)
     );
     --color-outline-input: light-dark(hsl(170deg 10% 88%), hsl(180deg 10% 24%));
     --color-outline-input-hover: light-dark(
@@ -3196,7 +3231,7 @@
     );
     --color-main-view-banner-action-link: light-dark(
         var(--color-text-generic-link),
-        hsl(200deg 100% 50%)
+        hsl(168deg 55% 72%)
     );
     --color-background-main-view-banner-moving-bar: light-dark(
         hsl(204deg 63% 85%),
@@ -3281,7 +3316,7 @@
     --unread-marker-left: 0;
 
     /* Box shadow for overlays across the web app */
-    --box-shadow-overlay: 0 0 30px hsl(212deg 32% 7%);
+    --box-shadow-overlay: 0 0 30px hsl(185deg 30% 4%);
 
     /* Colors used across the app */
     --color-recipient-bar-controls-spinner: hsl(0deg 0% 100%);
@@ -3313,8 +3348,8 @@
 
     /* Button colors on modals and message editing. */
     --color-exit-button-text: hsl(0deg 0% 100%);
-    --color-exit-button-background: hsl(226deg 1% 30% / 50%);
-    --color-exit-button-background-interactive: hsl(226deg 1% 30% / 65%);
+    --color-exit-button-background: hsl(172deg 40% 20% / 50%);
+    --color-exit-button-background-interactive: hsl(172deg 40% 20% / 65%);
 
     /* Zulip-style checkbox values. */
     /* The SVG must be adjusted when changing the border color above. */

@@ -170,13 +170,13 @@ html {
         }
 
         .form-inline .outline {
-            border: 2px inset hsl(213deg 23% 25%);
+            border: 2px inset hsl(172deg 23% 25%);
             background-color: hsl(0deg 0% 100%);
-            color: hsl(213deg 23% 25%);
+            color: hsl(172deg 23% 25%);
             padding: 13px 20px 11px;
 
             &:hover {
-                background-color: hsl(213deg 65% 97%);
+                background-color: hsl(172deg 65% 97%);
             }
         }
 
@@ -447,7 +447,7 @@ html {
         }
 
         &:focus-visible {
-            outline: 3px solid hsl(213deg 81% 79%);
+            outline: 3px solid hsl(172deg 81% 79%);
             /* Override the base clip-path so the focus outline isn't
                trimmed to a 1px square around the rounded button. */
             clip-path: none;
@@ -1396,11 +1396,11 @@ button#register_auth_button_gitlab {
         margin: 0;
 
         &.select-email-form:hover {
-            background-color: hsl(202deg 56% 91%);
+            background-color: hsl(172deg 56% 91%);
             cursor: pointer;
 
             & i.fa {
-                color: hsl(203deg 63% 76%);
+                color: hsl(172deg 63% 76%);
             }
         }
     }
@@ -1689,7 +1689,7 @@ button#register_auth_button_gitlab {
     }
 
     &:focus-visible {
-        outline: 1px solid hsl(213deg 81% 79%);
+        outline: 1px solid hsl(172deg 81% 79%);
     }
 }
 

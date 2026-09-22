@@ -181,7 +181,7 @@
            the card shape (--radius-xl, drawn by .message_header and
            .message_row below) needs to read as a separate card from
            the next one. */
-        margin-bottom: 14px;
+        margin-bottom: 1em;
 
         .message_row:last-of-type {
             border-radius: var(--last-message-row-border-radius);

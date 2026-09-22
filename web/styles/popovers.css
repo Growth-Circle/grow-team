@@ -577,7 +577,7 @@ ul.popover-group-menu-member-list {
         cursor: pointer;
         width: 100%;
         height: 100%;
-        border-radius: 10px;
+        border-radius: var(--radius-lg);
         object-fit: cover;
 
         &:focus {

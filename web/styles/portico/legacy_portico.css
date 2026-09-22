@@ -342,7 +342,7 @@ html {
     }
 
     .api-field-type {
-        color: hsl(210deg 50% 45%);
+        color: var(--color-link);
     }
 
     & :target {
@@ -364,7 +364,7 @@ html {
         pull left and right into the gutter. */
         margin: 20px -8px 10px;
         /* Derive highlight color from brand link hue, here with 30% alpha */
-        background-color: hsl(210deg 70% 50% / 25%);
+        background-color: hsl(172.44deg 70% 50% / 25%);
     }
 }
 
@@ -552,7 +552,7 @@ input.text-error {
                 cursor: pointer;
 
                 &:hover {
-                    background-color: hsl(190deg 10% 90%);
+                    background-color: hsl(170deg 10% 90%);
                     transition: none;
                 }
 
@@ -1473,7 +1473,7 @@ label.label-title {
     font-size: 1rem;
     background: linear-gradient(
         145deg,
-        hsl(191deg 56% 55%),
+        hsl(172deg 56% 55%),
         hsl(169deg 65% 42%)
     );
     color: hsl(0deg 0% 100%);

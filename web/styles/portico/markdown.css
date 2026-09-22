@@ -247,7 +247,7 @@
     }
 
     & i.zulip-icon.mobile-help {
-        color: hsl(244deg 69% 62%);
+        color: hsl(176deg 69% 62%);
     }
 
     & a {
@@ -280,8 +280,8 @@
     .keyboard_tip {
         position: relative;
         display: block;
-        background-color: hsl(210deg 22% 96%);
-        border: 1px solid hsl(210deg 22% 90%);
+        background-color: hsl(180deg 22% 96%);
+        border: 1px solid hsl(180deg 22% 90%);
         border-radius: 4px;
         padding: 10px;
         margin: 5px 0;

@@ -1,8 +1,8 @@
 /* common CSS for all image upload widget's */
 .image_upload_widget {
     position: relative;
-    border-radius: 5px;
-    box-shadow: 0 0 10px hsl(0deg 0% 0% / 10%);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--box-shadow-raised-card);
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -14,7 +14,7 @@
 
     .image-hover-background {
         content: "";
-        background-color: hsl(0deg 0% 0% / 60%);
+        background-color: var(--color-background-overlay);
         height: 100%;
         width: 100%;
         z-index: 99;
@@ -32,7 +32,7 @@
         align-items: center;
         text-align: center;
         justify-content: center;
-        box-shadow: 0 0 10px hsl(0deg 0% 0% / 10%);
+        box-shadow: var(--box-shadow-raised-card);
         z-index: 99;
     }
 
@@ -116,16 +116,15 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        background-color: hsl(0deg 0% 10%);
+        background-color: var(--color-background-overlay);
         font-size: 0.8rem;
         width: 100%;
-        opacity: 0.8;
         height: 100%;
         position: absolute;
         visibility: hidden;
         z-index: 99;
         cursor: pointer;
-        border-radius: 5px;
+        border-radius: var(--radius-sm);
     }
 
     .hide {
@@ -178,7 +177,7 @@
 #realm-icon-upload-widget {
     width: 100px;
     height: 100px;
-    box-shadow: 0 0 10px hsl(0deg 0% 0% / 10%);
+    box-shadow: var(--box-shadow-raised-card);
 
     .image-delete-button {
         top: 5px;

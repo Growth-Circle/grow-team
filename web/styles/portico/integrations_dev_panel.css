@@ -28,12 +28,23 @@
             box-shadow linear 0.2s;
 
         &:focus {
-            border-color: hsl(206.5deg 80% 62% / 80%);
+            border-color: var(
+                --color-outline-input-focus,
+                light-dark(
+                    color-mix(in oklch, hsl(229deg 22% 10%) 80%, transparent),
+                    color-mix(in oklch, hsl(0deg 0% 100%) 50%, transparent)
+                )
+            );
             outline: 0;
-
             box-shadow:
                 inset 0 1px 1px hsl(0deg 0% 0% / 7.5%),
-                0 0 8px hsl(206.5deg 80% 62% / 60%);
+                0 0 8px var(
+                    --color-box-shadow-input-focus,
+                    light-dark(
+                        color-mix(in oklch, hsl(228deg 10% 20%) 30%, transparent),
+                        color-mix(in oklch, hsl(0deg 0% 100%) 40%, transparent)
+                    )
+                );
         }
 
         &:read-only {
@@ -73,11 +84,23 @@
         margin-bottom: 10px;
 
         &:focus {
-            border-color: hsl(206deg 80% 62% / 80%);
+            border-color: var(
+                --color-outline-input-focus,
+                light-dark(
+                    color-mix(in oklch, hsl(229deg 22% 10%) 80%, transparent),
+                    color-mix(in oklch, hsl(0deg 0% 100%) 50%, transparent)
+                )
+            );
             outline: 0;
             box-shadow:
                 inset 0 1px 1px hsl(0deg 0% 0% / 7.5%),
-                0 0 8px hsl(206deg 80% 62% / 60%);
+                0 0 8px var(
+                    --color-box-shadow-input-focus,
+                    light-dark(
+                        color-mix(in oklch, hsl(228deg 10% 20%) 30%, transparent),
+                        color-mix(in oklch, hsl(0deg 0% 100%) 40%, transparent)
+                    )
+                );
         }
     }
 }
@@ -118,14 +141,14 @@
     button {
         padding: 6px 12px;
         color: hsl(0deg 0% 100%);
-        background-color: hsl(208deg 56% 53%);
-        border: 1px solid hsl(208deg 56% 47%);
+        background-color: hsl(172deg 56% 53%);
+        border: 1px solid hsl(172deg 56% 47%);
 
         &:hover,
         &:active,
         &:focus {
-            background-color: hsl(208deg 56% 45%);
-            border-color: hsl(208deg 56% 36%);
+            background-color: hsl(172deg 56% 45%);
+            border-color: hsl(172deg 56% 36%);
         }
     }
 }

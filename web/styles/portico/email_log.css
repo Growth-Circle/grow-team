@@ -8,19 +8,19 @@
     .dev-email-log-header,
     .dev-forward-email-alert {
         padding: 10px;
-        border: 1px solid hsl(190deg 65% 84%);
+        border: 1px solid hsl(172deg 65% 84%);
         border-radius: 4px;
-        background-color: hsl(200deg 65% 91%);
-        color: hsl(200deg 50% 45%);
+        background-color: hsl(172deg 65% 91%);
+        color: hsl(172deg 50% 45%);
     }
 
     .dev-email-log-actions,
     .dev-forward-email-alert {
         & a {
-            color: hsl(200deg 50% 45%);
+            color: hsl(172deg 50% 45%);
 
             &:hover {
-                color: hsl(200deg 56% 33%);
+                color: hsl(172deg 56% 33%);
             }
         }
     }
@@ -112,11 +112,23 @@
             width: 206px;
 
             &:focus {
-                border-color: hsl(206deg 80% 62% / 80%);
+                border-color: var(
+                    --color-outline-input-focus,
+                    light-dark(
+                        color-mix(in oklch, hsl(229deg 22% 10%) 80%, transparent),
+                        color-mix(in oklch, hsl(0deg 0% 100%) 50%, transparent)
+                    )
+                );
                 outline: 0;
                 box-shadow:
                     inset 0 1px 1px hsl(0deg 0% 0% / 7.5%),
-                    0 0 8px hsl(206deg 80% 62% / 60%);
+                    0 0 8px var(
+                        --color-box-shadow-input-focus,
+                        light-dark(
+                            color-mix(in oklch, hsl(228deg 10% 20%) 30%, transparent),
+                            color-mix(in oklch, hsl(0deg 0% 100%) 40%, transparent)
+                        )
+                    );
             }
         }
     }

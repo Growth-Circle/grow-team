@@ -23,7 +23,7 @@
         color: var(--color-message-reaction-text);
         background-color: var(--color-message-reaction-background);
         border: 1px solid var(--color-message-reaction-border);
-        border-radius: 21px;
+        border-radius: var(--radius-pill);
         align-items: center;
         box-shadow: inset 0 0 5px 0 var(--color-message-reaction-shadow-inner);
         transition:
@@ -112,10 +112,10 @@
         /* Set top/bottom padding to accommodate borders
            and padding around reaction pills. */
         padding: 4px 6px;
-        border-radius: 21px;
         color: var(--color-message-reaction-button-text);
         background-color: var(--color-message-reaction-button-background);
         border: 1px solid var(--color-message-reaction-button-border);
+        border-radius: var(--radius-pill);
 
         & i {
             font-size: 1em;
@@ -276,7 +276,7 @@
         background-color: var(--color-background-emoji-picker-popover);
         min-height: 2.9333em; /* 44px at 15px/em */
         width: 16.6667em; /* 250px at 15px/em */
-        border-radius: 0 0 6px 6px;
+        border-radius: 0 0 var(--radius-sm) var(--radius-sm);
 
         .emoji-preview {
             position: absolute;

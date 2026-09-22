@@ -77,10 +77,7 @@
     .highlight_text_inserted,
     .highlight_text_deleted {
         > a {
-            color: light-dark(
-                var(--color-markdown-link),
-                hsl(200.27deg 100% 85.49%)
-            );
+            color: var(--color-markdown-link);
         }
     }
 
