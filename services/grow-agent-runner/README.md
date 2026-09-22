@@ -147,6 +147,42 @@ The current `run` driver has no execution adapter. It cannot claim new work or c
 It refuses recovery when old local attempts require unavailable runtime inspection.
 A live service is not evidence that a profile is ready.
 
+## Owner remote and Titen configuration
+
+Register each credential as an owner-local secret reference. Do not put credential values in configuration files.
+
+```sh
+grow-agent secret github-token /secure/path/github-token
+grow-agent secret titen-token /secure/path/titen-token
+grow-agent remote remote-operations.json
+grow-agent titen titen.json
+```
+
+`remote-operations.json` contains exact repository and provider bindings:
+
+```json
+{
+  "git": [{"repository_id": "REPOSITORY_ID", "remote": "https://github.com/owner/repo.git", "credential_secret_ref": "github-token"}],
+  "github": [{"remote": "https://github.com/owner/repo.git", "api_base": "https://api.github.com", "credential_secret_ref": "github-token"}]
+}
+```
+
+`titen.json` maps each immutable requester to one owner-approved stable subject:
+
+```json
+{
+  "endpoint": "https://memory.example/mcp",
+  "credential_secret_ref": "titen-token",
+  "subjects": [{"control_origin": "https://control.example", "realm_id": 1, "requester_user_id": 2, "subject_id": "person:example"}]
+}
+```
+
+`grow-agent run` resolves the lowercase Git origin and performs one bounded Titen compile. It does not pass a visibility argument to compile. It adds returned text as untrusted context. A missing configuration, an originless repository, or a failed memory request adds no context. Patch-only jobs still run.
+
+The host creates the candidate from the verified tree. It proposes the exact push and draft PR operations. It waits for approval with controls active. It uses one explicit expected-head lease and reconciles a lost receipt before another effect. The model and project containers do not receive remote Git or Titen credentials.
+
+Use `grow-agent memory-signal SIGNAL.json` only for a typed, verified, owner-approved signal. The signal must include an owner-only evidence path, its SHA-256, a stable idempotency key, and immutable audience fields. The command verifies the evidence, uses the configured requester subject, then calls canonical `titen_remember` and `titen_consolidate` with organization visibility. It does not accept model input, prompts, transcripts, secrets, recalled memory, or routine tool output as durable signals.
+
 ## User service
 
 Place the assembled directory at `~/.local/lib/grow-agent`.

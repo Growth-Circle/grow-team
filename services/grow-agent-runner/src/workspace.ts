@@ -370,6 +370,53 @@ export function finalDiff(w: Workspace, tree: string): Buffer {
         "--",
     ]);
 }
+
+export function createCandidateCommit(
+    gitDir: string,
+    baseCommit: string,
+    tree: string,
+    jobId: string,
+): string {
+    if (
+        !/^[0-9a-f]{40}$/.test(baseCommit) ||
+        !/^[0-9a-f]{40}$/.test(tree) ||
+        !/^[a-zA-Z0-9_-]{1,80}$/.test(jobId)
+    )
+        throw new Error("Invalid candidate commit input");
+    const message = `Grow Agent candidate for ${jobId}\n\nCo-Authored-By: CADIS <agent@cadis.digital>\n`;
+    const candidate = execFileSync(
+        "/usr/bin/git",
+        [
+            `--git-dir=${gitDir}`,
+            "-c",
+            "core.hooksPath=/dev/null",
+            "-c",
+            "credential.helper=",
+            "-c",
+            "core.fsmonitor=false",
+            "-c",
+            "core.attributesFile=/dev/null",
+            "commit-tree",
+            tree,
+            "-p",
+            baseCommit,
+        ],
+        {
+            env: {
+                ...env,
+                GIT_AUTHOR_NAME: "Grow Agent",
+                GIT_AUTHOR_EMAIL: "grow-agent@localhost",
+                GIT_COMMITTER_NAME: "Grow Agent",
+                GIT_COMMITTER_EMAIL: "grow-agent@localhost",
+            },
+            input: message,
+            encoding: "utf8",
+            timeout: 10000,
+        },
+    ).trim();
+    if (!/^[0-9a-f]{40}$/.test(candidate)) throw new Error("Invalid candidate commit");
+    return candidate;
+}
 export function snapshotTree(w: Workspace, tree: string): Buffer {
     if (!/^[0-9a-f]{40}$/.test(tree)) throw new Error("Invalid checkpoint tree");
     // Private Git metadata overrides tracked attributes at every directory depth.

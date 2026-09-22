@@ -7,7 +7,14 @@ import {type Data, canonical, digest, parse} from "./protocol.js";
 import type {JournalLog} from "./journal.js";
 import type {AttemptChannel} from "./supervisor.js";
 import {RootlessSandbox, type ExecutionGuard, type SandboxResult} from "./sandbox.js";
-import {safePath, hashFinalTree, finalDiff, assertLease, type Workspace} from "./workspace.js";
+import {
+    safePath,
+    hashFinalTree,
+    finalDiff,
+    assertLease,
+    createCandidateCommit,
+    type Workspace,
+} from "./workspace.js";
 export type ToolRequest =
     | {kind: "read"; path: string}
     | {kind: "search"; path: string; query: string}
@@ -420,5 +427,23 @@ export class ToolBroker {
         )
             throw new Error("Verification invalidated by a later edit");
         return this.verifiedTree;
+    }
+    async candidateCommit(
+        parent?: string,
+    ): Promise<{tree: string; commit: string; git_dir: string; base_commit: string}> {
+        const tree = await this.assertVerified();
+        const base = this.workspace.record.base_commit;
+        if (typeof base !== "string") throw new Error("Workspace base commit is unavailable");
+        return {
+            tree,
+            commit: createCandidateCommit(
+                this.workspace.gitDir,
+                parent ?? base,
+                tree,
+                this.d.job_id,
+            ),
+            git_dir: this.workspace.gitDir,
+            base_commit: base,
+        };
     }
 }

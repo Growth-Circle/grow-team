@@ -36,6 +36,7 @@ export interface ProbeChannel extends ProbeAuthority {
 export interface AttemptChannel {
     event(type: string, payload: Data): Promise<void>;
     pollInputs?(): Promise<void>;
+    hasPendingInput?(): boolean;
     inputApplied?(
         input: Data,
         receipt: {outcome: "applied" | "not_applied"; receipt_id: string},

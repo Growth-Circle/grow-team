@@ -806,6 +806,151 @@ for (const timing of ["during-turn", "completion-boundary"]) {
     );
 }
 
+test("RuntimeSupervisor retries publication after an input arrives during its approval wait", async () => {
+    const {mkdirSync, writeFileSync} = await import("node:fs");
+    const {execFileSync} = await import("node:child_process");
+    const {digest, effectiveConfiguration} = await import("../dist/protocol.js");
+    const root = mkdtempSync(join(tmpdir(), "grow-publication-input-"));
+    const source = join(root, "source");
+    mkdirSync(source);
+    const git = (...args: string[]) =>
+        execFileSync("/usr/bin/git", args, {
+            cwd: source,
+            encoding: "utf8",
+            env: {
+                PATH: "/usr/bin:/bin",
+                HOME: "/nonexistent",
+                GIT_CONFIG_GLOBAL: "/dev/null",
+                GIT_CONFIG_NOSYSTEM: "1",
+            },
+        }).trim();
+    git("init", "-q");
+    git("config", "user.name", "Fixture");
+    git("config", "user.email", "fixture@example.invalid");
+    writeFileSync(join(source, "file.txt"), "base\n");
+    git("add", "file.txt");
+    git("commit", "-qm", "fixture\n\nCo-Authored-By: CADIS <agent@cadis.digital>");
+    git("remote", "add", "origin", "https://example.invalid/fixture.git");
+    const base = git("rev-parse", "HEAD");
+    const {d: fixture} = await codingFixture();
+    const d: any = {
+        ...fixture,
+        job_id: randomUUID(),
+        attempt_id: randomUUID(),
+        lease_epoch: 1,
+        request: "Prepare a draft pull request",
+        base_ref: "HEAD",
+        job_kind: "code",
+        delivery_target: "draft_pr",
+        context_refs: [],
+        lease_expires_at: new Date(Date.now() + 60000).toISOString(),
+        repository: {
+            id: randomUUID(),
+            policy_version: 1,
+            workspace_alias: "fixture",
+            canonical_origin: "https://example.invalid/fixture.git",
+            allowed_refs: ["HEAD"],
+            required_checks: [],
+            base_ref: "HEAD",
+            base_commit: base,
+        },
+        policy: {
+            ...fixture.policy,
+            actions: [...new Set([...fixture.policy.actions, "checks.run"])],
+        },
+    };
+    d.tested_configuration = effectiveConfiguration(d);
+    d.configuration_digest = digest(d.tested_configuration);
+    d.descriptor_digest = digest(
+        Object.fromEntries(Object.entries(d).filter(([key]) => key !== "descriptor_digest")),
+    );
+    const store = new PrivateStore(root),
+        journal = new Journal(join(root, "journal"));
+    const saved = {
+        startSession: ContainedEndpointRuntime.prototype.startSession,
+        sendTurn: ContainedEndpointRuntime.prototype.sendTurn,
+        close: ContainedEndpointRuntime.prototype.close,
+        cancel: ContainedEndpointRuntime.prototype.cancel,
+    };
+    const events: any[] = [];
+    let inputSubmitted = false,
+        inputApplied = false,
+        publishes = 0,
+        polls = 0;
+    let ready!: () => void;
+    const result = new Promise<void>((resolve) => {
+        ready = resolve;
+    });
+    const input = {
+        id: randomUUID(),
+        sequence: 1,
+        text: "Apply the durable correction",
+        input_type: "steering",
+    };
+    ContainedEndpointRuntime.prototype.startSession = async () => {};
+    ContainedEndpointRuntime.prototype.sendTurn = async (text: string) =>
+        text.includes(input.text) ? "corrected result" : "stale result";
+    ContainedEndpointRuntime.prototype.close = async () => {};
+    ContainedEndpointRuntime.prototype.cancel = async () => {};
+    const supervisor = new (RuntimeSupervisor as any)(
+        store,
+        journal,
+        {assertRuntime: () => {}, assertWorkspace: () => source},
+        {stopScope: async () => ({confirmed: true})},
+        {owner_approved: true, model_image: "sha256:" + "a".repeat(64)},
+        {
+            publish: async (_descriptor: any, _broker: any, _publication: any, channel: any) => {
+                publishes++;
+                await channel.pollInputs();
+                if (channel.hasPendingInput()) return false;
+                return true;
+            },
+        },
+    );
+    const channel: any = {
+        lease: () => d,
+        request: async () => d,
+        download: async () => Buffer.alloc(0),
+        upload: async (payload: any, bytes: Buffer) => ({
+            artifact_id: randomUUID(),
+            checksum: payload.checksum,
+            size: bytes.length,
+        }),
+        event: async (type: string, payload: any) => {
+            events.push({type, payload});
+            if (type === "input.applied") inputApplied = true;
+            if (type === "result.prepared") ready();
+        },
+        pollInputs: async () => {
+            polls++;
+            if (polls === 4 && !inputSubmitted) {
+                inputSubmitted = true;
+                void supervisor.applyInput(d, input).catch(() => {});
+            }
+        },
+        inputApplied: async () => {
+            inputApplied = true;
+        },
+        operations: {},
+    };
+    try {
+        await supervisor.start(d, channel);
+        await result;
+        assert.equal(publishes, 2);
+        assert(inputSubmitted);
+        assert(inputApplied);
+        assert.equal(events.filter((event) => event.type === "result.prepared").length, 1);
+        assert.match(
+            events.find((event) => event.type === "result.prepared").payload.summary,
+            /corrected/,
+        );
+    } finally {
+        await supervisor.stop({attempt_id: d.attempt_id});
+        Object.assign(ContainedEndpointRuntime.prototype, saved);
+        journal.close();
+    }
+});
+
 test("cancellation before the turn boundary retains a not-applied receipt without cursor advancement", async () => {
     const {InputQueue} = await import("../dist/input-queue.js");
     const journal = new Journal(mkdtempSync(join(tmpdir(), "grow-fix1-pending-cancel-"))),

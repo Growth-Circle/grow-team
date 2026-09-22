@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {mkdtempSync} from "node:fs";
+import {mkdtempSync, writeFileSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {PrivateStore} from "../dist/config.js";
@@ -82,5 +82,83 @@ test("workspace checks use the server's normalized defaults", async () => {
             policy_version: 1,
         }),
         root,
+    );
+});
+
+test("owner Titen settings map each immutable requester to an approved stable subject", () => {
+    const root = mkdtempSync(join(tmpdir(), "grow-owner-titen-"));
+    const secret = join(root, "titen-token");
+    writeFileSync(secret, "fixture-token\n", {mode: 0o600});
+    const store = new PrivateStore(root);
+    store.write("connection.json", {origin: "https://control.example", runner_id: "runner"});
+    const registry = new OwnerRegistry(store, {journal: {protectSecret: () => {}}} as any);
+    registry.secret("titen", secret);
+    registry.configureTiten({
+        endpoint: "http://127.0.0.1:9999/mcp",
+        credential_secret_ref: "titen",
+        subjects: [
+            {
+                control_origin: "https://control.example",
+                realm_id: 9,
+                requester_user_id: 12,
+                subject_id: "person:approved",
+            },
+        ],
+    });
+    assert.deepEqual(
+        registry.titenFor({
+            audience: {realm_id: 9, requester_user_id: 12},
+            repository: {canonical_origin: "https://github.com/Growth-Circle/grow-team.git"},
+        }),
+        {
+            endpoint: "http://127.0.0.1:9999/mcp",
+            token: "fixture-token",
+            subject_id: "person:approved",
+        },
+    );
+    assert.equal(
+        registry.titenFor({
+            audience: {realm_id: 9, requester_user_id: 13},
+            repository: {canonical_origin: "https://github.com/Growth-Circle/grow-team.git"},
+        }),
+        null,
+    );
+});
+
+test("owner publication settings bind the descriptor repository and remote", () => {
+    const root = mkdtempSync(join(tmpdir(), "grow-owner-publication-"));
+    const store = new PrivateStore(root);
+    const registry = new OwnerRegistry(store, {journal: {protectSecret: () => {}}} as any);
+    registry.configureRemoteOperations({
+        git: [
+            {
+                repository_id: "repo-1",
+                remote: "https://github.com/Growth-Circle/grow-team.git",
+                credential_secret_ref: null,
+            },
+        ],
+        github: [],
+    });
+    assert.deepEqual(
+        registry.publicationFor({
+            repository: {
+                id: "repo-1",
+                canonical_origin: "https://github.com/Growth-Circle/grow-team.git",
+            },
+        }),
+        {
+            remote: "https://github.com/Growth-Circle/grow-team.git",
+            git_credential: null,
+            github: null,
+        },
+    );
+    assert.equal(
+        registry.publicationFor({
+            repository: {
+                id: "repo-2",
+                canonical_origin: "https://github.com/Growth-Circle/grow-team.git",
+            },
+        }),
+        null,
     );
 });

@@ -32,7 +32,7 @@ export interface RuntimeExtensions {
         broker: ToolBroker,
         result: Data,
         channel: AttemptChannel,
-    ): Promise<void>;
+    ): Promise<boolean | void>;
 }
 interface Active {
     d: Data;
@@ -238,6 +238,10 @@ export class RuntimeSupervisor implements Supervisor {
     private async execute(active: Active, channel: AttemptChannel): Promise<void> {
         const d = active.d,
             filter = new SecretFilter();
+        const publicationChannel: AttemptChannel = {
+            ...channel,
+            hasPendingInput: () => active.inputs.hasPending(),
+        };
         if (!channel.request || !channel.upload || !channel.download)
             throw new Error("Runtime callbacks unavailable");
         const request = channel.request;
@@ -533,8 +537,15 @@ export class RuntimeSupervisor implements Supervisor {
                 }
                 await channel.pollInputs?.();
                 if (active.inputs.hasPending()) continue;
-                if (broker && d.job_kind !== "answer" && this.extensions.publish)
-                    await this.extensions.publish(d, broker, result, channel);
+                if (broker && d.job_kind !== "answer" && this.extensions.publish) {
+                    const published = await this.extensions.publish(
+                        d,
+                        broker,
+                        result,
+                        publicationChannel,
+                    );
+                    if (published === false) continue;
+                }
                 await channel.event("result.prepared", {
                     summary: result.summary,
                     artifact_ids: result.artifact_ids,
