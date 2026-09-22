@@ -15,3 +15,4 @@ pnpm-lock.yaml
 /zerver/webhooks/*/doc.md
 /zerver/webhooks/github/githubsponsors.md
 /zerver/webhooks/*/fixtures
+/services/grow-agent-runner/notices/PCRE2-10.45-LICENCE.md
