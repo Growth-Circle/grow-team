@@ -29,7 +29,7 @@ Gunakan topik untuk memisahkan pekerjaan di dalam setiap channel.
 Branch `grow-team` dimulai dari tag upstream `12.2`, commit `1e73e1d754761b73c18135a3f25d0673f31cd8b3`.
 Remote `upstream` menunjuk ke `zulip/zulip`; `origin` menunjuk ke `Growth-Circle/grow-team`.
 Image resmi `ghcr.io/zulip/zulip-server:12.2-0` menjadi base image runtime.
-Image fork `grow-team/server:12.2-grow-team.3` membawa identitas Grow Team.
+Image fork `grow-team/server:12.2-grow-team.4` membawa identitas Grow Team.
 Base image dan image pendukung dipatok dengan digest.
 Image fork dibangun lokal dan mencatat commit sumber pada label serta `build_id`.
 
@@ -44,6 +44,44 @@ Bangun aset dari checkout yang dependensinya sudah terpasang sesuai lockfile.
 Gunakan lingkungan pengembangan Zulip yang sudah diprovisi untuk build lengkap.
 Jalankan `tools/update-prod-static` untuk membangun frontend, emoji, bantuan, dan katalog.
 Periksa hasil build, lalu commit seluruh perubahan sumber.
+
+### Build aset tanpa lingkungan terprovisi
+
+Perubahan CSS atau TypeScript saja tidak memerlukan `tools/update-prod-static` lengkap.
+`tools/webpack` berjalan dengan `python3` stdlib dan `node_modules` saja, tanpa virtualenv.
+Pasang dependensi dengan `pnpm install --frozen-lockfile`, lalu jalankan `python3 tools/webpack --quiet`.
+
+Webpack tetap memerlukan berkas hasil generate berikut. Siapkan lebih dulu:
+
+| Berkas | Cara membangun | Perlu virtualenv |
+| --- | --- | --- |
+| `web/generated/timezones.json` | `python3 tools/setup/build_timezone_values` | Tidak |
+| `web/generated/pygments_data.json` | `tools/setup/build_pygments_data` | Ya, paket `pygments` saja |
+| `web/generated/supported_browser_regex.ts` | `node tools/setup/build_supported_browser_regex.ts` | Tidak |
+| `web/generated/emoji/` dan `web/generated/emoji-styles/` | `tools/setup/emoji/build_emoji` | Ya, dan perlu `vips` serta root |
+
+`build_emoji` memerlukan program `vips`, akses root, dan `orjson`. Image dasar menyediakan
+ketiganya. Jalankan skrip itu di dalam container sekali pakai bila mesin build tidak terprovisi:
+
+```bash
+docker run --rm --network none --no-healthcheck \
+  -v <dir-kerja>:/work -v <dir-cache>:/srv/zulip-emoji-cache \
+  --entrypoint /home/zulip/deployments/current/.venv/bin/python \
+  grow-team/server:<tag> /work/tools/setup/emoji/build_emoji
+```
+
+Direktori kerja memerlukan `tools/`, `scripts/`, `version.py`, `web/images/zulip-emoji/`,
+`zerver/management/data/unified_reactions.json`, `zerver/lib/emoji_utils.py`, dan dua paket
+`node_modules/emoji-datasource-*`. Berkas `zerver/lib/emoji_utils.py` tidak memakai Django.
+
+Cache emoji memakai symlink absolut ke `/srv/zulip-emoji-cache`. Path itu hanya ada di dalam
+container. Salin hasilnya dengan dereference dari dalam container, bukan dari host.
+Sesudah itu salin `web/emoji` ke `web/generated/emoji`, `web/emoji-styles` ke
+`web/generated/emoji-styles`, dan `static` ke `static/generated/emoji`.
+
+Emoji dan pusat bantuan tidak berubah pada rilis yang hanya mengubah CSS. Pakai ulang hasil
+build sebelumnya dari `/opt/grow-team/builds/<commit>/app/` pada kasus itu.
+
 
 Paketkan build dari checkout yang bersih:
 
@@ -65,7 +103,7 @@ sudo env DOCKER_HOST=unix:///run/grow-team-docker/docker.sock \
   DOCKER_CONFIG=/opt/grow-team/lib/docker \
   /opt/grow-team/bin/docker buildx build --network none --progress plain --load \
   --build-arg GROW_TEAM_REVISION=<commit-penuh> \
-  --tag grow-team/server:12.2-grow-team.3 <direktori-build>
+  --tag grow-team/server:12.2-grow-team.4 <direktori-build>
 ```
 
 Docker Buildx 0.30.0 terpasang pada direktori plugin engine Grow Team.
@@ -82,7 +120,7 @@ sudo env DOCKER_HOST=unix:///run/grow-team-docker/docker.sock \
   DOCKER_CONFIG=/opt/grow-team/lib/docker \
   /opt/grow-team/bin/docker run --rm --network none --no-healthcheck \
   --user zulip --entrypoint /home/zulip/deployments/current/.venv/bin/python \
-  grow-team/server:12.2-grow-team.3 /opt/grow-team-build/check_image.py
+  grow-team/server:12.2-grow-team.4 /opt/grow-team-build/check_image.py
 ```
 
 Sebelum mengganti aplikasi:
