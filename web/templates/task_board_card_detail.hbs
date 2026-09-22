@@ -3,10 +3,10 @@
     <span class="task-board-detail-id">{{display_id}}</span>
     <span class="task-board-chip">{{column_name}}</span>
     {{#if agent_label}}
-    <span class="task-board-chip task-board-chip-agent">
-        <i class="zulip-icon zulip-icon-bot" aria-hidden="true"></i>
-        <span>{{agent_label}}</span>
-    </span>
+        <span class="task-board-chip task-board-chip-agent">
+            <i class="zulip-icon zulip-icon-bot" aria-hidden="true"></i>
+            <span>{{agent_label}}</span>
+        </span>
     {{/if}}
     <button type="button" class="task-board-detail-close" aria-label="{{t 'Close card'}}">
         <i class="zulip-icon zulip-icon-close" aria-hidden="true"></i>
@@ -14,67 +14,67 @@
 </div>
 <h2 class="task-board-detail-title" tabindex="-1">{{title}}</h2>
 {{#if body}}
-<p class="task-board-detail-body">{{body}}</p>
+    <p class="task-board-detail-body">{{body}}</p>
 {{/if}}
 
 <section class="task-board-detail-section">
     <h3>{{t "Where this card came from"}}</h3>
     {{#if origin_label}}
-    <p class="task-board-detail-origin">
-        <i class="zulip-icon zulip-icon-hash" aria-hidden="true"></i>
-        <span>{{origin_label}}</span>
-    </p>
-    {{#if origin_url}}
-    <a class="task-board-detail-origin-link" href="{{origin_url}}">{{t "Open the conversation"}}</a>
-    {{/if}}
+        <p class="task-board-detail-origin">
+            <i class="zulip-icon zulip-icon-hash" aria-hidden="true"></i>
+            <span>{{origin_label}}</span>
+        </p>
+        {{#if origin_url}}
+            <a class="task-board-detail-origin-link" href="{{origin_url}}">{{t "Open the conversation"}}</a>
+        {{/if}}
     {{else}}
-    <p class="task-board-detail-origin">{{t "This card was created on the board."}}</p>
+        <p class="task-board-detail-origin">{{t "This card was created on the board."}}</p>
     {{/if}}
     <p class="task-board-detail-created">{{created_label}}</p>
 </section>
 
 {{#if checklist.length}}
-<section class="task-board-detail-section">
-    <h3>{{t "Checklist"}}</h3>
-    <ul class="task-board-detail-checklist">
-        {{#each checklist}}
-        <li>
-            <label>
-                <input type="checkbox" class="task-board-detail-checklist-item" data-index="{{this.index}}" {{#if this.done}}checked{{/if}} />
-                <span>{{this.text}}</span>
-            </label>
-        </li>
-        {{/each}}
-    </ul>
-</section>
+    <section class="task-board-detail-section">
+        <h3>{{t "Checklist"}}</h3>
+        <ul class="task-board-detail-checklist">
+            {{#each checklist}}
+                <li>
+                    <label>
+                        <input type="checkbox" class="task-board-detail-checklist-item" data-index="{{this.index}}" {{#if this.done}}checked{{/if}} />
+                        <span>{{this.text}}</span>
+                    </label>
+                </li>
+            {{/each}}
+        </ul>
+    </section>
 {{/if}}
 
 <section class="task-board-detail-section">
     <h3>{{t "Responsible"}}</h3>
     <p class="task-board-detail-assignee">{{assignee_label}}</p>
     {{#if due_label}}
-    <h3>{{t "Deadline"}}</h3>
-    <p class="task-board-detail-due{{#if due_is_overdue}} task-board-card-detail-danger{{/if}}">{{due_label}}</p>
+        <h3>{{t "Deadline"}}</h3>
+        <p class="task-board-detail-due{{#if due_is_overdue}} task-board-card-detail-danger{{/if}}">{{due_label}}</p>
     {{/if}}
 </section>
 
 {{#if agent_job_url}}
-<section class="task-board-detail-section">
-    <h3>{{t "Agent work"}}</h3>
-    <a class="task-board-detail-agent-link" href="{{agent_job_url}}">{{t "Open the agent task"}}</a>
-</section>
+    <section class="task-board-detail-section">
+        <h3>{{t "Agent work"}}</h3>
+        <a class="task-board-detail-agent-link" href="{{agent_job_url}}">{{t "Open the agent task"}}</a>
+    </section>
 {{/if}}
 
 <section class="task-board-detail-section">
     <h3>{{t "History"}}</h3>
     <ul class="task-board-detail-history">
         {{#each history}}
-        <li>
-            <span class="task-board-detail-history-time">{{this.time_label}}</span>
-            <span class="task-board-detail-history-text">{{this.text}}</span>
-        </li>
+            <li>
+                <span class="task-board-detail-history-time">{{this.time_label}}</span>
+                <span class="task-board-detail-history-text">{{this.text}}</span>
+            </li>
         {{else}}
-        <li class="task-board-detail-history-empty">{{t "Loading…"}}</li>
+            <li class="task-board-detail-history-empty">{{t "Loading…"}}</li>
         {{/each}}
     </ul>
 </section>

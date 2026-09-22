@@ -11,20 +11,20 @@
         <label class="task-board-filter-label" for="task-board-filter">{{t "Filter"}}</label>
         <select class="task-board-filter" id="task-board-filter">
             {{#each filters}}
-            <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+                <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
             {{/each}}
         </select>
         {{#if members}}
-        <span class="task-board-members" aria-label="{{t 'People responsible for cards on this board'}}">
-            {{#each members}}
-            <span class="task-board-card-avatar" title="{{this.full_name}}">
-                <img class="task-board-card-avatar-image" src="{{this.avatar_url}}" alt="{{this.full_name}}" />
+            <span class="task-board-members" aria-label="{{t 'People responsible for cards on this board'}}">
+                {{#each members}}
+                    <span class="task-board-card-avatar" title="{{this.full_name}}">
+                        <img class="task-board-card-avatar-image" src="{{this.avatar_url}}" alt="{{this.full_name}}" />
+                    </span>
+                {{/each}}
+                {{#if extra_member_count}}
+                    <span class="task-board-card-avatar task-board-card-avatar-empty">+{{extra_member_count}}</span>
+                {{/if}}
             </span>
-            {{/each}}
-            {{#if extra_member_count}}
-            <span class="task-board-card-avatar task-board-card-avatar-empty">+{{extra_member_count}}</span>
-            {{/if}}
-        </span>
         {{/if}}
         <button type="button" class="task-board-new-card action-button action-button-solid-brand">
             <i class="zulip-icon zulip-icon-plus" aria-hidden="true"></i>
@@ -35,36 +35,36 @@
 </div>
 <div class="task-board-columns" role="list">
     {{#each columns}}
-    <section class="task-board-column" role="listitem" data-column-id="{{this.id}}" aria-labelledby="task-board-column-heading-{{this.id}}">
-        <header class="task-board-column-header">
-            <h2 class="task-board-column-name" id="task-board-column-heading-{{this.id}}">{{this.name}}</h2>
-            <span class="task-board-column-count{{#if this.at_work_limit}} task-board-column-count-warning{{/if}}">
-                {{#if this.work_limit}}{{this.card_count}} / {{this.work_limit}}{{else}}{{this.card_count}}{{/if}}
-            </span>
-            {{#if this.done_window_days}}
-            <span class="task-board-column-window">{{this.done_window_label}}</span>
+        <section class="task-board-column" role="listitem" data-column-id="{{this.id}}" aria-labelledby="task-board-column-heading-{{this.id}}">
+            <header class="task-board-column-header">
+                <h2 class="task-board-column-name" id="task-board-column-heading-{{this.id}}">{{this.name}}</h2>
+                <span class="task-board-column-count{{#if this.at_work_limit}} task-board-column-count-warning{{/if}}">
+                    {{#if this.work_limit}}{{this.card_count}} / {{this.work_limit}}{{else}}{{this.card_count}}{{/if}}
+                </span>
+                {{#if this.done_window_days}}
+                    <span class="task-board-column-window">{{this.done_window_label}}</span>
+                {{/if}}
+            </header>
+            <div class="task-board-column-cards" data-column-id="{{this.id}}">
+                {{#each this.cards}}
+                    {{> task_board_card}}
+                {{/each}}
+            </div>
+            {{#if this.folded_count}}
+                <button type="button" class="task-board-show-folded" data-column-id="{{this.id}}">
+                    {{this.folded_label}}
+                </button>
             {{/if}}
-        </header>
-        <div class="task-board-column-cards" data-column-id="{{this.id}}">
-            {{#each this.cards}}
-            {{> task_board_card}}
-            {{/each}}
-        </div>
-        {{#if this.folded_count}}
-        <button type="button" class="task-board-show-folded" data-column-id="{{this.id}}">
-            {{this.folded_label}}
-        </button>
-        {{/if}}
-        {{#if this.at_work_limit}}
-        <p class="task-board-work-limit-notice">
-            <i class="zulip-icon zulip-icon-info" aria-hidden="true"></i>
-            {{t "This column is at its parallel work limit. Finish a card before you pull in another one."}}
-        </p>
-        {{/if}}
-        <button type="button" class="task-board-add-card" data-column-id="{{this.id}}">
-            <i class="zulip-icon zulip-icon-plus" aria-hidden="true"></i>
-            {{t "Add card"}}
-        </button>
-    </section>
+            {{#if this.at_work_limit}}
+                <p class="task-board-work-limit-notice">
+                    <i class="zulip-icon zulip-icon-info" aria-hidden="true"></i>
+                    {{t "This column is at its parallel work limit. Finish a card before you pull in another one."}}
+                </p>
+            {{/if}}
+            <button type="button" class="task-board-add-card" data-column-id="{{this.id}}">
+                <i class="zulip-icon zulip-icon-plus" aria-hidden="true"></i>
+                {{t "Add card"}}
+            </button>
+        </section>
     {{/each}}
 </div>
