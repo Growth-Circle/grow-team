@@ -23,12 +23,26 @@
     }
 
     &.message_header_stream {
-        /* Add box shadow to hide message border (first one) and message
-           selected box shadow (second one) that are visible
-           due to top borders of sticky recipient bar being curved. */
-        box-shadow:
-            -1px -5px 0 5px var(--color-background),
-            1px -5px 0 0 var(--color-background);
+        /* This bar no longer tops a shared card with the message rows
+           below it (each message now draws its own full card), so it
+           no longer needs a border, rounded top corners, or the
+           box shadow that used to hide the seam between the two. */
+        box-shadow: none;
+
+        .message-header-contents {
+            /* The topic title reads as a page heading now, so the bar
+               is no longer a thin, fixed-height strip: let it grow to
+               fit the title and the pill-shaped controls beside it. */
+            height: auto;
+            /* This is a floor, not the actual height: the 32px pills
+               and their own padding already make the row taller than
+               this in practice, on top of the 15px font-size context
+               .message-header-contents sets for itself. */
+            min-height: var(--height-icon-button);
+            padding: 0.5714em 0; /* ~8px at this bar's 15px em */
+            border: none;
+            border-radius: 0;
+        }
 
         & .message_label_clickable {
             user-select: text;
@@ -55,16 +69,22 @@
         .stream_topic {
             display: inline-block;
             padding: 5px 6px 5px 2px;
-            height: 1.2142em; /* 17px at 14px em */
-            line-height: 1.2142em; /* 17px at 14px em */
+            /* The topic name is now a page-heading-sized title
+               (see the mockup's 22px/600 title), rather than a
+               17px line matching the rest of the thin bar. */
+            height: auto;
+            line-height: 1.4;
             overflow: hidden;
             text-overflow: ellipsis;
 
             .message_label_clickable.narrows_by_topic {
                 position: relative;
-                top: 0.5px;
+                top: 0;
                 overflow: hidden;
                 text-overflow: ellipsis;
+                font-size: 1.4667em; /* 22px at 15px em */
+                font-weight: 600;
+                letter-spacing: -0.01em;
 
                 span.stream-topic-inner {
                     white-space: pre;
@@ -175,42 +195,21 @@
 
 .message-feed {
     .recipient_row {
-        /* This margin keeps the browser from overlapping the extra
-           top padding of the next message header with this row's
-           bottom border, and gives each conversation card the gap
-           the card shape (--radius-xl, drawn by .message_header and
-           .message_row below) needs to read as a separate card from
-           the next one. */
+        /* Gives the topic header some breathing room from the next
+           topic's header below. Each message now draws its own card
+           (see .messagebox in message_row.css), so this bar no longer
+           needs to draw a card shape of its own. */
         margin-bottom: 1em;
-
-        /* The card shape is drawn by the header's top corners and the
-           last row's bottom corners. The shadow lifts the whole group
-           off the feed background, so it reads as one card. */
-        box-shadow: var(--box-shadow-raised-card);
-
-        .message_row:last-of-type {
-            border-radius: var(--last-message-row-border-radius);
-            border-bottom: 1px solid var(--color-message-list-border);
-
-            .unread-marker-fill {
-                border-radius: 0 0 0 var(--radius-xl);
-                height: calc(100% - 2px);
-            }
-
-            .messagebox {
-                border-radius: 0 0 var(--radius-xl) var(--radius-xl);
-                padding-bottom: 4px;
-            }
-        }
-
-        .message_header + .message_row {
-            .messagebox {
-                padding-top: 5px;
-            }
-        }
 
         .recipient_row_date {
             cursor: pointer;
+        }
+
+        /* Gives the same 14px rhythm used between message cards
+           (see .messagebox's margin-bottom in message_row.css) to
+           the gap between the header and the first card below it. */
+        .message_header + .message_row .messagebox {
+            margin-top: 14px;
         }
     }
 
@@ -295,6 +294,85 @@
     }
 }
 
+/* The visibility-policy and resolve-topic pills sit next to
+   .recipient_bar_controls, not inside it, so they stay visible
+   even when the hover-only controls are hidden. Hide them too
+   while the topic name is replaced by its rename input. */
+.message-header-contents:has(.recipient_bar_controls.topic-edit-mode) {
+    .change_visibility_policy,
+    .on_hover_topic_resolve {
+        display: none;
+    }
+}
+
+.recipient-bar-control-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    /* The header sits in a 15px font-size context (see
+       .message-header-contents), but --height-icon-button and the
+       padding below are calibrated to the app's 14px base. Resetting
+       font-size here keeps both the pill's own height and its
+       em-sized icon at their intended pixel values. */
+    font-size: var(--base-font-size-px);
+    height: var(--height-icon-button); /* 32px at 14px em */
+    padding: 0 0.7143em; /* 10px at 14px em */
+    border: 1px solid var(--color-message-list-border);
+    border-radius: var(--radius-pill);
+    background-color: var(--color-background-stream-message-content);
+    color: var(--color-text-default);
+    font-family: inherit;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.1s ease-out;
+
+    &:hover,
+    &:focus-visible {
+        background-color: var(--color-background-neutral-subtle-action-button-hover);
+    }
+
+    &:active {
+        background-color: var(--color-background-neutral-subtle-action-button-active);
+    }
+
+    &:focus {
+        outline: none;
+    }
+
+    &:focus-visible {
+        outline: var(--outline-width-button-focus) solid
+            var(--color-outline-button-focus);
+        outline-offset: var(--outline-offset-button-focus);
+    }
+}
+
+.recipient-bar-participants {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+    font-size: 0.9333em; /* 14px at 15px em */
+    color: var(--color-date);
+    white-space: nowrap;
+}
+
+.recipient-bar-participant-avatars {
+    display: flex;
+}
+
+.recipient-bar-participant-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius-pill);
+    border: 2px solid var(--color-background);
+    object-fit: cover;
+
+    & + & {
+        margin-left: -8px;
+    }
+}
+
 .on_hover_topic_read {
     opacity: 0.7;
 
@@ -363,6 +441,10 @@
             display: block;
         }
     }
+
+    .recipient-bar-participants {
+        display: none;
+    }
 }
 
 @media (width < $ml_min) {
@@ -374,6 +456,10 @@
             &.recipient-row-topic-menu {
                 display: block;
             }
+        }
+
+        .recipient-bar-participants {
+            display: none;
         }
     }
 }

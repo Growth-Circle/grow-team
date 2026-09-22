@@ -15,8 +15,6 @@
         "message_divider_unread_marker message_feed_divider_content"
         "message_unread_marker messagebox";
 
-    border-left: 1px solid var(--color-message-list-border);
-    border-right: 1px solid var(--color-message-list-border);
     background-color: var(--color-background-stream-message-content);
 
     &.private-message {
@@ -67,22 +65,21 @@
             cursor: pointer;
         }
     }
-
-    #report-message-preview-container & {
-        /* A message preview only contains a single row of message */
-        border-radius: var(--last-message-row-border-radius);
-        border: 1px solid var(--color-message-list-border);
-    }
 }
 
 .messagebox {
     grid-area: messagebox;
     overflow-wrap: break-word;
-    border: none;
-    /* The left padding value accounts for a 2px
-      unread marker, ensuring a uniform 5px of
-      padding on either side of the message box. */
-    padding: 0 5px 0 3px;
+    /* Each message is its own card. The date/subscription divider
+       (message_feed_divider_content, a sibling grid area) is not
+       part of .messagebox, so it stays outside any card. Background
+       is inherited rather than restated, so the existing mention/DM
+       tint colors set on .message_row above keep working unchanged. */
+    border: 1px solid var(--color-message-list-border);
+    border-radius: var(--radius-xl);
+    background-color: inherit;
+    padding: 1.2857em 1.4286em; /* 18px 20px at 14px em */
+    margin-bottom: 14px;
 
     &:hover .message_controls {
         > .message_control_button {
@@ -114,7 +111,9 @@
 .messagebox-content {
     display: grid;
     align-content: baseline;
-    padding-left: 10px;
+    /* .messagebox's own padding is now the card's only left inset
+       (see message_row.css's .messagebox), so the avatar starts
+       right at the card edge instead of an extra 10px past it. */
     /* Prevent the message column from overflowing the 1fr
        space allotted by specifying `minmax(0,1fr)`, which
        sets 0 as the minimum size, not the grid default of
@@ -471,6 +470,12 @@
                    sender-line elements on the .messagebox-content
                    grid. */
                 margin-top: var(--message-box-vertical-margin);
+                /* Every message now shows its own avatar (see the
+                   Tenang message-card design), sized to match the
+                   app's standard 36px control height instead of the
+                   smaller size used by the old condensed rows. */
+                width: var(--height-control-md); /* 36px at 14px em */
+                height: var(--height-control-md); /* 36px at 14px em */
             }
 
             .muted-sender-avatar {

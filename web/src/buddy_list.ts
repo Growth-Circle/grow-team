@@ -64,6 +64,14 @@ function get_total_human_subscriber_count(
     return 0;
 }
 
+function make_presence_group_divider(label: string, extra_class?: string): JQuery {
+    const $divider = $("<li>").addClass("buddy-list-presence-divider").text(label);
+    if (extra_class !== undefined) {
+        $divider.addClass(extra_class);
+    }
+    return $divider;
+}
+
 function should_hide_headers(
     current_sub: StreamSubscription | undefined,
     pm_ids_set: Set<number>,
@@ -558,8 +566,62 @@ export class BuddyList extends BuddyListConf {
         );
     }
 
+    // In the flat view (no channel/topic/DM narrow), we don't show the
+    // usual "this conversation" / "this channel" / "others" headers
+    // (see `should_hide_headers`), so the list is one undifferentiated
+    // block of everyone. We group it by presence instead, inserting
+    // two lightweight, non-interactive dividers, since there's nothing
+    // here to collapse or count the way the real sections do.
+    update_presence_group_dividers(): void {
+        const $list = $(this.other_user_list_selector);
+        $list.children(".buddy-list-presence-divider").remove();
+
+        if (!this.render_data.hide_headers) {
+            return;
+        }
+
+        // Self always sorts first regardless of real presence status
+        // (see `buddy_data.level`), so we exclude that row when
+        // locating the active/inactive boundary below; if self is the
+        // only inactive user while everyone else is active, self is
+        // just shown unlabeled above the "Currently active" divider.
+        //
+        // ponytail: assumes the rest of the list stays sorted active-
+        // before-inactive (true today via `buddy_data.level`); if
+        // manual reordering is ever added here, derive the split from
+        // presence data instead of DOM order.
+        const rows = $list.children("li.user_sidebar_entry:not(.user_sidebar_entry_me)").toArray();
+        if (rows.length === 0) {
+            return;
+        }
+
+        const first_inactive_index = rows.findIndex(
+            (row) => $(row).find(".user-circle-offline").length > 0,
+        );
+
+        if (first_inactive_index !== 0) {
+            const first_row = rows[0];
+            assert(first_row !== undefined);
+            $(first_row).before(
+                make_presence_group_divider($t({defaultMessage: "Currently active"})),
+            );
+        }
+        if (first_inactive_index !== -1) {
+            const first_inactive_row = rows[first_inactive_index];
+            assert(first_inactive_row !== undefined);
+            $(first_inactive_row).before(
+                make_presence_group_divider(
+                    $t({defaultMessage: "Not active"}),
+                    "buddy-list-presence-divider-inactive",
+                ),
+            );
+        }
+    }
+
     async render_section_headers(): Promise<void> {
         const {hide_headers} = this.render_data;
+
+        this.update_presence_group_dividers();
 
         // If we're not changing filters, this just means some users were added or
         // removed but otherwise everything is the same, so we don't need to do a full
@@ -982,6 +1044,7 @@ export class BuddyList extends BuddyListConf {
             assert($li !== undefined);
             $li.remove();
             this.update_padding();
+            this.update_presence_group_dividers();
         }
     }
 

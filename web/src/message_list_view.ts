@@ -16,6 +16,7 @@ import * as activity from "./activity.ts";
 import * as blueslip from "./blueslip.ts";
 import * as compose_fade from "./compose_fade.ts";
 import * as condense from "./condense.ts";
+import {ConversationParticipants} from "./conversation_participants.ts";
 import * as hash_util from "./hash_util.ts";
 import {$t} from "./i18n.ts";
 import * as internal_url from "./internal_url.ts";
@@ -116,6 +117,8 @@ export type MessageGroup = {
           user_can_resolve_topic: boolean;
           visibility_policy: number | false;
           always_display_date: boolean;
+          participant_count?: number;
+          participant_avatar_urls?: string[];
       }
     | {
           is_stream: false;
@@ -155,13 +158,6 @@ function same_year(earlier_msg: Message | undefined, later_msg: Message | undefi
     );
 }
 
-function same_sender(a: MessageContainer | undefined, b: MessageContainer | undefined): boolean {
-    if (a === undefined || b === undefined) {
-        return false;
-    }
-    return a.msg.sender_id === b.msg.sender_id;
-}
-
 function same_recipient(a: MessageContainer | undefined, b: MessageContainer | undefined): boolean {
     if (a === undefined || b === undefined) {
         return false;
@@ -184,6 +180,25 @@ function update_group_date(group: MessageGroup, message: Message, prev: Message 
 
 function clear_group_date(group: MessageGroup): void {
     group.date_unchanged = false;
+}
+
+function get_recipient_row_participants(
+    message_containers: MessageContainer[],
+): {participant_count: number; participant_avatar_urls: string[]} | Record<string, never> {
+    // Participants are the distinct, displayable human senders of the
+    // messages currently loaded for this topic, reusing the same
+    // definition of "participant" as the buddy list sort order.
+    const participants = new ConversationParticipants(message_containers.map((container) => container.msg));
+    const participant_ids = [...participants.visible()];
+    if (participant_ids.length === 0) {
+        return {};
+    }
+    return {
+        participant_count: participant_ids.length,
+        participant_avatar_urls: participant_ids
+            .slice(0, 3)
+            .map((user_id) => people.small_avatar_url_for_user_id(user_id)),
+    };
 }
 
 function clear_message_divider(message_container: MessageContainer): void {
@@ -803,7 +818,6 @@ export class MessageListView {
             let stream_url;
             let topic_url;
             let pm_with_url;
-            let include_sender;
             let want_date_divider;
             let date_divider_html;
             let want_subscription_status_divider = false;
@@ -837,17 +851,10 @@ export class MessageListView {
                 }
             }
 
-            include_sender = true;
-            if (
-                !include_recipient &&
-                prev_message_container &&
-                !prev_message_container.status_message &&
-                same_day(prev_message_container.msg, message) &&
-                prev_message_container.msg.historical === message.historical &&
-                prev_message_container.msg.sender_id === message.sender_id
-            ) {
-                include_sender = false;
-            }
+            // Every message shows its own sender line and avatar in the
+            // Tenang message-card design; consecutive messages from the
+            // same sender no longer condense under one shared sender line.
+            const include_sender = true;
 
             const calculated_variables = this.get_calculated_message_container_variables(
                 message,
@@ -898,15 +905,6 @@ export class MessageListView {
 
         // Join two groups into one.
         if (this.collapse_messages && same_recipient(last_msg_container, first_msg_container)) {
-            if (
-                !last_msg_container!.status_message &&
-                !first_msg_container.msg.is_me_message &&
-                same_day(last_msg_container?.msg, first_msg_container.msg) &&
-                same_sender(last_msg_container, first_msg_container) &&
-                first_msg_container.msg.historical === last_msg_container?.msg.historical
-            ) {
-                first_msg_container.include_sender = false;
-            }
             first_group.message_containers = [
                 ...first_group.message_containers,
                 ...second_group.message_containers,
@@ -1115,6 +1113,15 @@ export class MessageListView {
     _render_group(opts: {message_groups: MessageGroup[]; use_match_properties: boolean}): JQuery {
         const message_groups = opts.message_groups;
         const use_match_properties = opts.use_match_properties;
+
+        for (const message_group of message_groups) {
+            if (message_group.is_stream) {
+                Object.assign(
+                    message_group,
+                    get_recipient_row_participants(message_group.message_containers),
+                );
+            }
+        }
 
         return $(
             render_message_group({
@@ -1685,6 +1692,10 @@ export class MessageListView {
             // function doesn't generate new ones.
             preserved_properties,
         );
+
+        if (group.is_stream) {
+            Object.assign(group, get_recipient_row_participants(group.message_containers));
+        }
 
         const $rendered_recipient_row = $(render_recipient_row(group));
 

@@ -332,8 +332,20 @@ export function get_built_in_popover_condensed_views(): navigation_views.BuiltIn
     });
 }
 
+// The sidebar's expanded Views list only shows a short, curated
+// subset of the built-in views. A hidden view keeps its route and
+// stays available from the condensed row, its popover, and old
+// links; only its row in this expanded list disappears.
+const FRAGMENTS_HIDDEN_FROM_EXPANDED_VIEWS_LIST = new Set([
+    "feed",
+    "narrow/has/reaction/sender/me",
+    "drafts",
+]);
+
 export function get_built_in_views(): navigation_views.BuiltInViewMetadata[] {
-    return navigation_views.get_built_in_views();
+    return navigation_views
+        .get_built_in_views()
+        .filter((view) => !FRAGMENTS_HIDDEN_FROM_EXPANDED_VIEWS_LIST.has(view.fragment));
 }
 
 export function initialize(): void {

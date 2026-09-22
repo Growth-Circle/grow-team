@@ -184,41 +184,63 @@
 
     .user_sidebar_entry.with_avatar {
         .user-profile-picture-container {
-            /* Establish positioning context for user circle. */
-            position: relative;
             /* TODO: Express this as part of the grid on
                .selectable_sidebar_block. */
             margin-right: var(--right-sidebar-avatar-right-margin);
-
-            &:not(:has(.user-circle-offline)) .user-profile-picture {
-                /* The over-avatar user circle width is 15.5px at 20px/1em;
-                   we adjust the border radius here to avoid any pixels
-                   from the avatar bleeding through. */
-                border-bottom-right-radius: 0.3875em; /* 7.75px at 20px/1em */
-            }
         }
 
         .user-profile-picture {
             /* Push back on the margin-right usually allotted here;
-               we put it on .user-profile-picture-container instead,
-               so that user circles occupy the corner of the image. */
+               we put it on .user-profile-picture-container instead. */
             margin-right: 0;
         }
 
+        /* The icon-font circle is clipped to a small box by
+           .user-profile-picture's overflow:hidden (needed there to crop
+           the avatar photo to a circle), so it cannot be moved to the
+           row's far edge by repositioning it in place. Hide it and
+           paint a plain circle of our own on the row instead. */
         .user-circle {
-            position: absolute;
-            /* 10px at 16px/1em */
-            font-size: 0.625em;
-            bottom: -0.5px;
-            right: -0.5px;
-            background-color: var(--color-background);
-            /* A 1.5px border provides better results than
-               a 1px border, especially at smaller font sizes. */
-            border: 1.5px solid var(--color-background);
-            border-radius: 50%;
+            display: none;
+        }
 
-            &.user-circle-offline {
-                display: none;
+        .selectable_sidebar_block {
+            /* Establish positioning context for the generated
+               presence dot below. */
+            position: relative;
+
+            &:has(.user-circle-active, .user-circle-idle, .user-circle-deactivated)::after {
+                content: "";
+                position: absolute;
+                top: 50%;
+                /* Flush with this block's own 4px padding. */
+                right: 4px;
+                /* 9px at 14px em */
+                width: 0.6429em;
+                height: 0.6429em;
+                border-radius: var(--radius-pill);
+                transform: translateY(-50%);
+            }
+
+            &:has(.user-circle-active)::after {
+                background: var(--color-user-circle-active);
+            }
+
+            &:has(.user-circle-idle)::after {
+                background: var(--gradient-user-circle-idle-avatar);
+            }
+
+            &:has(.user-circle-deactivated)::after {
+                background: var(--color-user-circle-deactivated);
+            }
+
+            &:has(.unread_count:not(.hide))::after {
+                /* ponytail: fixed clearance sized for a typical 1-2
+                   digit unread pill; a 3+ digit count ("99+") may
+                   still crowd the dot. Proper fix needs the dot
+                   promoted to its own grid cell in presence_row.hbs,
+                   out of this task's scope. */
+                right: 1.8em;
             }
         }
     }
@@ -319,6 +341,36 @@
 
 .buddy-list-subsection-header.no-display {
     display: none;
+}
+
+/* A plain, non-interactive presence-group label ("Currently active" /
+   "Not active"), used only in the flat view in place of the usual
+   collapsible section headers above (see
+   `buddy_list.update_presence_group_dividers`). Selector specificity
+   here is deliberately higher than `.buddy-list-section li:hover`
+   above, so hovering the label doesn't light up like a user row. */
+.buddy-list-section li.buddy-list-presence-divider {
+    padding: 5px 5px 5px 0;
+    color: var(--color-text-sidebar-heading);
+    /* 12px at 14px em */
+    font-size: 0.8571em;
+    font-weight: var(--font-weight-sidebar-heading);
+    letter-spacing: var(--letter-spacing-sidebar-heading);
+    text-transform: uppercase;
+    cursor: default;
+    background-color: var(--color-background);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+
+    &:hover {
+        background-color: var(--color-background);
+        box-shadow: none;
+    }
+}
+
+.buddy-list-presence-divider-inactive {
+    margin-top: 8px;
 }
 
 .user-presence-link,
@@ -603,6 +655,24 @@
            --right-sidebar-presence-circle-width with left spacing, and
            share that left spacing value here. */
         padding-left: calc(var(--right-sidebar-toggle-width-offset) + 0.3em);
+
+        /* Overrides the muted, small-caps "action heading" look shared
+           with .buddy-list-user-link above: this is a plain link, not
+           a heading, so it gets the standard link color and casing. */
+        .right-sidebar-wrappable-text-container {
+            color: var(--color-text-url);
+            text-transform: none;
+
+            .right-sidebar-wrappable-text-inner {
+                font-weight: 600;
+                font-variant: normal;
+                font-feature-settings: normal;
+            }
+        }
+
+        &:hover .right-sidebar-wrappable-text-container {
+            color: var(--color-text-url-hover);
+        }
     }
 }
 
