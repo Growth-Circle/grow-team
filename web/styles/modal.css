@@ -225,11 +225,17 @@
 
 .dialog_submit_button {
     margin-left: 12px;
-    background-color: light-dark(hsl(172.44deg 88.15% 26.47%), hsl(171.36deg 58.41% 44.31%));
+    background-color: light-dark(
+        hsl(172.44deg 88.15% 26.47%),
+        hsl(171.36deg 58.41% 44.31%)
+    );
     color: light-dark(hsl(0deg 0% 100%), hsl(185deg 30% 10%));
 
     &:hover {
-        background-color: light-dark(hsl(172.58deg 85.84% 22.16%), hsl(172deg 58% 50%));
+        background-color: light-dark(
+            hsl(172.58deg 85.84% 22.16%),
+            hsl(172deg 58% 50%)
+        );
     }
 }
 
@@ -874,7 +880,11 @@
                 var(
                     --color-box-shadow-input-focus,
                     light-dark(
-                        color-mix(in oklch, hsl(228deg 10% 20%) 30%, transparent),
+                        color-mix(
+                            in oklch,
+                            hsl(228deg 10% 20%) 30%,
+                            transparent
+                        ),
                         color-mix(in oklch, hsl(0deg 0% 100%) 40%, transparent)
                     )
                 );

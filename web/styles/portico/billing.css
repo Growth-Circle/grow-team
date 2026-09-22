@@ -299,7 +299,10 @@ input[name="licenses"] {
     /* This is needed to avoid button background changing
     when clicking on it due to "button:active" CSS in
     legacy_landing_page.css. */
-    background-color: light-dark(hsl(172.44deg 88.15% 26.47%), hsl(171.36deg 58.41% 44.31%));
+    background-color: light-dark(
+        hsl(172.44deg 88.15% 26.47%),
+        hsl(171.36deg 58.41% 44.31%)
+    );
 }
 
 #account-deactivated-success-page .white-box,

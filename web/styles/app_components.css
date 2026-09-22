@@ -536,12 +536,16 @@ input.settings_text_input {
     white-space: nowrap;
 
     &:hover {
-        background-color: var(--color-background-brand-solid-action-button-hover);
+        background-color: var(
+            --color-background-brand-solid-action-button-hover
+        );
         box-shadow: 0 1px 4px hsl(0deg 0% 0% / 30%);
     }
 
     &:focus {
-        background-color: var(--color-background-brand-solid-action-button-hover);
+        background-color: var(
+            --color-background-brand-solid-action-button-hover
+        );
         box-shadow: 0 1px 4px 0
             var(--color-box-shadow-animated-purple-button-focus);
         outline: none;

@@ -115,20 +115,33 @@
                 border-color: var(
                     --color-outline-input-focus,
                     light-dark(
-                        color-mix(in oklch, hsl(229deg 22% 10%) 80%, transparent),
+                        color-mix(
+                            in oklch,
+                            hsl(229deg 22% 10%) 80%,
+                            transparent
+                        ),
                         color-mix(in oklch, hsl(0deg 0% 100%) 50%, transparent)
                     )
                 );
                 outline: 0;
                 box-shadow:
                     inset 0 1px 1px hsl(0deg 0% 0% / 7.5%),
-                    0 0 8px var(
-                        --color-box-shadow-input-focus,
-                        light-dark(
-                            color-mix(in oklch, hsl(228deg 10% 20%) 30%, transparent),
-                            color-mix(in oklch, hsl(0deg 0% 100%) 40%, transparent)
-                        )
-                    );
+                    0 0 8px
+                        var(
+                            --color-box-shadow-input-focus,
+                            light-dark(
+                                color-mix(
+                                    in oklch,
+                                    hsl(228deg 10% 20%) 30%,
+                                    transparent
+                                ),
+                                color-mix(
+                                    in oklch,
+                                    hsl(0deg 0% 100%) 40%,
+                                    transparent
+                                )
+                            )
+                        );
             }
         }
     }
