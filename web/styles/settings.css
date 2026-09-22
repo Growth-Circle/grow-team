@@ -2539,7 +2539,6 @@ label.preferences-radio-choice-label {
         display: none !important;
     }
 
-    .agent-settings-tabs,
     .agent-actions,
     .agent-pagination {
         display: flex;
@@ -2548,9 +2547,19 @@ label.preferences-radio-choice-label {
         margin-block: 0.75rem;
     }
 
-    .agent-settings-tabs button[aria-current="page"] {
-        font-weight: 700;
-        border-bottom: 2px solid currentcolor;
+    .agent-settings-tabs {
+        margin: 0.75rem 0;
+
+        /* The tab labels here are longer than the 90px the shared
+           tab switcher reserves, so each tab takes the width of its
+           own label. The shared tabs are div elements, so a button
+           tab also needs the app font. */
+        .ind-tab {
+            width: auto;
+            font-family: inherit;
+            font-size: inherit;
+            line-height: inherit;
+        }
     }
 
     .agent-settings-panel,
@@ -2577,45 +2586,65 @@ label.preferences-radio-choice-label {
         margin-block: 0.25rem;
     }
 
+    /* The shared settings sections put each label above its control,
+       so the agent forms use one column too. */
     .agent-inline-form,
     .agent-editor {
         display: grid;
-        grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr);
-        gap: 0.65rem;
-        align-items: center;
+        justify-items: start;
+        gap: 0.5rem;
         max-width: 46rem;
         margin-block: 1rem;
     }
 
     .agent-editor fieldset {
         display: grid;
-        grid-template-columns: subgrid;
+        justify-items: start;
+        gap: 0.5rem;
         grid-column: 1 / -1;
-        gap: 0.65rem;
+        justify-self: stretch;
+        padding: 0.75rem;
+        border: 1px solid var(--color-border-table-bordered);
+        border-radius: var(--radius-md);
     }
 
     .agent-editor p,
+    .agent-editor h4,
+    .agent-editor label.checkbox,
     .agent-inline-form p,
     .agent-actions {
         grid-column: 1 / -1;
     }
 
-    .agent-editor input:not([type="checkbox"]),
-    .agent-editor textarea,
-    .agent-editor select,
-    .agent-inline-form input,
-    .agent-inline-form select,
-    #agent-job-input {
-        min-width: 0;
-        width: 100%;
-        color: var(--color-text-default);
-        background: var(--color-background-legacy-input);
+    /* An action button is a flex container, so it fills its parent
+       unless it takes the width of its own label. */
+    button.action-button {
+        width: fit-content;
     }
 
-    button:focus-visible,
-    input:focus-visible,
-    textarea:focus-visible,
-    select:focus-visible,
+    /* The shared settings inputs carry their spacing as a bottom
+       margin; here the form gap gives it. The shared width is an em
+       value, so the form font size also makes an input as wide and as
+       tall as the select above it. */
+    .agent-editor input:not([type="checkbox"]),
+    .agent-inline-form input {
+        font-size: inherit;
+        margin-bottom: 0;
+    }
+
+    /* The shared textarea has no width of its own, so it takes the
+       width the settings inputs take. */
+    .agent-editor textarea {
+        box-sizing: border-box;
+        width: min(var(--modal-input-width), 100%);
+    }
+
+    #agent-job-input {
+        box-sizing: border-box;
+        width: 100%;
+        margin-bottom: 0;
+    }
+
     a:focus-visible {
         outline: 2px solid currentcolor;
         outline-offset: 2px;
@@ -2667,17 +2696,19 @@ label.preferences-radio-choice-label {
     textarea {
         width: 100%;
         min-width: 0;
-        color: var(--color-text-default);
-        background: var(--color-background-legacy-input);
+        margin-bottom: 0;
     }
 
     textarea {
         min-height: 8rem;
     }
 
-    button:focus-visible,
-    select:focus-visible,
-    textarea:focus-visible,
+    .agent-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
     a:focus-visible {
         outline: 2px solid currentcolor;
         outline-offset: 2px;
@@ -2685,15 +2716,6 @@ label.preferences-radio-choice-label {
 }
 
 @media (width <= 40rem) {
-    #agent-settings .agent-inline-form,
-    #agent-settings .agent-editor {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    #agent-settings .agent-editor fieldset {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
     #agent-job-overlay .agent-job-container {
         width: 100vw;
         max-height: 100vh;

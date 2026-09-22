@@ -90,7 +90,7 @@ function line(parent: JQuery, label: string, value: unknown): void {
     $("<p>").text(`${label}: ${printable}`).appendTo(parent);
 }
 function button(parent: JQuery, label: string, action: string, id: string): void {
-    $("<button type='button'>")
+    $("<button type='button' class='action-button action-button-subtle-neutral'>")
         .text(label)
         .attr("data-agent-action", action)
         .attr("data-agent-id", id)
@@ -226,52 +226,90 @@ function open_grant_editor(kind: GrantKind, id: string, revision: number, label:
         )
         .appendTo(box);
     const form = $("<form id='agent-resource-grant-form' class='agent-inline-form'>").appendTo(box);
-    $("<label for='agent-grant-principal-kind'>").text("Audience type").appendTo(form);
-    const principal_kind = $("<select id='agent-grant-principal-kind'>").appendTo(form);
+    $("<label for='agent-grant-principal-kind' class='settings-field-label'>")
+        .text("Audience type")
+        .appendTo(form);
+    const principal_kind = $(
+        "<select id='agent-grant-principal-kind' class='settings_select bootstrap-focus-style'>",
+    ).appendTo(form);
     option(principal_kind, "user", "Person");
     option(principal_kind, "group", "Group");
-    $("<label for='agent-grant-principal'>").text("Audience").appendTo(form);
-    const principal = $("<select id='agent-grant-principal' required>").appendTo(form);
+    $("<label for='agent-grant-principal' class='settings-field-label'>")
+        .text("Audience")
+        .appendTo(form);
+    const principal = $(
+        "<select id='agent-grant-principal' required class='settings_select bootstrap-focus-style'>",
+    ).appendTo(form);
     for (const user of people.get_realm_active_human_users()) {
         option(principal, String(user.user_id), user.full_name);
     }
-    $("<label for='agent-grant-actions'>").text("Allowed actions").appendTo(form);
-    const actions = $("<select id='agent-grant-actions' multiple required size='5'>").appendTo(
-        form,
-    );
+    $("<label for='agent-grant-actions' class='settings-field-label'>")
+        .text("Allowed actions")
+        .appendTo(form);
+    const actions = $(
+        "<select id='agent-grant-actions' multiple required size='5' class='settings_select bootstrap-focus-style'>",
+    ).appendTo(form);
     for (const item of grant_actions[kind]) {
         option(actions, item.id, item.label);
     }
     actions.val([grant_actions[kind][0]!.id]);
-    $("<label for='agent-grant-scope-kind'>").text("Conversation restriction").appendTo(form);
-    const scope = $("<select id='agent-grant-scope-kind'>").appendTo(form);
+    $("<label for='agent-grant-scope-kind' class='settings-field-label'>")
+        .text("Conversation restriction")
+        .appendTo(form);
+    const scope = $(
+        "<select id='agent-grant-scope-kind' class='settings_select bootstrap-focus-style'>",
+    ).appendTo(form);
     option(scope, "", "Any authorized conversation");
     option(scope, "stream", "Channel");
     option(scope, "direct", "Direct message");
-    $("<label for='agent-grant-channel'>").text("Channel").appendTo(form);
-    const channel = $("<select id='agent-grant-channel'>").appendTo(form);
+    $("<label for='agent-grant-channel' class='settings-field-label'>")
+        .text("Channel")
+        .appendTo(form);
+    const channel = $(
+        "<select id='agent-grant-channel' class='settings_select bootstrap-focus-style'>",
+    ).appendTo(form);
     for (const sub of stream_data.get_unsorted_subs_with_content_access()) {
         option(channel, String(sub.stream_id), sub.name);
     }
-    $("<label for='agent-grant-topic'>").text("Topic (optional)").appendTo(form);
-    $("<input id='agent-grant-topic' maxlength='200'>").appendTo(form);
-    $("<label for='agent-grant-dm'>").text("Direct message participants").appendTo(form);
-    const dm = $("<select id='agent-grant-dm' multiple size='5'>").appendTo(form);
+    $("<label for='agent-grant-topic' class='settings-field-label'>")
+        .text("Topic (optional)")
+        .appendTo(form);
+    $("<input id='agent-grant-topic' maxlength='200' class='settings_text_input'>").appendTo(form);
+    $("<label for='agent-grant-dm' class='settings-field-label'>")
+        .text("Direct message participants")
+        .appendTo(form);
+    const dm = $(
+        "<select id='agent-grant-dm' multiple size='5' class='settings_select bootstrap-focus-style'>",
+    ).appendTo(form);
     for (const user of people.get_realm_active_human_users()) {
         option(dm, String(user.user_id), user.full_name);
     }
     if (kind === "profile") {
-        $("<label for='agent-grant-repository'>").text("Repository restriction").appendTo(form);
-        const repository = $("<select id='agent-grant-repository'>").appendTo(form);
+        $("<label for='agent-grant-repository' class='settings-field-label'>")
+            .text("Repository restriction")
+            .appendTo(form);
+        const repository = $(
+            "<select id='agent-grant-repository' class='settings_select bootstrap-focus-style'>",
+        ).appendTo(form);
         option(repository, "", "No repository restriction");
         for (const item of repositories) {
             option(repository, item.id, item.workspace_alias);
         }
     }
-    $("<label for='agent-grant-expiry'>").text("Expiry (optional)").appendTo(form);
-    $("<input id='agent-grant-expiry' type='datetime-local'>").appendTo(form);
-    $("<button type='submit'>").text("Create grant").appendTo(form);
-    $("<button type='button' id='agent-grant-close'>").text("Close sharing").appendTo(box);
+    $("<label for='agent-grant-expiry' class='settings-field-label'>")
+        .text("Expiry (optional)")
+        .appendTo(form);
+    $("<input id='agent-grant-expiry' type='datetime-local' class='settings_text_input'>").appendTo(
+        form,
+    );
+    $("<button type='submit' class='action-button action-button-solid-brand'>")
+        .text("Create grant")
+        .appendTo(form);
+    $(
+        "<button type='button' id='agent-grant-close' class='action-button action-button-subtle-neutral'>",
+    )
+        .text("Close sharing")
+        .appendTo(box);
     $("<p id='agent-grant-result' role='status'>").appendTo(box);
     $("<div id='agent-resource-grants'>").appendTo(box);
     void load_grants(kind, id, $("#agent-resource-grants"), editor);
@@ -364,8 +402,8 @@ function show_tab(next: Tab): void {
     $(
         `#agent-${next === "directory" ? "directory" : next === "devices" ? "devices" : next === "connections" ? "connections" : "default"}-panel`,
     ).prop("hidden", false);
-    $("[data-agent-tab]").attr("aria-current", "false");
-    $(`[data-agent-tab='${next}']`).attr("aria-current", "page");
+    $("[data-agent-tab]").attr("aria-current", "false").removeClass("selected");
+    $(`[data-agent-tab='${next}']`).attr("aria-current", "page").addClass("selected");
     announce("");
     if (next === "directory") {
         void load_profiles();
@@ -921,18 +959,28 @@ function render_profile_detail(
         const channel = $("<form class='agent-inline-form'>")
             .attr("id", "agent-attach-form")
             .appendTo(detail);
-        $("<label for='agent-attach-stream'>").text("Channel").appendTo(channel);
-        const channel_choice = $("<select id='agent-attach-stream' required>").appendTo(channel);
+        $("<label for='agent-attach-stream' class='settings-field-label'>")
+            .text("Channel")
+            .appendTo(channel);
+        const channel_choice = $(
+            "<select id='agent-attach-stream' required class='settings_select bootstrap-focus-style'>",
+        ).appendTo(channel);
         option(channel_choice, "", "Select a channel");
         for (const sub of stream_data.get_unsorted_subs_with_content_access()) {
             option(channel_choice, String(sub.stream_id), sub.name);
         }
-        $("<button type='submit'>").text("Attach to channel").appendTo(channel);
+        $("<button type='submit' class='action-button action-button-solid-brand'>")
+            .text("Attach to channel")
+            .appendTo(channel);
         button(controls, "Manage profile grants", "grant-open-profile", profile.id);
     }
     $("<h5>").text("Grants").appendTo(detail);
     $("<div id='agent-profile-grants'>").appendTo(detail);
-    $("<button type='button' id='agent-detail-close'>").text("Close details").appendTo(detail);
+    $(
+        "<button type='button' id='agent-detail-close' class='action-button action-button-subtle-neutral'>",
+    )
+        .text("Close details")
+        .appendTo(detail);
     void load_grants("profile", profile.id, $("#agent-profile-grants"), editor, "profile-detail");
 }
 async function open_profile_detail(id: string): Promise<void> {
@@ -1593,7 +1641,7 @@ async function load_recent_jobs(): Promise<void> {
         for (const job of result.jobs) {
             const row = $("<div class='agent-card'>").appendTo(list);
             line(row, "Job", `${job.id} · ${job.status} · ${job.job_kind}`);
-            $("<button type='button'>")
+            $("<button type='button' class='action-button action-button-subtle-neutral'>")
                 .attr("data-agent-job-id", job.id)
                 .text("Open job panel")
                 .appendTo(row);

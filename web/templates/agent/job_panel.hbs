@@ -39,6 +39,7 @@
                     ></div><button
                         type="button"
                         id="agent-job-more-operations"
+                        class="action-button action-button-subtle-neutral"
                         hidden
                     >{{t "Show the next operations" }}</button></section>
                 <section aria-labelledby="agent-job-artifacts-heading"><h2
@@ -48,18 +49,24 @@
                     ></div><button
                         type="button"
                         id="agent-job-more-artifacts"
+                        class="action-button action-button-subtle-neutral"
                         hidden
                     >{{t "Show more artifacts" }}</button></section>
                 <section aria-labelledby="agent-job-inputs-heading"><h2
                         id="agent-job-inputs-heading"
                     >{{t "Input delivery" }}</h2><div id="agent-job-inputs"></div>
                     <form id="agent-job-input-form" hidden><label
+                            class="settings-field-label"
                             for="agent-job-input"
                         >{{t "Follow-up input for this job" }}</label><textarea
                             id="agent-job-input"
+                            class="settings-textarea"
                             required
                             maxlength="20000"
-                        ></textarea><button type="submit">{{t "Send input" }}</button></form>
+                        ></textarea><button
+                            type="submit"
+                            class="action-button action-button-solid-brand"
+                        >{{t "Send input" }}</button></form>
                 </section>
                 <section aria-labelledby="agent-job-events-heading"><h2
                         id="agent-job-events-heading"
@@ -68,6 +75,7 @@
                     ></div><button
                         type="button"
                         id="agent-job-more-events"
+                        class="action-button action-button-subtle-neutral"
                         hidden
                     >{{t "Show more events" }}</button></section>
                 <div id="agent-job-controls" class="agent-actions"></div>
