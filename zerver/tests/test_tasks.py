@@ -1,13 +1,20 @@
 import orjson
 from django.utils.timezone import now as timezone_now
+from typing_extensions import override
 
 from zerver.actions.tasks import do_create_task
-from zerver.lib.tasks import get_or_create_default_board, hidden_done_task_ids, visible_tasks
+from zerver.lib.tasks import (
+    get_or_create_default_board,
+    hidden_done_task_ids,
+    task_event_audience,
+    visible_tasks,
+)
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.models import Task, TaskBoardColumn, TaskHistory
 
 
 class TaskBoardTestCase(ZulipTestCase):
+    @override
     def setUp(self) -> None:
         super().setUp()
         self.hamlet = self.example_user("hamlet")
@@ -17,15 +24,15 @@ class TaskBoardTestCase(ZulipTestCase):
     def column_named(self, name: str) -> TaskBoardColumn:
         return next(column for column in self.columns if column.name == name)
 
-    def create_card(self, **kwargs: object) -> Task:
-        defaults = dict(
+    def create_card(
+        self, *, title: str = "Write the regression test", column: TaskBoardColumn | None = None
+    ) -> Task:
+        return do_create_task(
             user_profile=self.hamlet,
             board=self.board,
-            column=self.columns[0],
-            title="Write the regression test",
+            column=column or self.columns[0],
+            title=title,
         )
-        defaults.update(kwargs)
-        return do_create_task(**defaults)  # type: ignore[arg-type]  # Test helper forwards kwargs.
 
 
 class TaskBoardFetchTest(TaskBoardTestCase):
@@ -171,8 +178,6 @@ class TaskAccessTest(TaskBoardTestCase):
         self.assert_json_error(result, "Task does not exist.")
 
     def test_event_audience_follows_the_origin_channel(self) -> None:
-        from zerver.lib.tasks import task_event_audience
-
         cordelia = self.example_user("cordelia")
         private_stream = self.make_stream("secret-plan", invite_only=True)
         self.subscribe(cordelia, "secret-plan")
