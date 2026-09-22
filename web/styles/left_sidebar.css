@@ -417,6 +417,26 @@
     /* 40px at 14px/1em; taller than the standard control-md
        height so this primary action stays prominent. */
     min-height: 2.8571em;
+    /* .action-button is a flex container with no width of its own,
+       so it only ever hugs its label; frame 10a draws it full width
+       of the sidebar column. */
+    width: calc(100% - 2 * var(--left-sidebar-right-margin));
+}
+
+/* Work group rows (left_sidebar.hbs): Task board, My tasks, and
+   Awaiting my review have no destination yet (see the template
+   comment above them), so they render inert instead of clickable. */
+.top_left_row.disabled-for-now {
+    cursor: default;
+
+    .left-sidebar-navigation-label-container {
+        cursor: default;
+        opacity: 0.55;
+
+        &:hover {
+            background: none;
+        }
+    }
 }
 
 #left-sidebar-search {
