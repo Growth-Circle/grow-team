@@ -41,7 +41,7 @@
         <span class="user-status-settings">
             {{#if (and is_bot show_download_zuliprc_button)}}
             <a type="submit" download="zuliprc" data-user-id="{{user_id}}" class="hidden-zuliprc-download" hidden></a>
-            <span class="tippy-zulip-delayed-tooltip" data-tippy-content="{{t 'Download zuliprc'}}">
+            <span class="tippy-zulip-delayed-tooltip" data-tippy-content="{{t 'Download configuration file'}}">
                 {{> ../components/icon_button
                   icon="download"
                   intent="neutral"

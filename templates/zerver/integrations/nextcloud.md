@@ -7,7 +7,7 @@ or internal shared links.
 
 1. {!create-a-generic-bot.md!}
 
-1. [Download the `zuliprc` file](/help/manage-a-bot#download-zuliprc-configuration-file)
+1. [Download the `zuliprc` file](/help/manage-a-bot#download-the-bot-configuration-file)
    for the bot you created above.
 
 1. Follow [the instructions in the Nextcloud app store][1] to connect the

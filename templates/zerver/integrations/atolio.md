@@ -9,7 +9,7 @@ Index Grow Team channels, topics, and messages in your Atolio knowledge base!
 1. [Subscribe the bot][subscribe-channels] to the Grow Team channels that you
    want Atolio to index.
 
-1. [Download the `zuliprc` file](/help/manage-a-bot#download-zuliprc-configuration-file)
+1. [Download the `zuliprc` file](/help/manage-a-bot#download-the-bot-configuration-file)
    for the bot you created above.
 
 1. In Atolio, configure the Zulip connector using the following values

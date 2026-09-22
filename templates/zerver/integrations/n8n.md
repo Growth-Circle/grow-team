@@ -9,7 +9,7 @@ and channels.
 
 1. {!create-a-generic-bot.md!}
 
-1. [Download the `zuliprc` file](/help/manage-a-bot#download-zuliprc-configuration-file)
+1. [Download the `zuliprc` file](/help/manage-a-bot#download-the-bot-configuration-file)
    for the bot you created above.
 
 1. Open your n8n workflow, and add the **Zulip** action node.

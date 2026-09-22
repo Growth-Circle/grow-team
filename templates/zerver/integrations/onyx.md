@@ -10,7 +10,7 @@ base!
 1. [Subscribe the bot][subscribe-channels] to the Grow Team channels that you
    want to export.
 
-1. [Download the `zuliprc` file](/help/manage-a-bot#download-zuliprc-configuration-file)
+1. [Download the `zuliprc` file](/help/manage-a-bot#download-the-bot-configuration-file)
    for the bot you created above.
 
 1. In Onyx, open the **Admin Dashboard** and select the **Zulip Connector**.
