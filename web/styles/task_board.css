@@ -40,7 +40,9 @@
 
 .task-board-header-actions {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-end;
     margin-left: auto;
     gap: 8px;
 }
@@ -121,7 +123,7 @@
 .task-board-column-count {
     padding: 1px 8px;
     border-radius: 999px;
-    background: var(--color-background-unread-counter-quiet);
+    background: var(--color-background-navigation-item-hover);
     color: var(--color-text-item);
     font-size: 0.8125em;
     font-variant-numeric: tabular-nums;
@@ -228,7 +230,7 @@
     height: 4px;
     overflow: hidden;
     border-radius: 999px;
-    background: var(--color-background-unread-counter-quiet);
+    background: var(--color-background-navigation-item-hover);
 }
 
 .task-board-card-progress-fill {
@@ -255,7 +257,7 @@
     align-items: center;
     padding: 1px 6px;
     border-radius: 4px;
-    background: var(--color-background-unread-counter-quiet);
+    background: var(--color-background-navigation-item-hover);
     color: var(--color-text-item);
     font-size: 0.75em;
     gap: 3px;
