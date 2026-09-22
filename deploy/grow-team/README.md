@@ -261,6 +261,16 @@ node --test deploy/grow-team/mail-worker/handler.test.mjs
 
 Backend Python diuji dengan Django dan requests dari virtualenv image Zulip.
 Jalankan `tests/test_email_backend.py` dengan folder deployment dalam `PYTHONPATH`.
+Di luar image, buat virtualenv dengan Django versi pin `uv.lock`; Django 6 mengubah
+`as_string()` dan membuat test gagal karena versi, bukan karena kode.
+
+```bash
+python3 -m venv ~/.venvs/grow-team-deploy
+~/.venvs/grow-team-deploy/bin/pip install django==5.2.14 requests
+cd deploy/grow-team
+PYTHONPATH=. ~/.venvs/grow-team-deploy/bin/python -m unittest tests.test_email_backend
+```
+
 Penghubung mempertahankan MIME, lampiran, header, dan privasi BCC.
 Batas Cloudflare adalah 5 MiB per pesan.
 Setiap penerima menggunakan satu pengiriman. Kegagalan setelah pengiriman sebagian dapat menghasilkan email duplikat saat retry.
