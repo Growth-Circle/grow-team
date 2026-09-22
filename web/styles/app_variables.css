@@ -318,9 +318,7 @@
     --left-sidebar-single-digit-unread-width: 1.875em;
     --left-sidebar-right-margin: 12px;
     /* 296px total: 308px at 16px/1em, minus the 12px right margin. */
-    --left-sidebar-max-width: calc(
-        19.25em - var(--left-sidebar-right-margin)
-    );
+    --left-sidebar-max-width: calc(19.25em - var(--left-sidebar-right-margin));
     --realm-logo-max-width: 12.5em; /* 200px at 16px em */
     /* Value updated on realm_logo.render() */
     --realm-logo-current-width: var(--realm-logo-max-width);
@@ -3349,16 +3347,11 @@
 
     /* Sidebar surface: the left and right sidebars sit on white
        (dark: a slightly lighter surface tone) instead of the
-       --color-background canvas, set off from it by
-       --color-border-sidebar. Only other packages consume these
-       two; this file does not use them. */
+       --color-background canvas, set off from it by the existing
+       --color-border-sidebar above. */
     --color-background-sidebar: light-dark(
         hsl(0deg 0% 100%),
         hsl(185deg 13% 13%)
-    );
-    --color-border-sidebar: light-dark(
-        hsl(170deg 10% 90%),
-        hsl(180deg 10% 20%)
     );
 
     /* Warning- and danger-card colors: queued, not-logged-in, and
@@ -3379,10 +3372,7 @@
         hsl(35deg 80% 38%),
         hsl(39deg 85% 60%)
     );
-    --color-text-danger-card: light-dark(
-        hsl(4deg 65% 40%),
-        hsl(4deg 75% 74%)
-    );
+    --color-text-danger-card: light-dark(hsl(4deg 65% 40%), hsl(4deg 75% 74%));
     --color-background-danger-card: light-dark(
         hsl(4deg 70% 95%),
         hsl(2deg 55% 18%)

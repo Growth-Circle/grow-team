@@ -516,7 +516,6 @@
                 margin: 0.6429em auto; /* centers 20px inside the 38px box */
                 background-color: hsl(0deg 0% 100%);
                 mask: url("../icons/bot.svg") center / contain no-repeat;
-                -webkit-mask: url("../icons/bot.svg") center / contain no-repeat;
             }
         }
 
@@ -1195,22 +1194,6 @@
 }
 
 .recipient_row {
-    /* See https://stackoverflow.com/questions/2717480/css-selector-for-first-element-with-class/8539107#8539107
-       for details on how this works */
-    .message_row.unread {
-        .message_divider_unread_marker {
-            display: none;
-        }
-    }
-
-    /* Select all but the first .message_row.unread,
-       and remove the properties set from the previous rule. */
-    .message_row.unread ~ .message_row.unread {
-        .message_divider_unread_marker {
-            display: block;
-        }
-    }
-
     /* "N new messages" divider (mockup frame 10a): the first unread
        message in a group gets a full-width divider bar above it,
        instead of the plain marker sliver. Uses the same
@@ -1224,6 +1207,12 @@
         position: relative;
         margin-top: 2.4286em; /* 34px at 14px em */
 
+        /* See https://stackoverflow.com/questions/2717480/css-selector-for-first-element-with-class/8539107#8539107
+           for details on how this first-of-siblings technique works. */
+        .message_divider_unread_marker {
+            display: none;
+        }
+
         .message_unread_marker {
             /* Span the whole grid instead of staying pinned to the
                message_unread_marker area (a 2px-wide column), so the
@@ -1232,7 +1221,7 @@
             grid-row: 1 / -1;
             grid-column: 1 / -1;
             position: absolute;
-            inset: -2.4286em 0 auto 0; /* 34px at 14px em */
+            inset: -2.4286em 0 auto; /* 34px at 14px em */
             margin-left: 0;
             display: flex;
             align-items: center;
@@ -1272,6 +1261,11 @@
     .message_row.unread ~ .message_row.unread {
         position: static;
         margin-top: 0;
+
+        /* Every unread row after the first keeps the plain marker. */
+        .message_divider_unread_marker {
+            display: block;
+        }
 
         .message_unread_marker {
             grid-area: message_unread_marker;

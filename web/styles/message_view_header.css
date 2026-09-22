@@ -141,11 +141,15 @@
 
         &:hover,
         &:focus-visible {
-            background-color: var(--color-background-neutral-subtle-action-button-hover);
+            background-color: var(
+                --color-background-neutral-subtle-action-button-hover
+            );
         }
 
         &:active {
-            background-color: var(--color-background-neutral-subtle-action-button-active);
+            background-color: var(
+                --color-background-neutral-subtle-action-button-active
+            );
         }
     }
 
@@ -156,7 +160,9 @@
     /* A conversation view (a channel narrowed to one topic) shows the
        breadcrumb and unread pill above in place of the channel's own
        description. */
-    &.message-header-is-conversation .message-header-stream-settings-button ~ .narrow_description {
+    &.message-header-is-conversation
+        .message-header-stream-settings-button
+        ~ .narrow_description {
         display: none;
     }
 

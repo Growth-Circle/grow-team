@@ -407,7 +407,8 @@
 }
 
 .left-sidebar-new-conversation-button {
-    margin: var(--left-sidebar-sections-vertical-gutter) var(--left-sidebar-right-margin);
+    margin: var(--left-sidebar-sections-vertical-gutter)
+        var(--left-sidebar-right-margin);
     /* Frame 10a: 18px between the button and the group below it. */
     margin-bottom: 18px;
     /* Frame 10a/1a: 10px, one step rounder than the default control

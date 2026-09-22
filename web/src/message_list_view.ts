@@ -188,7 +188,9 @@ function get_recipient_row_participants(
     // Participants are the distinct, displayable human senders of the
     // messages currently loaded for this topic, reusing the same
     // definition of "participant" as the buddy list sort order.
-    const participants = new ConversationParticipants(message_containers.map((container) => container.msg));
+    const participants = new ConversationParticipants(
+        message_containers.map((container) => container.msg),
+    );
     const participant_ids = [...participants.visible()];
     if (participant_ids.length === 0) {
         return {};
@@ -2280,9 +2282,10 @@ export class MessageListView {
                               {count: run_length},
                           )
                         : "";
-                $row
-                    .find(".message_unread_marker .unread-marker-fill")
-                    .attr("data-new-messages-label", label);
+                $row.find(".message_unread_marker .unread-marker-fill").attr(
+                    "data-new-messages-label",
+                    label,
+                );
             }
         }
     }

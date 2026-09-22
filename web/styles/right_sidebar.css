@@ -219,7 +219,11 @@
                presence dot below. */
             position: relative;
 
-            &:has(.user-circle-active, .user-circle-idle, .user-circle-deactivated)::after {
+            &:has(
+                    .user-circle-active,
+                    .user-circle-idle,
+                    .user-circle-deactivated
+                )::after {
                 content: "";
                 position: absolute;
                 top: 50%;

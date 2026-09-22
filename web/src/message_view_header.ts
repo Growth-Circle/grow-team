@@ -45,10 +45,7 @@ type MessageViewHeaderContext = {
 );
 
 function format_topic_unread_count(count: number): string {
-    return $t(
-        {defaultMessage: "{count, plural, one {# unread} other {# unread}}"},
-        {count},
-    );
+    return $t({defaultMessage: "{count, plural, one {# unread} other {# unread}}"}, {count});
 }
 
 function build_conversation_title_html(

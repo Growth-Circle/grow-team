@@ -671,7 +671,10 @@
 
     @media (width < $sm_min) {
         padding: 10px 12px;
-        border-bottom-color: light-dark(hsl(170deg 10% 91%), hsl(180deg 10% 22%));
+        border-bottom-color: light-dark(
+            hsl(170deg 10% 91%),
+            hsl(180deg 10% 22%)
+        );
     }
 }
 
