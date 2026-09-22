@@ -9,6 +9,7 @@
 **Tech Stack:** Existing Django, PostgreSQL, TypeScript, jQuery, Handlebars, and RabbitMQ. The runner uses pinned Node and ACP packages.
 
 **Spec:**
+
 - `internals/docs/spec/2026-09-21-agent-connections-and-coding-harness.md`
 - `internals/docs/spec/2026-09-21-agent-lifecycle-and-mention-flow.md`
 - `internals/docs/spec/2026-09-22-agent-settings-connections-and-team-defaults.md`
@@ -34,26 +35,26 @@
 
 Pilot limits from the specifications:
 
-| Limit | Value |
-| --- | --- |
-| Pairing lifetime | 10 minutes |
-| Access credential lifetime | 24 hours |
-| Refresh credential lifetime | 30 days; rotate on use |
-| HTTP wait | At most 25 seconds |
-| Heartbeat / lease | 15 / 90 seconds |
-| Active jobs | 1 per runner; 2 per realm |
-| Queued jobs | 20 per profile; 100 per realm |
-| Queue start deadline | 24 hours |
-| Active job duration | 60 minutes; configured maximum 120 minutes |
-| Model tool rounds | 40 |
-| Shell timeout | 2 minutes; approved checks at most 20 minutes |
-| Transport retries | 2 per operation |
-| Context recovery | 2 attempts per turn |
-| Approval lifetime | 15 minutes |
-| Event / model tool output | 64 KiB / 50 KiB |
-| Artifact size | 10 MiB per file; 50 MiB per job |
-| Send retry / mapping retention | 24 hours / at least 30 days and while a job remains active |
-| Retention defaults | Events 30 days; artifacts 7 days; approval metadata 90 days |
+| Limit                          | Value                                                       |
+| ------------------------------ | ----------------------------------------------------------- |
+| Pairing lifetime               | 10 minutes                                                  |
+| Access credential lifetime     | 24 hours                                                    |
+| Refresh credential lifetime    | 30 days; rotate on use                                      |
+| HTTP wait                      | At most 25 seconds                                          |
+| Heartbeat / lease              | 15 / 90 seconds                                             |
+| Active jobs                    | 1 per runner; 2 per realm                                   |
+| Queued jobs                    | 20 per profile; 100 per realm                               |
+| Queue start deadline           | 24 hours                                                    |
+| Active job duration            | 60 minutes; configured maximum 120 minutes                  |
+| Model tool rounds              | 40                                                          |
+| Shell timeout                  | 2 minutes; approved checks at most 20 minutes               |
+| Transport retries              | 2 per operation                                             |
+| Context recovery               | 2 attempts per turn                                         |
+| Approval lifetime              | 15 minutes                                                  |
+| Event / model tool output      | 64 KiB / 50 KiB                                             |
+| Artifact size                  | 10 MiB per file; 50 MiB per job                             |
+| Send retry / mapping retention | 24 hours / at least 30 days and while a job remains active  |
+| Retention defaults             | Events 30 days; artifacts 7 days; approval metadata 90 days |
 
 Retention expiry must not delete active results or the user's work. Automatic destructive cleanup remains disabled until the owner enables its policy.
 
@@ -106,21 +107,21 @@ Resolve the nested records in Task 1 before parallel consumers start. Never incl
 
 Backend modules have these responsibilities:
 
-| Files | Responsibility |
-| --- | --- |
-| `zerver/models/agents.py`, migrations | Durable records, indexes, uniqueness |
-| `zerver/lib/agent_protocol.py` | Validated payloads, descriptors, limits, safe errors |
-| `zerver/lib/agent_policy.py` | Current actor, realm, runner, profile, repository, provider, and conversation permissions |
-| `zerver/lib/agent_secrets.py` | Envelope encryption and credential grants |
-| `zerver/actions/agent_connections.py` | Pairing, rotation, runner and repository registration, providers |
-| `zerver/actions/agent_profiles.py` | Profile revision, bot identity, setup, readiness, lifecycle, channel attachment |
-| `zerver/actions/agent_jobs.py` | Job/input state, claim, lease, controls, events, stop confirmation |
-| `zerver/actions/agent_dispatch.py` | Admission, receipts, send intent, manual and mention triggers |
-| `zerver/actions/agent_approvals.py` | Proposal, decision, consumption, operation reconciliation |
-| `zerver/lib/agent_context.py` | Current message access, references, and audience checks |
-| `zerver/lib/agent_results.py` | Private artifacts, verification, result gates, atomic publication |
-| `zerver/lib/agent_reconcile.py`, management command | Outbox replay, expired leases, deadlines, telemetry |
-| `zerver/views/agents.py`, `agent_runner.py` | Human and device API boundaries |
+| Files                                               | Responsibility                                                                            |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `zerver/models/agents.py`, migrations               | Durable records, indexes, uniqueness                                                      |
+| `zerver/lib/agent_protocol.py`                      | Validated payloads, descriptors, limits, safe errors                                      |
+| `zerver/lib/agent_policy.py`                        | Current actor, realm, runner, profile, repository, provider, and conversation permissions |
+| `zerver/lib/agent_secrets.py`                       | Envelope encryption and credential grants                                                 |
+| `zerver/actions/agent_connections.py`               | Pairing, rotation, runner and repository registration, providers                          |
+| `zerver/actions/agent_profiles.py`                  | Profile revision, bot identity, setup, readiness, lifecycle, channel attachment           |
+| `zerver/actions/agent_jobs.py`                      | Job/input state, claim, lease, controls, events, stop confirmation                        |
+| `zerver/actions/agent_dispatch.py`                  | Admission, receipts, send intent, manual and mention triggers                             |
+| `zerver/actions/agent_approvals.py`                 | Proposal, decision, consumption, operation reconciliation                                 |
+| `zerver/lib/agent_context.py`                       | Current message access, references, and audience checks                                   |
+| `zerver/lib/agent_results.py`                       | Private artifacts, verification, result gates, atomic publication                         |
+| `zerver/lib/agent_reconcile.py`, management command | Outbox replay, expired leases, deadlines, telemetry                                       |
+| `zerver/views/agents.py`, `agent_runner.py`         | Human and device API boundaries                                                           |
 
 ## Task 0: Runtime decision and isolated test environment
 
@@ -353,20 +354,20 @@ assert.equal(provider.createdPullRequests(operationId), 1);
 
 **Interfaces:** Consume only human APIs and versioned DTOs. Browser code never receives device credentials or plaintext stored secrets.
 
-- [ ] Complete authorized discovery, edit, readiness, ownership, and check-evidence contracts needed by the browser.
-- [ ] Add the Agent directory, Devices, Model connections, and Team default settings areas.
+- [x] Complete authorized discovery, edit, readiness, ownership, and check-evidence contracts needed by the browser.
+- [x] Add the Agent directory, Devices, Model connections, and Team default settings areas.
 - [x] Add owner-declared runner location metadata with a separate metadata revision.
 - [x] Add realm default selection with explicit audience grants, current policy checks, and compare-and-set revisions.
-- [ ] Keep profile drafts, probe readiness, and explicit activation separate through stale callback and reload recovery.
-- [ ] Add runner pairing/approval, status, revocation, repository registration guidance, and explicit grants.
-- [ ] Add provider forms, write-only secret input, local references, versioned probes, and capability limits.
-- [ ] Add profile create/edit/check/enable/pause/archive and channel attachment flows with recoverable drafts.
-- [ ] Separate desired profile state, runner liveness, readiness, capability, process state, and job state.
-- [ ] Add job list/detail, input status, diff, required check evidence, approval, cancel, and resume controls.
-- [ ] Render unknown status, stale readiness, denied access, blocked publication, and partial setup honestly.
-- [ ] Escape output and progressively render bounded diffs.
-- [ ] Test keyboard focus, labels, dark/light themes, narrow screens, and API failure recovery.
-- [ ] Run frontend tests, lint, typecheck, and commit the task.
+- [x] Keep profile drafts, probe readiness, and explicit activation separate through stale callback and reload recovery.
+- [x] Add runner pairing/approval, status, revocation, repository registration guidance, and explicit grants.
+- [x] Add provider forms, write-only secret input, local references, versioned probes, and capability limits.
+- [x] Add profile create/edit/check/enable/pause/archive and channel attachment flows with recoverable drafts.
+- [x] Separate desired profile state, runner liveness, readiness, capability, process state, and job state.
+- [x] Add job list/detail, input status, diff, required check evidence, approval, cancel, and resume controls.
+- [x] Render unknown status, stale readiness, denied access, blocked publication, and partial setup honestly.
+- [x] Escape output and progressively render bounded diffs.
+- [x] Test keyboard focus, labels, dark/light themes, narrow screens, and API failure recovery.
+- [x] Run frontend tests, lint, typecheck, and commit the task.
 
 Test example:
 
@@ -416,20 +417,20 @@ assert.equal(currentDraftText(), "");
 - [ ] Use owner, authorized member, unauthorized member, private channel, and isolated fixture repository.
 - [ ] Verify tab-close persistence, explicit follow-up, cancel, offline queue recovery, and cross-realm denial.
 - [ ] Verify shared defaults with two browser users, stale revisions, explicit choices, offline runners, and revoked grants.
-- [ ] Complete OpenAPI and unmerged API changelog without manually changing feature level.
+- [x] Complete OpenAPI and unmerged API changelog without manually changing feature level.
 - [ ] Record supported versions, license sources, limits, and actual command results.
 - [ ] Run broad branch review and repair confirmed findings before deployment.
 
 Acceptance mapping:
 
-| Work | Mandatory evidence |
-| --- | --- |
-| Tasks 1–2 | AT-01–03, AT-22, AT-32; AF-01–06, AF-33–34 |
-| Tasks 3–4 | AT-11–17, AT-21–28, AT-31; AF-07–18, AF-21–26, AF-28–36 |
-| Tasks 5–7 | AT-04–10, AT-15–20, AT-27–29, AT-32, AT-34; AF-14–18, AF-25–32, AF-37–38 |
-| Task 8 | AT-24–26, AT-30, AT-32; AF-30–32 |
-| Tasks 9–10 | AT-33, AT-36; AF-01–06, AF-19–26, AF-28–37; AS-01–32 |
-| Tasks 11–12 | Every preceding row, AT-35, production and recovery evidence |
+| Work        | Mandatory evidence                                                       |
+| ----------- | ------------------------------------------------------------------------ |
+| Tasks 1–2   | AT-01–03, AT-22, AT-32; AF-01–06, AF-33–34                               |
+| Tasks 3–4   | AT-11–17, AT-21–28, AT-31; AF-07–18, AF-21–26, AF-28–36                  |
+| Tasks 5–7   | AT-04–10, AT-15–20, AT-27–29, AT-32, AT-34; AF-14–18, AF-25–32, AF-37–38 |
+| Task 8      | AT-24–26, AT-30, AT-32; AF-30–32                                         |
+| Tasks 9–10  | AT-33, AT-36; AF-01–06, AF-19–26, AF-28–37; AS-01–32                     |
+| Tasks 11–12 | Every preceding row, AT-35, production and recovery evidence             |
 
 ## Task 12: Release, recovery proof, and specification completion
 
