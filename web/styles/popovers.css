@@ -287,6 +287,35 @@
     }
 }
 
+#stream-actions-menu-popover {
+    .popover-stream-header {
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        min-height: 0;
+
+        .popover-stream-name,
+        .stream-privacy.filter-icon {
+            margin-top: 0;
+        }
+
+        .stream-privacy.filter-icon {
+            font-size: 1.0667em; /* 16px at 15px/1em */
+        }
+
+        .popover-stream-name {
+            flex: 1;
+        }
+    }
+}
+
+.popover-stream-color-swatch {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    border-radius: var(--radius-xs);
+}
+
 #topic-actions-menu-popover {
     .popover-topic-name {
         font-weight: 600;
@@ -815,6 +844,56 @@ ul.popover-group-menu-member-list {
     & hr {
         margin: 5px 0;
     }
+
+    .enter-sends-toggle {
+        display: flex;
+        gap: 2px;
+        /* 2px 8px 8px at 15px/1em */
+        padding: 0.1333em 0.5333em 0.5333em;
+
+        .enter_sends_choice {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            /* 30px at 15px/1em */
+            height: 2em;
+            /* 13px at 15px/1em */
+            font-size: 0.8667em;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+            background: var(--color-background-tab-picker-container);
+            color: light-dark(hsl(180deg 8% 40%), hsl(170deg 8% 72%));
+
+            &:first-child {
+                border-radius: var(--radius-md) 0 0 var(--radius-md);
+            }
+
+            &:last-child {
+                border-radius: 0 var(--radius-md) var(--radius-md) 0;
+            }
+
+            &:has(.enter_sends_choice_radio:checked) {
+                background: var(--color-background-brand-solid-action-button);
+                color: var(--color-text-brand-solid-action-button);
+            }
+
+            &:has(.enter_sends_choice_radio:focus-visible) {
+                outline: 1px solid var(--color-outline-focus);
+                outline-offset: -1px;
+            }
+        }
+
+        .enter_sends_choice_radio {
+            position: absolute;
+            inset: 0;
+            margin: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+    }
 }
 
 .visibility-policy-popover {
@@ -835,11 +914,16 @@ ul.popover-group-menu-member-list {
 }
 
 .popover-menu-user-header {
+    /* Frame 5b shrinks the avatar from the 64px shared default
+       down to 56px, scoped to this header only. */
+    --length-user-popover-menu-avatar: 56px;
+
     display: flex;
     flex-flow: row nowrap;
-    gap: 7px;
+    gap: 12px;
     text-align: left;
-    padding: 4px;
+    /* 10px 12px 12px at 15px/1em */
+    padding: 0.6666em 0.8em 0.8em;
 
     .popover-menu-user-avatar-container {
         position: relative;
@@ -851,42 +935,43 @@ ul.popover-group-menu-member-list {
     .popover-menu-user-avatar {
         width: var(--length-user-popover-menu-avatar);
         height: var(--length-user-popover-menu-avatar);
-        border-radius: var(--radius-pill);
+        border-radius: var(--radius-lg);
         background-size: cover;
         background-position: center;
     }
 
     .popover-menu-user-presence {
+        /* Only the deactivated-account marker still lives on the
+           avatar corner; the online/away/offline dot moved into
+           .popover-menu-user-presence-row below the name. */
         position: absolute;
-        /* Presence dot does not scale, because
-           the avatar itself does not scale. */
-        font-size: var(--length-user-status-circle-popover-menu);
+        font-size: 0.8em;
         line-height: 1;
         right: -1px;
         bottom: -1px;
         background-color: var(--color-background-popover-menu);
         border: solid 1px var(--color-background-popover-menu);
         border-radius: 50%;
-
-        &.deactivated-user-icon {
-            font-size: 0.8em;
-            background-color: var(--color-background-popover-menu);
-            padding: 1px;
-        }
+        padding: 1px;
     }
 
     .popover-menu-user-info {
         width: max-content;
+        max-width: 100%;
         align-self: center;
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        /* 3px at 15px/1em */
+        gap: 0.2em;
     }
 
     .popover-menu-user-full-name {
-        /* 18px at 15px/1em */
-        font-size: 1.2em;
+        /* 17px at 15px/1em */
+        font-size: 1.1333em;
         font-weight: 600;
-        /* 20px at 18px/1em */
-        line-height: 1.1111em;
+        /* 22px at 17px/1em */
+        line-height: 1.2941em;
         color: var(--color-text-full-name);
         overflow-wrap: anywhere;
 
@@ -905,6 +990,44 @@ ul.popover-group-menu-member-list {
         text-overflow: ellipsis;
         white-space: nowrap;
     }
+
+    .popover-menu-user-presence-row {
+        display: flex;
+        align-items: center;
+        /* 6px at 15px/1em */
+        gap: 0.4em;
+        /* 13px at 15px/1em */
+        font-size: 0.8667em;
+        color: light-dark(hsl(180deg 8% 38%), hsl(170deg 8% 68%));
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .popover-menu-user-presence-dot {
+        /* Sized like the old avatar-corner dot; colored the same
+           way via the existing user-circle-{active,idle,offline}
+           classes, so this stays correct without a new token. */
+        font-size: var(--length-user-status-circle-popover-menu);
+        line-height: 1;
+        flex: none;
+        border-radius: 50%;
+    }
+}
+
+.user-card-popover-local-time-field,
+.user-card-popover-email-field {
+    /* 32px at 15px/1em */
+    min-height: 2.1333em;
+    /* 14px at 15px/1em */
+    font-size: 0.9333em;
+    color: light-dark(hsl(180deg 8% 38%), hsl(170deg 8% 68%));
+
+    .popover-menu-icon {
+        /* 16px at 14px/1em, since this row's own font-size is 14px */
+        font-size: 1.1428em;
+        color: var(--color-icon-purple);
+    }
 }
 
 .user-card-popover-email-field {
@@ -912,6 +1035,8 @@ ul.popover-group-menu-member-list {
         text-overflow: ellipsis;
         white-space: nowrap;
         overflow: hidden;
+        min-width: 0;
+        flex: 1;
     }
 }
 
@@ -1032,23 +1157,22 @@ ul.popover-group-menu-member-list {
         box-sizing: border-box;
         display: flex;
         flex-flow: row nowrap;
-        align-items: flex-start;
-        gap: 5px;
-        /* 3px at 15px/1em, 10px at 15px/1em */
-        padding: 0.2em 0.6666em;
+        align-items: center;
+        /* 12px at 15px/1em */
+        gap: 0.8em;
+        padding: 0 0.8em;
         /* 15px at 15px/1em */
         font-size: 1em;
         /* 16px at 15px/1em */
         line-height: 1.0667em;
-        /* 26px at 16px/1em - this height was carried forward
-           despite the information density change in 15px > 16px,
-           so we calculate its height to the 16px em in use. */
-        min-height: 1.625em;
+        /* 34px at 15px/1em. Using min-height (rather than a fixed
+           height) keeps very long translated labels from clipping. */
+        min-height: 2.2667em;
+        border-radius: var(--radius-md);
 
         .popover-menu-icon {
-            /* 16px at 15px/1em */
-            font-size: 1.0667em;
-            /* 16px at 16px/1em */
+            /* 17px at 15px/1em */
+            font-size: 1.1333em;
             width: 1em;
             height: 1em;
             text-align: center;
@@ -1064,22 +1188,20 @@ ul.popover-group-menu-member-list {
     .link-item {
         outline: none;
 
-        .popover-menu-label,
         .popover-menu-icon {
-            margin-top: 2px;
-        }
-
-        .popover-menu-icon {
-            color: var(--color-icon-purple);
+            /* 42% lightness, one shade darker than --color-icon-purple's
+               45%, which stays reserved for user-card description rows. */
+            color: light-dark(hsl(180deg 8% 42%), hsl(170deg 6% 60%));
         }
 
         .popover-menu-link {
-            color: var(--color-text-popover-menu) !important;
+            color: var(--color-text-sidebar-popover-menu) !important;
             text-decoration: none;
             flex-grow: 1;
 
             &:hover {
                 background: var(--color-background-hover-popover-menu);
+                border-radius: var(--radius-md);
                 outline: none;
             }
 
@@ -1097,6 +1219,15 @@ ul.popover-group-menu-member-list {
 
             &:active {
                 background: var(--color-background-active-popover-menu);
+                border-radius: var(--radius-md);
+            }
+
+            &.popover-menu-link-danger {
+                color: var(--color-text-danger-text-action-button) !important;
+
+                .popover-menu-icon {
+                    color: var(--color-text-danger-text-action-button);
+                }
             }
         }
     }
@@ -1147,34 +1278,15 @@ ul.popover-group-menu-member-list {
 
 #help-menu-dropdown,
 #gear-menu-dropdown,
-#personal-menu-dropdown {
-    .simplebar-content {
-        min-width: var(--navbar-popover-menu-min-width);
-    }
-}
-
-#message-actions-menu-dropdown {
-    /* 350px at 15px/1em */
-    --popover-menu-max-width: 23.3333em;
-
-    .simplebar-content {
-        min-width: var(--message-actions-popover-min-width);
-    }
-}
-
+#personal-menu-dropdown,
+#message-actions-menu-dropdown,
 #stream-actions-menu-popover,
-#topic-actions-menu-popover {
+#topic-actions-menu-popover,
+#user_card_popover,
+#send_later_popover,
+#left-sidebar-inbox-popover {
     .simplebar-content {
-        min-width: var(--topic-actions-popover-min-width);
-    }
-}
-
-#user_card_popover {
-    /* 250px at 14px/1em */
-    --popover-menu-max-width: 17.8571em;
-
-    .simplebar-content {
-        min-width: var(--user-card-popover-min-width);
+        width: 312px;
     }
 }
 
@@ -1333,11 +1445,41 @@ ul.popover-group-menu-member-list {
 ul.popover-menu-list {
     list-style: none;
     margin: 0;
-    padding: 4px 0;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 
     li.popover-menu-separator {
-        margin: 4px 0;
+        margin: 6px 4px;
         border-bottom: solid 1px var(--color-border-popover-menu-separator);
+    }
+}
+
+.popover-menu-section-title {
+    /* 12px at 15px/1em */
+    font-size: 0.8em;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-item);
+    /* 8px 12px 6px at 15px/1em */
+    padding: 0.5333em 0.8em 0.4em;
+}
+
+.popover-menu-labeled-control {
+    display: flex;
+    align-items: center;
+    /* 10px at 15px/1em */
+    gap: 0.6666em;
+    /* 4px 12px 8px at 15px/1em */
+    padding: 0.2666em 0.8em 0.5333em;
+
+    .popover-menu-label {
+        flex: 1;
+        /* 13px at 15px/1em */
+        font-size: 0.8667em;
+        color: var(--color-text-item);
     }
 }
 
@@ -1349,19 +1491,20 @@ ul.popover-menu-list {
 
     > .popover-menu-hotkey-hint {
         box-sizing: border-box;
-        color: var(--color-popover-hotkey-hint);
+        color: var(--color-text-item);
         text-align: center;
-        /* 14px at 15px/1em */
-        font-size: 0.9333em;
+        font-family: ui-monospace, monospace;
+        /* 12px at 15px/1em */
+        font-size: 0.8em;
         font-style: normal;
         font-weight: 500;
-        /* 14px at 14px/1em */
         line-height: 1em;
-        /* 20px at 14px/1em */
-        min-width: 1.4285em;
-        padding: 2px 4px;
+        min-width: 1.3333em;
+        /* 1px 6px at 12px/1em */
+        padding: 0.0833em 0.5em;
         border-radius: var(--radius-xs);
-        border: 1px solid var(--color-border-popover-hotkey-hint);
+        background: var(--color-background-tab-picker-container);
+        border: none;
     }
 }
 
@@ -1407,4 +1550,20 @@ ul.popover-menu-list {
 #user-group-to-add {
     flex: 1;
     min-width: 0;
+}
+
+#personal-menu-dropdown .logout_button {
+    font-weight: 600;
+}
+
+.popover-menu-badge-new {
+    /* 12px at 15px/1em */
+    font-size: 0.8em;
+    font-weight: 700;
+    background: var(--color-background-brand-solid-action-button);
+    color: var(--color-text-brand-solid-action-button);
+    border-radius: var(--radius-pill);
+    /* 1px 7px at 12px/1em */
+    padding: 0.0833em 0.5833em;
+    flex: none;
 }

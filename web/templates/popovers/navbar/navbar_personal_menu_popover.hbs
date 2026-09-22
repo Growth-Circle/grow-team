@@ -101,23 +101,6 @@
                     </a>
                 </li>
                 <li role="none" class="popover-menu-list-item">
-                    <div role="group" class="tab-picker popover-menu-tab-group" aria-label="{{t 'App theme' }}">
-                        <input type="radio" id="select-automatic-theme" class="tab-option" name="theme-select" data-theme-code="{{color_scheme_values.automatic.code}}" {{#if (eq user_color_scheme color_scheme_values.automatic.code)}}checked{{/if}} />
-                        <label role="menuitemradio" class="tab-option-content tippy-zulip-delayed-tooltip" for="select-automatic-theme" aria-label="{{t 'Select automatic theme' }}" data-tooltip-template-id="automatic-theme-template" tabindex="0">
-                            <i class="zulip-icon zulip-icon-monitor" aria-hidden="true"></i>
-                        </label>
-                        <input type="radio" id="select-light-theme" class="tab-option" name="theme-select" data-theme-code="{{color_scheme_values.light.code}}" {{#if (eq user_color_scheme color_scheme_values.light.code)}}checked{{/if}} />
-                        <label role="menuitemradio" class="tab-option-content tippy-zulip-delayed-tooltip" for="select-light-theme" aria-label="{{t 'Select light theme' }}" data-tippy-content="{{t 'Light theme' }}" tabindex="0">
-                            <i class="zulip-icon zulip-icon-sun" aria-hidden="true"></i>
-                        </label>
-                        <input type="radio" id="select-dark-theme" class="tab-option" name="theme-select" data-theme-code="{{color_scheme_values.dark.code}}" {{#if (eq user_color_scheme color_scheme_values.dark.code)}}checked{{/if}} />
-                        <label role="menuitemradio" class="tab-option-content tippy-zulip-delayed-tooltip" for="select-dark-theme" aria-label="{{t 'Select dark theme' }}" data-tippy-content="{{t 'Dark theme' }}" tabindex="0">
-                            <i class="zulip-icon zulip-icon-moon" aria-hidden="true"></i>
-                        </label>
-                        <span class="slider"></span>
-                    </div>
-                </li>
-                <li role="none" class="popover-menu-list-item">
                     <div class="info-density-controls">
                         {{> ../../settings/info_density_control_button_group
                           property="web_font_size_px"
@@ -138,7 +121,7 @@
                 {{!-- Group 4 --}}
                 <li role="separator" class="popover-menu-separator"></li>
                 <li role="none" class="link-item popover-menu-list-item">
-                    <a role="menuitem" class="logout_button hidden-for-spectators popover-menu-link" tabindex="0">
+                    <a role="menuitem" class="logout_button hidden-for-spectators popover-menu-link popover-menu-link-danger" tabindex="0">
                         <i class="popover-menu-icon zulip-icon zulip-icon-log-out" aria-hidden="true"></i>
                         <span class="popover-menu-label">{{t 'Log out' }}</span>
                     </a>

@@ -1,6 +1,6 @@
-<div class="popover-menu" data-simplebar data-simplebar-tab-index="-1">
+<div class="popover-menu" id="left-sidebar-inbox-popover" data-simplebar data-simplebar-tab-index="-1">
     <ul role="menu" class="popover-menu-list">
-        {{#if is_home_view}}
+        <li role="none" class="popover-menu-section-title">{{t "Inbox" }}</li>
         {{#if unread_messages_present}}
         <li role="none" class="link-item popover-menu-list-item">
             <a role="menuitem" class="popover-menu-link mark_all_messages_as_read" tabindex="0">
@@ -20,7 +20,7 @@
                 {{/if}}
             </a>
         </li>
-        {{else}}
+        {{#unless is_home_view}}
         <li role="none" class="link-item popover-menu-list-item no-auto-hide-left-sidebar-overlay">
             <a role="menuitem" class="set-home-view popover-menu-link" data-view-code="{{view_code}}" tabindex="0">
                 <i class="popover-menu-icon zulip-icon zulip-icon-house" aria-hidden="true"></i>
@@ -32,6 +32,6 @@
                 </span>
             </a>
         </li>
-        {{/if}}
+        {{/unless}}
     </ul>
 </div>

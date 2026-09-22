@@ -7,8 +7,10 @@
                   is_web_public=stream.is_web_public }}
             </span>
             <span class="popover-stream-name">{{stream.name}}</span>
+            <span class="popover-stream-color-swatch" style="background-color: {{stream.color}}" aria-hidden="true"></span>
         </li>
         <li role="separator" class="popover-menu-separator"></li>
+        {{!-- Group 1 --}}
         {{#if has_unread_messages}}
         <li role="none" class="link-item popover-menu-list-item hidden-for-spectators">
             <a role="menuitem" class="mark_stream_as_read popover-menu-link" tabindex="0">
@@ -24,6 +26,8 @@
             </a>
         </li>
         {{/if}}
+        <li role="separator" class="popover-menu-separator"></li>
+        {{!-- Group 2 --}}
         {{#if show_go_to_channel_feed}}
         <li role="none" class="link-item popover-menu-list-item">
             <a role="menuitem" class="stream-popover-go-to-channel-feed popover-menu-link" tabindex="0">
@@ -47,13 +51,14 @@
                 <span class="popover-menu-label">{{t "Copy link to channel" }}</span>
             </a>
         </li>
-        <li role="separator" class="popover-menu-separator hidden-for-spectators"></li>
         <li role="none" class="link-item popover-menu-list-item hidden-for-spectators">
             <a role="menuitem" href="{{stream_edit_hash}}" class="open_stream_settings navigate-link-on-enter popover-menu-link" tabindex="0">
                 <i class="popover-menu-icon zulip-icon zulip-icon-gear" aria-hidden="true"></i>
                 <span class="popover-menu-label">{{t "Channel settings" }}</span>
             </a>
         </li>
+        <li role="separator" class="popover-menu-separator hidden-for-spectators"></li>
+        {{!-- Group 3 --}}
         <li role="none" class="link-item popover-menu-list-item hidden-for-spectators">
             <a role="menuitem" class="pin_to_top popover-menu-link" tabindex="0">
                 {{#if stream.pin_to_top}}
@@ -78,16 +83,15 @@
         </li>
         {{#unless stream.is_archived}}
         <li role="none" class="link-item popover-menu-list-item hidden-for-spectators">
-            <a role="menuitem" class="popover_sub_unsub_button popover-menu-link" tabindex="0">
-                <i class="popover-menu-icon zulip-icon zulip-icon-circle-x" aria-hidden="true"></i>
-                <span class="popover-menu-label">{{t "Unsubscribe"}}</span>
-            </a>
-        </li>
-        <li role="separator" class="popover-menu-separator hidden-for-spectators"></li>
-        <li role="none" class="link-item popover-menu-list-item hidden-for-spectators">
             <a role="menuitem" class="choose_stream_color popover-menu-link" data-stream-id="{{ stream.stream_id }}" tabindex="0">
                 <i class="popover-menu-icon zulip-icon zulip-icon-pipette" aria-hidden="true"></i>
                 <span class="popover-menu-label">{{t "Change color"}}</span>
+            </a>
+        </li>
+        <li role="none" class="link-item popover-menu-list-item hidden-for-spectators">
+            <a role="menuitem" class="popover_sub_unsub_button popover-menu-link popover-menu-link-danger" tabindex="0">
+                <i class="popover-menu-icon zulip-icon zulip-icon-circle-x" aria-hidden="true"></i>
+                <span class="popover-menu-label">{{t "Unsubscribe"}}</span>
             </a>
         </li>
         {{/unless}}

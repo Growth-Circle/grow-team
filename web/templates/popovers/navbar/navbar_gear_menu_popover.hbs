@@ -57,6 +57,7 @@
         {{/if}}
     </div>
     <ul role="menu" class="popover-menu-list">
+        <li role="none" class="popover-menu-section-title">{{t "Settings" }}</li>
         {{!-- Group 1 --}}
         <li role="none" class="link-item popover-menu-list-item hidden-for-spectators">
             <a role="menuitem" href="#channels/subscribed" class="navigate-link-on-enter popover-menu-link">
@@ -92,7 +93,8 @@
             </a>
         </li>
         {{/unless}}
-        <li role="none" class="popover-menu-list-item only-visible-for-spectators">
+        <li role="none" class="popover-menu-list-item popover-menu-labeled-control">
+            <span class="popover-menu-label">{{t "App theme" }}</span>
             <div role="group" class="theme-switcher tab-picker" aria-label="{{t 'App theme' }}">
                 <input type="radio" id="select-automatic-theme" class="tab-option" name="theme-select" data-theme-code="{{color_scheme_values.automatic.code}}" {{#if (eq user_color_scheme color_scheme_values.automatic.code)}}checked{{/if}} />
                 <label role="menuitemradio" class="tab-option-content tippy-zulip-delayed-tooltip" for="select-automatic-theme" aria-label="{{t 'Select automatic theme' }}" data-tooltip-template-id="automatic-theme-template" tabindex="0">
@@ -153,14 +155,6 @@
                 <span class="popover-menu-label">{{t 'API documentation' }}</span>
             </a>
         </li>
-        {{#if (and user_has_billing_access show_billing)}}
-        <li role="none" class="link-item popover-menu-list-item">
-            <a role="menuitem" href="/billing/" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">
-                <i class="popover-menu-icon zulip-icon zulip-icon-credit-card" aria-hidden="true"></i>
-                <span class="popover-menu-label">{{t 'Billing' }}</span>
-            </a>
-        </li>
-        {{/if}}
         {{#if promote_sponsoring_zulip}}
         <li role="none" class="link-item popover-menu-list-item">
             <a role="menuitem" href="https://github.com/Growth-Circle/grow-team" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">
@@ -169,24 +163,13 @@
             </a>
         </li>
         {{/if}}
-        {{#if user_has_billing_access}}
-        {{#if show_remote_billing }}
+        {{#if (and user_has_billing_access show_remote_billing) }}
         <li role="none" class="link-item popover-menu-list-item">
             <a role="menuitem" href="/self-hosted-billing/" id="open-self-hosted-billing" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">
                 <i class="popover-menu-icon zulip-icon zulip-icon-rocket" aria-hidden="true"></i>
                 <span class="popover-menu-label">{{t 'Plan management' }}</span>
             </a>
         </li>
-        {{/if}}
-        {{#if show_plans}}
-        {{!-- This will be hidden for self hosted realms since they will have corporate disabled. --}}
-        <li role="none" class="link-item popover-menu-list-item">
-            <a role="menuitem" href="/plans/" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">
-                <i class="popover-menu-icon zulip-icon zulip-icon-rocket" aria-hidden="true"></i>
-                <span class="popover-menu-label">{{t 'Plans and pricing' }}</span>
-            </a>
-        </li>
-        {{/if}}
         {{/if}}
         {{!-- Group 3 --}}
         {{#if (or can_invite_users_by_email can_create_multiuse_invite is_spectator)}}

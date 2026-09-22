@@ -113,7 +113,7 @@
             {{/if}}
             {{#if (and is_realm_admin (not stream_archived))}}
             <li role="none" class="link-item popover-menu-list-item">
-                <a role="menuitem" class="sidebar-popover-delete-topic-messages popover-menu-link" tabindex="0">
+                <a role="menuitem" class="sidebar-popover-delete-topic-messages popover-menu-link popover-menu-link-danger" tabindex="0">
                     <i class="popover-menu-icon zulip-icon zulip-icon-trash" aria-hidden="true"></i>
                     <span class="popover-menu-label">{{t "Delete topic"}}</span>
                 </a>

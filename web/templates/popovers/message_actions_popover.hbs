@@ -1,5 +1,6 @@
 <div class="popover-menu" id="message-actions-menu-dropdown" data-simplebar data-simplebar-tab-index="-1">
     <ul role="menu" class="popover-menu-list">
+        <li role="none" class="popover-menu-section-title">{{t "Message actions" }}</li>
         {{!-- Group 1 --}}
         {{#if should_display_quote_message}}
         <li role="none" class="link-item popover-menu-list-item">
@@ -41,7 +42,7 @@
         {{/if}}
         {{#if should_display_delete_option}}
         <li role="none" class="link-item popover-menu-list-item">
-            <a role="menuitem" data-message-id="{{message_id}}" class="delete_message popover-menu-link" tabindex="0">
+            <a role="menuitem" data-message-id="{{message_id}}" class="delete_message popover-menu-link popover-menu-link-danger" tabindex="0">
                 <i class="popover-menu-icon zulip-icon zulip-icon-trash" aria-hidden="true"></i>
                 <span class="popover-menu-label">{{t "Delete message" }}</span>
             </a>
