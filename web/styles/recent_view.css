@@ -701,7 +701,7 @@
 
     &.recent-view-participants-hidden {
         td {
-            padding: 0.5714em 0.5714em; /* 8px 8px at 14px/1em */
+            padding: 0.5714em; /* 8px at 14px/1em */
         }
 
         .recent_topic_users,
