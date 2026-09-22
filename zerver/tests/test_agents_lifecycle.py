@@ -1184,6 +1184,203 @@ class AgentLifecycleTests(ZulipTestCase):
                 setup.save(update_fields=["lease_expires_at"])
                 self.assertEqual(post(body).status_code, 400)
 
+    def test_typescript_callbacks_interleave_against_real_backend(self) -> None:
+        import json
+        import subprocess
+        import tempfile
+        import time
+        from datetime import timedelta
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+        from pathlib import Path
+
+        from django.conf import settings
+        from django.test import override_settings
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib.agent_secrets import hash_agent_credential
+
+        token = "synthetic-callback-token-" + "a" * 40
+        agents.AgentRunnerCredential.objects.create(
+            runner=self.runner,
+            realm=self.owner.realm,
+            token_hash=hash_agent_credential(token),
+            refresh_hash=hash_agent_credential("refresh" + token),
+            expires_at=now() + timedelta(hours=1),
+            refresh_expires_at=now() + timedelta(days=1),
+        )
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Callback fixture",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        directory = Path(tempfile.mkdtemp(prefix="grow-task7-backend-"))
+        (directory / "artifacts").mkdir(mode=0o700)
+        client = self.client
+        records: list[tuple[str, int]] = []
+        outer = self
+        inserted = False
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+            def do_GET(self) -> None:
+                self.handle_request()
+
+            def do_POST(self) -> None:
+                self.handle_request()
+
+            def handle_request(self) -> None:
+                nonlocal inserted
+                body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
+                response = client.generic(
+                    self.command,
+                    self.path,
+                    body,
+                    content_type=self.headers.get("Content-Type", "application/json"),
+                    HTTP_AUTHORIZATION=self.headers.get("Authorization", ""),
+                )
+                records.append((self.path, response.status_code))
+                if response.status_code >= 400:
+                    (directory / "errors.log").open("a").write(
+                        self.path + " " + response.content.decode() + "\n"
+                    )
+                if (
+                    self.path.endswith("/runner/claims")
+                    and response.status_code == 200
+                    and not inserted
+                ):
+                    inserted = True
+                    job.refresh_from_db()
+                    actions.add_input(
+                        outer.owner,
+                        job.id,
+                        expected_version=job.version,
+                        client_key=uuid4(),
+                        text="Synthetic steering",
+                        input_type="steering",
+                    )
+                self.send_response(response.status_code)
+                self.send_header("Content-Type", response.get("Content-Type", "application/json"))
+                self.send_header("Content-Length", str(len(response.content)))
+                self.end_headers()
+                self.wfile.write(response.content)
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        server.timeout = 0.1
+        config = directory / "config.json"
+        config.write_text(
+            json.dumps(
+                {
+                    "origin": f"http://127.0.0.1:{server.server_port}",
+                    "runner_id": str(self.runner.id),
+                    "token": token,
+                    "state": str(directory / "state"),
+                }
+            )
+        )
+        config.chmod(0o600)
+        root = Path(settings.DEPLOY_ROOT)
+        script = root / "services/grow-agent-runner/test/backend-callback-fixture.mjs"
+        with override_settings(AGENT_ARTIFACT_ROOT=str(directory / "artifacts")):
+            process = subprocess.Popen(
+                ["node", str(script), str(config)], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+            try:
+                deadline = time.monotonic() + 30
+                while process.poll() is None and time.monotonic() < deadline:
+                    server.handle_request()
+                if process.poll() is None:
+                    process.kill()
+                stdout, stderr = process.communicate(timeout=5)
+                self.assertEqual(
+                    process.returncode, 0, stderr.decode() + " evidence=" + str(directory)
+                )
+                self.assertTrue(json.loads(stdout)["passed"])
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+                server.server_close()
+        (directory / "requests.json").write_text(json.dumps(records))
+        self.assertEqual(agents.AgentArtifact.objects.filter(attempt__job=job).count(), 1)
+        self.assertEqual(agents.AgentOperation.objects.get(attempt__job=job).status, "succeeded")
+        self.assertEqual(agents.AgentInput.objects.get(job=job).delivery_state, "applied")
+        self.assertEqual(agents.AgentCheckpoint.objects.filter(attempt__job=job).count(), 1)
+
+    def test_local_provider_setup_authority_observes_without_renewal(self) -> None:
+        import json
+        from datetime import timedelta
+
+        from django.utils.timezone import now
+
+        from zerver.actions.agents import claim_setup, create_provider_probe, register_provider
+        from zerver.lib.agent_secrets import hash_agent_credential
+
+        token = "synthetic-authority-token-" + "a" * 40
+        agents.AgentRunnerCredential.objects.create(
+            runner=self.runner,
+            realm=self.owner.realm,
+            token_hash=hash_agent_credential(token),
+            refresh_hash=hash_agent_credential("refresh" + token),
+            expires_at=now() + timedelta(hours=1),
+            refresh_expires_at=now() + timedelta(days=1),
+        )
+        provider = register_provider(
+            self.owner,
+            self.runner,
+            name="Local fixture",
+            base_url="https://example.com/v1",
+            model_id="fixture",
+            allowed_models=["fixture"],
+            context_window_tokens=4096,
+            max_output_tokens=512,
+            local_credential_ref="owner-key",
+        )
+        setup = create_provider_probe(self.owner, provider, retry_key=uuid4())
+        setup = claim_setup(self.runner, setup.id, uuid4())
+        body = {
+            "schema_version": 1,
+            "setup_id": str(setup.id),
+            "claim_key": str(setup.claim_key),
+            "lease_epoch": setup.lease_epoch,
+            "descriptor_digest": setup.descriptor_digest,
+            "configuration_digest": setup.configuration_digest,
+        }
+        before = (setup.claim_key, setup.lease_epoch, setup.lease_expires_at)
+
+        def post(value: dict[str, object]) -> Any:
+            return self.client.post(
+                "/api/v1/agent/runner/setup-authority",
+                data=json.dumps(value),
+                content_type="application/json",
+                HTTP_AUTHORIZATION="Bearer " + token,
+            )
+
+        response = post(body)
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertNotIn("secret", response.json())
+        self.assertEqual(response["Cache-Control"], "no-store")
+        setup.refresh_from_db()
+        self.assertEqual((setup.claim_key, setup.lease_epoch, setup.lease_expires_at), before)
+        for change in [
+            {"lease_epoch": 99},
+            {"claim_key": str(uuid4())},
+            {"configuration_digest": "0" * 64},
+        ]:
+            self.assertEqual(post(body | change).status_code, 400)
+        grant = agents.AgentProbeGrant.objects.get(setup_operation=setup)
+        grant.revoked_at = now()
+        grant.save(update_fields=["revoked_at"])
+        self.assertEqual(post(body).status_code, 400)
+        setup.refresh_from_db()
+        self.assertEqual((setup.claim_key, setup.lease_epoch, setup.lease_expires_at), before)
+
     def test_uncertain_local_operation_and_input_need_explicit_reconciliation(self) -> None:
         from django.utils.timezone import now
 

@@ -22,10 +22,19 @@ execFileSync("npm", ["ci", "--omit=dev", "--ignore-scripts", "--no-audit", "--no
     cwd: output,
     stdio: "inherit",
 });
-for (const name of ["dist", "protocol", "notices", "systemd", "image"])
+for (const name of ["dist", "protocol", "notices", "systemd", "image", "native", "scripts"])
     cpSync(join(root, name), join(output, name), {recursive: true});
-for (const name of ["README.md", "CONTAINMENT.md", ".node-version"])
+for (const name of [
+    "README.md",
+    "CONTAINMENT.md",
+    "RUNTIME.md",
+    "API-CONTRACTS.md",
+    ".node-version",
+])
     copyFileSync(join(root, name), join(output, name));
+execFileSync(process.execPath, [join(output, "scripts/patch-native.mjs"), output], {
+    stdio: "inherit",
+});
 mkdirSync(join(output, "bin"));
 copyFileSync(process.execPath, join(output, "bin/node"));
 copyFileSync(
@@ -86,8 +95,7 @@ writeFileSync(
             certified_modes: [],
             release_gates: [
                 "Review embedded and linked native component SBOM",
-                "Task 6 sandbox",
-                "Task 7 runtime",
+                "Task 7 final runtime image and containment evidence",
                 "Task 8 Git harness",
                 "Task 11 acceptance",
                 "Task 12 pilot",

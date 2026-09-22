@@ -10,6 +10,10 @@ const routes = new Set([
     "/pairings/exchange",
     "/runner/token/refresh",
     "/runner/catalog",
+    "/runner/setup-authority",
+    "/runner/authority",
+    "/runner/credential-access",
+    "/runner/probe-credential-access",
     "/runner/workspaces",
     "/runner/claims",
     "/runner/leases",
@@ -51,6 +55,7 @@ export class Transport {
         this.token = token;
     }
     async request(route: string, payload?: Data, anonymous = false): Promise<Data> {
+        const scope = anonymous ? this.journal.identityScope() : this.currentScope();
         if (!routes.has(route)) throw new TransportError("protocol", "unsupported_route");
         const body = payload === undefined ? undefined : canonical({schema_version: 1, ...payload});
         if (body && Buffer.byteLength(body) > 1024 * 1024)
@@ -113,10 +118,78 @@ export class Transport {
             if (!response.ok) throw new TransportError("policy");
             if (data.schema_version !== 1 || data.result !== "success")
                 throw new TransportError("protocol", "invalid_envelope");
+            if (scope !== (anonymous ? this.journal.identityScope() : this.currentScope()))
+                throw new TransportError("credential", "scope_changed");
             return data;
         } catch (e) {
             if (e instanceof TransportError) throw e;
             throw new TransportError("transient", "network_or_timeout");
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+    async binary(
+        route: "/runner/artifacts" | "/runner/context-file",
+        payload: Data,
+        bytes?: Buffer,
+    ): Promise<Data | Buffer> {
+        const scope = this.currentScope(),
+            token = this.token();
+        if (!token) throw new TransportError("credential");
+        const abort = new AbortController(),
+            timer = setTimeout(() => abort.abort(), 25000);
+        try {
+            let body: FormData | string;
+            const headers: Record<string, string> = {Authorization: `Bearer ${token}`};
+            if (route === "/runner/artifacts") {
+                if (!bytes || bytes.length > 8 * 1024 * 1024)
+                    throw new TransportError("protocol", "upload_limit");
+                const form = new FormData();
+                form.set("payload", canonical(payload));
+                form.set(
+                    "file",
+                    new Blob([new Uint8Array(bytes)], {type: payload.media_type}),
+                    payload.filename,
+                );
+                body = form;
+            } else {
+                body = canonical(payload);
+                headers["Content-Type"] = "application/json";
+            }
+            const response = await fetch(`${this.origin}/api/v1/agent${route}`, {
+                method: "POST",
+                headers,
+                body,
+                redirect: "manual",
+                signal: abort.signal,
+            });
+            if (!response.ok)
+                throw new TransportError(
+                    response.status === 401 ? "credential" : "policy",
+                    "binary_request_failed",
+                );
+            const chunks: Uint8Array[] = [];
+            let size = 0;
+            if (response.body)
+                for await (const chunk of response.body) {
+                    size += chunk.length;
+                    if (size > (route === "/runner/context-file" ? 51200 : 65536)) {
+                        abort.abort();
+                        throw new TransportError("protocol", "response_too_large");
+                    }
+                    chunks.push(chunk);
+                }
+            if (scope !== this.currentScope())
+                throw new TransportError("credential", "scope_changed");
+            const result = Buffer.concat(chunks);
+            if (route === "/runner/context-file") return result;
+            const data = JSON.parse(result.toString());
+            if (data.schema_version !== 1 || data.result !== "success")
+                throw new TransportError("protocol", "invalid_envelope");
+            return data;
+        } catch (e) {
+            if (e instanceof TransportError) throw e;
+            throw new TransportError("transient", "binary_outcome_uncertain");
         } finally {
             clearTimeout(timer);
         }

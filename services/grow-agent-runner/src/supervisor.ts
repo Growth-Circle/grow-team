@@ -1,3 +1,4 @@
+import type {ProbeAuthority} from "./sandbox.js";
 import {randomUUID} from "node:crypto";
 import {Journal, type JournalLog} from "./journal.js";
 import {Transport} from "./transport.js";
@@ -19,16 +20,26 @@ export interface Supervisor {
         descriptor: Data,
         input: Data,
     ): Promise<{outcome: "applied" | "not_applied"; receipt_id: string}>;
-    probe(descriptor: Data): Promise<{
+    probe(
+        descriptor: Data,
+        authority?: ProbeChannel,
+    ): Promise<{
         state: "ready" | "needs_action" | "failed";
         capabilities: Data;
         requirements: Data[];
     }>;
 }
+export interface ProbeChannel extends ProbeAuthority {
+    validate(): Promise<void>;
+    request(route: string, extra?: Data): Promise<Data>;
+}
 export interface AttemptChannel {
     event(type: string, payload: Data): Promise<void>;
     operations: OperationBoundary;
     lease: () => Data;
+    request?(route: string, extra?: Data): Promise<Data>;
+    upload?(payload: Data, bytes: Buffer): Promise<Data>;
+    download?(referenceId: string): Promise<Buffer>;
 }
 export class OperationBoundary {
     private identity: Data;
@@ -36,6 +47,7 @@ export class OperationBoundary {
         private journal: JournalLog,
         private transport: Transport,
         private currentLease: () => Data,
+        private lane: <T>(action: () => Promise<T>) => Promise<T> = (action) => action(),
     ) {
         this.identity = structuredClone(currentLease());
     }
@@ -52,11 +64,13 @@ export class OperationBoundary {
                 throw new Error("Invalid operation metadata");
         parse("operation_arguments", args);
         const result = (
-            await this.transport.mutate(
-                "proposal",
-                `proposal:${id}`,
-                "/runner/operations/propose",
-                {...lease, ...extras, operation_id: id, arguments: args},
+            await this.lane(() =>
+                this.transport.mutate("proposal", `proposal:${id}`, "/runner/operations/propose", {
+                    ...this.currentLease(),
+                    ...extras,
+                    operation_id: id,
+                    arguments: args,
+                }),
             )
         ).operation;
         this.assertLease(lease);
@@ -65,17 +79,14 @@ export class OperationBoundary {
     async consume(lease: Data, proposal: Data): Promise<Data> {
         this.assertLease(lease);
         const id = proposal.operation_id;
-        const result = await this.transport.mutate(
-            "consume",
-            `consume:${id}`,
-            "/runner/operations/consume",
-            {
-                ...lease,
+        const result = await this.lane(() =>
+            this.transport.mutate("consume", `consume:${id}`, "/runner/operations/consume", {
+                ...this.currentLease(),
                 operation_id: id,
                 expected_version: proposal.version,
                 operation_hash: proposal.operation_hash,
                 ...(proposal.nonce ? {nonce: proposal.nonce} : {}),
-            },
+            }),
         );
         this.assertLease(lease);
         if (
@@ -119,7 +130,9 @@ export class OperationBoundary {
     }
     async reconcile(lease: Data): Promise<Data> {
         this.assertLease(lease);
-        const result = await this.transport.request("/runner/operations", lease);
+        const result = await this.lane(() =>
+            this.transport.request("/runner/operations", this.currentLease()),
+        );
         this.assertLease(lease);
         return result;
     }
@@ -153,6 +166,9 @@ export class Coordinator {
     private claiming: Promise<void> | null = null;
     private stopping: Promise<void> | null = null;
     private stopFailure: Error | null = null;
+    private probeAbort: AbortController | null = null;
+    private probing: Promise<void> | null = null;
+    private probeError: Error | null = null;
     constructor(
         journal: Journal,
         private transport: Transport,
@@ -220,6 +236,8 @@ export class Coordinator {
     // Containment does not require credentials or control-plane availability.
     async contain(): Promise<void> {
         this.generation++;
+        this.probeAbort?.abort();
+        await this.probing?.catch(() => {});
         this.reconciled = false;
         const active = this.active;
         if (active) {
@@ -321,7 +339,7 @@ export class Coordinator {
         this.assertScope();
         if (this.stopFailure) throw this.stopFailure;
         if (!this.reconciled) throw new Error("Must reconcile before claims");
-        if (this.active || this.stopping || !this.supervisor.canExecute()) return;
+        if (this.active || this.probing || this.stopping || !this.supervisor.canExecute()) return;
         const generation = this.generation;
         const pending = this.journal.list("claim").find((e) => e.state !== "done"),
             id = pending?.id ?? `claim:${randomUUID()}`;
@@ -362,10 +380,43 @@ export class Coordinator {
         try {
             await this.supervisor.start(structuredClone(d), {
                 event: (type, payload) => this.enqueue(session, type, payload),
-                operations: new OperationBoundary(this.journal, this.transport, () =>
-                    this.lease(session),
+                operations: new OperationBoundary(
+                    this.journal,
+                    this.transport,
+                    () => this.lease(session),
+                    (action) => this.serial(session, action),
                 ),
                 lease: () => this.lease(session),
+                request: (route, extra = {}) =>
+                    this.serial(session, async () => {
+                        const response = await this.transport.request(
+                            route,
+                            route === "/runner/controls"
+                                ? undefined
+                                : {...extra, ...this.lease(session)},
+                        );
+                        this.lease(session);
+                        return response;
+                    }),
+                upload: (payload, bytes) =>
+                    this.serial(session, async () => {
+                        const response = await this.transport.binary(
+                            "/runner/artifacts",
+                            {...payload, ...this.lease(session)},
+                            bytes,
+                        );
+                        this.lease(session);
+                        return response as Data;
+                    }),
+                download: (referenceId) =>
+                    this.serial(session, async () => {
+                        const response = await this.transport.binary("/runner/context-file", {
+                            ...this.lease(session),
+                            reference_id: referenceId,
+                        });
+                        this.lease(session);
+                        return response as Buffer;
+                    }),
             });
             this.lease(session);
         } catch (error) {
@@ -386,11 +437,38 @@ export class Coordinator {
         );
         session.watchdog.unref();
     }
+    private async refreshVersion(session: Session): Promise<void> {
+        const response = await this.transport.request("/runner/controls");
+        const d = session.descriptor;
+        const control = response.controls.find(
+            (c: Data) => c.attempt_id === d.attempt_id && c.lease_epoch === d.lease_epoch,
+        );
+        if (!control || control.control !== "continue")
+            throw new Error("Attempt authority revoked");
+        this.lease(session);
+        session.version = Math.max(session.version, control.job_version);
+    }
+    private serial<T>(session: Session, action: () => Promise<T>): Promise<T> {
+        const result = session.queue.then(async () => {
+            this.lease(session);
+            await this.replayEvents(session);
+            await this.refreshVersion(session);
+            const value = await action();
+            this.lease(session);
+            return value;
+        });
+        session.queue = result.then(
+            () => {},
+            () => {},
+        );
+        return result;
+    }
     private enqueue(session: Session, type: string, payload: Data): Promise<void> {
         const snapshot = structuredClone(payload);
         const result = session.queue.then(async () => {
             this.lease(session);
             await this.replayEvents(session);
+            await this.refreshVersion(session);
             const lease = this.lease(session),
                 event = this.newEvent(session.descriptor, type, snapshot);
             const response = await this.transport.mutate(
@@ -601,7 +679,9 @@ export class Coordinator {
             const replay = session.queue.then(() => this.replayEvents(session));
             session.queue = replay.catch(() => {});
             await replay;
-            const controls = await this.transport.request("/runner/controls");
+            const controls = await this.serial(session, () =>
+                this.transport.request("/runner/controls"),
+            );
             this.lease(session);
             const d = session.descriptor,
                 control = controls.controls.find(
@@ -612,10 +692,14 @@ export class Coordinator {
                 return;
             }
             session.version = Math.max(session.version, control.job_version);
-            const response = await this.transport.request("/runner/heartbeat", {
-                schema_version: 1,
-                leases: [{job_id: d.job_id, attempt_id: d.attempt_id, lease_epoch: d.lease_epoch}],
-            });
+            const response = await this.serial(session, () =>
+                this.transport.request("/runner/heartbeat", {
+                    schema_version: 1,
+                    leases: [
+                        {job_id: d.job_id, attempt_id: d.attempt_id, lease_epoch: d.lease_epoch},
+                    ],
+                }),
+            );
             this.lease(session);
             const heartbeat = response.leases.find(
                 (c: Data) => c.attempt_id === d.attempt_id && c.lease_epoch === d.lease_epoch,
@@ -627,7 +711,9 @@ export class Coordinator {
             session.version = Math.max(session.version, heartbeat.job_version);
             session.expiry = Date.parse(heartbeat.lease_expires_at);
             this.armWatchdog(session);
-            const inputs = await this.transport.request("/runner/inputs", this.lease(session));
+            const inputs = await this.serial(session, () =>
+                this.transport.request("/runner/inputs", this.lease(session)),
+            );
             this.lease(session);
             for (const input of inputs.inputs) {
                 this.lease(session);
@@ -641,8 +727,24 @@ export class Coordinator {
             throw error;
         }
     }
+    async pollSetups(): Promise<void> {
+        if (this.probeError) throw this.probeError;
+        if (this.active || this.probing || !this.reconciled) return;
+        const response = await this.transport.request("/runner/setups");
+        const next = response.setups[0];
+        if (!next) return;
+        this.probing = this.setup(next.setup_id)
+            .catch((error) => {
+                this.probeError = error;
+            })
+            .finally(() => {
+                this.probing = null;
+            });
+    }
     async setup(setupId: string): Promise<void> {
+        const generation = this.generation;
         this.assertScope();
+        if (this.active) throw new Error("A job already owns execution capacity");
         if (!this.reconciled) throw new Error("Must reconcile before setup");
         const previous = this.journal
                 .list("setup_claim")
@@ -655,6 +757,8 @@ export class Coordinator {
             previous?.request ?? {schema_version: 1, setup_id: setupId, claim_key: id.slice(6)},
         );
         this.assertScope();
+        if (generation !== this.generation)
+            throw new Error("Setup claim belongs to a retired supervisor");
         const d = validateDescriptor(claimed.descriptor, this.runnerId, true);
         this.registry.assertRuntime(d);
         if (
@@ -662,19 +766,92 @@ export class Coordinator {
             Date.parse(d.grant.expires_at) <= Date.now()
         )
             throw new Error("Setup lease expired");
-        const resultId = `setup_result:${setupId}:${claimed.lease_epoch}`,
-            previousResult = this.journal.get(resultId);
-        const result = previousResult?.request ?? {
+        const abort = new AbortController();
+        this.probeAbort = abort;
+        const deadline = Math.min(
+            Date.parse(claimed.lease_expires_at),
+            Date.parse(d.grant.expires_at),
+        );
+        const binding: Data = {
             schema_version: 1,
             setup_id: setupId,
             claim_key: claimed.claim_key,
             lease_epoch: claimed.lease_epoch,
             descriptor_digest: d.descriptor_digest,
             configuration_digest: d.configuration_digest,
-            ...(await this.supervisor.probe(d)),
         };
-        this.assertScope();
-        await this.transport.mutate("setup_result", resultId, "/runner/setups/result", result);
+        let checked = 0;
+        const assertCurrent = () => {
+            this.assertScope();
+            if (generation !== this.generation)
+                throw new Error("Probe supervisor generation changed");
+            if (abort.signal.aborted || Date.now() >= deadline || Date.now() - checked > 3000)
+                throw new Error("Probe authority is not current");
+        };
+        const validate = async () => {
+            if (abort.signal.aborted || Date.now() >= deadline)
+                throw new Error("Probe authority expired");
+            const response = await this.transport.request("/runner/setup-authority", binding);
+            this.assertScope();
+            for (const key of [
+                "setup_id",
+                "claim_key",
+                "lease_epoch",
+                "descriptor_digest",
+                "configuration_digest",
+            ])
+                if (response[key] !== binding[key]) throw new Error("Probe authority changed");
+            if (response.grant_id !== d.grant.id || Date.parse(response.expires_at) < deadline)
+                throw new Error("Probe grant changed");
+            checked = Date.now();
+            assertCurrent();
+        };
+        const authority: ProbeChannel = {
+            setup_operation_id: d.setup_operation_id,
+            signal: abort.signal,
+            deadline,
+            assertCurrent,
+            validate,
+            request: async (route, extra = {}) => {
+                await validate();
+                const response = await this.transport.request(route, {...extra, ...binding});
+                assertCurrent();
+                return response;
+            },
+        };
+        await validate();
+        let checking = false;
+        const poll = setInterval(() => {
+            if (checking) return;
+            checking = true;
+            void validate()
+                .catch(() => abort.abort())
+                .finally(() => {
+                    checking = false;
+                });
+        }, 1000);
+        const timer = setTimeout(() => abort.abort(), Math.max(1, deadline - Date.now()));
+        try {
+            const resultId = `setup_result:${setupId}:${claimed.lease_epoch}`,
+                previousResult = this.journal.get(resultId);
+            const result = previousResult?.request ?? {
+                schema_version: 1,
+                setup_id: setupId,
+                claim_key: claimed.claim_key,
+                lease_epoch: claimed.lease_epoch,
+                descriptor_digest: d.descriptor_digest,
+                configuration_digest: d.configuration_digest,
+                ...(await this.supervisor.probe(d, authority)),
+            };
+            this.assertScope();
+            await validate();
+            await this.transport.mutate("setup_result", resultId, "/runner/setups/result", result);
+        } finally {
+            clearInterval(poll);
+            clearTimeout(timer);
+            abort.abort();
+            if (this.probeAbort === abort) this.probeAbort = null;
+        }
     }
 }
 export async function runService(
@@ -682,6 +859,7 @@ export async function runService(
     connection: {access(): Promise<void>},
     transport: Pick<Transport, "poll">,
     signal: AbortSignal,
+    options: {setups?: boolean} = {},
 ): Promise<void> {
     await coordinator.contain();
     try {
@@ -689,6 +867,7 @@ export async function runService(
             try {
                 await connection.access();
                 await coordinator.tick();
+                if (options.setups) await coordinator.pollSetups();
             } catch (error) {
                 // Stop local effects before polling can enter backoff, even without credentials.
                 await coordinator.contain();
@@ -696,6 +875,10 @@ export async function runService(
             }
         }, signal);
     } finally {
-        await coordinator.stopActive();
+        try {
+            await coordinator.stopActive();
+        } finally {
+            await coordinator.contain();
+        }
     }
 }

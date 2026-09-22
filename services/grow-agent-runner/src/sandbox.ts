@@ -1,3 +1,5 @@
+import {spawn, type ChildProcessWithoutNullStreams} from "node:child_process";
+import {hostEnvironment} from "./containment.js";
 import {randomUUID} from "node:crypto";
 import {lstatSync, realpathSync} from "node:fs";
 import {fileURLToPath} from "node:url";
@@ -171,6 +173,147 @@ export class RootlessSandbox {
             this.store.write(`container-${id}.json`, r);
         }
         return {confirmed};
+    }
+    async startModel(
+        scope: string,
+        kind: "attempt" | "probe",
+        policy: Data,
+        authority: ProbeAuthority,
+        image: string,
+        socket: string,
+        config: Data,
+    ): Promise<{child: ChildProcessWithoutNullStreams; close(): Promise<void>}> {
+        const check = () => {
+            authority.assertCurrent();
+            if (
+                authority.signal.aborted ||
+                Date.now() >= authority.deadline ||
+                this.frozen.has(scope)
+            )
+                throw new Error("Model authority revoked");
+        };
+        check();
+        if (!/^[a-zA-Z0-9-]{1,100}$/.test(scope) || !this.installation.images.includes(image))
+            throw new Error("Unapproved model image");
+        const health = this.store.read("watchdog-ready.json");
+        if (!health || monotonic() - health.at > 3000) throw new Error("Watchdog is unhealthy");
+        const socketStat = lstatSync(socket);
+        if (!socketStat.isSocket() || socketStat.uid !== process.getuid!() || /[,:]/.test(socket))
+            throw new Error("Unsafe model capability socket");
+        const args = [
+            "create",
+            "--pull=never",
+            "--network=none",
+            "--read-only",
+            "--user=65532:0",
+            "--cap-drop=ALL",
+            "--security-opt=no-new-privileges",
+            "--ipc=private",
+            "--shm-size=65536",
+            "--cgroupns=private",
+            "--init",
+            `--cpus=${policy.cpu_millicores / 1000}`,
+            `--memory=${policy.memory_bytes}`,
+            `--memory-swap=${policy.memory_bytes}`,
+            `--pids-limit=${policy.pids_limit}`,
+            "--ulimit=nofile=256:256",
+            "--ulimit=fsize=33554432:33554432",
+            "--log-driver=none",
+            `--tmpfs=/tmp:rw,nosuid,nodev,noexec,size=${policy.temporary_bytes - 65536},mode=1770,uid=65532,gid=0`,
+            "--tmpfs=/workspace:rw,nosuid,nodev,noexec,size=1048576,mode=0770,uid=65532,gid=0",
+            `--label=digital.cadis.grow.installation=${this.installation.id}`,
+            `--label=digital.cadis.grow.scope=${scope}`,
+            `--label=digital.cadis.grow.kind=${kind}`,
+            "--label=digital.cadis.grow.role=model",
+            "--env=HOME=/tmp/home",
+            "--env=LANG=C.UTF-8",
+            "--workdir=/workspace",
+            "--mount",
+            `type=bind,src=${socket},dst=/grow/broker.sock,readonly`,
+            "--entrypoint=/usr/local/bin/node",
+            image,
+            "-e",
+            "setInterval(()=>{},1000)",
+        ];
+        const made = await docker(this.installation, args);
+        if (made.code !== 0) throw new Error("Model container creation failed");
+        const id = made.stdout.toString().trim();
+        const record: ContainerRecord = {
+            id,
+            installation: this.installation.id,
+            scope,
+            kind,
+            owner: processIdentity(process.pid),
+            deadline: monotonic() + Math.max(0, authority.deadline - Date.now()),
+            heartbeat: monotonic() + 1000,
+            processes: [],
+            cgroups: [],
+            state: "created",
+        };
+        this.store.write(`container-${id}.json`, record);
+        let pulse: NodeJS.Timeout | undefined;
+        let child: ChildProcessWithoutNullStreams | undefined;
+        const close = async () => {
+            if (pulse) clearInterval(pulse);
+            record.state = "revoked";
+            this.store.write(`container-${id}.json`, record);
+            if (!(await stopContainer(this.installation, record)))
+                throw new Error("Cannot confirm model stop");
+            child?.kill("SIGKILL");
+            record.state = "stopped";
+            this.store.write(`container-${id}.json`, record);
+        };
+        try {
+            check();
+            if ((await docker(this.installation, ["start", id])).code !== 0)
+                throw new Error("Model launch failed");
+            check();
+            await observe(this.installation, record);
+            record.state = "running";
+            this.store.write(`container-${id}.json`, record);
+            child = spawn(
+                this.installation.docker,
+                [
+                    "--host",
+                    this.installation.endpoint,
+                    "exec",
+                    "-i",
+                    "--env",
+                    `GROW_NATIVE_CONFIG=${JSON.stringify(config)}`,
+                    id,
+                    "node",
+                    config.mode === "endpoint"
+                        ? "/opt/grow/dist/endpoint-child.js"
+                        : "/opt/grow/native/launch.mjs",
+                ],
+                {env: hostEnvironment(), stdio: ["pipe", "pipe", "pipe"]},
+            );
+            // Do not persist adapter diagnostics. They can contain model reasoning or secrets.
+            child.stderr.resume();
+            pulse = setInterval(() => {
+                try {
+                    check();
+                    record.heartbeat = monotonic() + 1000;
+                    this.store.write(`container-${id}.json`, record);
+                } catch {
+                    void close().catch(() => {});
+                }
+            }, 100);
+            authority.signal.addEventListener(
+                "abort",
+                () => {
+                    void close().catch(() => {});
+                },
+                {once: true},
+            );
+            child.once("exit", () => {
+                void close().catch(() => {});
+            });
+            return {child, close};
+        } catch (e) {
+            await close();
+            throw e;
+        }
     }
     async runSandboxedTool(
         d: Data,

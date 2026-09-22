@@ -14,7 +14,9 @@
     "test": "npm run build && node --test test/*.test.ts",
     "check": "tsc --noEmit",
     "assemble": "node scripts/assemble.mjs",
-    "test:containment": "npm run build && node --test test/containment.integration.ts"
+    "test:containment": "npm run build && node --test test/containment.integration.ts",
+    "patch:native": "node scripts/patch-native.mjs",
+    "test:runtime": "npm run build && node --test test/runtime.integration.ts"
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "1.5.0",

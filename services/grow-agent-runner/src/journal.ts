@@ -40,7 +40,8 @@ export class Journal {
         noSecrets(value);
         const text = canonical(value);
         for (const secret of this.secrets)
-            if (text.includes(secret)) throw new Error("Secret material cannot enter the journal");
+            if (text.includes(secret) || text.includes(JSON.stringify(secret).slice(1, -1)))
+                throw new Error("Secret material cannot enter the journal");
     }
     private store: PrivateStore;
     identityScope(): string {

@@ -6,7 +6,8 @@ import {PrivateStore, controlOrigin} from "./config.js";
 import {Journal} from "./journal.js";
 import {Transport, Connection} from "./transport.js";
 import {OwnerRegistry, doctor} from "./owner.js";
-import {Coordinator, runService, type Supervisor} from "./supervisor.js";
+import {RuntimeSupervisor} from "./runtime-supervisor.js";
+import {Coordinator, runService} from "./supervisor.js";
 
 export async function main(args = process.argv.slice(2)): Promise<void> {
     if (process.versions.node !== "24.18.0") throw new Error("Node 24.18.0 is required");
@@ -74,49 +75,14 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
                 console.log("Local secret reference registered.");
                 break;
             case "run": {
-                // This driver cannot certify or execute a sandbox. Later tasks supply the Supervisor implementation.
-                const foundation: Supervisor = {
-                    inspect: async () => {
-                        if (journal.list("attempt").length)
-                            throw new Error(
-                                "Runtime integration is required to inspect old attempts",
-                            );
-                        return [];
-                    },
-                    stop: async () => ({confirmed: false}),
-                    canExecute: () => false,
-                    start: async () => {
-                        throw new Error("Runtime is not certified");
-                    },
-                    applyInput: async () => {
-                        throw new Error("Runtime is not certified");
-                    },
-                    probe: async () => ({
-                        state: "needs_action",
-                        capabilities: {config_version: 1},
-                        requirements: [
-                            {
-                                code: "runtime_not_installed",
-                                surface: "runner",
-                                action: "view_diagnostic",
-                                diagnostic_id: null,
-                            },
-                        ],
-                    }),
-                };
-                const c = new Coordinator(
-                    journal,
-                    transport,
-                    foundation,
-                    saved!.runner_id,
-                    registry,
-                );
+                const runtime = await RuntimeSupervisor.open(store, journal, registry);
+                const c = new Coordinator(journal, transport, runtime, saved!.runner_id, registry);
                 const abort = new AbortController();
                 const stop = () => abort.abort();
                 process.once("SIGTERM", stop);
                 process.once("SIGINT", stop);
                 try {
-                    await runService(c, connection, transport, abort.signal);
+                    await runService(c, connection, transport, abort.signal, {setups: true});
                 } finally {
                     await c.stopActive();
                     process.removeListener("SIGTERM", stop);

@@ -345,6 +345,29 @@ def provider_secret(provider: agents.AgentProvider, version: int) -> str:
 
 
 @endpoint("POST")
+def authority(request: HttpRequest) -> HttpResponse:
+    data = r.LeaseRequest.model_validate_json(request.body)
+    with agent_transaction():
+        job, attempt = jobs.locked_attempt(
+            runner(request),
+            data.job_id,
+            data.attempt_id,
+            data.lease_epoch,
+            expected_version=data.job_version,
+        )
+        return _success(
+            request,
+            {
+                "job_id": str(job.id),
+                "attempt_id": str(attempt.id),
+                "lease_epoch": attempt.lease_epoch,
+                "job_version": job.version,
+                "expires_at": attempt.lease_expires_at.isoformat(),
+            },
+        )
+
+
+@endpoint("POST")
 def credential(request: HttpRequest) -> HttpResponse:
     data = r.Credential.model_validate_json(request.body)
     with agent_transaction():
@@ -368,6 +391,43 @@ def credential(request: HttpRequest) -> HttpResponse:
             {
                 "secret": provider_secret(provider, data.secret_version),
                 "expires_at": attempt.lease_expires_at.isoformat(),
+            },
+        )
+        response["Cache-Control"] = "no-store"
+        return response
+
+
+@endpoint("POST")
+def probe_authority(request: HttpRequest) -> HttpResponse:
+    """Observe the current grant without a lease change or a new claim."""
+    data = r.ProbeAuthority.model_validate_json(request.body)
+    with agent_transaction():
+        device = runner(request)
+        if not agents.AgentRealmSettings.objects.filter(realm=device.realm, enabled=True).exists():
+            raise ValueError("Agent connections are disabled.")
+        setup = agents.AgentSetupOperation.objects.select_for_update().get(
+            id=data.setup_id,
+            runner=device,
+            realm=device.realm,
+            claim_key=data.claim_key,
+            lease_epoch=data.lease_epoch,
+            descriptor_digest=data.descriptor_digest,
+            configuration_digest=data.configuration_digest,
+            phase="probing",
+            lease_expires_at__gt=now(),
+        )
+        _validate_setup(setup, device)
+        grant = agents.AgentProbeGrant.objects.get(setup_operation=setup)
+        response = _success(
+            request,
+            {
+                "setup_id": str(setup.id),
+                "claim_key": str(setup.claim_key),
+                "lease_epoch": setup.lease_epoch,
+                "descriptor_digest": setup.descriptor_digest,
+                "configuration_digest": setup.configuration_digest,
+                "grant_id": str(grant.id),
+                "expires_at": min(setup.lease_expires_at, grant.expires_at).isoformat(),
             },
         )
         response["Cache-Control"] = "no-store"

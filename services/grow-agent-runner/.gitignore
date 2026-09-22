@@ -5,3 +5,7 @@ release/
 
 # This independent distribution requires its npm lockfile.
 !package-lock.json
+
+# Generate pinned adapter bundle during assembly. Keep the patch and manifest tracked.
+native/patched-adapter.mjs
+native/grow-policy.mjs

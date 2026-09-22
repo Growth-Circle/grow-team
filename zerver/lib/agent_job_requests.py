@@ -134,12 +134,15 @@ class Credential(LeaseRequest):
     secret_version: p.Positive
 
 
-class ProbeCredential(Request):
+class ProbeAuthority(Request):
     setup_id: UUID
     claim_key: UUID
     lease_epoch: p.Positive
     descriptor_digest: p.Digest
     configuration_digest: p.Digest
+
+
+class ProbeCredential(ProbeAuthority):
     provider_id: UUID
     secret_version: p.Positive
 

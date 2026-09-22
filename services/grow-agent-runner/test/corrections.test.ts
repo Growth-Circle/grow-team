@@ -41,6 +41,17 @@ async function harness() {
     const t = new Transport("http://localhost", j, () => "access");
     t.request = async (route, p) => {
         if (route === "/runner/leases") return {leases: []};
+        if (route === "/runner/controls")
+            return {
+                controls: [
+                    {
+                        attempt_id: descriptor(claim).attempt_id,
+                        lease_epoch: descriptor(claim).lease_epoch,
+                        job_version: 1,
+                        control: "continue",
+                    },
+                ],
+            };
         if (route === "/runner/claims") return {attempt: descriptor(++claim), job_version: 1};
         if (route === "/runner/events") {
             events.push(p!.events[0]);
@@ -293,7 +304,7 @@ for (const state of ["rotation_uncertain", "expired_refresh"])
         await assert.rejects(() =>
             runService(c, new Connection(store, t), t, new AbortController().signal),
         );
-        assert.deepEqual(log, ["inspect", "stop", "inspect", "stop"]);
+        assert.deepEqual(log, ["inspect", "stop", "inspect", "stop", "inspect", "stop"]);
         j.close();
     });
 test("not_applied permits one fresh delivery and applied reconciliation suppresses duplication", async () => {
@@ -587,8 +598,9 @@ for (const delayed of ["/runner/controls", "/runner/heartbeat"]) {
         };
         const tick = h.c.tick();
         await reached;
-        await h.channels[0].event("attempt.started", payload);
+        const event = h.channels[0].event("attempt.started", payload);
         release();
+        await event;
         await tick;
         assert.equal(h.channels[0].lease().job_version, 2);
         await h.c.stopActive();

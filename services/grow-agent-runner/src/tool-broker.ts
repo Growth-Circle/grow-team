@@ -1,3 +1,5 @@
+import {SecretFilter} from "./redaction.js";
+import {setTimeout as sleep} from "node:timers/promises";
 import {createHash, randomUUID} from "node:crypto";
 import {openSync, writeFileSync, fsyncSync, closeSync, readdirSync} from "node:fs";
 import {PrivateStore} from "./config.js";
@@ -58,6 +60,7 @@ export class ArtifactStore {
         root: string,
         private perFile: number,
         private perJob: number,
+        private filter = new SecretFilter(),
     ) {
         this.store = new PrivateStore(root);
     }
@@ -77,6 +80,7 @@ export class ArtifactStore {
         return {...artifact, serverId: receipt.artifact_id};
     }
     retain(jobId: string, attemptId: string, kind: string, bytes: Buffer): Artifact {
+        bytes = this.filter.bytes(bytes);
         const total = readdirSync(this.store.root)
             .filter((x) => x.endsWith(".json"))
             .reduce((sum, name) => {
@@ -134,6 +138,7 @@ export class ToolBroker {
         private journal: JournalLog,
         private artifacts: ArtifactStore,
         private persistence: BrokerPersistence,
+        private filter = new SecretFilter(),
     ) {
         this.d = structuredClone(descriptor);
     }
@@ -169,9 +174,36 @@ export class ToolBroker {
             tree_hash: tree,
             arguments: args,
         });
-        const proposal = await this.channel.operations.propose(this.current(), id, args, {
+        let proposal = await this.channel.operations.propose(this.current(), id, args, {
             tree_hash: tree,
         });
+        while (proposal.status === "proposed") {
+            this.current();
+            await sleep(500, undefined, {signal: this.guard.signal});
+            const response = await this.channel.operations.reconcile(this.current());
+            const updated = response.operations.find((op: Data) => op.operation_id === id);
+            if (!updated || updated.operation_hash !== proposal.operation_hash)
+                throw new Error("Approval identity changed");
+            proposal = updated;
+            // An approved proposal remains proposed. Consume uses its current nonce and version.
+            if (!this.channel.request) throw new Error("Approval control channel unavailable");
+            const controls = await this.channel.request("/runner/controls");
+            const control = controls.controls.find(
+                (c: Data) =>
+                    c.attempt_id === this.d.attempt_id && c.lease_epoch === this.d.lease_epoch,
+            );
+            const approval = control?.approvals.find(
+                (a: Data) =>
+                    a.operation_id === id &&
+                    a.id === proposal.approval_id &&
+                    a.nonce === proposal.nonce,
+            );
+            if (approval?.decision === "approved") break;
+            if (approval && approval.decision !== "pending")
+                throw new Error("Operation approval rejected");
+        }
+        if (!["authorized", "proposed"].includes(proposal.status))
+            throw new Error("Operation is not authorized");
         const operation = await this.channel.operations.consume(this.current(), proposal);
         this.current();
         this.channel.operations.beginEffect(id);
@@ -195,6 +227,7 @@ export class ToolBroker {
         if (this.busy) throw new Error("Concurrent tools denied");
         this.busy = true;
         try {
+            this.filter.assertArguments(request);
             const tool = validateTool(request),
                 tree = await hashFinalTree(this.workspace, () => this.current());
             this.current();
@@ -263,6 +296,7 @@ export class ToolBroker {
                     cwd: tool.kind === "shell" ? tool.cwd : ".",
                 },
             );
+            result.output = this.filter.bytes(result.output);
             const after = await hashFinalTree(this.workspace, () => this.current()),
                 artifact = await this.artifact("log", result.output);
             const receipt = {
