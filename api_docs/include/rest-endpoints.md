@@ -53,6 +53,15 @@
 * [Update the navigation view](/api/edit-navigation-view)
 * [Remove a navigation view](/api/remove-navigation-view)
 
+## Task board
+
+* [Get the task board](/api/get-task-board)
+* [Create a task card](/api/create-task)
+* [Update a task card](/api/update-task)
+* [Delete a task card](/api/delete-task)
+* [Get a task card's history](/api/get-task-history)
+* [Rename a task board](/api/update-task-board)
+
 ## Channels
 
 * [Get subscribed channels](/api/get-subscriptions)

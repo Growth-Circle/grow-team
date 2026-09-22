@@ -930,6 +930,7 @@ class OpenAPIAttributesTest(ZulipTestCase):
             "invites",
             "reminders",
             "navigation_views",
+            "task_board",
             "bots",
         ]
         paths = OpenAPISpec(OPENAPI_SPEC_PATH).openapi()["paths"]

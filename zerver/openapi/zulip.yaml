@@ -16878,7 +16878,7 @@ paths:
   /tasks:
     get:
       operationId: get-task-board
-      tags: ["task board"]
+      tags: ["task_board"]
       summary: Get the task board
       description: |
         Fetch a task board with its columns and the cards the user may read.
@@ -16948,7 +16948,7 @@ paths:
                       with the provided ID:
     post:
       operationId: create-task
-      tags: ["task board"]
+      tags: ["task_board"]
       summary: Create a task card
       description: |
         Create a card on the organization's task board.
@@ -17072,7 +17072,7 @@ paths:
   /tasks/{task_id}:
     patch:
       operationId: update-task
-      tags: ["task board"]
+      tags: ["task_board"]
       summary: Update a task card
       description: |
         Edit a card, move it to another column, or reorder it inside its column.
@@ -17190,7 +17190,7 @@ paths:
                       exist, or the user cannot read the channel it came from:
     delete:
       operationId: delete-task
-      tags: ["task board"]
+      tags: ["task_board"]
       summary: Delete a task card
       description: |
         Delete a card from the board. The conversation it came from is unchanged.
@@ -17226,7 +17226,7 @@ paths:
   /tasks/{task_id}/history:
     get:
       operationId: get-task-history
-      tags: ["task board"]
+      tags: ["task_board"]
       summary: Get a task card's history
       description: |
         Fetch the recorded changes for one card, newest first.
@@ -17278,7 +17278,7 @@ paths:
   /task_boards/{board_id}:
     patch:
       operationId: update-task-board
-      tags: ["task board"]
+      tags: ["task_board"]
       summary: Rename a task board
       description: |
         Change the name of a task board.
