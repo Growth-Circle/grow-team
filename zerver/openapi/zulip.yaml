@@ -41,6 +41,273 @@ security:
 # Endpoint definitions
 #######################
 paths:
+  /agent/pairings:
+    post:
+      operationId: create-agent-pairing
+      summary: Create a device pairing request
+      tags: ["agent device connections"]
+      description: |
+        Create an anonymous pairing request for one device.
+
+        This endpoint does not use Zulip Basic authentication or browser sessions.
+        It accepts only the exact JSON envelope in a body of at most 65,536 bytes.
+        The caller must retain `polling_secret` locally. The server never returns that secret.
+
+        A signed-in owner approves the displayed user code through a separate human
+        endpoint. Approval requires the realm agent feature flag to be enabled. A
+        pairing request alone has no realm, owner, runner, provider, repository, or
+        profile authority.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentPairingStartRequest"
+      responses:
+        "200":
+          description: Pairing request created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentPairingStartResponse"
+        "400":
+          description: The envelope, field type, or pairing value is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDeviceError"
+        "405":
+          description: Only POST is supported.
+        "429":
+          description: The IP pairing limit was exceeded. Retry after the response header delay.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDeviceError"
+  /agent/pairings/status:
+    post:
+      operationId: get-agent-pairing-status
+      summary: Get a device pairing status
+      tags: ["agent device connections"]
+      description: |
+        Return the state of one pairing request. This endpoint does not use Zulip
+        Basic authentication or browser sessions. The caller must send the original
+        pairing ID and polling secret in an exact JSON envelope of at most 65,536
+        bytes.
+
+        The response never contains access or refresh credentials. An exchanged
+        pairing with a lost exchange response requires a new pairing and owner
+        revocation of the orphan runner.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentPairingCredentialRequest"
+      responses:
+        "200":
+          description: Current pairing status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentPairingStatusResponse"
+        "400":
+          description: The pairing is unavailable, or the envelope or secret is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDeviceError"
+        "405":
+          description: Only POST is supported.
+        "429":
+          description: The IP exchange-status limit was exceeded. Retry after the response header delay.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDeviceError"
+  /agent/pairings/exchange:
+    post:
+      operationId: exchange-agent-pairing
+      summary: Exchange an approved device pairing
+      tags: ["agent device connections"]
+      description: |
+        Exchange one approved, unexpired pairing for an access credential and refresh
+        credential. This endpoint does not use Zulip Basic authentication or browser
+        sessions. It accepts only the exact JSON envelope in a body of at most 65,536
+        bytes.
+
+        The exchange consumes the pairing. Treat a lost success response as uncertain.
+        Do not retry the exchange. Query pairing status, then create a new pairing and
+        revoke the orphan runner if the pairing was exchanged.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentPairingCredentialRequest"
+      responses:
+        "200":
+          description: New runner credentials. Store both values only in private device storage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRunnerCredentialResponse"
+        "400":
+          description: The pairing is unavailable, unapproved, expired, consumed, or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDeviceError"
+        "405":
+          description: Only POST is supported.
+        "429":
+          description: The IP exchange-status limit was exceeded. Retry after the response header delay.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDeviceError"
+  /agent/runner/token/refresh:
+    post:
+      operationId: refresh-agent-runner-token
+      summary: Rotate an agent runner credential
+      tags: ["agent device connections"]
+      description: |
+        Rotate a runner credential with the refresh credential in the JSON body. This
+        endpoint does not use an access bearer credential, Zulip Basic authentication,
+        or browser sessions. The exact JSON body can contain at most 65,536 bytes.
+
+        A successful request revokes the supplied refresh credential and returns a new
+        access credential and refresh credential. Treat a lost success response as
+        uncertain. Do not replay the old refresh credential. Re-pair the device and
+        revoke an orphan runner when recovery requires it.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentRunnerRefreshRequest"
+      responses:
+        "200":
+          description: Rotated runner credentials. Store both values only in private device storage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRunnerCredentialResponse"
+        "400":
+          description: The envelope or refresh credential is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDeviceError"
+        "401":
+          description: The refresh credential is invalid, expired, revoked, or belongs to a revoked runner.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRunnerCredentialError"
+        "405":
+          description: Only POST is supported.
+        "429":
+          description: The IP exchange-status limit was exceeded. Retry after the response header delay.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDeviceError"
+  /agent/runner/workspaces:
+    post:
+      operationId: register-agent-runner-workspace
+      summary: Register an agent runner workspace
+      tags: ["agent device connections"]
+      description: |
+        Create or revise owner-approved repository metadata for the authenticated
+        runner. Send an active runner access credential in `Authorization: Bearer`.
+        Browser sessions and Zulip Basic authentication are rejected.
+
+        The API never accepts a local path. `canonical_origin` must be an HTTPS or
+        SSH origin without credentials, query, fragment, `file:` prefix, home prefix,
+        or absolute path. The request creates revision 1. An exact replay at the
+        current revision succeeds. A changed request must use the current revision
+        plus one. Other revisions fail. A changed workspace invalidates readiness for
+        profiles that use it.
+      security:
+        - AgentRunnerBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentRunnerWorkspaceRequest"
+      responses:
+        "200":
+          description: Repository metadata registered or replayed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRunnerWorkspaceResponse"
+        "400":
+          description: The envelope, origin, required check, revision, or runner ownership is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDeviceError"
+        "401":
+          description: The runner bearer credential is missing, invalid, expired, or revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRunnerCredentialError"
+        "405":
+          description: Only POST is supported.
+  /agent/runner/catalog:
+    post:
+      operationId: update-agent-runner-catalog
+      summary: Update an agent runner catalog
+      tags: ["agent device connections"]
+      description: |
+        Register the authenticated runner catalog. Send an active runner access
+        credential in `Authorization: Bearer`. Browser sessions and Zulip Basic
+        authentication are rejected. The exact JSON body can contain at most 65,536
+        bytes.
+
+        An exact replay at the current catalog revision succeeds. A lower revision or
+        a different catalog at the current revision fails. A changed catalog must use
+        a higher revision. Every sandbox item must carry that catalog revision. A
+        changed catalog invalidates readiness for profiles on this runner.
+      security:
+        - AgentRunnerBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentRunnerCatalogRequest"
+      responses:
+        "200":
+          description: Catalog stored or exactly replayed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRunnerCatalogResponse"
+        "400":
+          description: The envelope, catalog, sandbox revision, or revision ordering is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDeviceError"
+        "401":
+          description: The runner bearer credential is missing, invalid, expired, or revoked.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AgentDeviceError"
+                  - $ref: "#/components/schemas/AgentRunnerCredentialError"
+        "405":
+          description: Only POST is supported.
   /fetch_api_key:
     post:
       operationId: fetch-api-key
@@ -27183,6 +27450,14 @@ components:
         key as the password. The API key can be fetched using the
         `/fetch_api_key` or `/dev_fetch_api_key` endpoints.
 
+    AgentRunnerBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque runner credential
+      description: |
+        An active agent runner access credential. Send this credential only in the
+        `Authorization: Bearer` header. Do not send Zulip Basic credentials or a
+        browser session to agent runner device endpoints.
   schemas:
     IgnoredParametersUnsupported:
       type: array
@@ -27194,6 +27469,490 @@ components:
 
         See [error handling](/api/rest-error-handling#ignored-parameters) documentation
         for details on this and its change history.
+    AgentDeviceError:
+      allOf:
+        - $ref: "#/components/schemas/JsonResponseBase"
+        - additionalProperties: false
+          required:
+            - result
+            - msg
+            - schema_version
+          properties:
+            result:
+              enum: [error]
+            msg:
+              type: string
+            schema_version:
+              type: integer
+              enum: [1]
+    AgentRunnerCredentialError:
+      allOf:
+        - $ref: "#/components/schemas/JsonResponseBase"
+        - additionalProperties: false
+          required:
+            - result
+            - msg
+            - schema_version
+            - code
+          properties:
+            result:
+              enum: [error]
+            msg:
+              type: string
+            schema_version:
+              type: integer
+              enum: [1]
+            code:
+              type: string
+              enum: [credential_invalid, credential_expired, credential_revoked]
+    AgentPairingStartRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - device_name
+        - fingerprint
+        - polling_secret
+      properties:
+        schema_version:
+          type: integer
+          enum: [1]
+        device_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        fingerprint:
+          type: string
+          minLength: 1
+          maxLength: 128
+        polling_secret:
+          type: string
+          minLength: 32
+          maxLength: 512
+          writeOnly: true
+        user_code:
+          type: string
+          minLength: 4
+          maxLength: 64
+          writeOnly: true
+          description: |
+            An optional legacy code. Omit this field to receive a new server-generated
+            code in the response.
+    AgentPairingCredentialRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - pairing_id
+        - polling_secret
+      properties:
+        schema_version:
+          type: integer
+          enum: [1]
+        pairing_id:
+          type: string
+          format: uuid
+        polling_secret:
+          type: string
+          minLength: 1
+          writeOnly: true
+    AgentRunnerRefreshRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - refresh_token
+      properties:
+        schema_version:
+          type: integer
+          enum: [1]
+        refresh_token:
+          type: string
+          minLength: 1
+          writeOnly: true
+    AgentPairingStartResponse:
+      allOf:
+        - $ref: "#/components/schemas/JsonSuccessBase"
+        - additionalProperties: false
+          required:
+            - result
+            - msg
+            - schema_version
+            - pairing_id
+            - state
+            - user_code
+            - expires_at
+          properties:
+            result: {}
+            msg: {}
+            ignored_parameters_unsupported: {}
+            schema_version:
+              type: integer
+              enum: [1]
+            pairing_id:
+              type: string
+              format: uuid
+            state:
+              type: string
+              enum: [pending]
+            user_code:
+              type: string
+              description: Display this code to the owner for separate approval.
+            expires_at:
+              type: string
+              format: date-time
+    AgentPairingStatusResponse:
+      allOf:
+        - $ref: "#/components/schemas/JsonSuccessBase"
+        - additionalProperties: false
+          required:
+            - result
+            - msg
+            - schema_version
+            - pairing_id
+            - state
+            - expires_at
+            - runner_id
+            - recovery
+          properties:
+            result: {}
+            msg: {}
+            ignored_parameters_unsupported: {}
+            schema_version:
+              type: integer
+              enum: [1]
+            pairing_id:
+              type: string
+              format: uuid
+            state:
+              type: string
+              enum: [pending, approved, exchanged, expired, rejected]
+            expires_at:
+              type: string
+              format: date-time
+            runner_id:
+              type: string
+              format: uuid
+              nullable: true
+            recovery:
+              type: string
+              enum: [poll, re_pair, re_pair_and_revoke_orphan]
+    AgentRunnerCredentialResponse:
+      allOf:
+        - $ref: "#/components/schemas/JsonSuccessBase"
+        - additionalProperties: false
+          required:
+            - result
+            - msg
+            - schema_version
+            - token
+            - refresh_token
+            - runner_id
+            - expires_at
+            - refresh_expires_at
+          properties:
+            result: {}
+            msg: {}
+            ignored_parameters_unsupported: {}
+            schema_version:
+              type: integer
+              enum: [1]
+            token:
+              type: string
+              readOnly: true
+              description: An access credential returned once in this response. Store it only in private device storage.
+            refresh_token:
+              type: string
+              readOnly: true
+              description: A refresh credential returned once in this response. Store it only in private device storage.
+            runner_id:
+              type: string
+              format: uuid
+            expires_at:
+              type: string
+              format: date-time
+            refresh_expires_at:
+              type: string
+              format: date-time
+    AgentRunnerWorkspaceRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - workspace_alias
+        - allowed_refs
+        - revision
+      properties:
+        schema_version:
+          type: integer
+          enum: [1]
+        workspace_alias:
+          type: string
+          pattern: "^[a-zA-Z0-9_-]{1,80}$"
+        canonical_origin:
+          type: string
+          nullable: true
+          description: |
+            An optional HTTPS or SSH origin. It cannot include credentials, query,
+            fragment, a local path, `file:`, or a home prefix.
+        allowed_refs:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: string
+            minLength: 1
+            maxLength: 4096
+        required_checks:
+          type: array
+          maxItems: 64
+          items:
+            $ref: "#/components/schemas/AgentRunnerRequiredCheck"
+        revision:
+          type: integer
+          minimum: 1
+    AgentRunnerRequiredCheck:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - argv
+      properties:
+        id:
+          type: string
+          pattern: "^[a-zA-Z0-9_-]{1,80}$"
+        argv:
+          type: array
+          minItems: 1
+          maxItems: 64
+          items:
+            type: string
+            minLength: 1
+            maxLength: 4096
+        cwd:
+          type: string
+          maxLength: 512
+          default: "."
+          description: A relative directory inside the registered workspace.
+        timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 1200
+          default: 120
+    AgentRunnerWorkspaceResponse:
+      allOf:
+        - $ref: "#/components/schemas/JsonSuccessBase"
+        - additionalProperties: false
+          required:
+            - result
+            - msg
+            - schema_version
+            - repository
+          properties:
+            result: {}
+            msg: {}
+            ignored_parameters_unsupported: {}
+            schema_version:
+              type: integer
+              enum: [1]
+            repository:
+              type: object
+              additionalProperties: false
+              required:
+                - id
+                - workspace_alias
+                - revision
+                - policy_version
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                workspace_alias:
+                  type: string
+                revision:
+                  type: integer
+                  minimum: 1
+                policy_version:
+                  type: integer
+                  minimum: 1
+    AgentRunnerCatalogRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - catalog
+      properties:
+        schema_version:
+          type: integer
+          enum: [1]
+        catalog:
+          $ref: "#/components/schemas/AgentRunnerCatalog"
+    AgentRunnerCatalog:
+      type: object
+      additionalProperties: false
+      required:
+        - revision
+      properties:
+        revision:
+          type: integer
+          minimum: 1
+        reported_at:
+          type: string
+          format: date-time
+          nullable: true
+        adapters:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - version
+              - auth_state
+              - capabilities
+            properties:
+              id:
+                type: string
+                pattern: "^[a-zA-Z0-9_-]{1,80}$"
+              version:
+                type: string
+                minLength: 1
+                maxLength: 4096
+              auth_state:
+                type: string
+                enum: [unchecked, ready, login_required, expired, error]
+              capabilities:
+                $ref: "#/components/schemas/AgentRunnerCapabilityReport"
+        sandboxes:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/AgentRunnerSandbox"
+    AgentRunnerCapabilityReport:
+      type: object
+      additionalProperties: false
+      properties:
+        chat_ready:
+          type: boolean
+          default: false
+        code_ready:
+          type: boolean
+          default: false
+        tool_calling:
+          type: string
+          enum: [passed, unsupported, unknown]
+          default: unknown
+        streaming:
+          type: string
+          enum: [passed, unsupported, unknown]
+          default: unknown
+        usage:
+          type: string
+          enum: [passed, unsupported, unknown]
+          default: unknown
+        native_resume:
+          type: string
+          enum: [passed, unsupported, unknown]
+          default: unknown
+        steering:
+          type: string
+          enum: [passed, unsupported, unknown]
+          default: unknown
+        sandbox:
+          type: string
+          enum: [passed, unsupported, unknown]
+          default: unknown
+        probed_at:
+          type: string
+          format: date-time
+          nullable: true
+        runner_version:
+          type: string
+          default: ""
+        adapter_version:
+          type: string
+          default: ""
+        config_version:
+          type: integer
+          minimum: 1
+          default: 1
+    AgentRunnerSandbox:
+      type: object
+      additionalProperties: false
+      required:
+        - alias
+        - image_digest
+        - toolchain_digest
+        - catalog_revision
+        - cpu_millicores
+        - memory_bytes
+        - pids_limit
+        - temporary_bytes
+      properties:
+        kind:
+          type: string
+          enum: [rootless_container]
+          default: rootless_container
+        alias:
+          type: string
+          pattern: "^[a-zA-Z0-9_-]{1,80}$"
+        image_digest:
+          type: string
+          pattern: "^sha256:[0-9a-f]{64}$"
+        toolchain_digest:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        catalog_revision:
+          type: integer
+          minimum: 1
+        cpu_millicores:
+          type: integer
+          minimum: 100
+          maximum: 64000
+        memory_bytes:
+          type: integer
+          minimum: 67108864
+          maximum: 137438953472
+        pids_limit:
+          type: integer
+          minimum: 16
+          maximum: 4096
+        temporary_bytes:
+          type: integer
+          minimum: 1048576
+          maximum: 10737418240
+        network_mode:
+          type: string
+          enum: [none]
+          default: none
+        read_only_root:
+          type: boolean
+          enum: [true]
+          default: true
+        drop_all_capabilities:
+          type: boolean
+          enum: [true]
+          default: true
+    AgentRunnerCatalogResponse:
+      allOf:
+        - $ref: "#/components/schemas/JsonSuccessBase"
+        - additionalProperties: false
+          required:
+            - result
+            - msg
+            - schema_version
+            - catalog_revision
+          properties:
+            result: {}
+            msg: {}
+            ignored_parameters_unsupported: {}
+            schema_version:
+              type: integer
+              enum: [1]
+            catalog_revision:
+              type: integer
+              minimum: 1
     EventIdSchema:
       type: integer
       description: |
