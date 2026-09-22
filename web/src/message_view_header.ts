@@ -3,6 +3,7 @@ import _ from "lodash";
 import assert from "minimalistic-assert";
 
 import render_message_view_header from "../templates/message_view_header.hbs";
+import render_message_view_header_conversation_actions from "../templates/message_view_header_conversation_actions.hbs";
 
 import type {Filter} from "./filter.ts";
 import * as hash_util from "./hash_util.ts";
@@ -177,33 +178,18 @@ function get_message_view_header_context(filter: Filter | undefined): MessageVie
     return context;
 }
 
-// Builds the conversation header's "Follow" and topic-actions
-// controls (mockup 10a). These are appended after the template
-// render, not part of message_view_header.hbs, and reuse the
-// existing `.change_visibility_policy` / `.recipient-row-topic-menu`
-// trigger classes that user_topic_popover.ts and topic_popover.ts
-// already bind popovers to, so both open real, working menus.
-function build_conversation_actions_html(stream_id: number, topic_name: string): string {
-    const topic_url = new URL(
-        stream_topic_history.channel_topic_permalink_hash(stream_id, topic_name),
-        realm.realm_url,
-    ).href;
-    const escaped_topic_name = _.escape(topic_name);
-    const follow_label = _.escape($t({defaultMessage: "Follow"}));
-    const topic_actions_label = _.escape($t({defaultMessage: "Topic actions"}));
-    return [
-        `<span class="change_visibility_policy message-header-follow-button" data-stream-id="${stream_id}" data-topic-name="${escaped_topic_name}" aria-haspopup="true">`,
-        '<button type="button" class="action-button action-button-subtle-neutral message-header-action-button" tabindex="0">',
-        '<i class="zulip-icon zulip-icon-follow" aria-hidden="true"></i>',
-        `<span class="action-button-label">${follow_label}</span>`,
-        "</button>",
-        "</span>",
-        `<span class="recipient-row-topic-menu message-header-topic-menu" data-stream-id="${stream_id}" data-topic-name="${escaped_topic_name}" data-topic-url="${_.escape(topic_url)}" aria-haspopup="true">`,
-        `<button type="button" class="icon-button icon-button-neutral message-header-topic-menu-button" tabindex="0" aria-label="${topic_actions_label}">`,
-        '<i class="zulip-icon zulip-icon-more-vertical" aria-hidden="true"></i>',
-        "</button>",
-        "</span>",
-    ].join("");
+// Renders the conversation header's "Follow" and topic-actions
+// controls. These sit outside message_view_header.hbs because that
+// template is also used for views that are not a single conversation.
+function render_conversation_actions(stream_id: number, topic_name: string): string {
+    return render_message_view_header_conversation_actions({
+        stream_id,
+        topic_name,
+        topic_url: new URL(
+            stream_topic_history.channel_topic_permalink_hash(stream_id, topic_name),
+            realm.realm_url,
+        ).href,
+    });
 }
 
 export function colorize_message_view_header(): void {
@@ -247,9 +233,9 @@ function append_and_display_title_area(context: MessageViewHeaderContext): void 
     ) {
         // Only offer these for a conversation the viewer can actually
         // follow or act on; see the popover wiring note on
-        // build_conversation_actions_html above.
+        // render_conversation_actions above.
         $message_view_header_elem.append(
-            build_conversation_actions_html(context.stream.stream_id, context.topic_name),
+            $(render_conversation_actions(context.stream.stream_id, context.topic_name)),
         );
     }
     $message_view_header_elem.removeClass("notdisplayed");

@@ -1,0 +1,14 @@
+{{! Follow and topic-actions controls for a conversation header. The
+    trigger classes are the ones user_topic_popover.ts and
+    topic_popover.ts already bind their popovers to. }}
+<span class="change_visibility_policy message-header-follow-button" data-stream-id="{{stream_id}}" data-topic-name="{{topic_name}}" aria-haspopup="true">
+    <button type="button" class="action-button action-button-subtle-neutral message-header-action-button" tabindex="0">
+        <i class="zulip-icon zulip-icon-follow" aria-hidden="true"></i>
+        <span class="action-button-label">{{t "Follow" }}</span>
+    </button>
+</span>
+<span class="recipient-row-topic-menu message-header-topic-menu" data-stream-id="{{stream_id}}" data-topic-name="{{topic_name}}" data-topic-url="{{topic_url}}" aria-haspopup="true">
+    <button type="button" class="icon-button icon-button-neutral message-header-topic-menu-button" tabindex="0" aria-label="{{t 'Topic actions' }}">
+        <i class="zulip-icon zulip-icon-more-vertical" aria-hidden="true"></i>
+    </button>
+</span>
