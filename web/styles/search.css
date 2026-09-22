@@ -1,3 +1,24 @@
+/* Widen the navbar search field to the redesigned mockup's size.
+   `.top-navbar-container` (zulip.css) also reads --search-box-width to
+   reserve room for the field next to the channel/topic title, so the
+   override lives here, at the shared ancestor, to keep both in sync.
+   Height reuses the shared "Tenang" control-height primitive (already
+   documented in app_variables.css as covering the search box), so it
+   always matches the other redesigned controls. The two breakpoints
+   below are unchanged from app_variables.css. */
+.top-navbar-container {
+    --search-box-width: 18.5714em; /* 260px at 14px em */
+    --search-box-height: var(--height-control-md);
+
+    @media (width < $md_min) {
+        --search-box-width: 2.5em;
+    }
+
+    @media (height < $short_navbar_cutoff_height) {
+        --search-box-height: 1.75em;
+    }
+}
+
 #searchbox {
     width: 100%;
     height: var(--header-height);
@@ -22,7 +43,7 @@
         align-self: center;
         text-decoration: none;
         padding: 0 0.4117em; /* 7px at 17px em */
-        font-size: 1.0625em; /* 17px at 16px em */
+        font-size: 1.1429em; /* 16px at 14px em */
         border: none;
         background-color: transparent;
         color: var(--color-search-icons);
@@ -80,6 +101,7 @@
     .navbar-search:not(.expanded) {
         right: 0;
         background-color: var(--color-background-search-collapsed);
+        border: 1px solid var(--color-outline-input);
 
         .search_close_button {
             display: none;

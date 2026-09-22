@@ -754,7 +754,52 @@ export function gravatar_url_for_email(email: string): string {
     return "https://secure.gravatar.com/avatar/" + hash + "?d=identicon";
 }
 
+// Solid-color default avatar (mockup: a plain circle, not the
+// jdenticon pattern) for the current user when their avatar_source is
+// still the generated default (no photo, no Gravatar). Other people's
+// avatar_source isn't sent to the client (see PersonAvatarFields on
+// the server), so this default can only be detected for current_user.
+const DEFAULT_AVATAR_FILL_LIGHT = "hsl(172.44deg 88.15% 26.47%)";
+const DEFAULT_AVATAR_FILL_DARK = "hsl(171.36deg 58.41% 44.31%)";
+
+function build_default_avatar_data_uri(initials?: string): string {
+    const fill = settings_data.using_dark_theme()
+        ? DEFAULT_AVATAR_FILL_DARK
+        : DEFAULT_AVATAR_FILL_LIGHT;
+    // A drawn circle (not a square image relying on container
+    // clipping) so the avatar is round in every context.
+    const label = initials
+        ? `<text x="16" y="16" dy="0.35em" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="600" fill="#fff">${initials}</text>`
+        : "";
+    const svg =
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">` +
+        `<circle cx="16" cy="16" r="16" fill="${fill}"/>${label}</svg>`;
+    return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+function initials_for_full_name(full_name: string): string {
+    const words = full_name.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) {
+        return "";
+    }
+    if (words.length === 1) {
+        return words[0]!.slice(0, 2).toUpperCase();
+    }
+    return (words[0]![0]! + words.at(-1)![0]!).toUpperCase();
+}
+
+function has_default_avatar(user_id: number): boolean {
+    return (
+        is_my_user_id(user_id) &&
+        current_user.avatar_source === settings_config.default_avatar_source_values.jdenticon.code
+    );
+}
+
 export function small_avatar_url_for_person(person: User | CurrentUser): string {
+    if (has_default_avatar(person.user_id)) {
+        return build_default_avatar_data_uri();
+    }
+
     if (person.avatar_url) {
         return person.avatar_url;
     }
@@ -772,6 +817,10 @@ export function small_avatar_url_for_user_id(user_id: number): string {
 }
 
 export function medium_avatar_url_for_person(person: User): string {
+    if (has_default_avatar(person.user_id)) {
+        return build_default_avatar_data_uri();
+    }
+
     /* Unlike the small avatar URL case, we don't generally have a
      * medium avatar URL included in person objects. So only have the
      * gravatar and server endpoints here. */
@@ -821,6 +870,10 @@ export function small_avatar_url(message: Message): string {
     //
     // We actually request these at s=50, so that we look better
     // on retina displays.
+
+    if (message.sender_id && has_default_avatar(message.sender_id)) {
+        return build_default_avatar_data_uri();
+    }
 
     let person;
     if (message.sender_id) {
@@ -2145,6 +2198,18 @@ export async function initialize(
     user_group_params: StateData["user_groups"],
 ): Promise<void> {
     initialize_current_user(my_user_id);
+
+    // The navbar's personal-menu avatar reads current_user.avatar_url_medium
+    // as a plain field (not through medium_avatar_url_for_person), so it
+    // needs the default-avatar override applied here, once, up front.
+    if (
+        current_user.avatar_source === settings_config.default_avatar_source_values.jdenticon.code
+    ) {
+        current_user.avatar_url_medium = build_default_avatar_data_uri(
+            initials_for_full_name(current_user.full_name),
+        );
+    }
+
     populate_valid_user_ids(
         user_group_params,
         people_params.cross_realm_bots,

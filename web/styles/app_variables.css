@@ -436,7 +436,7 @@
 
     /* Information density and typography values */
     /* The legacy values here are updated via JavaScript */
-    --base-font-size-px: 14px;
+    --base-font-size-px: 15px;
     --base-line-height-unitless: 1.214;
     --base-maximum-block-height-em: 1.425em;
     --line-fitted-vertical-align-offset-em: 0;
@@ -3280,7 +3280,7 @@
     /* Round shapes: avatars, unread pill, search box, Send button. */
     --radius-pill: 999px;
 
-    /* Control-height scale. 1em is --base-font-size-px, 14px now. */
+    /* Control-height scale. 1em is --base-font-size-px, 15px now. */
     /* 36px at 14px/1em. One height for every action-button intent,
        the search box, and the Send button. */
     --height-control-md: 2.5714em;

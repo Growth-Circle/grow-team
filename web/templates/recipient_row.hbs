@@ -37,6 +37,45 @@
                 {{/if}}
             </a>
         </span>
+
+        {{! visibility policy pill: always visible, unlike the hover-only controls below }}
+        {{#if (and is_subscribed (not is_archived))}}
+        {{!-- We define the change_visibility_policy class in a wrapper span
+        since the icon button component already has a tippy tooltip attached
+        to it and Tippy does not support multiple tooltips on a single element. --}}
+        <span class="change_visibility_policy hidden-for-spectators" aria-haspopup="true">
+            {{#if (eq visibility_policy all_visibility_policies.FOLLOWED)}}
+                <button type="button" class="recipient-bar-control-icon recipient-bar-control-pill icon-button-neutral" tabindex="0" aria-label="{{t 'You follow this topic.' }}" data-tippy-content="{{t 'You follow this topic.' }}">
+                    <i class="zulip-icon zulip-icon-follow" aria-hidden="true"></i>
+                    <span class="action-button-label">{{t "Followed" }}</span>
+                </button>
+            {{else if (eq visibility_policy all_visibility_policies.UNMUTED)}}
+                <button type="button" class="recipient-bar-control-icon recipient-bar-control-pill icon-button-neutral" tabindex="0" aria-label="{{t 'You have unmuted this topic.' }}" data-tippy-content="{{t 'You have unmuted this topic.' }}">
+                    <i class="zulip-icon zulip-icon-unmute" aria-hidden="true"></i>
+                    <span class="action-button-label">{{t "Unmuted" }}</span>
+                </button>
+            {{else if (eq visibility_policy all_visibility_policies.MUTED)}}
+                <button type="button" class="recipient-bar-control-icon recipient-bar-control-pill icon-button-neutral" tabindex="0" aria-label="{{t 'You have muted this topic.' }}" data-tippy-content="{{t 'You have muted this topic.' }}">
+                    <i class="zulip-icon zulip-icon-mute" aria-hidden="true"></i>
+                    <span class="action-button-label">{{t "Muted" }}</span>
+                </button>
+            {{else}}
+                {{> components/icon_button icon="inherit" intent="neutral" custom_classes="recipient-bar-control-icon" data-tippy-content=(t "Notifications are based on your configuration for this channel.") aria-label=(t "Notifications are based on your configuration for this channel.") }}
+            {{/if}}
+        </span>
+        {{/if}}
+
+        {{#if (and user_can_resolve_topic (not is_empty_string_topic))}}
+            {{#if topic_is_resolved}}
+                {{> components/icon_button icon="placeholder" intent="neutral" custom_classes="on-hover-unresolve-loading-indicator hidden-for-spectators hide" }}
+            {{else}}
+                <button type="button" class="on_hover_topic_resolve recipient-bar-control-icon recipient-bar-control-pill hidden-for-spectators icon-button-neutral" tabindex="0" aria-label="{{t 'Mark as resolved' }}" data-tippy-content="{{t 'Mark as resolved' }}">
+                    <i class="zulip-icon zulip-icon-check" aria-hidden="true"></i>
+                    <span class="action-button-label">{{t "Mark as resolved" }}</span>
+                </button>
+            {{/if}}
+        {{/if}}
+
         <span class="recipient_bar_controls no-select">
             <span class="topic_edit hidden-for-spectators"></span>
 
@@ -56,33 +95,7 @@
                 {{> components/icon_button icon="pencil" intent="neutral" custom_classes="on_hover_topic_edit recipient-bar-control recipient-bar-control-icon hidden-for-spectators" data-tippy-content=(t "Edit topic") aria-label=(t "Edit topic") }}
             {{/if}}
 
-            {{#if (and user_can_resolve_topic (not is_empty_string_topic))}}
-                {{#if topic_is_resolved}}
-                    {{> components/icon_button icon="placeholder" intent="neutral" custom_classes="recipient-bar-control on-hover-unresolve-loading-indicator hidden-for-spectators hide" }}
-                {{else}}
-                    {{> components/icon_button icon="check" intent="neutral" custom_classes="on_hover_topic_resolve recipient-bar-control recipient-bar-control-icon hidden-for-spectators" data-tippy-content=(t "Mark as resolved") aria-label=(t "Mark as resolved") }}
-                {{/if}}
-            {{/if}}
-
             {{> components/icon_button icon="link-alt" intent="neutral" custom_classes="recipient-bar-control recipient-bar-control-icon recipient-bar-copy-link-to-topic" data-tippy-content=(t "Copy link to topic") aria-label=(t "Copy link to topic") }}
-
-            {{! visibility policy menu }}
-            {{#if (and is_subscribed (not is_archived))}}
-            {{!-- We define the change_visibility_policy class in a wrapper span
-            since the icon button component already has a tippy tooltip attached
-            to it and Tippy does not support multiple tooltips on a single element. --}}
-            <span class="change_visibility_policy recipient-bar-control hidden-for-spectators" aria-haspopup="true">
-                {{#if (eq visibility_policy all_visibility_policies.FOLLOWED)}}
-                    {{> components/icon_button icon="follow" intent="neutral" custom_classes="recipient-bar-control-icon" data-tippy-content=(t "You follow this topic.") aria-label=(t "You follow this topic.") }}
-                {{else if (eq visibility_policy all_visibility_policies.UNMUTED)}}
-                    {{> components/icon_button icon="unmute" intent="neutral" custom_classes="recipient-bar-control recipient-bar-control-icon" data-tippy-content=(t "You have unmuted this topic.") aria-label=(t "You have unmuted this topic.") }}
-                {{else if (eq visibility_policy all_visibility_policies.MUTED)}}
-                    {{> components/icon_button icon="mute" intent="neutral" custom_classes="recipient-bar-control-icon" data-tippy-content=(t "You have muted this topic.") aria-label=(t "You have muted this topic.") }}
-                {{else}}
-                    {{> components/icon_button icon="inherit" intent="neutral" custom_classes="recipient-bar-control-icon" data-tippy-content=(t "Notifications are based on your configuration for this channel.") aria-label=(t "Notifications are based on your configuration for this channel.") }}
-                {{/if}}
-            </span>
-            {{/if}}
 
             {{! Topic menu }}
             {{!-- We define the recipient-row-topic-menu class in a wrapper span
@@ -92,6 +105,18 @@
                 {{> components/icon_button icon="more-vertical" intent="neutral" custom_classes="recipient-bar-control-icon" data-tippy-content=(t "Topic actions") aria-label=(t "Topic actions") }}
             </span>
         </span>
+
+        {{#if participant_count}}
+        <span class="recipient-bar-participants">
+            <span class="recipient-bar-participants-count">{{t "{participant_count, plural, one {# participant} other {# participants}}" }}</span>
+            <span class="recipient-bar-participant-avatars">
+                {{#each participant_avatar_urls}}
+                <img class="recipient-bar-participant-avatar" src="{{this}}" alt="" />
+                {{/each}}
+            </span>
+        </span>
+        {{/if}}
+
         <span class="recipient_row_date scroll-to-time {{#if (and (not always_display_date) date_unchanged )}}recipient_row_date_unchanged{{/if}}" role="button" tabindex="0">{{{date_html}}}</span>
     </div>
 </div>

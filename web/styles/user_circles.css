@@ -8,9 +8,11 @@
     -webkit-text-fill-color: transparent;
 }
 
-.with_avatar .user-circle-idle {
-    background: var(--gradient-user-circle-idle-avatar);
-}
+/* In the right sidebar's avatar-picture style, this icon is hidden and
+   --gradient-user-circle-idle-avatar is painted onto a plain generated
+   dot instead (see .user_sidebar_entry.with_avatar in
+   right_sidebar.css), since the icon itself is clipped by the avatar's
+   own rounding and cannot sit at the row's trailing edge. */
 
 .user-circle-offline {
     color: var(--color-user-circle-offline);

@@ -1,4 +1,5 @@
 import $ from "jquery";
+import _ from "lodash";
 import assert from "minimalistic-assert";
 
 import render_message_view_header from "../templates/message_view_header.hbs";
@@ -16,6 +17,9 @@ import * as search from "./search.ts";
 import {current_user} from "./state_data.ts";
 import * as stream_data from "./stream_data.ts";
 import type {StreamSubscription} from "./sub_store.ts";
+import * as unread from "./unread.ts";
+import * as unread_ui from "./unread_ui.ts";
+import * as util from "./util.ts";
 
 type MessageViewHeaderContext = {
     title?: string | undefined;
@@ -37,6 +41,30 @@ type MessageViewHeaderContext = {
           icon: string | undefined;
       }
 );
+
+function format_topic_unread_count(count: number): string {
+    return $t(
+        {defaultMessage: "{count, plural, one {# unread} other {# unread}}"},
+        {count},
+    );
+}
+
+function build_conversation_title_html(
+    stream_name: string,
+    topic_display_name: string,
+    unread_count: number,
+): string {
+    // Channel name and topic name are user content and must be escaped;
+    // the divider and pill markup around them is fixed, trusted HTML.
+    const hide_class = unread_count > 0 ? "" : " hide";
+    const unread_label = _.escape(format_topic_unread_count(unread_count));
+    return [
+        _.escape(stream_name),
+        '<span class="message-header-topic-divider" aria-hidden="true">/</span>',
+        `<span class="message-header-topic-name">${_.escape(topic_display_name)}</span>`,
+        `<span class="message-header-topic-unread-count${hide_class}">${unread_label}</span>`,
+    ].join(" ");
+}
 
 function get_message_view_header_context(filter: Filter | undefined): MessageViewHeaderContext {
     if (recent_view_util.is_visible()) {
@@ -119,13 +147,30 @@ function get_message_view_header_context(filter: Filter | undefined): MessageVie
         // involves a stream which exists and
         // the current user can access.
         const sub_count = peer_data.get_subscriber_count(current_stream.stream_id);
-        return {
+        const stream_context = {
             ...context,
             is_admin: current_user.is_admin,
             rendered_narrow_description: current_stream.rendered_description,
             sub_count,
             stream: current_stream,
             stream_settings_link: hash_util.channels_settings_edit_url(current_stream, "general"),
+        };
+
+        // A channel narrowed to one topic is a single conversation; show a
+        // channel / topic breadcrumb with an unread-count pill instead of
+        // the channel name and its (possibly long) description.
+        const topic_name = narrow_state.topic(filter);
+        if (topic_name === undefined) {
+            return stream_context;
+        }
+        return {
+            ...stream_context,
+            title: undefined,
+            title_html: build_conversation_title_html(
+                current_stream.name,
+                util.get_final_topic_display_name(topic_name),
+                unread.num_unread_for_topic(current_stream.stream_id, topic_name),
+            ),
         };
     }
 
@@ -140,9 +185,28 @@ export function colorize_message_view_header(): void {
     $("#message_view_header .navbar-icon").css("color", current_sub.color);
 }
 
+function update_conversation_unread_pill(): void {
+    const filter = narrow_state.filter();
+    const stream_id = narrow_state.stream_id(filter);
+    const topic_name = narrow_state.topic(filter);
+    if (stream_id === undefined || topic_name === undefined) {
+        return;
+    }
+    const $pill = $("#message_view_header .message-header-topic-unread-count");
+    if ($pill.length === 0) {
+        return;
+    }
+    const unread_count = unread.num_unread_for_topic(stream_id, topic_name);
+    $pill.toggleClass("hide", unread_count === 0).text(format_topic_unread_count(unread_count));
+}
+
 function append_and_display_title_area(context: MessageViewHeaderContext): void {
     const $message_view_header_elem = $("#message_view_header");
     $message_view_header_elem.html(render_message_view_header(context));
+    $message_view_header_elem.toggleClass(
+        "message-header-is-conversation",
+        context.title_html !== undefined,
+    );
     if (context.stream_settings_link) {
         colorize_message_view_header();
     }
@@ -168,6 +232,7 @@ function build_message_view_header(filter: Filter | undefined): void {
 
 export function initialize(): void {
     render_title_area();
+    unread_ui.register_update_unread_counts_hook(update_conversation_unread_pill);
 
     const hide_stream_settings_button_width_threshold = 620;
     $("body").on("mouseenter mouseleave", ".narrow_description", function (event) {

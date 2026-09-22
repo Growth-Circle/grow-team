@@ -341,10 +341,15 @@
         display: grid;
         /* Vlad's design calls for 122px for the send column
            at its widest; 112px accounts for 6px of gap and
-           4px outside padding. */
+           4px outside padding. The Tenang "Send" pill can need
+           more than that once its label is translated, so the
+           column grows to fit it instead of clipping the text. */
         grid-template:
             minmax(0, 1fr) var(--compose-formatting-buttons-row-height)
-            / minmax(0, 1fr) var(--compose-send-controls-width);
+            / minmax(0, 1fr) minmax(
+                var(--compose-send-controls-width),
+                max-content
+            );
         grid-template-areas:
             "message-content-container message-send-controls-container"
             "message-formatting-controls-container message-send-controls-container";
@@ -1395,19 +1400,15 @@ textarea.new_message_textarea {
 }
 
 .compose-send-or-save-button {
-    /* Round only the left edge: the right edge sits flush against
-       #send_later (the vdots button), which rounds its own right
-       edge, so together they read as one pill. */
-    border-radius: var(--radius-pill) 0 0 var(--radius-pill);
+    border-radius: var(--radius-pill);
     border: 0;
     margin-bottom: 0;
     color: var(--color-compose-send-button-icon-color);
     background-color: var(--color-compose-send-button-background);
 
     @media (width < $sm_min) {
-        /* #send_later detaches into its own square button at this
-           width (see below); match its shape instead of staying a
-           half-circle with nothing next to it. */
+        /* Drop to a square, icon-only button at this width, to
+           match #send_later (which is also square here). */
         border-radius: var(--radius-md);
     }
 
@@ -1435,17 +1436,18 @@ textarea.new_message_textarea {
 }
 
 #compose-send-button {
-    width: 74px;
-    height: var(--compose-formatting-buttons-row-height);
+    /* Fit the "Send" label and arrow instead of a fixed icon-only
+       width; the pill grows with translated text length. */
+    width: auto;
+    height: var(--height-control-md);
+    padding: 0 1.1429em; /* 16px at 14px/em */
+    gap: 0.5714em; /* 8px at 14px/em */
     /* Allow to grow but not shrink */
     flex: 1 0 auto;
-    /* Override inherited styles
-       so that flexbox can do the
-       job of positioning the icon. */
-    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-weight: 600;
     /* Flex items respect z-index values;
        this is needed to keep the send
        button over top of the vdots
@@ -1455,8 +1457,7 @@ textarea.new_message_textarea {
 
     .zulip-icon-send {
         display: block;
-        font-size: 1.2143em; /* 17px at 14px/em */
-        line-height: 0.9412; /* 16px at 17px/em */
+        font-size: 1.1429em; /* 16px at 14px/em */
     }
 
     .loader {
@@ -1466,17 +1467,23 @@ textarea.new_message_textarea {
 
 @media (width < $sm_min), ((width >= $sm_min) and (width < $mc_min)) {
     #compose-send-button {
-        /* Drop to a square button,
-        and don't flex any wider. */
+        /* Drop to a square, icon-only button,
+        and don't flex any wider. There isn't
+        room for the "Send" label at this width. */
         width: 30px;
+        padding: 0;
         flex-grow: 0;
+
+        .compose-send-button-label {
+            display: none;
+        }
 
         /* Given the fixed-pixel width of the narrow send button,
            don't let the send icon grow larger than a font-size
            of 20px, which is as large as the send icon can grow
            inside the squared off send button. */
         .zulip-icon-send {
-            font-size: min(1.2143em, 20px);
+            font-size: min(1.1429em, 20px);
         }
     }
 }
@@ -1715,6 +1722,20 @@ textarea.new_message_textarea {
     }
 }
 
+/* Tenang keeps only emoji, attachment, link, and bold visible by
+   default; every other formatting control lives here, folded away
+   until the "More formatting options" toggle opens it. Nothing is
+   removed, so it stays reachable by scrolling the button row, same
+   as an overlong row of formatting buttons always has been. */
+.compose-control-buttons-overflow {
+    display: none;
+    align-items: center;
+}
+
+.compose-control-buttons-overflow.expanded {
+    display: flex;
+}
+
 .message-send-controls {
     display: flex;
 
@@ -1875,16 +1896,11 @@ textarea.new_message_textarea {
     width: 38px;
     /* Allow to grow but not shrink */
     flex: 1 0 auto;
-    height: var(--compose-formatting-buttons-row-height);
-    /* Make the vdots appear to extend from
-       beneath the send button when an
-       interactive background is present.
-       Compensatory padding for this negative
-       margin is handled on the vdots icon
-       below, so as to make for a maximum
-       clickable vdots area. */
-    margin-left: -2px;
-    border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+    height: var(--height-control-md);
+    /* A small gap now that Send is a standalone pill button,
+       rather than a shape vdots needs to flow flush against. */
+    margin-left: 6px;
+    border-radius: var(--radius-pill);
     /* Flex items respect z-index values;
        this is needed to keep the vdots
        background beneath the send button. */
@@ -1892,10 +1908,8 @@ textarea.new_message_textarea {
     font-size: inherit;
 
     &:focus-visible {
-        /* Use a border, not an outline, to preserve the
-           conjoined layout with the Send button. Flexbox
-           will handle the dimension change, so there won't
-           be any movement of the vdots in this state. */
+        /* Use a border, not an outline, so the focus ring
+           doesn't get clipped by a neighboring button. */
         outline: 0;
         border: 2px solid var(--color-compose-focus-ring);
     }
