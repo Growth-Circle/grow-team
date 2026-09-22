@@ -302,17 +302,17 @@ assert.equal(await hashUserCheckout(), originalUserCheckoutHash);
 
 **Interfaces:** Both modes implement `probe`, `startSession`, `sendTurn`, `cancel`, `close`, and capability-gated resume. Both use the same supervisor, policy, verifier, and publisher.
 
-- [ ] Implement negotiated ACP session setup, updates, option-ID permission decisions, cancel, and no-load fallback.
-- [ ] Enforce policy with the outer sandbox. Do not trust native adapter mode names or automatic-review defaults.
-- [ ] Implement the selected endpoint runtime with distinct Chat Completions and Responses codecs.
-- [ ] Validate DNS/IP and each connection, allow only owner-approved private targets, reject metadata and credential-crossing redirects.
-- [ ] Probe synthetic tool round-trips and distinguish passed, unsupported, and unknown capabilities.
-- [ ] Assemble complete tool arguments before schema validation and execution.
-- [ ] Preserve tool/result IDs and uncertain outcomes across cancellation and recovery.
-- [ ] Bound retries, rounds, time, output, and context recovery. Preserve current input exactly once.
-- [ ] Make answer mode incapable of mutation.
-- [ ] Test both modes with fake ACP/provider processes and real sandbox tools.
-- [ ] Run conformance tests and commit the task.
+- [x] Implement negotiated ACP session setup, updates, option-ID permission decisions, cancel, and no-load fallback.
+- [x] Enforce policy with the outer sandbox. Do not trust native adapter mode names or automatic-review defaults.
+- [x] Implement the selected endpoint runtime with distinct Chat Completions and Responses codecs.
+- [x] Validate DNS/IP and each connection, allow only owner-approved private targets, reject metadata and credential-crossing redirects.
+- [x] Probe synthetic tool round-trips and distinguish passed, unsupported, and unknown capabilities.
+- [x] Assemble complete tool arguments before schema validation and execution.
+- [x] Preserve tool/result IDs and uncertain outcomes across cancellation and recovery.
+- [x] Bound retries, rounds, time, output, and context recovery. Preserve current input exactly once.
+- [x] Make answer mode incapable of mutation.
+- [x] Test both modes with fake ACP/provider processes and real sandbox tools.
+- [x] Run conformance tests and commit the task.
 
 Test example:
 

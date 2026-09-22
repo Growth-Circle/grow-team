@@ -59,6 +59,21 @@ Bukti mencakup WIP pengguna, jaringan, batas resource, child/grandchild, operasi
 berizin, artifact, dan pemeriksaan tree. Integrasi model serta browser belum
 dinyatakan lulus dari hasil komponen ini.
 
+Runtime pada `742f860` lulus review akhir setelah koreksi input dan checkpoint.
+Suite awal memuat 141 tes runner dan tujuh tes container nyata. Perbaikan
+kemudian menambahkan probe provider teks, antrean input, bukti Coding, dan
+pemulihan checkpoint. Tes backend memeriksa kedua urutan input/completion,
+dua jalur polling, serta resume dengan cursor nonzero tanpa input baru.
+Lihat [tes runtime](../../services/grow-agent-runner/test/runtime.integration.ts),
+[tes koreksi](../../services/grow-agent-runner/test/runtime-corrections.test.ts),
+dan [tes lifecycle](../../zerver/tests/test_agents_lifecycle.py).
+
+Pemeriksaan controller memverifikasi 1.432 hash paket, 25 modul hasil build,
+dan 56 berkas di dalam image runtime. Socket paket juga lulus melalui layanan
+`PrivateTmp`. Snapshot mempertahankan seluruh tree meskipun repository memakai
+atribut ekspor Git. Alur Django lengkap dengan provider nyata, browser, dan
+produksi tetap menjadi gate terpisah; belum ada mode yang dinyatakan tersertifikasi.
+
 Integrasi backup pada commit `bafbc67` lulus 43 tes dan review independen.
 Lihat [tes file backup](../../zerver/tests/test_agents_backup.py),
 [tes perintah backup](../../zerver/tests/test_agents_backup_command.py), dan
@@ -85,13 +100,13 @@ tersebut tidak menyatakan fitur sudah tersedia di produksi atau spesifikasi sele
 | AT-01 | Pairing normal | Perangkat terikat pengguna dan realm yang menyetujui. | Sebagian: pairing, binding, polling CLI, dan pemulihan koneksi lulus pada `deb9e64`; alur browser lengkap belum diuji. |
 | AT-02 | Kode pairing expired, replay, atau brute force | Ditolak tanpa menerbitkan credential. | Sebagian: expiry, replay, batas percobaan, dan respons credential runner lulus pada `deb9e64`; alur browser lengkap belum diuji. |
 | AT-03 | Runner/token dicabut | Claim baru ditolak; lease dan eksekusi aktif masuk jalur penghentian. | Sebagian: rotasi, pencabutan credential, dan permintaan stop backend lulus pada `3469f2f`; penghentian proses nyata belum diuji. |
-| AT-04 | Agent ACP terpilih | Handshake, prompt, progres, izin, dan cancel sesuai kemampuan yang dinegosiasikan. | Belum diuji. |
-| AT-05 | ACP tanpa `loadSession` | Resume memakai sesi baru dan checkpoint; tidak memanggil metode yang tidak didukung. | Belum diuji. |
-| AT-06 | Endpoint hanya Chat Completions | Probe tool round-trip dan coding fixture lulus melalui mode tersebut. | Belum diuji. |
-| AT-07 | Endpoint hanya Responses | Probe dan coding lulus tanpa mengirim schema Chat Completions. | Belum diuji. |
-| AT-08 | Endpoint teks tanpa tools | Siap chat; coding tidak diaktifkan. | Belum diuji. |
-| AT-09 | Endpoint localhost/private | Request berasal dari runner yang dipilih, dengan policy jaringan yang sesuai. | Belum diuji. |
-| AT-10 | JSON tool stream terpotong atau invalid | Tidak ada tool mutasi yang dijalankan. | Belum diuji. |
+| AT-04 | Agent ACP terpilih | Handshake, prompt, progres, izin, dan cancel sesuai kemampuan yang dinegosiasikan. | Sebagian: ACP native, izin berbasis option ID, edit terisolasi, dan cancel stream lulus pada `742f860`; provider nyata serta alur browser belum disertifikasi. |
+| AT-05 | ACP tanpa `loadSession` | Resume memakai sesi baru dan checkpoint; tidak memanggil metode yang tidak didukung. | Sebagian: pemulihan tree, konteks checkpoint, dan cursor nonzero lulus pada `742f860`; sesi ACP nyata setelah resume masih menjadi gate Task11. |
+| AT-06 | Endpoint hanya Chat Completions | Probe tool round-trip dan coding fixture lulus melalui mode tersebut. | Sebagian: codec Chat Completions menjalankan edit lewat container model dan tool terpisah pada `742f860`; endpoint nyata terkonfigurasi belum disertifikasi. |
+| AT-07 | Endpoint hanya Responses | Probe dan coding lulus tanpa mengirim schema Chat Completions. | Sebagian: codec Responses menjalankan edit dengan schema dan ID tool terpisah pada `742f860`; endpoint nyata terkonfigurasi belum disertifikasi. |
+| AT-08 | Endpoint teks tanpa tools | Siap chat; coding tidak diaktifkan. | Sebagian: provider teks dalam container menghasilkan chat_ready=true, code_ready=false, dan tool_calling=unsupported; aktivasi serta tampilan browser belum diuji lengkap. |
+| AT-09 | Endpoint localhost/private | Request berasal dari runner yang dipilih, dengan policy jaringan yang sesuai. | Sebagian: broker memeriksa hostname, port, DNS, scope data, redirect, dan metadata pada `742f860`; pemilihan runner melalui browser belum diuji lengkap. |
+| AT-10 | JSON tool stream terpotong atau invalid | Tidak ada tool mutasi yang dijalankan. | Sebagian: codec menolak argumen parsial/invalid, dan cancel stream endpoint/ACP tidak memicu mutasi pada `742f860`; perjalanan produk lengkap masih menunggu Task11. |
 | AT-11 | Mention di code block atau pesan dari bot | Tidak membuat job coding. | Sebagian: provenance renderer serta penolakan code/bot lulus pada `042b620`; integrasi runner belum diuji. |
 | AT-12 | Trigger dikirim ulang | Hanya satu job logis terbentuk. | Sebagian: deduplikasi pesan, receipt, dan job termasuk race PostgreSQL lulus pada `042b620`; retry browser/runner belum diuji. |
 | AT-13 | Crash setelah commit sebelum queue publish | Outbox dipulihkan; job tidak hilang. | Sebagian: rekonsiliasi outbox tanpa notifikasi lulus pada `8c59211`; daemon dan restart nyata belum diuji. |
@@ -147,8 +162,8 @@ tersebut tidak menyatakan fitur sudah tersedia di produksi atau spesifikasi sele
 | AF-22 | Key pengiriman sama dengan payload berbeda | Conflict; tidak mengubah pesan pertama. | Sebagian: race key yang sama dengan payload berbeda menolak conflict pada `042b620`; alur browser belum diuji. |
 | AF-23 | Group DM tanpa mention versus DM satu agent | Hanya trigger yang didefinisikan pada bagian 6 diterima. | Sebagian: DM satu manusia/satu agent dan group DM mengikuti target personal pada `042b620`; alur browser belum diuji. |
 | AF-24 | Dua job pada topik yang sama | Tombol follow-up menulis input ke job yang dipilih saja. | Sebagian: API follow-up memakai job eksplisit dan mention biasa membuat tugas baru pada `042b620`; tombol browser belum diuji. |
-| AF-25 | Input datang saat job berjalan | Input durable dan terlihat pending; diterapkan pada batas turn yang sah. | Sebagian: input terurut dan receipt durable lulus pada `8c59211`; penerapan pada turn runtime dan UI belum diuji. |
-| AF-26 | Ack input hilang atau runtime restart | Input tidak ditandai delivered tanpa bukti; recovery tidak menggandakan efek tool. | Sebagian: journal, retry receipt, dan pemulihan input stopped lulus pada `deb9e64`; restart runtime nyata dan UI belum diuji. |
+| AF-25 | Input datang saat job berjalan | Input durable dan terlihat pending; diterapkan pada batas turn yang sah. | Sebagian: antrean turn, heartbeat aktif, receipt, dan batas input/completion lulus pada `742f860`; hasil lama tidak terbit setelah input baru diterapkan. UI masih menunggu Task9/10. |
+| AF-26 | Ack input hilang atau runtime restart | Input tidak ditandai delivered tanpa bukti; recovery tidak menggandakan efek tool. | Sebagian: receipt durable memulihkan acknowledgement tanpa mengulang turn pada `742f860`; cursor checkpoint tetap tepat setelah resume. Restart produk lengkap dan UI masih menunggu Task11. |
 | AF-27 | Mode Diskusi mendapat instruksi mengedit/push | Tools mutasi tidak tersedia; pengguna diarahkan membuat tugas coding. | Sebagian: backend dan tool broker `968e2ce` menolak mutasi pada mode answer; katalog tool kedua runtime dan arahan browser belum diuji. |
 | AF-28 | Native agent menyelesaikan turn tanpa hasil valid | Job tidak completed; UI memberikan sebab dan tindakan lanjut. | Sebagian: penolakan completion yang hanya berdasarkan event model lulus pada `8c59211`; turn native dan pesan UI belum diuji. |
 | AF-29 | Runner gagal sebelum dapat membalas | UI/sistem melaporkan start failure dari record, tanpa membutuhkan output model. | Belum diuji. |
@@ -159,8 +174,8 @@ tersebut tidak menyatakan fitur sudah tersedia di produksi atau spesifikasi sele
 | AF-34 | Profil arsip/rename dan pesan lama dibuka | Identitas historis tetap tepat; tidak dialihkan ke agent lain. | Belum diuji. |
 | AF-35 | Pindah/ubah audiens ketika hasil akan terbit | Result broker menahan publikasi yang memperluas akses. | Sebagian: serialisasi perubahan source, membership, dan audiens dengan publikasi lulus pada `8c59211`; UI pemulihan belum diuji. |
 | AF-36 | Tab ditutup lalu dibuka dari browser lain | Job tetap berjalan; status, inputs, approval, dan hasil dipulihkan dari server. | Belum diuji. |
-| AF-37 | Provider/mode runtime berbeda untuk tugas identik | Kedua mode melewati admission, policy, verifier, dan publisher yang sama. | Belum diuji. |
-| AF-38 | JSON tool terpotong atau context overflow | Tidak ada mutasi parsial; input aktif tetap ada dan recovery dibatasi. | Belum diuji. |
+| AF-37 | Provider/mode runtime berbeda untuk tugas identik | Kedua mode melewati admission, policy, verifier, dan publisher yang sama. | Sebagian: ACP serta dua codec endpoint memakai supervisor, sandbox, dan tool broker yang sama pada `742f860`; satu alur Django, provider nyata, dan browser masih menunggu Task11. |
+| AF-38 | JSON tool terpotong atau context overflow | Tidak ada mutasi parsial; input aktif tetap ada dan recovery dibatasi. | Sebagian: codec menahan JSON parsial, cancel tidak memutasi tree, dan context recovery dibatasi pada `742f860`; penerimaan produk lengkap masih menunggu Task11. |
 
 ## AS: [2026-09-22-agent-settings-connections-and-team-defaults.md](spec/2026-09-22-agent-settings-connections-and-team-defaults.md)
 
