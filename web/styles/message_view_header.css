@@ -126,7 +126,7 @@
         overflow: hidden;
         white-space: normal;
         background-color: var(--color-background-navbar);
-        border-radius: 5px;
+        border-radius: var(--radius-md);
         animation: expand-extended-description 100ms ease-in both;
 
         &.leaving-extended-view-description {

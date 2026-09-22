@@ -320,7 +320,7 @@
         margin-bottom: var(--message-box-markdown-aligned-vertical-space);
         color: var(--color-text-show-more-less-button);
         background-color: var(--color-show-more-less-button-background);
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         border: none;
         outline: none;
         overflow: hidden;
@@ -833,7 +833,7 @@
        the Cancel button. */
     min-width: 4.0625em;
     padding: 0 10px;
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     border: 0;
     line-height: 1;
     font-family: inherit;
@@ -878,7 +878,7 @@
 }
 
 .edit-content-container {
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     border: 1px solid var(--color-message-content-container-border);
     transition: border-color 0.2s ease;
     display: grid;
@@ -919,7 +919,7 @@
     background-color: var(--background-color-textarea);
     /* Flatten the bottom edge of the textarea to
     merge with the flat top edge of the buttons row */
-    border-radius: 3px 3px 0 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
     vertical-align: middle;
     border: none;
     /* Match textarea padding to compose box and
@@ -1018,7 +1018,7 @@
 }
 
 .message-edit-feature-group {
-    border-radius: 0 0 3px 3px;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
     background-color: var(--color-message-formatting-controls-container);
     /* margin on either side to let the border of
        .edit-content-container show through. */

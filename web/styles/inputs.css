@@ -36,7 +36,7 @@
         outline: 1px solid var(--color-outline-input);
         outline-offset: -1px;
         border: none;
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         transition: 0.1s linear;
         transition-property: outline-color, box-shadow;
 
