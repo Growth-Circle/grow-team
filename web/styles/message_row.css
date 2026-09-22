@@ -123,10 +123,15 @@
         should match `max-content` exactly, but `max-content`
         ensures the timestamp will always have enough space
         in the column. */
+    /* 58px = 44px avatar column + 14px gap to the message column, at
+       14px/1em (mockup frame 10a). Written as a literal so this row
+       package does not need to edit the shared
+       --message-box-avatar-column-width token (46px) in
+       app_variables.css. */
     grid-template:
         minmax(var(--message-box-sender-line-height), auto) repeat(4, auto) /
-        var(--message-box-avatar-column-width) minmax(0, 1fr) max-content
-        8px minmax(var(--message-box-timestamp-column-width), max-content);
+        4.1429em minmax(0, 1fr) max-content 8px
+        minmax(var(--message-box-timestamp-column-width), max-content);
     /* Named grid areas provide flexibility for positioning grid items
        reliably, even if the row or column definitions of the grid change. */
     grid-template-areas:
@@ -147,9 +152,10 @@
     &.content_edit_mode {
         cursor: default;
         /* Set the controls area to 0 to give more space
-           to the edit/source view area. */
+           to the edit/source view area. Column 1 matches the
+           4.1429em (58px) avatar-column-plus-gap literal above. */
         grid-template-columns:
-            var(--message-box-avatar-column-width) minmax(0, 1fr)
+            4.1429em minmax(0, 1fr)
             0 8px minmax(
                 var(--message-box-timestamp-column-width),
                 max-content
@@ -470,16 +476,47 @@
                    sender-line elements on the .messagebox-content
                    grid. */
                 margin-top: var(--message-box-vertical-margin);
-                /* Every message now shows its own avatar (see the
-                   Tenang message-card design), sized to match the
-                   app's standard 36px control height instead of the
-                   smaller size used by the old condensed rows. */
-                width: var(--height-control-md); /* 36px at 14px em */
-                height: var(--height-control-md); /* 36px at 14px em */
+                /* 38px at 14px em: rounded-square avatar size from the
+                   message-row mockup (frame 10a), replacing the old
+                   36px circular control-height size. */
+                width: 2.7143em;
+                height: 2.7143em;
+                /* Rounded square, not a circle, per the mockup. */
+                border-radius: var(--radius-lg);
             }
 
             .muted-sender-avatar {
                 opacity: 0.5;
+            }
+        }
+
+        /* Agent (bot) senders get a solid primary-color avatar with a
+           white bot glyph instead of their uploaded picture, per the
+           mockup's "Reviewer Grow" example. sender_is_bot already
+           reaches the template as the data-is-bot attribute on
+           .sender_name_text (see message_body.hbs); :has() lets this
+           rule reach back to the avatar, which is rendered earlier in
+           the same row. */
+        &:has(.sender_name_text[data-is-bot="true"]) .message-avatar {
+            width: 2.7143em; /* 38px at 14px em, matches the avatar above */
+            height: 2.7143em;
+            margin-top: var(--message-box-vertical-margin);
+            border-radius: var(--radius-lg);
+            background-color: hsl(172deg 88% 26%);
+
+            .inline_profile_picture {
+                display: none;
+            }
+
+            &::before {
+                content: "";
+                display: block;
+                width: 1.4286em; /* 20px at 14px em */
+                height: 1.4286em;
+                margin: 0.6429em auto; /* centers 20px inside the 38px box */
+                background-color: hsl(0deg 0% 100%);
+                mask: url("../icons/bot.svg") center / contain no-repeat;
+                -webkit-mask: url("../icons/bot.svg") center / contain no-repeat;
             }
         }
 
@@ -1173,6 +1210,97 @@
             display: block;
         }
     }
+
+    /* "N new messages" divider (mockup frame 10a): the first unread
+       message in a group gets a full-width divider bar above it,
+       instead of the plain marker sliver. Uses the same
+       first-of-siblings technique as message_divider_unread_marker
+       above. message_list_view.ts stamps every unread row's marker
+       with its run's translated count via a data attribute; this
+       only decides which row's copy is actually shown. The bar is
+       absolutely positioned in the margin reserved above the row, so
+       it never has to compete with .messagebox for grid space. */
+    .message_row.unread {
+        position: relative;
+        margin-top: 2.4286em; /* 34px at 14px em */
+
+        .message_unread_marker {
+            /* Span the whole grid instead of staying pinned to the
+               message_unread_marker area (a 2px-wide column), so the
+               containing block for the absolute positioning below is
+               the whole .message_row instead of that narrow cell. */
+            grid-row: 1 / -1;
+            grid-column: 1 / -1;
+            position: absolute;
+            inset: -2.4286em 0 auto 0; /* 34px at 14px em */
+            margin-left: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            height: 2em; /* 28px at 14px em */
+
+            &::before,
+            &::after {
+                content: "";
+                flex: 1;
+                height: 1px;
+                background: light-dark(
+                    hsl(172deg 45% 72%),
+                    hsl(172deg 40% 32%)
+                );
+            }
+
+            .unread-marker-fill {
+                flex: none;
+                width: auto;
+                height: auto;
+                background: none;
+                font-size: 0.9286em; /* 13px at 14px em */
+                font-weight: 700;
+                color: light-dark(hsl(173deg 86% 22%), hsl(168deg 55% 72%));
+                white-space: nowrap;
+
+                &::before {
+                    content: attr(data-new-messages-label);
+                }
+            }
+        }
+    }
+
+    /* Not the first unread message in its group: revert to the plain
+       marker sliver instead of the divider bar. */
+    .message_row.unread ~ .message_row.unread {
+        position: static;
+        margin-top: 0;
+
+        .message_unread_marker {
+            grid-area: message_unread_marker;
+            position: static;
+            inset: auto;
+            margin-left: var(--unread-marker-left);
+            display: block;
+            height: 100%;
+
+            &::before,
+            &::after {
+                content: none;
+            }
+
+            .unread-marker-fill {
+                width: 2px;
+                height: 100%;
+                background: linear-gradient(
+                    90deg,
+                    var(--color-unread-marker) 30%,
+                    hsl(217deg 64% 59% / 0%)
+                );
+
+                &::before {
+                    content: none;
+                }
+            }
+        }
+    }
 }
 
 .message_feed_divider {
@@ -1207,6 +1335,14 @@
         grid-area: middle_divider_content;
         white-space: nowrap;
         text-overflow: ellipsis;
+        overflow: hidden;
+        text-transform: uppercase;
+        font-size: calc(12em / 14);
+        font-style: normal;
+        font-weight: 600;
+        line-height: 1.4167; /* 17px at the 12px font size above */
+        text-align: right;
+        color: var(--color-date);
         /* Same as timerender-content at 16px */
         letter-spacing: 0.5486px;
         padding: 0 0.25em;
@@ -1219,14 +1355,25 @@
         }
     }
 
+    /* Date label centered between two full lines, per the mockup
+       (frames 10a and 1a): no more uppercase, no more right-aligned
+       label. */
     .date-divider-content {
         position: relative;
         grid-area: right_divider_content;
         display: flex;
         align-items: center;
-        justify-content: end;
+        justify-content: center;
         white-space: nowrap;
         letter-spacing: 0.04em;
+        overflow: hidden;
+        font-style: normal;
+        font-size: 0.9286em; /* 13px at 14px em */
+        font-weight: 600;
+        line-height: 1.3077; /* 17px at the 13px font size above */
+        text-align: center;
+        text-transform: none;
+        color: light-dark(hsl(180deg 10% 38%), hsl(170deg 6% 60%));
 
         &::before {
             position: relative;
@@ -1250,7 +1397,7 @@
             content: " ";
             height: 0;
             border-bottom: 1px solid
-                var(--color-border-message-group-spacer-line);
+                light-dark(hsl(170deg 10% 88%), hsl(180deg 10% 20%));
         }
 
         .date_row_text {
@@ -1259,16 +1406,26 @@
         }
     }
 
-    .stream-status,
-    .date-divider-content {
-        overflow: hidden;
-        text-transform: uppercase;
-        font-size: calc(12em / 14);
-        font-style: normal;
-        font-weight: 600;
-        line-height: 17px; /* identical to box height, or 131% */
-        text-align: right;
-        color: var(--color-date);
+    /* Without a subscription-status message sharing this divider row
+       (the common case), the date label can span and center across
+       the whole row -- two full-width lines flanking a centered
+       label, matching the mockup -- instead of only the
+       right_divider_content third of the grid. Skipped when
+       .stream-status is also present, so that rarer combined divider
+       keeps its original, narrower right-hand placement. */
+    &:not(:has(.stream-status)) .date-divider-content {
+        grid-column: 1 / -1;
+        gap: 12px;
+
+        &::before,
+        &::after {
+            position: static;
+            min-width: 0;
+            width: auto;
+            right: auto;
+            margin-left: 0;
+            flex: 1;
+        }
     }
 }
 

@@ -1327,6 +1327,7 @@ export class MessageListView {
         }
 
         list.update_trailing_bookend();
+        this.update_new_message_dividers();
 
         if (list === message_lists.current) {
             // Update the fade.
@@ -2241,6 +2242,7 @@ export class MessageListView {
             $row.find(".unread_marker").addClass("slow_fade");
         }
         $row.removeClass("unread");
+        this.update_new_message_dividers();
     }
 
     show_messages_as_unread(message_ids: number[]): void {
@@ -2249,5 +2251,39 @@ export class MessageListView {
             return message_ids.includes(message_id);
         });
         $rows_to_show_as_unread.addClass("unread");
+        this.update_new_message_dividers();
+    }
+
+    update_new_message_dividers(): void {
+        // The "N new messages" divider (message_row.css restyles
+        // .message_unread_marker into a full divider bar on the
+        // first unread message of each recipient_row group; see the
+        // sibling-selector rule there) needs a translated count
+        // label. CSS alone decides which row's marker is actually
+        // shown as the divider bar; this only keeps every unread
+        // row's marker stamped with its own run's count, so whichever
+        // row CSS reveals always has the right text, and stale labels
+        // never linger after a message is marked read or unread.
+        for (const recipient_row of this.$list.children(".recipient_row").get()) {
+            const $rows = $(recipient_row).children(".message_row");
+            let run_length = 0;
+            for (const row of $rows.get().toReversed()) {
+                const $row = $(row);
+                run_length = $row.hasClass("unread") ? run_length + 1 : 0;
+                const label =
+                    run_length > 0
+                        ? $t(
+                              {
+                                  defaultMessage:
+                                      "{count, plural, one {# new message} other {# new messages}}",
+                              },
+                              {count: run_length},
+                          )
+                        : "";
+                $row
+                    .find(".message_unread_marker .unread-marker-fill")
+                    .attr("data-new-messages-label", label);
+            }
+        }
     }
 }
