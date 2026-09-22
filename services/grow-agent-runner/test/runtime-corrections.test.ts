@@ -326,6 +326,17 @@ test("checkpoint restoration preserves edited tree and owner WIP and rejects alt
     const options = {root: join(root, "workspaces"), source, approvedCommit: base};
     const w = await prepareWorkspace(d, () => d, options);
     writeFileSync(join(w.checkout, "a.txt"), "edited\n");
+    mkdirSync(join(w.checkout, "nested"));
+    mkdirSync(join(w.checkout, "hidden"));
+    const exactFiles = {
+        ".gitattributes": "a.txt export-ignore\nhidden export-ignore\n*.txt export-subst\n",
+        "nested/.gitattributes": "* export-ignore export-subst\n",
+        "nested/value.txt": "$Format:%H$\n",
+        "hidden/value.bin": Buffer.from([0, 1, 255]),
+    };
+    for (const [path, bytes] of Object.entries(exactFiles))
+        writeFileSync(join(w.checkout, path), bytes);
+
     const checkpoint = {
         id: randomUUID(),
         source_attempt_id: d.attempt_id,
@@ -344,6 +355,10 @@ test("checkpoint restoration preserves edited tree and owner WIP and rejects alt
     const restored = await prepareWorkspace(resumed, () => resumed, options);
     await restoreCheckpoint(join(root, "snapshots"), resumed, restored, () => resumed);
     assert.equal(restored.record.tree_hash, checkpoint.tree_hash);
+    for (const [path, bytes] of Object.entries(exactFiles))
+        assert.deepEqual(readFileSync(join(restored.checkout, path)), Buffer.from(bytes));
+    console.log("RETAINED_ATTRIBUTE_CHECKPOINT", root, checkpoint.id);
+
     assert.equal(readFileSync(join(restored.checkout, "a.txt"), "utf8"), "edited\n");
     assert.equal(readFileSync(join(source, "a.txt"), "utf8"), "owner WIP\n");
     assert.match(checkpointContext(checkpoint), /run check/);

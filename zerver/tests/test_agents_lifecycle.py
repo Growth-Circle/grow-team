@@ -369,12 +369,17 @@ class AgentLifecycleTests(ZulipTestCase):
         )
         directory = tempfile.mkdtemp(prefix="grow-fix1-completion-")
         with override_settings(AGENT_ARTIFACT_ROOT=directory):
-            for route in ["controls", "heartbeat"]:
-                with self.subTest(route=route):
+            for route, late_result in [
+                ("controls", False),
+                ("heartbeat", False),
+                ("controls", True),
+                ("heartbeat", True),
+            ]:
+                with self.subTest(route=route, late_result=late_result):
                     message_id = self.send_group_direct_message(
                         self.owner,
                         [self.profile.bot_user, self.example_user("iago")],
-                        content="Completion boundary " + route,
+                        content=f"Completion boundary {route} {late_result}",
                     )
                     job = actions.create_job(
                         self.owner,
@@ -444,7 +449,9 @@ class AgentLifecycleTests(ZulipTestCase):
                         media_type="text/plain",
                     )
                     proposal = {"artifact_ids": [str(artifact.id)], "summary": "Completed answer"}
-                    event("result.prepared", proposal)
+                    self.assertEqual(poll(), "continue")
+                    if not late_result:
+                        event("result.prepared", proposal)
                     job.refresh_from_db()
                     item = actions.add_input(
                         self.owner,
@@ -453,10 +460,13 @@ class AgentLifecycleTests(ZulipTestCase):
                         client_key=uuid4(),
                         text="Accepted before the stop boundary",
                     )
+                    if late_result:
+                        event("result.prepared", proposal)
                     self.assertEqual(poll(), "continue")
                     job.refresh_from_db()
-                    self.assertEqual(job.status, "running")
-                    self.assertIsNone(job.result_proposal)
+                    if not late_result:
+                        self.assertEqual(job.status, "running")
+                        self.assertIsNone(job.result_proposal)
                     actions.deliver_inputs(self.runner, job.id, attempt.id, 1)
                     event(
                         "input.applied",
@@ -466,7 +476,26 @@ class AgentLifecycleTests(ZulipTestCase):
                             "delivery_state": "applied",
                         },
                     )
-                    event("result.prepared", proposal)
+                    self.assertEqual(poll(), "continue")
+                    job.refresh_from_db()
+                    self.assertEqual(job.status, "running")
+                    self.assertIsNone(job.result_proposal)
+                    replacement = b"Replacement includes accepted steering"
+                    artifact = results.store_artifact(
+                        self.runner,
+                        job.id,
+                        attempt.id,
+                        1,
+                        chunks=[replacement],
+                        checksum=hashlib.sha256(replacement).hexdigest(),
+                        kind="summary",
+                        filename="replacement.txt",
+                        media_type="text/plain",
+                    )
+                    event(
+                        "result.prepared",
+                        {"artifact_ids": [str(artifact.id)], "summary": replacement.decode()},
+                    )
                     self.assertEqual(poll(), "stop")
                     job.refresh_from_db()
                     attempt.refresh_from_db()
@@ -496,6 +525,9 @@ class AgentLifecycleTests(ZulipTestCase):
                     job.refresh_from_db()
                     self.assertEqual(job.status, "completed")
                     self.assertEqual(receipt, results.publish_result(job.id))
+                    self.assertEqual(
+                        Message.objects.get(id=receipt["message_id"]).content, replacement.decode()
+                    )
 
     def test_operation_broker_rejects_answer_mutation_and_requires_typed_authority(self) -> None:
         self.assertIsNotNone(
@@ -691,6 +723,171 @@ class AgentLifecycleTests(ZulipTestCase):
         actions.cancel_job(self.owner, job.id, job.version)
         for event in agents.AgentAuditEvent.objects.filter(job=job):
             event.clean()
+
+    def test_resume_checkpoint_preserves_nonzero_cursor_without_new_input(self) -> None:
+        from copy import deepcopy
+
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.actions.agents import register_repository
+        from zerver.lib import agent_protocol as p
+
+        repository = register_repository(
+            self.owner,
+            self.runner,
+            workspace_alias="code",
+            canonical_origin="https://example.com/team/repo",
+            allowed_refs=["main"],
+            required_checks=[{"id": "required", "argv": ["true"]}],
+        )
+        policy = deepcopy(self.profile.policy)
+        policy["actions"] = [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run",
+            "git.push",
+            "git.draft_pr",
+        ]
+        profile = create_profile(
+            self.owner,
+            name="Code",
+            runner=self.runner,
+            adapter_id="acp",
+            adapter_version="1",
+            repository=repository,
+            policy=policy,
+            default_mode="code",
+            idempotency_key=uuid4(),
+        )
+        setup = agents.AgentSetupOperation.objects.get(profile=profile)
+        record_readiness(
+            self.runner,
+            setup,
+            {
+                "schema_version": 1,
+                "profile_id": str(profile.id),
+                "profile_revision": 1,
+                "runner_id": str(self.runner.id),
+                "descriptor_digest": setup.descriptor_digest,
+                "configuration_digest": setup.configuration_digest,
+                "state": "ready",
+                "capabilities": {
+                    "chat_ready": True,
+                    "code_ready": True,
+                    "tool_calling": "passed",
+                    "sandbox": "passed",
+                    "config_version": 1,
+                },
+            },
+        )
+        message = Message.objects.get(
+            id=self.send_group_direct_message(
+                self.owner, [profile.bot_user, self.example_user("iago")], "Code task"
+            )
+        )
+        job = actions.create_job(
+            self.owner,
+            profile=profile,
+            source=message,
+            request="Fix it",
+            idempotency_key=uuid4(),
+            job_kind="code",
+            delivery_target="patch",
+            repository=repository,
+            base_ref="main",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+
+        def event(kind: str, payload: dict[str, object]) -> None:
+            attempt.refresh_from_db()
+            actions.record_event(
+                self.runner,
+                p.RunnerEvent.model_validate(
+                    {
+                        "schema_version": 1,
+                        "job_id": str(job.id),
+                        "attempt_id": str(attempt.id),
+                        "lease_epoch": attempt.lease_epoch,
+                        "sequence": attempt.event_cursor + 1,
+                        "event_id": str(uuid4()),
+                        "occurred_at": now().isoformat(),
+                        "type": kind,
+                        "payload": payload,
+                    }
+                ),
+            )
+
+        prepared = {
+            "repository_id": str(repository.id),
+            "workspace_reference": "fixture",
+            "base_ref": "main",
+            "base_commit": "a" * 40,
+            "tree_hash": "b" * 40,
+            "user_worktree_dirty": False,
+        }
+        event("workspace.prepared", prepared)
+        event("attempt.started", {"process_state": "active"})
+        job.refresh_from_db()
+        item = actions.add_input(
+            self.owner,
+            job.id,
+            expected_version=job.version,
+            client_key=uuid4(),
+            text="Accepted steering",
+        )
+        actions.deliver_inputs(self.runner, job.id, attempt.id, attempt.lease_epoch)
+        event(
+            "input.applied",
+            {"input_id": str(item.id), "input_sequence": 1, "delivery_state": "applied"},
+        )
+        checkpoint = p.Checkpoint.model_validate(
+            {
+                "id": str(uuid4()),
+                "source_attempt_id": str(attempt.id),
+                "base_commit": "a" * 40,
+                "tree_hash": "b" * 40,
+                "summary": "Verified checkpoint",
+                "context_ref_ids": [],
+                "artifact_ids": [],
+                "remaining_work": [],
+                "next_step": "Continue",
+                "adapter_session_ref": None,
+                "input_cursor": 1,
+            }
+        )
+        saved = actions.save_checkpoint(
+            self.runner, job.id, attempt.id, attempt.lease_epoch, checkpoint
+        )
+        event("attempt.stopped", {"process_state": "stopped", "stop_confirmed": True})
+        job.refresh_from_db()
+        actions.resume_job(self.owner, job.id, job.version, saved.id)
+        descriptor = actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job, number=2)
+        self.assertEqual(descriptor["checkpoint"]["input_cursor"], 1)
+        self.assertEqual(attempt.input_cursor, 1)
+        event("workspace.prepared", prepared)
+        event("attempt.started", {"process_state": "active"})
+        self.assertEqual(
+            actions.deliver_inputs(self.runner, job.id, attempt.id, attempt.lease_epoch), []
+        )
+        next_checkpoint = checkpoint.model_copy(
+            update={"id": uuid4(), "source_attempt_id": attempt.id}
+        )
+        accepted = actions.save_checkpoint(
+            self.runner, job.id, attempt.id, attempt.lease_epoch, next_checkpoint
+        )
+        self.assertEqual(accepted.input_cursor, 1)
+        with self.assertRaisesRegex(ValueError, "Checkpoint attempt or cursor mismatch"):
+            actions.save_checkpoint(
+                self.runner,
+                job.id,
+                attempt.id,
+                attempt.lease_epoch,
+                next_checkpoint.model_copy(update={"id": uuid4(), "input_cursor": 0}),
+            )
 
     def test_code_verifier_rejects_missing_failed_and_stale_final_tree_checks(self) -> None:
         import hashlib

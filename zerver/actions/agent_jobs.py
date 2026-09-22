@@ -529,6 +529,7 @@ def claim_work(runner: agents.AgentRunner, *, claim_key: UUID) -> dict[str, Any]
                 claim_key=claim_key,
                 audience_binding=job.conversation.audience_binding,
                 source_checkpoint=checkpoint,
+                input_cursor=checkpoint.input_cursor if checkpoint is not None else 0,
             )
             descriptor = build_descriptor(job, attempt)
             attempt.descriptor = descriptor
@@ -1027,6 +1028,12 @@ def record_event(
                     raise ValueError("Input acknowledgement is out of order.")
                 item.applied_at = now()
                 attempt.input_cursor = item.sequence
+                if job.result_proposal is not None:
+                    # The previous proposal cannot cover this newly acknowledged input.
+                    job.result_proposal = None
+                    job.save(update_fields=["result_proposal"])
+                    if job.status == "verifying":
+                        transition(job, "running")
             item.delivery_state = event.payload.delivery_state
             item.save(update_fields=["delivery_state", "applied_at"])
         elif isinstance(event.payload, p.ToolPayload):

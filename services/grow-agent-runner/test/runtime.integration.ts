@@ -582,3 +582,137 @@ for (const mode of ["endpoint", "acp", "endpoint-text"]) {
         },
     );
 }
+
+test(
+    "restored attributed checkpoint seeds and exports exact bytes through a real tool container",
+    {timeout: 60000},
+    async () => {
+        const {retainCheckpoint, restoreCheckpoint} = await import("../dist/checkpoint-store.js");
+        const {hashFinalTree} = await import("../dist/workspace.js");
+        const id = randomUUID(),
+            source = join(root, `source-${id}`);
+        mkdirSync(source);
+        const git = (...args: string[]) =>
+            execFileSync("/usr/bin/git", args, {
+                cwd: source,
+                encoding: "utf8",
+                env: {
+                    PATH: "/usr/bin:/bin",
+                    HOME: "/nonexistent",
+                    GIT_CONFIG_GLOBAL: "/dev/null",
+                    GIT_CONFIG_NOSYSTEM: "1",
+                },
+            }).trim();
+        git("init", "-q");
+        git("config", "user.name", "Synthetic fixture");
+        git("config", "user.email", "fixture@invalid");
+        writeFileSync(join(source, "a.txt"), "base\n");
+        git("add", ".");
+        git("commit", "-qm", "fixture\n\nCo-Authored-By: CADIS <agent@cadis.digital>");
+        git("remote", "add", "origin", "https://example.invalid/test/repo");
+        const base = git("rev-parse", "HEAD");
+        const d: any = {
+            job_id: randomUUID(),
+            attempt_id: id,
+            lease_epoch: 1,
+            base_ref: "HEAD",
+            repository: {
+                id: randomUUID(),
+                policy_version: 1,
+                workspace_alias: "fixture",
+                canonical_origin: "https://example.invalid/test/repo",
+                allowed_refs: ["HEAD"],
+                required_checks: [],
+                base_ref: "HEAD",
+            },
+            policy: {
+                sandbox: {
+                    image_digest: toolImage,
+                    cpu_millicores: 500,
+                    memory_bytes: 268435456,
+                    pids_limit: 64,
+                    temporary_bytes: 134217728,
+                },
+            },
+        };
+        const options = {root: join(root, "workspaces"), source, approvedCommit: base};
+        const w = await prepareWorkspace(d, () => d, options);
+        mkdirSync(join(w.checkout, "nested"));
+        const exactFiles = {
+            "a.txt": "edited checkpoint\n",
+            ".gitattributes": "a.txt export-ignore\nnested export-ignore\n*.txt export-subst\n",
+            "nested/.gitattributes": "* export-ignore export-subst\n",
+            "nested/value.txt": "$Format:%H$\n",
+        };
+        for (const [path, bytes] of Object.entries(exactFiles))
+            writeFileSync(join(w.checkout, path), bytes);
+        const checkpoint = {
+            id: randomUUID(),
+            source_attempt_id: id,
+            base_commit: base,
+            tree_hash: await hashFinalTree(w),
+            summary: "Exact attributed checkpoint",
+            remaining_work: [],
+            next_step: "Check bytes",
+            input_cursor: 1,
+            context_ref_ids: [],
+            artifact_ids: [],
+        };
+        await retainCheckpoint(join(root, "snapshots"), d, checkpoint, w, () => d);
+        writeFileSync(join(source, "a.txt"), "owner WIP\n");
+        const resumed = {...d, attempt_id: randomUUID(), lease_epoch: 2, checkpoint};
+        const restored = await prepareWorkspace(resumed, () => resumed, options);
+        await restoreCheckpoint(join(root, "snapshots"), resumed, restored, () => resumed);
+        const script = `const fs=require('fs'),assert=require('assert/strict');const expected=${JSON.stringify(exactFiles)};for(const [p,bytes] of Object.entries(expected))assert.equal(fs.readFileSync('/workspace/'+p,'utf8'),bytes);fs.writeFileSync('/workspace/nested/value.txt',expected['nested/value.txt']+'tool change\\n');console.log('EXACT_CHECKPOINT_SEED_OK');`;
+        const guard = {
+            lease: () => resumed,
+            deadline: Date.now() + 30000,
+            signal: new AbortController().signal,
+        };
+        const result = await sandbox.runSandboxedTool(
+            resumed,
+            guard,
+            restored,
+            ["node", "-e", script],
+            {write: true, timeoutMs: 10000},
+        );
+        assert.equal(result.exitCode, 0, result.output.toString());
+        assert(result.stopConfirmed);
+        for (const [path, bytes] of Object.entries(exactFiles))
+            assert.equal(
+                readFileSync(join(restored.checkout, path), "utf8"),
+                bytes + (path === "nested/value.txt" ? "tool change\n" : ""),
+            );
+        assert.equal(readFileSync(join(source, "a.txt"), "utf8"), "owner WIP\n");
+        const exported = {
+            ...checkpoint,
+            id: randomUUID(),
+            source_attempt_id: resumed.attempt_id,
+            tree_hash: await hashFinalTree(restored),
+        };
+        await retainCheckpoint(join(root, "snapshots"), resumed, exported, restored, () => resumed);
+        const third = {...resumed, attempt_id: randomUUID(), lease_epoch: 3, checkpoint: exported};
+        const final = await prepareWorkspace(third, () => third, options);
+        await restoreCheckpoint(join(root, "snapshots"), third, final, () => third);
+        assert.equal(await hashFinalTree(final), exported.tree_hash);
+        writeFileSync(
+            join(root, "attribute-checkpoint-evidence.json"),
+            JSON.stringify(
+                {
+                    checkpoint: checkpoint.id,
+                    restored_tree: checkpoint.tree_hash,
+                    exported_checkpoint: exported.id,
+                    exported_tree: exported.tree_hash,
+                    final_tree: await hashFinalTree(final),
+                    container_id: result.containerId,
+                    installation: sandbox.installation.id,
+                    tool_image: toolImage,
+                    stop_confirmed: result.stopConfirmed,
+                    owner_wip_preserved: true,
+                },
+                null,
+                2,
+            ),
+        );
+    },
+);

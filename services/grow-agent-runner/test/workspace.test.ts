@@ -32,7 +32,7 @@ function fixture() {
     git(source, "config", "user.name", "Fixture");
     writeFileSync(join(source, "a.txt"), "approved\n");
     git(source, "add", ".");
-    git(source, "commit", "-qm", "base");
+    git(source, "commit", "-qm", "base\n\nCo-Authored-By: CADIS <agent@cadis.digital>");
     const base = git(source, "rev-parse", "HEAD");
     git(source, "remote", "add", "origin", "https://example.invalid/owner/repo.git");
     const d = {
@@ -89,7 +89,7 @@ test("base resolution, credentials, sensitive files and symlinks fail closed", a
     git(source, "remote", "set-url", "origin", d.repository.canonical_origin);
     symlinkSync("/etc/passwd", join(source, "escape"));
     git(source, "add", ".");
-    git(source, "commit", "-qm", "symlink");
+    git(source, "commit", "-qm", "symlink\n\nCo-Authored-By: CADIS <agent@cadis.digital>");
     await assert.rejects(
         () =>
             module.prepareWorkspace(d, () => ({attempt_id: "a", lease_epoch: 1}), {
@@ -123,7 +123,7 @@ test("matching clean and process filters never execute during dirty WIP inspecti
     const {root, source, d} = fixture();
     writeFileSync(join(source, ".gitattributes"), "*.txt filter=poison\n");
     git(source, "add", ".gitattributes");
-    git(source, "commit", "-qm", "attributes");
+    git(source, "commit", "-qm", "attributes\n\nCo-Authored-By: CADIS <agent@cadis.digital>");
     const base = git(source, "rev-parse", "HEAD");
     const marker = join(root, "FILTER_EXECUTED");
     git(source, "config", "filter.poison.clean", `tee ${marker}`);

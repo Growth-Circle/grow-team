@@ -2,6 +2,7 @@ import {
     constants,
     closeSync,
     fstatSync,
+    ftruncateSync,
     mkdirSync,
     openSync,
     readFileSync,
@@ -371,5 +372,31 @@ export function finalDiff(w: Workspace, tree: string): Buffer {
 }
 export function snapshotTree(w: Workspace, tree: string): Buffer {
     if (!/^[0-9a-f]{40}$/.test(tree)) throw new Error("Invalid checkpoint tree");
-    return ownGit(w, ["archive", "--format=tar", tree]);
+    // Private Git metadata overrides tracked attributes at every directory depth.
+    const info = new PrivateStore(join(w.gitDir, "info"));
+    const fd = openSync(
+        info.path("attributes"),
+        constants.O_WRONLY | constants.O_CREAT | constants.O_NOFOLLOW,
+        0o600,
+    );
+    try {
+        const stat = fstatSync(fd);
+        if (!stat.isFile() || stat.nlink !== 1 || stat.uid !== process.getuid!())
+            throw new Error("Unsafe archive attributes");
+        ftruncateSync(fd, 0);
+        writeFileSync(fd, "* -export-ignore -export-subst\n");
+    } finally {
+        closeSync(fd);
+    }
+    const tar = ownGit(w, ["archive", "--format=tar", tree]);
+    // Reconstruct the archive tree before retaining bytes.
+    const rows = parseSnapshotTar(tar, w.limit).map((file) => {
+        const hash = ownGit(w, ["hash-object", "-w", "--stdin"], file.bytes).toString().trim();
+        return `${file.mode & 0o111 ? "100755" : "100644"} ${hash}\t${file.path}\0`;
+    });
+    ownGit(w, ["read-tree", "--empty"]);
+    ownGit(w, ["update-index", "-z", "--index-info"], rows.sort().join(""));
+    if (ownGit(w, ["write-tree"]).toString().trim() !== tree)
+        throw new Error("Checkpoint archive tree mismatch");
+    return tar;
 }
