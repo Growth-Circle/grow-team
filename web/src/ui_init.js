@@ -208,7 +208,6 @@ function initialize_navbar() {
         embedded: page_params.narrow_stream !== undefined,
         user_avatar: current_user.avatar_url_medium,
         realm_icon_url: realm.realm_icon_url,
-        realm_name: realm.realm_name,
     });
 
     $("#header-container").html(rendered_navbar);
@@ -790,7 +789,9 @@ export async function initialize_everything(state_data) {
 function show_try_zulip_modal() {
     const modal_content_html = render_try_zulip_modal();
     dialog_widget.launch({
-        modal_title_text: i18n.$t({defaultMessage: "Welcome to the Grow Team development community!"}),
+        modal_title_text: i18n.$t({
+            defaultMessage: "Welcome to the Grow Team development community!",
+        }),
         modal_content_html,
         modal_submit_button_text: i18n.$t({defaultMessage: "Let's go!"}),
         on_click() {
