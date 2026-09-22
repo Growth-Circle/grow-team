@@ -759,17 +759,38 @@ export function gravatar_url_for_email(email: string): string {
 // still the generated default (no photo, no Gravatar). Other people's
 // avatar_source isn't sent to the client (see PersonAvatarFields on
 // the server), so this default can only be detected for current_user.
-const DEFAULT_AVATAR_FILL_LIGHT = "hsl(172.44deg 88.15% 26.47%)";
-const DEFAULT_AVATAR_FILL_DARK = "hsl(171.36deg 58.41% 44.31%)";
+//
+// Each user gets one of five identity colors, picked by user_id so
+// the color stays stable, each with a matching dark-theme variant
+// (mockup: frame 1a). Light values and the first two dark values are
+// exact frame values; the #087f70 entry keeps the app's original
+// single default-avatar color and its existing, already-tuned dark
+// variant.
+//
+// ponytail: frame 1a doesn't show a dark-mode example for the last
+// two entries, so their dark value is extrapolated from the same
+// hue with saturation -5 and lightness -7 (the exact delta the frame
+// uses for the first two entries). Replace with exact frame values
+// if a mockup ever shows them.
+const DEFAULT_AVATAR_PALETTE: {light: string; dark: string}[] = [
+    {light: "hsl(24deg 45% 55%)", dark: "hsl(24deg 40% 48%)"},
+    {light: "hsl(276deg 35% 55%)", dark: "hsl(276deg 30% 48%)"},
+    {light: "#087f70", dark: "hsl(171.36deg 58.41% 44.31%)"},
+    {light: "hsl(340deg 40% 52%)", dark: "hsl(340deg 35% 45%)"},
+    {light: "hsl(200deg 40% 50%)", dark: "hsl(200deg 35% 43%)"},
+];
 
-function build_default_avatar_data_uri(initials?: string): string {
-    const fill = settings_data.using_dark_theme()
-        ? DEFAULT_AVATAR_FILL_DARK
-        : DEFAULT_AVATAR_FILL_LIGHT;
+function default_avatar_fill(user_id: number): string {
+    const entry = DEFAULT_AVATAR_PALETTE[user_id % DEFAULT_AVATAR_PALETTE.length]!;
+    return settings_data.using_dark_theme() ? entry.dark : entry.light;
+}
+
+function build_default_avatar_data_uri(user_id: number, initials: string): string {
+    const fill = default_avatar_fill(user_id);
     // A drawn circle (not a square image relying on container
     // clipping) so the avatar is round in every context.
     const label = initials
-        ? `<text x="16" y="16" dy="0.35em" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="600" fill="#fff">${initials}</text>`
+        ? `<text x="16" y="16" dy="0.35em" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="700" fill="#fff">${initials}</text>`
         : "";
     const svg =
         `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">` +
@@ -797,7 +818,10 @@ function has_default_avatar(user_id: number): boolean {
 
 export function small_avatar_url_for_person(person: User | CurrentUser): string {
     if (has_default_avatar(person.user_id)) {
-        return build_default_avatar_data_uri();
+        return build_default_avatar_data_uri(
+            person.user_id,
+            initials_for_full_name(person.full_name),
+        );
     }
 
     if (person.avatar_url) {
@@ -818,7 +842,10 @@ export function small_avatar_url_for_user_id(user_id: number): string {
 
 export function medium_avatar_url_for_person(person: User): string {
     if (has_default_avatar(person.user_id)) {
-        return build_default_avatar_data_uri();
+        return build_default_avatar_data_uri(
+            person.user_id,
+            initials_for_full_name(person.full_name),
+        );
     }
 
     /* Unlike the small avatar URL case, we don't generally have a
@@ -871,16 +898,19 @@ export function small_avatar_url(message: Message): string {
     // We actually request these at s=50, so that we look better
     // on retina displays.
 
-    if (message.sender_id && has_default_avatar(message.sender_id)) {
-        return build_default_avatar_data_uri();
-    }
-
     let person;
     if (message.sender_id) {
         // We should always have message.sender_id, except for in the
         // tutorial, where it's ok to fall back to the URL in the fake
         // messages.
         person = maybe_get_user_by_id(message.sender_id);
+    }
+
+    if (message.sender_id && has_default_avatar(message.sender_id)) {
+        return build_default_avatar_data_uri(
+            message.sender_id,
+            initials_for_full_name(person?.full_name ?? ""),
+        );
     }
 
     // The first time we encounter a sender in a message, we may
@@ -2206,6 +2236,7 @@ export async function initialize(
         current_user.avatar_source === settings_config.default_avatar_source_values.jdenticon.code
     ) {
         current_user.avatar_url_medium = build_default_avatar_data_uri(
+            current_user.user_id,
             initials_for_full_name(current_user.full_name),
         );
     }
