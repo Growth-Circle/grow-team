@@ -184,42 +184,22 @@
 
     .user_sidebar_entry.with_avatar {
         .user-profile-picture-container {
-            /* Establish positioning context for user circle. */
-            position: relative;
             /* TODO: Express this as part of the grid on
                .selectable_sidebar_block. */
             margin-right: var(--right-sidebar-avatar-right-margin);
-
-            &:not(:has(.user-circle-offline)) .user-profile-picture {
-                /* The over-avatar user circle width is 15.5px at 20px/1em;
-                   we adjust the border radius here to avoid any pixels
-                   from the avatar bleeding through. */
-                border-bottom-right-radius: 0.3875em; /* 7.75px at 20px/1em */
-            }
         }
 
         .user-profile-picture {
             /* Push back on the margin-right usually allotted here;
-               we put it on .user-profile-picture-container instead,
-               so that user circles occupy the corner of the image. */
+               we put it on .user-profile-picture-container instead. */
             margin-right: 0;
         }
 
+        /* The presence dot moved to the trailing edge of the row
+           (see .selectable_sidebar_block::after below), so the
+           icon glyph over the avatar itself is no longer shown. */
         .user-circle {
-            position: absolute;
-            /* 10px at 16px/1em */
-            font-size: 0.625em;
-            bottom: -0.5px;
-            right: -0.5px;
-            background-color: var(--color-background);
-            /* A 1.5px border provides better results than
-               a 1px border, especially at smaller font sizes. */
-            border: 1.5px solid var(--color-background);
-            border-radius: 50%;
-
-            &.user-circle-offline {
-                display: none;
-            }
+            display: none;
         }
     }
 
@@ -353,10 +333,47 @@
         "row-content" auto / minmax(0, 1fr);
 
     .selectable_sidebar_block {
+        position: relative;
         grid-template-rows: auto;
         padding: 4px;
         padding-left: calc(var(--right-sidebar-header-icon-toggle-width) / 2);
+        /* Reserve room on the trailing edge for the presence dot,
+           so it never overlaps the name or the unread count. */
+        padding-right: calc(10px + 0.643em);
+
+        /* The presence dot, placed at the trailing edge of the row
+           instead of over the avatar. Hidden by default; shown (and
+           colored) below for whichever presence state applies. */
+        &::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            right: 4px;
+            /* 9px at 14px/1em, matching the design. */
+            width: 0.643em;
+            height: 0.643em;
+            transform: translateY(-50%);
+            border-radius: var(--radius-pill);
+            display: none;
+        }
     }
+
+    &:has(.user-circle-active) .selectable_sidebar_block::after {
+        display: block;
+        background: var(--color-user-circle-active);
+    }
+
+    &:has(.user-circle-idle) .selectable_sidebar_block::after {
+        display: block;
+        background: var(--gradient-user-circle-idle-avatar);
+    }
+
+    &:has(.user-circle-deactivated) .selectable_sidebar_block::after {
+        display: block;
+        background: var(--color-user-circle-deactivated);
+    }
+
+    /* Offline shows no dot at all, same as before. */
 
     .avatar-preload-background {
         background-color: var(--color-buddy-list-avatar-loading);
@@ -598,11 +615,31 @@
     margin-top: calc(25px - (var(--legacy-body-line-height-unitless) * 1em));
     margin-bottom: var(--sidebar-bottom-spacing);
 
+    /* This reads as a plain teal link, not a highlighted
+       menu row like the other sidebar actions. */
+    &:hover {
+        background: inherit;
+        box-shadow: none;
+    }
+
     .invite-user-link {
         /* TODO: We should eventually change the grid to use the correct
            --right-sidebar-presence-circle-width with left spacing, and
            share that left spacing value here. */
         padding-left: calc(var(--right-sidebar-toggle-width-offset) + 0.3em);
+        color: var(--color-text-url);
+
+        &:hover {
+            color: var(--color-text-url-hover);
+        }
+
+        .right-sidebar-wrappable-text-inner {
+            font-size: 1em;
+            font-weight: 600;
+            font-variant: normal;
+            font-feature-settings: normal;
+            text-transform: none;
+        }
     }
 }
 

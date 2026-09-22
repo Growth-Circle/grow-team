@@ -1,6 +1,23 @@
+/* #searchbox lives inside .top-navbar-container (see navbar.hbs), which
+   reserves room for it via --search-box-width (see zulip.css); redefine
+   the shared variable here so both the reserved space and the box below
+   agree on the same wider, Tenang-mockup width. */
+.top-navbar-container {
+    @media (width >= $md_min) {
+        --search-box-width: 18.5714em; /* 260px at 14px em */
+    }
+}
+
 #searchbox {
     width: 100%;
     height: var(--header-height);
+
+    @media (height >= $short_navbar_cutoff_height) {
+        /* Match the Tenang mockup's 36px search field with the shared
+           control-height token; the short-navbar override below still
+           takes over on very short screens. */
+        --search-box-height: var(--height-control-md); /* 36px at 14px em */
+    }
 
     .navbar-search {
         margin: 0.2187em 0; /* 3.5px at 16px em */
@@ -80,6 +97,7 @@
     .navbar-search:not(.expanded) {
         right: 0;
         background-color: var(--color-background-search-collapsed);
+        border: 1px solid var(--color-border-pill-container);
 
         .search_close_button {
             display: none;

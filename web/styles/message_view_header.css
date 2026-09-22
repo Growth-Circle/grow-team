@@ -64,6 +64,34 @@
         flex: 0 1 auto;
         overflow: hidden;
         text-overflow: ellipsis;
+
+        .message-header-topic-separator {
+            /* 10px at 16px em, the gap between breadcrumb parts. */
+            margin: 0 0.625em;
+            color: var(--color-text-placeholder);
+            font-weight: 400;
+        }
+
+        .message-header-topic-name {
+            font-weight: 400;
+        }
+
+        .unread_count {
+            /* The shared sidebar badge floats right inside a row;
+               here it sits inline right after the topic name. */
+            float: none;
+            /* Recompute the shared 13px badge size against this
+               title's own larger (16px) font-size. */
+            font-size: 0.8125em; /* 13px at 16px em */
+            margin-left: 0.375em; /* 6px at 16px em */
+            vertical-align: middle;
+        }
+    }
+
+    /* The breadcrumb already names the channel, so the longer channel
+       description would be redundant on the same line. */
+    &.message-header-topic-breadcrumb .narrow_description {
+        display: none;
     }
 
     .message-header-archived {

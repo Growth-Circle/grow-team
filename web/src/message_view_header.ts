@@ -1,4 +1,5 @@
 import $ from "jquery";
+import _ from "lodash";
 import assert from "minimalistic-assert";
 
 import render_message_view_header from "../templates/message_view_header.hbs";
@@ -16,6 +17,8 @@ import * as search from "./search.ts";
 import {current_user} from "./state_data.ts";
 import * as stream_data from "./stream_data.ts";
 import type {StreamSubscription} from "./sub_store.ts";
+import * as unread from "./unread.ts";
+import * as util from "./util.ts";
 
 type MessageViewHeaderContext = {
     title?: string | undefined;
@@ -119,13 +122,45 @@ function get_message_view_header_context(filter: Filter | undefined): MessageVie
         // involves a stream which exists and
         // the current user can access.
         const sub_count = peer_data.get_subscriber_count(current_stream.stream_id);
-        return {
+        const channel_context = {
             ...context,
             is_admin: current_user.is_admin,
             rendered_narrow_description: current_stream.rendered_description,
             sub_count,
             stream: current_stream,
             stream_settings_link: hash_util.channels_settings_edit_url(current_stream, "general"),
+        };
+
+        if (!filter.has_operator("topic")) {
+            return channel_context;
+        }
+
+        // A channel narrowed to a specific topic is a conversation view;
+        // show a "channel / topic" breadcrumb and an unread-count pill
+        // instead of the plain channel title and its long description.
+        const topic_name = filter.terms_with_operator("topic")[0]!.operand;
+        const topic_display_name = util.get_final_topic_display_name(topic_name);
+        const unread_count = unread.num_unread_for_topic(current_stream.stream_id, topic_name);
+        const unread_pill_html =
+            unread_count > 0
+                ? `<span class="unread_count normal-count">${_.escape(
+                      $t(
+                          {
+                              defaultMessage: "{count, plural, one {# unread} other {# unread}}",
+                          },
+                          {count: unread_count},
+                      ),
+                  )}</span>`
+                : "";
+
+        return {
+            ...channel_context,
+            title: undefined,
+            title_html:
+                _.escape(current_stream.name) +
+                `<span class="message-header-topic-separator">/</span>` +
+                `<span class="message-header-topic-name">${_.escape(topic_display_name)}</span>` +
+                unread_pill_html,
         };
     }
 
@@ -147,6 +182,12 @@ function append_and_display_title_area(context: MessageViewHeaderContext): void 
         colorize_message_view_header();
     }
     $message_view_header_elem.removeClass("notdisplayed");
+    // The topic breadcrumb replaces the channel description with a
+    // "channel / topic" title, so hide the (now redundant) description.
+    $message_view_header_elem.toggleClass(
+        "message-header-topic-breadcrumb",
+        context.title_html !== undefined,
+    );
     const $content = $message_view_header_elem.find("span.rendered_markdown");
     if ($content) {
         // Update syntax like stream names, emojis, mentions, timestamps.

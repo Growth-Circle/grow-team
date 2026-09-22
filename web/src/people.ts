@@ -754,6 +754,70 @@ export function gravatar_url_for_email(email: string): string {
     return "https://secure.gravatar.com/avatar/" + hash + "?d=identicon";
 }
 
+// Solid-color default avatars replace the generated jdenticon pattern
+// for users who have not uploaded a real profile photo. The color is
+// derived from the user's identity, so it stays the same for the
+// same person.
+const DEFAULT_AVATAR_COLORS = [
+    "hsl(24deg 45% 55%)",
+    "hsl(276deg 35% 55%)",
+    "hsl(200deg 40% 50%)",
+    "hsl(340deg 40% 52%)",
+];
+
+export function get_default_avatar_color(user_id: number): string {
+    return DEFAULT_AVATAR_COLORS[user_id % DEFAULT_AVATAR_COLORS.length]!;
+}
+
+function build_solid_avatar_url(fill: string): string {
+    // The avatar containers across the app already clip images to a
+    // circle (`border-radius: var(--radius-pill); overflow: hidden`),
+    // so a plain filled square is enough here.
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect width="1" height="1" fill="${fill}"/></svg>`;
+    return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+function get_initials(full_name: string): string {
+    const words = full_name.trim().split(/\s+/).filter(Boolean);
+    const first = words[0] ?? "";
+    const last = words.length > 1 ? (words.at(-1) ?? "") : "";
+    return (first.charAt(0) + last.charAt(0)).toUpperCase();
+}
+
+function build_self_avatar_url(full_name: string): string {
+    // ponytail: brand colors are read once, at load time, so a live
+    // light/dark toggle (no reload) keeps the old shade until the
+    // next page load.
+    const root_style =
+        typeof document === "undefined" ? undefined : getComputedStyle(document.documentElement);
+    const background =
+        root_style?.getPropertyValue("--color-background-brand-solid-action-button").trim() ||
+        "hsl(172.44deg 88.15% 26.47%)";
+    const text_color =
+        root_style?.getPropertyValue("--color-text-brand-solid-action-button").trim() ||
+        "hsl(0deg 0% 100%)";
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="${background}"/><text x="50" y="52" fill="${text_color}" font-family="sans-serif" font-size="42" font-weight="600" text-anchor="middle" dominant-baseline="middle">${get_initials(full_name)}</text></svg>`;
+    return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+function apply_default_avatar_for_current_user(): void {
+    // Only the jdenticon-generated default is replaced here; a
+    // Gravatar-backed avatar keeps coming from Gravatar, and a real
+    // upload always keeps showing the uploaded photo.
+    if (current_user === undefined || current_user.avatar_source !== "J") {
+        return;
+    }
+
+    current_user.avatar_url_medium = build_self_avatar_url(current_user.full_name);
+
+    const solid_avatar_url = build_solid_avatar_url(get_default_avatar_color(current_user.user_id));
+    current_user.avatar_url = solid_avatar_url;
+    const self_person = people_by_user_id_dict.get(current_user.user_id);
+    if (self_person) {
+        self_person.avatar_url = solid_avatar_url;
+    }
+}
+
 export function small_avatar_url_for_person(person: User | CurrentUser): string {
     if (person.avatar_url) {
         return person.avatar_url;
@@ -2158,6 +2222,8 @@ export async function initialize(
         add_active_user(person);
         user_ids_to_fetch.delete(person.user_id);
     }
+
+    apply_default_avatar_for_current_user();
 
     for (const person of people_params.realm_non_active_users) {
         if (!person.is_deleted) {
