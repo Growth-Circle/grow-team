@@ -24,7 +24,11 @@
     height: var(--header-height);
 
     .navbar-search {
-        margin: 0.2187em 0; /* 3.5px at 16px em */
+        /* Center the box in the header instead of the fixed 3.5px
+           top margin the pill used before --search-box-height grew
+           to 34px (mockup 10a); that leftover margin no longer
+           centers a box this tall, so it now sits high in the bar. */
+        top: calc((var(--header-height) - var(--search-box-height)) / 2);
         border-radius: var(--radius-pill);
         position: absolute;
         overflow: hidden;

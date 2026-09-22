@@ -964,6 +964,10 @@ div.message-list {
     gap: 18px;
     padding: 18px 24px;
     width: 100%;
+    /* Without this, the 24px side padding adds onto the 100% width
+       instead of eating into it, so the list overflows its container
+       and the right-hand padding runs off past the visible edge. */
+    box-sizing: border-box;
 }
 
 div.focused-message-list {

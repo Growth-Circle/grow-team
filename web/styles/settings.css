@@ -2649,6 +2649,10 @@ label.preferences-radio-choice-label {
     border-radius: var(--radius-md);
     color: var(--color-text-default);
     background: var(--color-background-popover);
+    /* The 1.5rem padding and 1px border must fit inside the width
+       above, not add onto it, or the dialog can run past the
+       calc(100vw - 2rem) cap on narrow viewports. */
+    box-sizing: border-box;
 
     &::backdrop {
         background: hsl(0deg 0% 0% / 50%);
