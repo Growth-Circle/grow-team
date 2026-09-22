@@ -4,6 +4,13 @@
 }
 
 .right-sidebar {
+    /* Sidebar surface: white in light mode, a slightly lighter
+       surface tone in dark mode, set off from the canvas behind
+       it by a left border. Both values come from light-dark()
+       tokens, so dark mode needs no separate rule here. */
+    background-color: var(--color-background-sidebar);
+    border-left: 1px solid var(--color-border-sidebar);
+
     & a:hover {
         text-decoration: none;
     }
@@ -15,10 +22,13 @@
 
 .right-sidebar-title {
     color: var(--color-text-sidebar-heading);
-    opacity: var(--opacity-sidebar-heading);
-    font-size: inherit;
+    /* Full opacity so the chosen heading color reads at full
+       strength, matching .left-sidebar-title. */
+    opacity: 1;
+    font-size: var(--font-size-sidebar-heading);
     font-weight: var(--font-weight-sidebar-heading);
     letter-spacing: var(--letter-spacing-sidebar-heading);
+    text-transform: uppercase;
 }
 
 #buddy_list_wrapper {
@@ -295,7 +305,7 @@
         )
         / var(--right-sidebar-header-icon-toggle-width) minmax(0, 1fr);
     cursor: pointer;
-    background-color: var(--color-background);
+    background-color: var(--color-background-sidebar);
     position: sticky;
     top: 0;
     z-index: 1;
@@ -358,13 +368,13 @@
     letter-spacing: var(--letter-spacing-sidebar-heading);
     text-transform: uppercase;
     cursor: default;
-    background-color: var(--color-background);
+    background-color: var(--color-background-sidebar);
     position: sticky;
     top: 0;
     z-index: 1;
 
     &:hover {
-        background-color: var(--color-background);
+        background-color: var(--color-background-sidebar);
         box-shadow: none;
     }
 }
@@ -578,7 +588,7 @@
        menus to line up. */
     padding-right: var(--width-simplebar-scroll-hover);
     padding-bottom: var(--sidebar-filter-bottom-spacing);
-    background-color: var(--color-background);
+    background-color: var(--color-background-sidebar);
 
     #buddy-list-menu-icon {
         color: var(--color-vdots-visible);
