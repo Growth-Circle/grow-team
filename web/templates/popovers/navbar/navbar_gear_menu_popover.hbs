@@ -143,42 +143,6 @@
                 <span class="popover-menu-label">{{t 'Select language' }}</span>
             </a>
         </li>
-        {{!-- Group 2 --}}
-        <li role="separator" class="popover-menu-separator"></li>
-        <li role="none" class="link-item popover-menu-list-item">
-            <a role="menuitem" href="/help/desktop-app-install-guide" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">
-                <i class="popover-menu-icon zulip-icon zulip-icon-monitor" aria-hidden="true"></i>
-                <span class="popover-menu-label">{{t 'Desktop & mobile apps' }}</span>
-            </a>
-        </li>
-        <li role="none" class="link-item popover-menu-list-item">
-            <a role="menuitem" href="/integrations/" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">
-                <i class="popover-menu-icon zulip-icon zulip-icon-git-pull-request" aria-hidden="true"></i>
-                <span class="popover-menu-label">{{t 'Integrations' }}</span>
-            </a>
-        </li>
-        <li role="none" class="link-item popover-menu-list-item">
-            <a role="menuitem" href="/api/" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">
-                <i class="popover-menu-icon zulip-icon zulip-icon-file-text" aria-hidden="true"></i>
-                <span class="popover-menu-label">{{t 'API documentation' }}</span>
-            </a>
-        </li>
-        {{#if promote_sponsoring_zulip}}
-        <li role="none" class="link-item popover-menu-list-item">
-            <a role="menuitem" href="https://github.com/Growth-Circle/grow-team" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">
-                <i class="popover-menu-icon zulip-icon zulip-icon-heart" aria-hidden="true"></i>
-                <span class="popover-menu-label">{{t 'Support Grow Team' }}</span>
-            </a>
-        </li>
-        {{/if}}
-        {{#if (and user_has_billing_access show_remote_billing) }}
-        <li role="none" class="link-item popover-menu-list-item">
-            <a role="menuitem" href="/self-hosted-billing/" id="open-self-hosted-billing" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">
-                <i class="popover-menu-icon zulip-icon zulip-icon-rocket" aria-hidden="true"></i>
-                <span class="popover-menu-label">{{t 'Plan management' }}</span>
-            </a>
-        </li>
-        {{/if}}
         {{!-- Group 3 --}}
         {{#if (or can_invite_users_by_email can_create_multiuse_invite is_spectator)}}
         <li role="separator" class="popover-menu-separator"></li>
