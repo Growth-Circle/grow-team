@@ -602,7 +602,15 @@
        uses font-sizing to adjust the size of the icon. Related
        values have been noted in comments with this variable name,
        to make their coordination a little less painful. */
-    --compose-formatting-buttons-row-height: 2em;
+    --compose-formatting-buttons-row-height: 32px;
+
+    /* Every control in the message box toolbar is a 32px square with
+       an 18px icon, grouped four to a set. Groups are told apart by
+       space, not by rules. */
+    --compose-control-button-size: 32px;
+    --compose-control-button-icon-size: 18px;
+    --compose-control-button-group-gap: 4px;
+    --compose-control-button-set-gap: 18px;
 
     /*
     Width of the area where the compose box buttons are placed, "inside"
@@ -1497,12 +1505,28 @@
         38deg 70% 50%
     );
     --color-compose-control-button-background-hover: light-dark(
-        hsl(0deg 0% 0% / 5%),
-        hsl(0deg 0% 100% / 5%)
+        hsl(170deg 8% 95%),
+        hsl(185deg 10% 20%)
     );
-    --color-compose-formatting-button-divider: light-dark(
-        hsl(0deg 0% 75%),
-        hsl(0deg 0% 90% / 25%)
+    --color-compose-control-button-icon: light-dark(
+        hsl(180deg 12% 24%),
+        hsl(170deg 8% 78%)
+    );
+    --color-compose-control-button-icon-disabled: light-dark(
+        hsl(180deg 8% 64%),
+        hsl(185deg 8% 42%)
+    );
+    --color-compose-control-button-background-active: light-dark(
+        hsl(172deg 55% 94%),
+        hsl(172deg 40% 20%)
+    );
+    --color-compose-control-button-icon-active: light-dark(
+        hsl(173deg 86% 22%),
+        hsl(168deg 55% 72%)
+    );
+    --color-background-compose-sheet: light-dark(
+        hsl(170deg 8% 97%),
+        hsl(185deg 13% 15%)
     );
     --color-compose-focus-ring: light-dark(
         var(--color-outline-focus),

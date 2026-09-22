@@ -1652,30 +1652,32 @@ textarea.new_message_textarea {
 .compose-control-buttons-container {
     display: flex;
     align-items: center;
-    /* 30px at 15px/1em */
+    gap: var(--compose-control-button-set-gap);
     height: var(--compose-formatting-buttons-row-height);
 
+    .compose-control-buttons-group {
+        display: flex;
+        align-items: center;
+        gap: var(--compose-control-button-group-gap);
+        /* The extras menu hangs off this group. */
+        position: relative;
+    }
+
     .compose_control_button {
-        /* 22px at 15px/1em */
-        font-size: 1.4667em;
-        /* Constrain icon fonts to a perfect
-           box (22px at 15px/1em) to sit centered
-           in the 30px by 30px button area. */
+        font-size: var(--compose-control-button-icon-size);
+        /* Constrain icon fonts to a perfect box, so the icon sits
+           centered in the button square. */
         line-height: 1;
-        /* Coordinate with the value of
-           --compose-formatting-buttons-row-height */
-        /* 30px at 22px/1em */
-        height: 1.3636em;
-        width: 1.3636em;
+        height: var(--compose-control-button-size);
+        width: var(--compose-control-button-size);
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
-        opacity: 0.7;
-        color: inherit;
+        color: var(--color-compose-control-button-icon);
         text-decoration: none;
 
         &:hover {
-            opacity: 1;
             background-color: var(
                 --color-compose-control-button-background-hover
             );
@@ -1686,15 +1688,23 @@ textarea.new_message_textarea {
         }
 
         &:focus-visible {
-            outline-color: var(--color-compose-focus-ring);
+            outline: 1.5px solid var(--color-compose-focus-ring);
+            outline-offset: 1px;
         }
     }
 
-    .compose_control_button_container.disabled-on-hover:hover {
-        opacity: 0.3;
+    /* Preview mode is a state of the message box, so its control
+       carries the state rather than only dimming its neighbours. */
+    .undo_markdown_preview.compose_control_button {
+        background-color: var(--color-compose-control-button-background-active);
+        color: var(--color-compose-control-button-icon-active);
+    }
 
+    .compose_control_button_container.disabled-on-hover:hover {
         .compose_control_button {
             pointer-events: none;
+            color: var(--color-compose-control-button-icon-disabled);
+            background-color: transparent;
         }
     }
 
@@ -1703,33 +1713,110 @@ textarea.new_message_textarea {
         top: -0.7px;
     }
 
-    .divider {
-        margin: 0 5px;
-        /* Coordinate with the value of
-           --compose-formatting-buttons-row-height */
-        /* 16px at 14px/1em */
-        height: 1.1429em;
-        width: 1.5px;
-        /* Prevent dividers from growing or shrinking. */
-        flex: 0 0 auto;
-        background-color: var(--color-compose-formatting-button-divider);
+    @media (width < $sm_min) {
+        /* Touch targets grow and the sets sit closer together, so the
+           row still holds the controls people reach for most. */
+        gap: 6px;
 
-        @media (width < 400px) {
-            /* Remove at mobile widths to make more space
-               for compose buttons */
-            display: none;
+        .compose-control-buttons-group {
+            gap: 6px;
+        }
+
+        .compose_control_button {
+            height: 40px;
+            width: 40px;
+            border-radius: 10px;
         }
     }
 }
 
-/* Tenang keeps only emoji, attachment, link, and bold visible by
-   default; every other formatting control lives here, folded away
-   until the "More formatting options" toggle opens it. Nothing is
-   removed, so it stays reachable by scrolling the button row, same
-   as an overlong row of formatting buttons always has been. */
+/* The four rarest tools open as a menu above the toolbar rather than
+   unfolding the row, so the row keeps one height at every width. */
 .compose-control-buttons-overflow {
     display: none;
-    align-items: center;
+    position: absolute;
+    bottom: calc(var(--compose-control-button-size) + 10px);
+    left: 0;
+    z-index: 105;
+    box-sizing: border-box;
+    width: 324px;
+    max-width: 90vw;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px;
+    border: 1px solid var(--color-border-popover-menu);
+    border-radius: 12px;
+    background-color: var(--color-background-popover-menu);
+    box-shadow: 0 12px 28px hsl(180deg 20% 20% / 10%);
+
+    .compose-control-buttons-overflow-heading {
+        padding: 8px 12px 6px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-text-item);
+    }
+
+    .compose_control_button_container {
+        display: flex;
+    }
+
+    .compose_control_button {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 12px;
+        width: 100%;
+        height: 34px;
+        padding: 0 12px;
+        border-radius: 8px;
+        font-size: var(--compose-control-button-icon-size);
+        color: var(--color-text-default);
+
+        &:hover {
+            background-color: var(
+                --color-compose-control-button-background-hover
+            );
+        }
+    }
+
+    .compose-control-button-label {
+        flex: 1;
+        font-size: 15px;
+    }
+
+    .compose-control-buttons-overflow-note {
+        margin: 6px 12px 4px;
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--color-text-item);
+    }
+
+    .needs-empty-compose.disabled-on-hover .compose_control_button {
+        color: var(--color-compose-control-button-icon-disabled);
+    }
+
+    @media (width < $sm_min) {
+        /* On a touch screen the menu becomes a sheet across the whole
+           message box, with rows large enough to hit with a thumb. */
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: auto;
+        max-width: none;
+        padding: 10px;
+        border-width: 1px 0 0;
+        border-radius: 0;
+        background-color: var(--color-background-compose-sheet);
+
+        .compose_control_button {
+            height: 44px;
+            gap: 14px;
+            border-radius: 12px;
+        }
+    }
 }
 
 .compose-control-buttons-overflow.expanded {
