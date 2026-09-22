@@ -129,7 +129,10 @@ async function test_agent_settings(page: Page): Promise<void> {
     const attachment_channel_id = attachment_channel_schema.exec(output)?.[1];
     assert.ok(attachment_channel_id);
     await common.log_in(page);
-    await page.goto("http://zulip.zulipdev.com:9981/#settings/agents");
+    await page.click("#settings-dropdown");
+    const agent_settings_item = '.link-item a[href="#settings/agents"]';
+    await page.waitForSelector(agent_settings_item, {visible: true});
+    await page.click(agent_settings_item);
     await page.waitForSelector("#agent-settings", {visible: true});
     await page.waitForFunction(
         () => document.querySelectorAll("#agent-profile-list .agent-card").length === 2,

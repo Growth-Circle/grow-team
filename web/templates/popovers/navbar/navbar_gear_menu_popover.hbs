@@ -85,6 +85,14 @@
                 <span class="popover-menu-label">{{t 'Personal settings' }}</span>
             </a>
         </li>
+        {{#if realm_agent_enabled}}
+        <li role="none" class="link-item popover-menu-list-item hidden-for-spectators">
+            <a role="menuitem" href="#settings/agents" class="navigate-link-on-enter popover-menu-link">
+                <i class="popover-menu-icon zulip-icon zulip-icon-bot" aria-hidden="true"></i>
+                <span class="popover-menu-label">{{t 'Agent settings' }}</span>
+            </a>
+        </li>
+        {{/if}}
         {{#unless is_guest}}
         <li role="none" class="link-item popover-menu-list-item hidden-for-spectators">
             <a role="menuitem" href="/stats" target="_blank" rel="noopener noreferrer" class="navigate-link-on-enter popover-menu-link">

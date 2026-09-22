@@ -128,6 +128,7 @@ type GearMenuContext = {
     can_invite_users_by_email: boolean;
     is_guest: boolean;
     login_link: string;
+    realm_agent_enabled: boolean;
     promote_sponsoring_zulip: boolean;
     show_billing: boolean;
     show_remote_billing: boolean;
@@ -424,6 +425,7 @@ export function get_gear_menu_content_context(): GearMenuContext {
         can_invite_users_by_email: settings_data.user_can_invite_users_by_email(),
         is_guest: current_user.is_guest,
         login_link: page_params.development_environment ? "/devlogin/" : "/login/",
+        realm_agent_enabled: realm.realm_agent_enabled,
         promote_sponsoring_zulip: page_params.promote_sponsoring_zulip,
         show_billing: billing_info.show_billing,
         show_remote_billing: billing_info.show_remote_billing,
