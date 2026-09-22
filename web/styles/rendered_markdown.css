@@ -283,7 +283,7 @@
     .user-group-mention,
     .user-mention,
     .topic-mention {
-        padding: 0 3px;
+        padding: 1px 5px;
         border-radius: var(--radius-xs);
         white-space: nowrap;
         /* Reduce the font-size to reduce the
@@ -298,8 +298,9 @@
     }
 
     .user-mention {
-        color: var(--color-text-other-mention);
+        color: var(--color-text-direct-mention);
         background-color: var(--color-background-text-direct-mention);
+        font-weight: 600;
 
         &.user-mention-me {
             color: var(--color-text-self-direct-mention);

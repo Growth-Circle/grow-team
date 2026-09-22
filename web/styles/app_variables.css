@@ -286,7 +286,7 @@
     */
     /* The width of the empty space in the sidebar to separate
        content from the edge of the window */
-    --left-sidebar-padding-left: 8px;
+    --left-sidebar-padding-left: 14px;
     /* The empty space between left-sidebar row icons and
        the row content.
        7px at 16px/1em */
@@ -317,8 +317,11 @@
     /* 15px at 8px/1em (masked unreads are sized to 0.5em) */
     --left-sidebar-single-digit-unread-width: 1.875em;
     --left-sidebar-right-margin: 12px;
-    /* 296px total: 308px at 16px/1em, minus the 12px right margin. */
-    --left-sidebar-max-width: calc(19.25em - var(--left-sidebar-right-margin));
+    /* 296px total: 308px at --base-font-size-px (15px default),
+       minus the 12px right margin. */
+    --left-sidebar-max-width: calc(
+        20.5333em - var(--left-sidebar-right-margin)
+    );
     --realm-logo-max-width: 12.5em; /* 200px at 16px em */
     /* Value updated on realm_logo.render() */
     --realm-logo-current-width: var(--realm-logo-max-width);
@@ -907,10 +910,9 @@
         hsl(180deg 10% 28%),
         hsl(170deg 8% 72%)
     );
-    /* Shared active-row text color for the nav row and the topic
-       row. The mockup shades these a little differently in dark
-       mode (hsl(168deg 55% 72%) nav vs hsl(168deg 50% 76%) topic);
-       kept as one token until a consumer needs the finer split. */
+    /* Active-row text color for the nav row.
+       The topic row needs a different dark shade.
+       See the li.active-sub-filter override after this block. */
     --color-text-active-narrow-filter: light-dark(
         hsl(172.58deg 85.84% 22.16%),
         hsl(168deg 55% 72%)
@@ -2188,8 +2190,15 @@
         hsl(180deg 13% 14%)
     );
     --color-background-text-direct-mention: light-dark(
-        hsl(172deg 70% 70% / 20%),
-        hsl(172deg 52% 60% / 25%)
+        hsl(172deg 55% 94%),
+        hsl(172deg 40% 20%)
+    );
+    /* Text color for a normal (non-self) direct mention chip.
+       Kept separate from --color-text-other-mention, which also
+       covers group and @all mentions with a different tone. */
+    --color-text-direct-mention: light-dark(
+        hsl(172.58deg 85.84% 22.16%),
+        hsl(168deg 60% 70%)
     );
     --color-background-text-hover-direct-mention: light-dark(
         hsl(172deg 70% 70% / 30%),
@@ -3342,7 +3351,7 @@
        channel row instead of matching it exactly. */
     --color-background-active-topic-row: light-dark(
         hsl(172deg 50% 97%),
-        hsl(172deg 35% 16%)
+        hsl(172deg 35% 18%)
     );
 
     /* Sidebar surface: the left and right sidebars sit on white
@@ -3384,6 +3393,15 @@
        tokens stay in sync in light and dark mode. */
     --box-shadow-floating-panel: var(--box-shadow-popover-menu);
     --box-shadow-drawer: -12px 0 30px hsl(180deg 20% 20% / 8%);
+}
+
+/* Topic-row-only dark shade for the active-row text color.
+   See --color-text-active-narrow-filter above. */
+li.active-sub-filter {
+    --color-text-active-narrow-filter: light-dark(
+        hsl(172.58deg 85.84% 22.16%),
+        hsl(168deg 50% 76%)
+    );
 }
 
 %dark-theme {

@@ -607,8 +607,11 @@ body.has-overlay-scrollbar {
     }
 
     .column-left .left-sidebar {
+        box-sizing: border-box;
         width: var(--left-sidebar-width);
-        padding-left: var(--left-sidebar-padding-left);
+        padding: 16px 12px 16px var(--left-sidebar-padding-left);
+        background-color: var(--color-background-sidebar);
+        border-right: 1px solid var(--color-border-sidebar);
     }
 
     .column-right .right-sidebar {
@@ -669,9 +672,7 @@ body.has-overlay-scrollbar {
 .column-middle,
 #compose-content {
     margin-right: var(--right-sidebar-width);
-    margin-left: calc(
-        var(--left-sidebar-width) + var(--left-sidebar-padding-left)
-    );
+    margin-left: var(--left-sidebar-width);
     position: relative;
 }
 
@@ -948,11 +949,15 @@ div.message-list {
     border-collapse: separate;
     margin-left: auto;
     display: none;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 18px;
+    padding: 18px 24px;
     width: 100%;
 }
 
 div.focused-message-list {
-    display: block;
+    display: flex;
 }
 
 /* In conversation view, always show the recipient bar action buttons */
