@@ -182,7 +182,7 @@ $(() => {
         },
     });
 
-    $<HTMLInputElement>(".register-page input#email, .login-page-container input#id_username").on(
+    $<HTMLInputElement>(".register-page input#email, input#id_username").on(
         "focusout keydown",
         function (e) {
             // check if it is the "focusout" or if it is a keydown, then check
