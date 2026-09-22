@@ -225,8 +225,8 @@
     /*
     This is the header, aka the navbar.
     */
-    --header-height: 3.5em; /* 56px at 16px em */
-    --header-line-height: 56px;
+    --header-height: 3.25em; /* 52px at 16px em */
+    --header-line-height: 52px;
     /*
     At 600px, the header starts taking up more than 5%
     of the screen. We make it shorter to leave more space
@@ -317,9 +317,9 @@
     /* 15px at 8px/1em (masked unreads are sized to 0.5em) */
     --left-sidebar-single-digit-unread-width: 1.875em;
     --left-sidebar-right-margin: 12px;
-    /* 289px at 14px/1em */
+    /* 296px total: 308px at 16px/1em, minus the 12px right margin. */
     --left-sidebar-max-width: calc(
-        20.6429em - var(--left-sidebar-right-margin)
+        19.25em - var(--left-sidebar-right-margin)
     );
     --realm-logo-max-width: 12.5em; /* 200px at 16px em */
     /* Value updated on realm_logo.render() */
@@ -602,13 +602,22 @@
        uses font-sizing to adjust the size of the icon. Related
        values have been noted in comments with this variable name,
        to make their coordination a little less painful. */
-    --compose-formatting-buttons-row-height: 32px;
+    --compose-formatting-buttons-row-height: 2em;
 
     /* Every control in the message box toolbar is a 32px square with
        an 18px icon, grouped four to a set. Groups are told apart by
-       space, not by rules. */
-    --compose-control-button-size: 32px;
-    --compose-control-button-icon-size: 18px;
+       space, not by rules. The button box is sized against its own
+       icon font, so both grow together with the reader's font size. */
+    /* 18px at 16px/1em */
+    --compose-control-button-icon-size: 1.125em;
+    /* 32px at 18px/1em, the icon font size */
+    --compose-control-button-size: 1.7778em;
+    /* 40px at 18px/1em. Touch targets on a narrow screen. */
+    --compose-control-button-touch-size: 2.2222em;
+    /* 34px at 18px/1em. Rows in the extras menu. */
+    --compose-control-menu-row-height: 1.8889em;
+    /* 44px at 18px/1em. Sheet rows on a narrow screen. */
+    --compose-control-sheet-row-height: 2.4444em;
     --compose-control-button-group-gap: 4px;
     --compose-control-button-set-gap: 18px;
 
@@ -1580,7 +1589,10 @@
         hsl(0deg 0% 15% / 25%),
         hsl(0deg 0% 87% / 40%)
     );
-    --color-text-message-header-archived: hsl(0deg 0% 50%);
+    --color-text-message-header-archived: light-dark(
+        hsl(180deg 10% 34%),
+        hsl(0deg 0% 50%)
+    );
     --color-text-message-view-header: light-dark(
         hsl(0deg 0% 20% / 100%),
         hsl(0deg 0% 100% / 85%)
@@ -1612,7 +1624,7 @@
     --color-text-search: light-dark(hsl(0deg 0% 35%), hsl(0deg 0% 100% / 75%));
     --color-text-search-hover: light-dark(hsl(0deg 0% 0%), hsl(0deg 0% 100%));
     --color-text-placeholder: light-dark(
-        hsl(180deg 8% 45%),
+        hsl(180deg 10% 34%),
         hsl(170deg 6% 60%)
     );
     --color-text-search-placeholder: light-dark(
@@ -1626,7 +1638,7 @@
     --color-text-full-name: light-dark(hsl(0deg 0% 15%), hsl(0deg 0% 100%));
     --color-text-item: light-dark(hsl(180deg 10% 36%), hsl(170deg 6% 60%));
     --color-text-personal-menu-no-status: light-dark(
-        hsl(0deg 0% 50%),
+        hsl(180deg 10% 34%),
         hsl(0deg 0% 100% 35%)
     );
     --color-text-personal-menu-some-status: light-dark(
@@ -1662,7 +1674,7 @@
         hsl(168deg 60% 78%)
     );
     --color-text-settings-field-hint: light-dark(
-        hsl(0deg 0% 57%),
+        hsl(180deg 10% 34%),
         hsl(0deg 0% 52%)
     );
     --color-text-clear-search-button: light-dark(
@@ -2369,7 +2381,7 @@
         hsl(168deg 100% 70% / 12%)
     );
     --color-gear-menu-lighter-text: light-dark(
-        hsl(0deg 0% 40%),
+        hsl(180deg 10% 34%),
         hsl(0deg 0% 50%)
     );
     --color-gear-menu-blue-text: light-dark(
@@ -3304,19 +3316,20 @@
     /* Round shapes: avatars, unread pill, search box, Send button. */
     --radius-pill: 999px;
 
-    /* Control-height scale. 1em is --base-font-size-px, 15px now. */
-    /* 36px at 14px/1em. One height for every action-button intent,
+    /* Control-height scale. 1em is --base-font-size-px, 16px at the
+       default (non-compact) density. */
+    /* 36px at 16px/1em. One height for every action-button intent,
        the search box, and the Send button. */
-    --height-control-md: 2.5714em;
-    /* 32px at 14px/1em. Square icon buttons. */
-    --height-icon-button: 2.2857em;
-    /* 34px at 14px/1em. Menu-sheet rows and channel rows in the
+    --height-control-md: 2.25em;
+    /* 32px at 16px/1em. Square icon buttons. */
+    --height-icon-button: 2em;
+    /* 34px at 16px/1em. Menu-sheet rows and channel rows in the
        left nav. */
-    --height-menu-row: 2.4285em;
-    /* 36px at 14px/1em. View rows in the left nav. */
-    --height-sidebar-row: 2.5714em;
-    /* 30px at 14px/1em. Topic rows in the left nav. */
-    --height-sidebar-topic-row: 2.1428em;
+    --height-menu-row: 2.125em;
+    /* 36px at 16px/1em. View rows in the left nav. */
+    --height-sidebar-row: 2.25em;
+    /* 30px at 16px/1em. Topic rows in the left nav. */
+    --height-sidebar-topic-row: 1.875em;
 
     /* Elevation-shadow rule: a surface sitting directly on the
        page background (raised-card, segment-active) gets "none" in
@@ -3333,6 +3346,54 @@
         hsl(172deg 50% 97%),
         hsl(172deg 35% 16%)
     );
+
+    /* Sidebar surface: the left and right sidebars sit on white
+       (dark: a slightly lighter surface tone) instead of the
+       --color-background canvas, set off from it by
+       --color-border-sidebar. Only other packages consume these
+       two; this file does not use them. */
+    --color-background-sidebar: light-dark(
+        hsl(0deg 0% 100%),
+        hsl(185deg 13% 13%)
+    );
+    --color-border-sidebar: light-dark(
+        hsl(170deg 10% 90%),
+        hsl(180deg 10% 20%)
+    );
+
+    /* Warning- and danger-card colors: queued, not-logged-in, and
+       expired states on task and agent cards. */
+    --color-text-warning-card: light-dark(
+        hsl(35deg 45% 24%),
+        hsl(38deg 50% 78%)
+    );
+    --color-background-warning-card: light-dark(
+        hsl(40deg 80% 96%),
+        hsl(42deg 90% 10%)
+    );
+    --color-border-warning-card: light-dark(
+        hsl(40deg 60% 82%),
+        hsl(40deg 35% 28%)
+    );
+    --color-icon-warning-card: light-dark(
+        hsl(35deg 80% 38%),
+        hsl(39deg 85% 60%)
+    );
+    --color-text-danger-card: light-dark(
+        hsl(4deg 65% 40%),
+        hsl(4deg 75% 74%)
+    );
+    --color-background-danger-card: light-dark(
+        hsl(4deg 70% 95%),
+        hsl(2deg 55% 18%)
+    );
+
+    /* Shared shadow primitives for the shell revamp. */
+    --box-shadow-card: 0 1px 2px hsl(180deg 20% 20% / 6%);
+    /* Same value as --box-shadow-popover-menu; reused so the two
+       tokens stay in sync in light and dark mode. */
+    --box-shadow-floating-panel: var(--box-shadow-popover-menu);
+    --box-shadow-drawer: -12px 0 30px hsl(180deg 20% 20% / 8%);
 }
 
 %dark-theme {
@@ -3370,6 +3431,11 @@
     /* See the :root elevation-shadow rule above. */
     --box-shadow-raised-card: none;
     --box-shadow-segment-active: none;
+    --box-shadow-card: none;
+    /* A drawer can sit over content of any tone, like the popover
+       and gear menus above, so it keeps a real shadow here instead
+       of "none". */
+    --box-shadow-drawer: -12px 0 30px hsl(185deg 30% 4% / 40%);
     --icon-chevron-down: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='%23DEDEDE' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath clip-rule='evenodd' d='M3.52977 5.52973C3.78947 5.27004 4.21053 5.27004 4.47023 5.52973L8 9.05951L11.5298 5.52973C11.7895 5.27004 12.2105 5.27004 12.4702 5.52973C12.7299 5.78943 12.7299 6.21049 12.4702 6.47019L8.47023 10.4702C8.21053 10.7299 7.78947 10.7299 7.52977 10.4702L3.52977 6.47019C3.27008 6.21049 3.27008 5.78943 3.52977 5.52973Z'/%3E%3C/svg%3E");
 
     /* Button colors on modals and message editing. */
