@@ -2640,6 +2640,46 @@ label.preferences-radio-choice-label {
     min-height: 6rem;
 }
 
+#agent-task-dialog {
+    width: min(36rem, calc(100vw - 2rem));
+    max-height: calc(100vh - 2rem);
+    overflow: auto;
+    padding: 1.5rem;
+    border: 1px solid var(--color-border-table-bordered);
+    border-radius: var(--radius-md);
+    color: var(--color-text-default);
+    background: var(--color-background-popover);
+
+    &::backdrop {
+        background: hsl(0deg 0% 0% / 50%);
+    }
+
+    form {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    select,
+    textarea {
+        width: 100%;
+        min-width: 0;
+        color: var(--color-text-default);
+        background: var(--color-background-legacy-input);
+    }
+
+    textarea {
+        min-height: 8rem;
+    }
+
+    button:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    a:focus-visible {
+        outline: 2px solid currentcolor;
+        outline-offset: 2px;
+    }
+}
+
 @media (width <= 40rem) {
     #agent-settings .agent-inline-form,
     #agent-settings .agent-editor {

@@ -521,6 +521,44 @@ export async function resolve_selection(args: {
     return (await mutate("post", "/json/agent/selection/resolve", args, selection_schema))
         .selection;
 }
+export async function preflight_message(profile_ids: string[], destination: unknown) {
+    return mutate(
+        "post",
+        "/json/agent/message-preflight",
+        {profile_ids, destination},
+        z.object({
+            ...version,
+            decisions: z.array(z.object({profile_id: z.string(), decision: z.string()})),
+        }),
+    );
+}
+export async function message_dispatch(message_id: number) {
+    return get(
+        `/json/agent/messages/${message_id}/dispatch`,
+        z.object({
+            ...version,
+            source_message_id: z.number(),
+            dispatch_receipts: z.array(
+                z.object({
+                    profile_id: z.string(),
+                    decision: z.string(),
+                    reason: z.string(),
+                    job_id: z.nullable(z.string()),
+                    job_status: z.nullable(z.string()),
+                }),
+            ),
+        }),
+    );
+}
+export async function recover_send_intent(client_key: string) {
+    return get(
+        `/json/agent/send-intents/${client_key}`,
+        z.object({...version, source_message_id: z.number(), deleted: z.boolean()}),
+    );
+}
+export async function create_job(payload: Record<string, unknown>) {
+    return mutate("post", "/json/agent/jobs", payload, z.object({...version, job: job_schema}));
+}
 const job_detail_schema = z.object({
     ...version,
     job: job_schema,

@@ -1,6 +1,7 @@
 import assert from "minimalistic-assert";
 import * as z from "zod/mini";
 
+import type {SendAuthority} from "./agent_send_intent.ts";
 import * as blueslip from "./blueslip.ts";
 import * as channel from "./channel.ts";
 import type {Message} from "./message_store.ts";
@@ -18,6 +19,9 @@ type SendMessageData = {
     queue_id: string | null;
     to: string;
     content: string;
+    agent_send_key?: string;
+    agent_send_metadata?: string;
+    agent_send_authority?: SendAuthority;
     resend?: boolean;
     locally_echoed?: boolean;
 } & (
@@ -42,9 +46,11 @@ export function send_message(
         });
     }
     sent_messages.wrap_send(request.local_id, () => {
+        const post_data = {...request};
+        delete post_data.agent_send_authority;
         channel.post({
             url: "/json/messages",
-            data: request,
+            data: post_data,
             success: function success(data) {
                 // Call back to our callers to do things like closing the compose
                 // box, turning off spinners, reifying locally echoed messages and

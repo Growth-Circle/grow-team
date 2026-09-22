@@ -771,6 +771,24 @@
                paragraph. */
             margin: 0;
         }
+
+        & .agent-dispatch-receipts {
+            /* Override Bootstrap default ul marker and indent. */
+            margin: 0;
+            padding: 0;
+            list-style: none;
+
+            & li:not(:first-child) {
+                margin-top: 0.25em;
+            }
+
+            & .agent-dispatch-receipt-name {
+                /* Stack the agent name above its outcome sentence
+                   so the two do not run into each other. */
+                display: block;
+                font-weight: 600;
+            }
+        }
     }
 
     .main-view-banner-action-button,

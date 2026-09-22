@@ -192,3 +192,39 @@ run_test("job evidence requires attempt identity", async () => {
     const result = await api.get_job("job");
     assert.equal(result.artifacts[0].attempt_id, "attempt");
 });
+
+run_test("one message keeps separate target receipts", async () => {
+    next_response = {
+        schema_version: 1,
+        source_message_id: 81,
+        dispatch_receipts: [
+            {
+                profile_id: "a",
+                decision: "accepted",
+                reason: "",
+                job_id: "job-a",
+                job_status: "queued",
+            },
+            {
+                profile_id: "b",
+                decision: "rejected",
+                reason: "access_denied",
+                job_id: null,
+                job_status: null,
+            },
+        ],
+    };
+    const result = await api.message_dispatch(81);
+    assert.equal(result.dispatch_receipts.length, 2);
+    assert.equal(result.dispatch_receipts[0].job_id, "job-a");
+    assert.equal(result.dispatch_receipts[1].decision, "rejected");
+    assert.equal(last_call.url, "/json/agent/messages/81/dispatch");
+});
+
+run_test("lost acknowledgement resolves the original send key and tombstone", async () => {
+    next_response = {schema_version: 1, source_message_id: 81, deleted: false};
+    assert.equal((await api.recover_send_intent("stable-key")).source_message_id, 81);
+    assert.equal(last_call.url, "/json/agent/send-intents/stable-key");
+    next_response.deleted = true;
+    assert.equal((await api.recover_send_intent("stable-key")).deleted, true);
+});

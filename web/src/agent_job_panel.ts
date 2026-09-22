@@ -7,13 +7,17 @@ import * as api from "./agent_api.ts";
 import {
     accepts_auxiliary_response,
     accepts_detail_response,
+    agent_job_status_sentence,
     clears_input_on_ack,
+    input_delivery_label,
     input_intent_for_draft,
+    job_status_label,
     merge_event_sequences,
     new_client_key,
 } from "./agent_ui_state.ts";
 import type {InputIntent} from "./agent_ui_state.ts";
 import * as browser_history from "./browser_history.ts";
+import {$t} from "./i18n.ts";
 import * as overlays from "./overlays.ts";
 import {current_user} from "./state_data.ts";
 
@@ -37,6 +41,9 @@ let event_request = 0;
 let input_request = 0;
 let input_revision = 0;
 let input_intent: InputIntent | undefined;
+// Holds an unresolved input intent while its job is not the open one.
+// The key is the actor and the job ID. A visit to another job keeps this retry key.
+const unresolved_inputs = new Map<string, InputIntent>();
 
 export function valid_job_id(id: string): boolean {
     return uuid.test(id);
@@ -50,6 +57,11 @@ export function job_hash(id: string): string {
 function session(): string {
     return `${window.location.origin}:${current_user.user_id}`;
 }
+// A logout or a realm change produces a new actor string, so a stale
+// intent from a previous session can never be restored.
+function input_slot(id: string): string {
+    return `${actor}:${id}`;
+}
 function active(id: string, token: number): boolean {
     return (
         target === id &&
@@ -62,7 +74,7 @@ function textline(parent: JQuery, label: string, value: unknown): void {
     const printable =
         typeof value === "string" || typeof value === "number" || typeof value === "boolean"
             ? String(value)
-            : "Unknown";
+            : $t({defaultMessage: "Unknown"});
     $("<p>").text(`${label}: ${printable}`).appendTo(parent);
 }
 function action(parent: JQuery, label: string, name: string, id = ""): void {
@@ -85,31 +97,47 @@ function render(data: api.AgentJobDetail): void {
     const attempt = selected_attempt(data);
     const attempt_id = attempt?.id;
     const summary = $("#agent-job-summary").empty();
-    $("#agent-job-heading").text(`Job ${job.id}`);
-    textline(summary, "State", job.status);
-    textline(summary, "Phase", job.phase);
-    textline(summary, "Task type", job.job_kind);
-    textline(summary, "Request", job.request);
+    $("#agent-job-heading").text($t({defaultMessage: "Job {id}"}, {id: job.id}));
+    textline(summary, $t({defaultMessage: "State"}), job_status_label(job.status));
+    textline(summary, $t({defaultMessage: "Phase"}), job.phase);
+    textline(summary, $t({defaultMessage: "Task type"}), job.job_kind);
+    textline(summary, $t({defaultMessage: "Request"}), job.request);
     if (job.blocked_reason) {
-        textline(summary, "Block", job.blocked_reason);
+        textline(summary, $t({defaultMessage: "Block"}), job.blocked_reason);
     }
     if (job.source_message_id) {
-        textline(summary, "Source message ID", job.source_message_id);
+        textline(summary, $t({defaultMessage: "Source message"}), job.source_message_id);
     }
     const process = $("#agent-job-attempt").empty();
     if (!attempt) {
-        textline(process, "Attempt", "No attempt started");
+        textline(
+            process,
+            $t({defaultMessage: "Attempt"}),
+            $t({defaultMessage: "No attempt started"}),
+        );
     } else {
-        textline(process, "Attempt", attempt.number);
-        textline(process, "Process", attempt.process_state);
-        textline(process, "Active", attempt.active ? "Yes" : "No");
-        textline(process, "Base commit", attempt.base_commit);
-        textline(process, "Final tree", attempt.tree_hash);
+        textline(process, $t({defaultMessage: "Attempt"}), attempt.number);
+        textline(process, $t({defaultMessage: "Process"}), attempt.process_state);
+        textline(
+            process,
+            $t({defaultMessage: "Active"}),
+            attempt.active ? $t({defaultMessage: "Yes"}) : $t({defaultMessage: "No"}),
+        );
+        textline(process, $t({defaultMessage: "Base commit"}), attempt.base_commit);
+        textline(process, $t({defaultMessage: "Final tree"}), attempt.tree_hash);
         if (job.status === "cancel_requested" && attempt.process_state !== "stopped") {
-            textline(process, "Stop", "Requested. Process stop is not confirmed.");
+            textline(
+                process,
+                $t({defaultMessage: "Stop"}),
+                $t({defaultMessage: "Requested. The agent has not confirmed it."}),
+            );
         }
         if (attempt.process_state === "stopped") {
-            textline(process, "Stop", "Process stop confirmed.");
+            textline(
+                process,
+                $t({defaultMessage: "Stop"}),
+                $t({defaultMessage: "Process stop confirmed."}),
+            );
         }
     }
     const checks = $("#agent-job-checks").empty();
@@ -117,21 +145,25 @@ function render(data: api.AgentJobDetail): void {
         (item) => !item.attempt_id || item.attempt_id === attempt_id,
     );
     if (current_checks.length === 0) {
-        textline(checks, "Checks", "No required check evidence for this attempt");
+        textline(
+            checks,
+            $t({defaultMessage: "Checks"}),
+            $t({defaultMessage: "No required check evidence for this attempt"}),
+        );
     }
     for (const check of current_checks) {
         const row = $("<div class='agent-card'>").appendTo(checks);
         textline(row, check.check_id, check.outcome);
         if (check.tree_hash) {
-            textline(row, "Tree", check.tree_hash);
+            textline(row, $t({defaultMessage: "Tree"}), check.tree_hash);
         }
         if (check.command) {
-            textline(row, "Command", check.command.join(" "));
+            textline(row, $t({defaultMessage: "Command"}), check.command.join(" "));
         }
         if (check.output_artifact_id && valid_job_id(check.output_artifact_id)) {
             $("<a>")
                 .attr("href", `/json/agent/artifacts/${check.output_artifact_id}`)
-                .text("Download check output")
+                .text($t({defaultMessage: "Download check output"}))
                 .appendTo(row);
         }
     }
@@ -141,14 +173,22 @@ function render(data: api.AgentJobDetail): void {
         (item) => item.attempt_id === attempt_id,
     );
     if (current_operations.length === 0) {
-        textline(operations, "Operations", "No operations for this attempt");
+        textline(
+            operations,
+            $t({defaultMessage: "Operations"}),
+            $t({defaultMessage: "No operations for this attempt"}),
+        );
     }
     for (const item of current_operations) {
         const row = $("<div class='agent-card'>").appendTo(operations);
-        textline(row, "Action", item.action);
-        textline(row, "State", item.status);
-        textline(row, "Operation hash", item.operation_hash);
-        textline(row, "Approval", item.approval_decision ?? "None");
+        textline(row, $t({defaultMessage: "Action"}), item.action);
+        textline(row, $t({defaultMessage: "State"}), item.status);
+        textline(row, $t({defaultMessage: "Operation hash"}), item.operation_hash);
+        textline(
+            row,
+            $t({defaultMessage: "Approval"}),
+            item.approval_decision ?? $t({defaultMessage: "None"}),
+        );
         if (item.can_decide && item.approval_id && item.nonce && item.approval_version !== null) {
             const payload = JSON.stringify({
                 approval_id: item.approval_id,
@@ -156,28 +196,31 @@ function render(data: api.AgentJobDetail): void {
                 operation_hash: item.operation_hash,
                 nonce: item.nonce,
             });
-            action(row, "Approve", "approve", payload);
-            action(row, "Reject", "reject", payload);
+            action(row, $t({defaultMessage: "Approve"}), "approve", payload);
+            action(row, $t({defaultMessage: "Reject"}), "reject", payload);
         }
     }
     $("#agent-job-more-operations")
         .prop("hidden", !data.operations_cursor.truncated)
         .text(
             data.operations_cursor.truncated
-                ? "Next operation page (list incomplete)"
-                : "Last operation page",
+                ? $t({defaultMessage: "Show the next operations"})
+                : $t({defaultMessage: "No more operations"}),
         );
     $("#agent-job-first-operations").remove();
     if (operation_offset > 0) {
         $("<button type='button' id='agent-job-first-operations'>")
-            .text("Refresh first operation page")
+            .text($t({defaultMessage: "Show the first operations"}))
             .insertBefore("#agent-job-more-operations");
     }
     if (operation_offset > 0) {
         textline(
             operations,
-            "Evidence",
-            "Only this current server page is shown. Refresh the first page for earlier decisions.",
+            $t({defaultMessage: "Evidence"}),
+            $t({
+                defaultMessage:
+                    'This list does not show earlier operations. Choose "Show the first operations" to see them.',
+            }),
         );
     }
     const artifacts = $("#agent-job-artifacts");
@@ -186,37 +229,41 @@ function render(data: api.AgentJobDetail): void {
         (item) => item.attempt_id === attempt_id,
     );
     if (current_artifacts.length === 0) {
-        textline(artifacts, "Artifacts", "No artifacts for this attempt");
+        textline(
+            artifacts,
+            $t({defaultMessage: "Artifacts"}),
+            $t({defaultMessage: "No artifacts for this attempt"}),
+        );
     }
     for (const item of current_artifacts) {
         const row = $("<div class='agent-card'>").appendTo(artifacts);
-        textline(row, "File", item.filename);
-        textline(row, "Attempt", item.attempt_id);
-        textline(row, "Kind", item.kind);
-        textline(row, "Bytes", item.size);
+        textline(row, $t({defaultMessage: "File"}), item.filename);
+        textline(row, $t({defaultMessage: "Attempt"}), item.attempt_id);
+        textline(row, $t({defaultMessage: "Kind"}), item.kind);
+        textline(row, $t({defaultMessage: "Bytes"}), item.size);
         if (valid_job_id(item.id)) {
             $("<a>")
                 .attr("href", `/json/agent/artifacts/${item.id}`)
-                .text("Download authorized artifact")
+                .text($t({defaultMessage: "Download artifact"}))
                 .appendTo(row);
         }
         if (item.kind === "diff" || item.media_type.startsWith("text/")) {
-            action(row, "Preview first 64 KB", "preview", item.id);
+            action(row, $t({defaultMessage: "Preview first 64 KB"}), "preview", item.id);
         }
     }
     $("#agent-job-more-artifacts")
         .prop("hidden", !data.artifacts_cursor.truncated)
         .text(
             data.artifacts_cursor.truncated
-                ? "Load more artifacts (list incomplete)"
-                : "All artifacts shown",
+                ? $t({defaultMessage: "Show more artifacts"})
+                : $t({defaultMessage: "All artifacts shown"}),
         );
     const controls = $("#agent-job-controls").empty();
     if (job.allowed_actions.includes("cancel")) {
-        action(controls, "Request stop", "cancel");
+        action(controls, $t({defaultMessage: "Request stop"}), "cancel");
     }
     if (job.allowed_actions.includes("resume")) {
-        action(controls, "Resume job", "resume");
+        action(controls, $t({defaultMessage: "Resume job"}), "resume");
     }
     const input_allowed =
         job.allowed_actions.includes("input") &&
@@ -225,9 +272,13 @@ function render(data: api.AgentJobDetail): void {
             attempt?.process_state === "active");
     $("#agent-job-input-form").prop("hidden", !input_allowed);
     if (["completed", "cancelled", "failed"].includes(job.status)) {
-        textline(controls, "Next step", "Create a new task for further work.");
+        textline(
+            controls,
+            $t({defaultMessage: "Next step"}),
+            $t({defaultMessage: "Create a new task for further work."}),
+        );
     }
-    status(`Current job state: ${job.status}. Updated from server.`);
+    status(agent_job_status_sentence(job.status));
 }
 async function fetch_detail(id: string, token: number): Promise<void> {
     detail_request += 1;
@@ -279,7 +330,7 @@ async function fetch_detail(id: string, token: number): Promise<void> {
         await fetch_inputs(id, token);
     } catch {
         if (active(id, token) && request >= accepted_request) {
-            status("Job status is unknown. Retry this panel.");
+            status($t({defaultMessage: "Job status is unknown. Retry this panel."}));
         }
     }
 }
@@ -323,7 +374,11 @@ async function fetch_events(id: string, token: number): Promise<void> {
             textline(box, event.occurred_at, event.type);
         }
         if (box.children().length === 0) {
-            textline(box, "Events", "No events for this attempt");
+            textline(
+                box,
+                $t({defaultMessage: "Events"}),
+                $t({defaultMessage: "No events for this attempt"}),
+            );
         }
         $("#agent-job-more-events").prop("hidden", result.events.length < 100);
     } catch {
@@ -332,7 +387,7 @@ async function fetch_events(id: string, token: number): Promise<void> {
             request === event_request &&
             attempt_id === (detail && selected_attempt(detail)?.id)
         ) {
-            $("#agent-job-events").text("Event status is unknown.");
+            $("#agent-job-events").text($t({defaultMessage: "Event status is unknown."}));
         }
     }
 }
@@ -362,14 +417,26 @@ async function fetch_inputs(id: string, token: number): Promise<void> {
         const box = $("#agent-job-inputs").empty();
         for (const input of result.inputs) {
             const row = $("<div class='agent-card'>").appendTo(box);
-            textline(row, `Input ${input.sequence}`, input.text);
-            textline(row, "Delivery", input.delivery_state);
+            textline(
+                row,
+                $t({defaultMessage: "Input {sequence}"}, {sequence: input.sequence}),
+                input.text,
+            );
+            textline(
+                row,
+                $t({defaultMessage: "Delivery"}),
+                input_delivery_label(input.delivery_state),
+            );
         }
         if (result.inputs.length === 0) {
-            textline(box, "Input", "No input yet");
+            textline(box, $t({defaultMessage: "Input"}), $t({defaultMessage: "No input yet"}));
         }
         if (result.count > result.inputs.length) {
-            textline(box, "History", "Input list is incomplete");
+            textline(
+                box,
+                $t({defaultMessage: "History"}),
+                $t({defaultMessage: "Earlier inputs are not shown."}),
+            );
         }
     } catch {
         if (
@@ -377,7 +444,7 @@ async function fetch_inputs(id: string, token: number): Promise<void> {
             request === input_request &&
             attempt_id === (detail && selected_attempt(detail)?.id)
         ) {
-            $("#agent-job-inputs").text("Input delivery status is unknown.");
+            $("#agent-job-inputs").text($t({defaultMessage: "Input delivery status is unknown."}));
         }
     }
 }
@@ -409,6 +476,9 @@ function clear(): void {
     event_request = 0;
     input_request = 0;
     input_revision = 0;
+    if (input_intent) {
+        unresolved_inputs.set(input_slot(input_intent.job_id), input_intent);
+    }
     input_intent = undefined;
     if (timer) {
         clearTimeout(timer);
@@ -461,11 +531,12 @@ async function preview_artifact(
             offset += chunk.length;
         }
         box.text(
-            new TextDecoder().decode(bytes) + (truncated ? "\n… Preview truncated at 64 KB." : ""),
+            new TextDecoder().decode(bytes) +
+                (truncated ? $t({defaultMessage: "\n… Preview truncated at 64 KB."}) : ""),
         );
     } catch {
         if (active(job_id, token)) {
-            box.text("Artifact preview is unavailable.");
+            box.text($t({defaultMessage: "Artifact preview is unavailable."}));
         }
     }
 }
@@ -495,6 +566,7 @@ function bind(): void {
             new_client_key,
         );
         const intent = input_intent;
+        status($t({defaultMessage: "Input pending acceptance for this job…"}));
         $("#agent-job-input-form button").prop("disabled", true);
         void api
             .job_action(id, "inputs", {
@@ -509,11 +581,12 @@ function bind(): void {
                 }
                 if (input_intent?.key === intent.key) {
                     input_intent = undefined;
+                    unresolved_inputs.delete(input_slot(id));
                 }
                 if (clears_input_on_ack(intent, input_revision)) {
                     $("#agent-job-input").val("");
                 }
-                status("Input accepted. Delivery status will update.");
+                status($t({defaultMessage: "Input accepted. Delivery status will update."}));
                 void fetch_detail(id, token);
             })
             .catch(async () => {
@@ -526,21 +599,28 @@ function bind(): void {
                         if (inputs.inputs.some((item) => item.client_key === intent.key)) {
                             if (input_intent?.key === intent.key) {
                                 input_intent = undefined;
+                                unresolved_inputs.delete(input_slot(id));
                             }
                             if (clears_input_on_ack(intent, input_revision)) {
                                 $("#agent-job-input").val("");
                             }
-                            status("Input accepted. Delivery status will update.");
+                            status($t({defaultMessage: "Input accepted. Delivery status will update."}));
                             void fetch_detail(id, token);
                         } else {
                             status(
-                                "Input acceptance is unknown. Retry to reuse the same intent key.",
+                                $t({
+                                    defaultMessage:
+                                        "Input status is unknown. Send the same text again. It will not create a second input.",
+                                }),
                             );
                         }
                     } catch {
                         if (active(id, token)) {
                             status(
-                                "Input acceptance is unknown. Retry to reuse the same intent key.",
+                                $t({
+                                    defaultMessage:
+                                        "Input status is unknown. Send the same text again. It will not create a second input.",
+                                }),
                             );
                         }
                     }
@@ -585,7 +665,9 @@ function bind(): void {
             const artifact = loaded_artifacts.get(artifact_id);
             const attempt_id = detail && selected_attempt(detail)?.id;
             if (artifact && artifact.attempt_id === attempt_id) {
-                const box = $("<pre class='agent-artifact-preview'>").text("Loading preview…");
+                const box = $("<pre class='agent-artifact-preview'>").text(
+                    $t({defaultMessage: "Loading preview…"}),
+                );
                 $(this).after(box);
                 void preview_artifact(artifact_id, id, token, box);
             }
@@ -598,7 +680,7 @@ function bind(): void {
         };
         const on_error = (): void => {
             if (active(id, token)) {
-                status("Action failed. Refresh the current job state.");
+                status($t({defaultMessage: "Action failed. Refresh the current job state."}));
             }
         };
         if (name === "cancel" && job.allowed_actions.includes("cancel")) {
@@ -650,8 +732,13 @@ export function change_target(id: string): void {
     clear();
     target = id;
     actor = session();
+    input_intent = unresolved_inputs.get(input_slot(id));
+    if (input_intent) {
+        input_revision = input_intent.draft_revision;
+        $("#agent-job-input").val(input_intent.text);
+    }
     const token = visit;
-    status("Loading current job status…");
+    status($t({defaultMessage: "Loading current job status…"}));
     $(
         "#agent-job-summary, #agent-job-attempt, #agent-job-checks, #agent-job-operations, #agent-job-artifacts, #agent-job-inputs, #agent-job-events, #agent-job-controls",
     ).empty();

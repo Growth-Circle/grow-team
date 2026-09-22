@@ -8,6 +8,9 @@ import * as z from "zod/mini";
 import render_success_message_scheduled_banner from "../templates/compose_banner/success_message_scheduled_banner.hbs";
 import render_wildcard_mention_not_allowed_error from "../templates/compose_banner/wildcard_mention_not_allowed_error.hbs";
 
+import * as agent_api from "./agent_api.ts";
+import * as agent_message_send from "./agent_message_send.ts";
+import * as agent_send_intent from "./agent_send_intent.ts";
 import * as channel from "./channel.ts";
 import * as compose_banner from "./compose_banner.ts";
 import * as compose_notifications from "./compose_notifications.ts";
@@ -17,6 +20,7 @@ import * as compose_validate from "./compose_validate.ts";
 import * as drafts from "./drafts.ts";
 import * as echo from "./echo.ts";
 import type {PostMessageAPIData} from "./echo.ts";
+import {$t_html} from "./i18n.ts";
 import * as message_events from "./message_events.ts";
 import type {LocalMessage} from "./message_helper.ts";
 import * as message_viewport from "./message_viewport.ts";
@@ -28,6 +32,7 @@ import * as server_events_state from "./server_events_state.ts";
 import {current_user} from "./state_data.ts";
 import * as transmit from "./transmit.ts";
 import * as typing from "./typing.ts";
+import * as ui_report from "./ui_report.ts";
 import {user_settings} from "./user_settings.ts";
 import * as util from "./util.ts";
 import * as zcommand from "./zcommand.ts";
@@ -44,6 +49,9 @@ export type SendMessageData = {
     resend?: boolean;
     locally_echoed?: boolean;
     draft_id: string;
+    agent_send_key?: string;
+    agent_send_metadata?: string;
+    agent_send_authority?: agent_send_intent.SendAuthority;
 } & (
     | {
           type: "stream";
@@ -99,6 +107,7 @@ export function render_preview_area(): void {
 }
 
 export function clear_compose_box(): void {
+    agent_send_intent.change_draft();
     /* Before clearing the compose box, we reset it to the
      * default/normal size. Note that for locally echoed messages, we
      * will have already done this action before echoing the message
@@ -128,16 +137,31 @@ export type SentMessageData = SendMessageData & {
     resend: boolean;
 };
 
+let retry_intent:
+    | {authority: agent_send_intent.SendAuthority; targets: agent_message_send.PreparedTargets}
+    | undefined;
+
 export function send_message_success(
     sent_message: SentMessageData | LocalMessage,
     data: PostMessageAPIData,
+    intent?: agent_send_intent.SendAuthority,
 ): void {
-    if (!sent_message.locally_echoed) {
+    intent ??= sent_message.agent_send_authority;
+    const current =
+        intent === undefined ||
+        agent_send_intent.is_current(
+            intent,
+            JSON.stringify(compose_destination()),
+            compose_state.message_content(),
+        );
+    if (!sent_message.locally_echoed && current) {
         clear_compose_box();
     }
 
     echo.reify_message_id(sent_message.local_id, data.id);
-    drafts.draft_model.deleteDrafts([sent_message.draft_id]);
+    if (current || drafts.compose_draft_id !== sent_message.draft_id) {
+        drafts.draft_model.deleteDrafts([sent_message.draft_id]);
+    }
 
     if (sent_message.type === "stream") {
         if (data.automatic_new_visibility_policy) {
@@ -162,6 +186,16 @@ export function send_message_success(
             );
         }
     }
+}
+
+function compose_destination(): unknown {
+    if (compose_state.get_message_type() === "private") {
+        return {
+            type: "private",
+            recipients: util.sorted_ids(compose_state.private_message_recipient_ids()),
+        };
+    }
+    return {type: "stream", stream_id: compose_state.stream_id(), topic: compose_state.topic()};
 }
 
 export let send_message = (): void => {
@@ -217,106 +251,209 @@ export let send_message = (): void => {
         };
     }
 
-    let local_id: string;
+    const destination = JSON.stringify(compose_destination());
+    const previous = retry_intent;
+    const intent =
+        previous?.authority.draft_id === draft_id &&
+        agent_send_intent.is_current(previous.authority, destination, message_data.content)
+            ? previous.authority
+            : agent_send_intent.capture(draft_id, destination, message_data.content);
+    const snapshot: agent_message_send.MessageSnapshot =
+        message_data.type === "stream"
+            ? {
+                  type: "stream",
+                  content: message_data.content,
+                  stream_id: message_data.stream_id,
+                  topic: message_data.topic,
+              }
+            : {
+                  type: "private",
+                  content: message_data.content,
+                  topic: "",
+                  recipient_ids: z.array(z.number()).parse(JSON.parse(message_data.to)),
+              };
+    const agent_candidate = agent_message_send.needs_target_lookup(snapshot);
 
-    const message = echo.try_deliver_locally(message_data, message_events.insert_new_messages);
-    const locally_echoed = Boolean(message);
-    if (message) {
-        // We are rendering this message locally with an id
-        // like 92l99.01 that corresponds to a reasonable
-        // approximation of the id we'll get from the server
-        // in terms of sorting messages.
-        assert(message.local_id !== undefined);
-        local_id = message.local_id;
-    } else {
-        // We are not rendering this message locally, but we
-        // track the message's life cycle with an id like
-        // loc-1, loc-2, loc-3,etc.
-        local_id = sent_messages.get_new_local_id();
-    }
-
-    function success(data: unknown): void {
-        const parsed_data = z
-            .object({
-                id: z.number(),
-                automatic_new_visibility_policy: z.optional(z.number()),
-            })
-            .parse(data);
-        send_message_success(
-            {
-                ...message_data,
-                local_id,
-                locally_echoed,
-                resend: false,
-            },
-            parsed_data,
-        );
-    }
-
-    function error(response: string, server_error_code: string): void {
-        // Error callback for failed message send attempts.
-        if (!locally_echoed) {
-            if (server_error_code === "TOPIC_WILDCARD_MENTION_NOT_ALLOWED") {
-                // The topic wildcard mention permission code path has
-                // a special error.
-                const new_row_html = render_wildcard_mention_not_allowed_error({
-                    banner_type: compose_banner.ERROR,
-                    classname: compose_banner.CLASSNAMES.wildcards_not_allowed,
-                });
-                compose_banner.append_compose_banner_to_banner_list(
-                    $(new_row_html),
-                    $("#compose_banners"),
-                );
-            } else {
-                compose_banner.show_error_message(
-                    response,
-                    compose_banner.CLASSNAMES.generic_compose_error,
-                    $("#compose_banners"),
-                    $("textarea#compose-textarea"),
-                );
-            }
-
-            // For messages that were not locally echoed, we're
-            // responsible for hiding the compose spinner to restore
-            // the compose box so one can send a next message.
-            //
-            // (Restoring this state is handled by clear_compose_box
-            // for locally echoed messages.)
+    const publish = ({profile_ids, metadata_safe}: agent_message_send.PreparedTargets): void => {
+        if (
+            !agent_send_intent.is_current(
+                intent,
+                JSON.stringify(compose_destination()),
+                compose_state.message_content(),
+            )
+        ) {
             compose_ui.hide_compose_spinner();
             return;
         }
+        // A hidden agent profile needs the same retry key as a listed one.
+        if (agent_candidate) {
+            message_data.agent_send_authority = intent;
+            retry_intent = {authority: intent, targets: {profile_ids, metadata_safe}};
+            message_data.agent_send_key = intent.send_key;
+            if (metadata_safe) {
+                message_data.agent_send_metadata = JSON.stringify({
+                    schema_version: 1,
+                    profile_ids,
+                    draft_key: draft_id,
+                    visit_token: intent.visit_token,
+                    draft_revision: intent.draft_revision,
+                });
+            }
+        }
+        let local_id: string;
 
-        assert(message !== undefined);
-        echo.message_send_error(message.id, response);
+        const message = echo.try_deliver_locally(message_data, message_events.insert_new_messages);
+        const locally_echoed = Boolean(message);
+        if (message) {
+            // We are rendering this message locally with an id
+            // like 92l99.01 that corresponds to a reasonable
+            // approximation of the id we'll get from the server
+            // in terms of sorting messages.
+            assert(message.local_id !== undefined);
+            local_id = message.local_id;
+        } else {
+            // We are not rendering this message locally, but we
+            // track the message's life cycle with an id like
+            // loc-1, loc-2, loc-3,etc.
+            local_id = sent_messages.get_new_local_id();
+        }
 
-        // We might not have updated the draft count because we assumed the
-        // message would send. Ensure that the displayed count is correct.
-        drafts.sync_count();
+        function success(data: unknown): void {
+            const parsed_data = z
+                .object({
+                    id: z.number(),
+                    automatic_new_visibility_policy: z.optional(z.number()),
+                })
+                .parse(data);
+            if (retry_intent?.authority.send_key === intent.send_key) {
+                retry_intent = undefined;
+            }
+            send_message_success(
+                {
+                    ...message_data,
+                    local_id,
+                    locally_echoed,
+                    resend: false,
+                },
+                parsed_data,
+                intent,
+            );
+            if (agent_candidate) {
+                void agent_message_send.report_dispatch(parsed_data.id);
+            }
+        }
 
-        assert(draft_id !== undefined);
-        const draft = drafts.draft_model.getDraft(draft_id);
-        assert(draft !== false);
-        draft.is_sending_saving = false;
-        drafts.draft_model.editDraft(draft_id, draft);
-    }
+        function show_error(response: string, server_error_code: string): void {
+            // Error callback for failed message send attempts.
+            if (!locally_echoed) {
+                if (server_error_code === "TOPIC_WILDCARD_MENTION_NOT_ALLOWED") {
+                    // The topic wildcard mention permission code path has
+                    // a special error.
+                    const new_row_html = render_wildcard_mention_not_allowed_error({
+                        banner_type: compose_banner.ERROR,
+                        classname: compose_banner.CLASSNAMES.wildcards_not_allowed,
+                    });
+                    compose_banner.append_compose_banner_to_banner_list(
+                        $(new_row_html),
+                        $("#compose_banners"),
+                    );
+                } else {
+                    compose_banner.show_error_message(
+                        response,
+                        compose_banner.CLASSNAMES.generic_compose_error,
+                        $("#compose_banners"),
+                        $("textarea#compose-textarea"),
+                    );
+                }
 
-    transmit.send_message(
-        {...message_data, local_id, locally_echoed, resend: false},
-        success,
-        error,
-    );
-    server_events_state.assert_get_events_running(
-        "Restarting get_events because it was not running during send",
-    );
+                // For messages that were not locally echoed, we're
+                // responsible for hiding the compose spinner to restore
+                // the compose box so one can send a next message.
+                //
+                // (Restoring this state is handled by clear_compose_box
+                // for locally echoed messages.)
+                compose_ui.hide_compose_spinner();
+                return;
+            }
 
-    if (locally_echoed) {
-        clear_compose_box();
-        assert(message !== undefined);
-        // Schedule a timer to display a spinner when the message is
-        // taking a longtime to send.
-        setTimeout(() => {
-            echo.display_slow_send_loading_spinner(message);
-        }, 5000);
+            assert(message !== undefined);
+            echo.message_send_error(message.id, response);
+
+            // We might not have updated the draft count because we assumed the
+            // message would send. Ensure that the displayed count is correct.
+            drafts.sync_count();
+
+            assert(draft_id !== undefined);
+            const draft = drafts.draft_model.getDraft(draft_id);
+            assert(draft !== false);
+            draft.is_sending_saving = false;
+            drafts.draft_model.editDraft(draft_id, draft);
+        }
+
+        async function recover_error(
+            send_key: string,
+            response: string,
+            server_error_code: string,
+        ): Promise<void> {
+            try {
+                const recovered = await agent_api.recover_send_intent(send_key);
+                if (recovered.deleted) {
+                    compose_ui.hide_compose_spinner();
+                    ui_report.generic_embed_error(
+                        $t_html({
+                            defaultMessage:
+                                "Message was sent and later deleted. It will not be sent again.",
+                        }),
+                    );
+                    return;
+                }
+                success({id: recovered.source_message_id});
+            } catch {
+                show_error(response, server_error_code);
+            }
+        }
+
+        function error(response: string, server_error_code: string): void {
+            if (!message_data.agent_send_key) {
+                show_error(response, server_error_code);
+                return;
+            }
+            void recover_error(message_data.agent_send_key, response, server_error_code);
+        }
+
+        transmit.send_message(
+            {...message_data, local_id, locally_echoed, resend: false},
+            success,
+            error,
+        );
+        server_events_state.assert_get_events_running(
+            "Restarting get_events because it was not running during send",
+        );
+
+        if (locally_echoed) {
+            clear_compose_box();
+            assert(message !== undefined);
+            // Schedule a timer to display a spinner when the message is
+            // taking a longtime to send.
+            setTimeout(() => {
+                echo.display_slow_send_loading_spinner(message);
+            }, 5000);
+        }
+    };
+    if (agent_candidate) {
+        if (previous?.authority === intent) {
+            publish(previous.targets);
+        } else {
+            void (async () => {
+                try {
+                    publish(await agent_message_send.prepare(snapshot));
+                } catch {
+                    publish({profile_ids: [], metadata_safe: false});
+                }
+            })();
+        }
+    } else {
+        publish({profile_ids: [], metadata_safe: false});
     }
 };
 

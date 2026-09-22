@@ -17,6 +17,20 @@
             </a>
         </li>
         {{/if}}
+        <li role="none" class="link-item popover-menu-list-item hidden-for-spectators">
+            <a role="menuitem" data-message-id="{{message_id}}" class="agent_create_task popover-menu-link" tabindex="0">
+                <i class="popover-menu-icon zulip-icon zulip-icon-bot" aria-hidden="true"></i>
+                <span class="popover-menu-label">{{t "Create agent task" }}</span>
+            </a>
+        </li>
+        {{#if should_display_agent_task_receipt}}
+        <li role="none" class="link-item popover-menu-list-item hidden-for-spectators">
+            <a role="menuitem" data-message-id="{{message_id}}" class="agent_task_receipt popover-menu-link" tabindex="0">
+                <i class="popover-menu-icon zulip-icon zulip-icon-file-check" aria-hidden="true"></i>
+                <span class="popover-menu-label">{{t "Agent task receipt" }}</span>
+            </a>
+        </li>
+        {{/if}}
         {{!-- Group 2 --}}
         {{#if (or editability_menu_item move_message_menu_item should_display_delete_option should_display_message_report_option)}}
         <li role="separator" class="popover-menu-separator"></li>

@@ -1,6 +1,7 @@
 import _ from "lodash";
 import assert from "minimalistic-assert";
 
+import type {SendAuthority} from "./agent_send_intent.ts";
 import * as alert_words from "./alert_words.ts";
 import type {RawLocalMessage} from "./echo.ts";
 import {electron_bridge} from "./electron_bridge.ts";
@@ -33,6 +34,7 @@ export type LocalMessage = Message & {
     local_id: string;
     topic: string;
     draft_id: string;
+    agent_send_authority?: SendAuthority;
 };
 
 export type ProcessedMessage =

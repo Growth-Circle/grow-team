@@ -6,6 +6,8 @@ import * as z from "zod/mini";
 import render_add_poll_modal from "../templates/add_poll_modal.hbs";
 import render_add_todo_list_modal from "../templates/add_todo_list_modal.hbs";
 
+import * as agent_send_intent from "./agent_send_intent.ts";
+import * as agent_task_composer from "./agent_task_composer.ts";
 import * as compose from "./compose.ts";
 import * as compose_actions from "./compose_actions.ts";
 import * as compose_banner from "./compose_banner.ts";
@@ -64,6 +66,7 @@ function setup_compose_actions_hooks(): void {
 }
 
 export function initialize(): void {
+    agent_task_composer.initialize();
     // Register hooks for compose_actions.
     setup_compose_actions_hooks();
 
@@ -87,46 +90,42 @@ export function initialize(): void {
         );
     });
 
-    $("textarea#compose-textarea").on(
-        "input",
-        _.throttle(() => {
-            if ($("#compose").hasClass("preview_mode")) {
-                compose.render_preview_area();
-            }
-            const recipient_widget_hidden =
-                $(".compose_select_recipient-dropdown-list-container").length === 0;
-            if (recipient_widget_hidden) {
-                compose_validate.warn_if_topic_resolved(false);
-            }
-            compose_validate.maybe_clear_stale_recipient_not_subscribed_warnings(
-                $<HTMLTextAreaElement>("textarea#compose-textarea").expectOne(),
+    const update_compose_input = _.throttle(() => {
+        if ($("#compose").hasClass("preview_mode")) {
+            compose.render_preview_area();
+        }
+        const recipient_widget_hidden =
+            $(".compose_select_recipient-dropdown-list-container").length === 0;
+        if (recipient_widget_hidden) {
+            compose_validate.warn_if_topic_resolved(false);
+        }
+        compose_validate.maybe_clear_stale_recipient_not_subscribed_warnings(
+            $<HTMLTextAreaElement>("textarea#compose-textarea").expectOne(),
+        );
+        const compose_text_length = compose_validate.check_overflow_text($("#send_message_form"));
+
+        // Change compose close button tooltip as per condition.
+        // We save compose text in draft only if its length is > 2.
+        if (compose_text_length > 2) {
+            $("#compose_close").attr(
+                "data-tooltip-template-id",
+                "compose_close_and_save_tooltip_template",
             );
-            const compose_text_length = compose_validate.check_overflow_text(
-                $("#send_message_form"),
-            );
+        } else {
+            $("#compose_close").attr("data-tooltip-template-id", "compose_close_tooltip_template");
+        }
 
-            // Change compose close button tooltip as per condition.
-            // We save compose text in draft only if its length is > 2.
-            if (compose_text_length > 2) {
-                $("#compose_close").attr(
-                    "data-tooltip-template-id",
-                    "compose_close_and_save_tooltip_template",
-                );
-            } else {
-                $("#compose_close").attr(
-                    "data-tooltip-template-id",
-                    "compose_close_tooltip_template",
-                );
-            }
+        // The poll widget requires an empty compose box.
+        $(".needs-empty-compose").toggleClass("disabled-on-hover", compose_text_length > 0);
 
-            // The poll widget requires an empty compose box.
-            $(".needs-empty-compose").toggleClass("disabled-on-hover", compose_text_length > 0);
-
-            if (compose_state.get_is_content_unedited_restored_draft()) {
-                compose_state.set_is_content_unedited_restored_draft(false);
-            }
-        }, 25),
-    );
+        if (compose_state.get_is_content_unedited_restored_draft()) {
+            compose_state.set_is_content_unedited_restored_draft(false);
+        }
+    }, 25);
+    $("textarea#compose-textarea").on("input", () => {
+        agent_send_intent.change_draft();
+        update_compose_input();
+    });
 
     $("#compose form").on("submit", (e) => {
         e.preventDefault();
@@ -753,6 +752,7 @@ export function initialize(): void {
     });
 
     $("input#stream_message_recipient_topic").on("input", () => {
+        agent_send_intent.change_visit();
         handle_topic_length_limit();
         compose_recipient.update_placeholder_visibility();
         compose_recipient.update_compose_area_placeholder_text();

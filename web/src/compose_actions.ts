@@ -4,6 +4,7 @@ import autosize from "autosize";
 import $ from "jquery";
 import _ from "lodash";
 
+import * as agent_send_intent from "./agent_send_intent.ts";
 import * as blueslip from "./blueslip.ts";
 import * as compose_banner from "./compose_banner.ts";
 import * as compose_fade from "./compose_fade.ts";
@@ -137,6 +138,7 @@ function show_compose_box(opts: ComposeActionsOpts): void {
 }
 
 export let clear_textarea = (): void => {
+    agent_send_intent.change_visit();
     $("#compose").find("input[type=text], textarea").val("");
 };
 
@@ -329,6 +331,7 @@ function hide_compose_box_and_maybe_display_missing_permissions_toast(trigger: s
 }
 
 export let start = (raw_opts: ComposeActionsStartOpts): void => {
+    agent_send_intent.change_visit();
     if (page_params.is_spectator) {
         spectators.login_to_access();
         return;

@@ -43,6 +43,8 @@ export const CLASSNAMES = {
     convert_pasted_text_to_file: "convert_pasted_text_to_file",
     // unmute topic notifications are styled like warnings but have distinct behaviour
     unmute_topic_notification: "unmute_topic_notification warning-style",
+    // The agent task receipt carries a task link, so it must not disappear on scroll.
+    agent_task_receipt_banner: "agent_task_receipt_banner",
     // warnings
     topic_resolved: "topic_resolved",
     recipient_not_subscribed: "recipient_not_subscribed",
@@ -156,6 +158,10 @@ export function clear_unmute_topic_notifications(): void {
             .map((classname) => CSS.escape(classname))
             .join(".")}`,
     ).remove();
+}
+
+export function clear_agent_task_receipt_banner(): void {
+    $(`#compose_banners .${CSS.escape(CLASSNAMES.agent_task_receipt_banner)}`).remove();
 }
 
 export function clear_search_view_banner(): void {

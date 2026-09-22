@@ -10,6 +10,7 @@ const {
     accepts_detail_response,
     clears_input_on_ack,
     input_intent_for_draft,
+    input_delivery_label,
     merge_event_sequences,
     new_client_key,
 } = zrequire("agent_ui_state");
@@ -97,6 +98,20 @@ run_test("ambiguous input retry keeps its key and a newer draft gets another key
     assert.notEqual(first.draft_revision, same_text_after_edit.draft_revision);
     const other_job = input_intent_for_draft(newer, "job-2", "changed", 5, 2, next_key);
     assert.equal(other_job.key, "key-4");
+});
+
+run_test("input delivery does not confuse receipt with application", () => {
+    assert.match(input_delivery_label("pending"), /Pending/);
+    assert.equal(
+        input_delivery_label("delivered"),
+        "translated: The agent received it and has not used it yet.",
+    );
+    assert.equal(input_delivery_label("applied"), "translated: Applied by the agent");
+    assert.equal(
+        input_delivery_label("delivery_uncertain"),
+        "translated: Delivery uncertain; status updates automatically",
+    );
+    assert.equal(input_delivery_label("unrecognized"), "translated: Delivery status unknown");
 });
 
 run_test("deferred input status cannot overwrite a newer delivered state", async () => {

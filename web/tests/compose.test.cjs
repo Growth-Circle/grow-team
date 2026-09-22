@@ -40,6 +40,10 @@ const compose_actions = mock_esm("../src/compose_actions", {
 const compose_fade = mock_esm("../src/compose_fade");
 const compose_notifications = mock_esm("../src/compose_notifications");
 const compose_pm_pill = mock_esm("../src/compose_pm_pill");
+const agent_message_send = mock_esm("../src/agent_message_send", {
+    needs_target_lookup: () => false,
+    report_dispatch: noop,
+});
 const loading = mock_esm("../src/loading");
 const markdown = mock_esm("../src/markdown");
 const narrow_state = mock_esm("../src/narrow_state");
@@ -62,6 +66,7 @@ const compose_closed_ui = zrequire("compose_closed_ui");
 const compose_recipient = zrequire("compose_recipient");
 const compose_state = zrequire("compose_state");
 const compose = zrequire("compose");
+const agent_send_intent = zrequire("agent_send_intent");
 const compose_setup = zrequire("compose_setup");
 const drafts = zrequire("drafts");
 const echo = zrequire("echo");
@@ -418,6 +423,154 @@ test_ui("send_message", ({override, override_rewire, mock_template}) => {
         assert.ok(!fake_compose_box.is_submit_button_spinner_visible());
     })();
 });
+
+test_ui(
+    "deferred agent preflight cannot publish an old composer visit or cleared draft",
+    async ({override, override_rewire}) => {
+        mock_banners();
+        const fake_compose_box = new FakeComposeBox();
+        simulate_draft_ui_interactions();
+        override_rewire(drafts, "update_draft", () => 100);
+        override(current_user, "user_id", new_user.user_id);
+        override(compose_pm_pill, "get_emails", () => "bot@example.com");
+        override(compose_pm_pill, "get_user_ids", () => [bot.user_id]);
+        override(agent_message_send, "needs_target_lookup", () => true);
+        const pending = [];
+        override(
+            agent_message_send,
+            "prepare",
+            () => new Promise((resolve) => pending.push(resolve)),
+        );
+        let sent = 0;
+        override(
+            transmit,
+            "send_message",
+            () => {
+                sent += 1;
+            },
+            {unused: false},
+        );
+        compose_state.topic("");
+        compose_state.set_message_type("private");
+
+        fake_compose_box.set_textarea_val("same text");
+        compose.send_message();
+        assert.equal(pending.length, 1);
+        agent_send_intent.change_visit();
+        agent_send_intent.change_visit();
+        pending.shift()({profile_ids: ["profile-bot"], metadata_safe: true});
+        await Promise.resolve();
+        await Promise.resolve();
+        assert.equal(sent, 0);
+        assert.equal(fake_compose_box.textarea_val(), "same text");
+
+        fake_compose_box.set_textarea_val("clear this");
+        compose.send_message();
+        assert.equal(pending.length, 1);
+        fake_compose_box.set_textarea_val("");
+        agent_send_intent.change_draft();
+        pending.shift()({profile_ids: ["profile-bot"], metadata_safe: true});
+        await Promise.resolve();
+        await Promise.resolve();
+        assert.equal(sent, 0);
+        assert.equal(fake_compose_box.textarea_val(), "");
+    },
+);
+
+test_ui(
+    "an agent message with no listed profile keeps its send key",
+    async ({override, override_rewire}) => {
+        mock_banners();
+        const fake_compose_box = new FakeComposeBox();
+        simulate_draft_ui_interactions();
+        override_rewire(drafts, "update_draft", () => 100);
+        override_rewire(drafts, "update_compose_draft_count", noop);
+        override(current_user, "user_id", new_user.user_id);
+        override(compose_pm_pill, "get_emails", () => "bot@example.com");
+        override(compose_pm_pill, "get_user_ids", () => [bot.user_id]);
+        override(agent_message_send, "needs_target_lookup", () => true);
+        override(agent_message_send, "prepare", async () => ({
+            profile_ids: [],
+            metadata_safe: false,
+        }));
+        let reported_message_id;
+        override(agent_message_send, "report_dispatch", async (message_id) => {
+            reported_message_id = message_id;
+        });
+        override_rewire(echo, "try_deliver_locally", noop);
+        override_rewire(echo, "reify_message_id", noop);
+        override(sent_messages, "get_new_local_id", () => "loc-agent-1");
+
+        let sent = 0;
+        let payload;
+        override(transmit, "send_message", (data, success) => {
+            sent += 1;
+            payload = data;
+            success({id: 42});
+        });
+
+        compose_state.set_message_type("private");
+        fake_compose_box.set_textarea_val("hidden agent mention");
+
+        compose.send_message();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        // A hidden agent profile still needs a retry key: the directory that
+        // builds profile_ids excludes profiles without profile visibility,
+        // while server dispatch has no such filter.
+        assert.equal(sent, 1);
+        assert.ok(payload.agent_send_key);
+        assert.equal(payload.agent_send_metadata, undefined);
+        assert.equal(reported_message_id, 42);
+    },
+);
+
+test_ui(
+    "a return to the first channel cancels an older agent preflight",
+    async ({override, override_rewire}) => {
+        mock_banners();
+        const fake_compose_box = new FakeComposeBox();
+        simulate_draft_ui_interactions();
+        override_rewire(drafts, "update_draft", () => 100);
+        override(current_user, "user_id", new_user.user_id);
+        override(agent_message_send, "needs_target_lookup", () => true);
+        const pending = [];
+        override(
+            agent_message_send,
+            "prepare",
+            () => new Promise((resolve) => pending.push(resolve)),
+        );
+        let sent = 0;
+        override(
+            transmit,
+            "send_message",
+            () => {
+                sent += 1;
+            },
+            {unused: false},
+        );
+        compose_state.set_message_type("stream");
+        compose_state.set_stream_id(101);
+        fake_compose_box.set_topic_val("lunch");
+        fake_compose_box.set_textarea_val("same text");
+
+        compose.send_message();
+        assert.equal(pending.length, 1);
+
+        // A-to-B-to-A: drive real navigation through the recipient setter,
+        // not a direct agent_send_intent.change_visit() call, so the visit
+        // token invalidation this proves is the one users actually trigger.
+        compose_state.set_stream_id(102);
+        compose_state.set_stream_id(101);
+
+        pending.shift()({profile_ids: ["profile-bot"], metadata_safe: true});
+        await Promise.resolve();
+        await Promise.resolve();
+        assert.equal(sent, 0);
+        assert.equal(fake_compose_box.textarea_val(), "same text");
+    },
+);
 
 test_ui("handle_enter_key_with_preview_open", ({override, override_rewire}) => {
     mock_banners();

@@ -10,66 +10,66 @@
             <div class="overlay-messages-header"><h1
                     id="agent-job-heading"
                     tabindex="-1"
-                >Agent job</h1><button
+                >{{t "Agent job" }}</h1><button
                     type="button"
                     class="exit"
-                    aria-label="Close agent job"
+                    aria-label="{{t 'Close agent job' }}"
                 >×</button></div>
             <div class="agent-job-body">
                 <p
                     id="agent-job-status"
                     role="status"
                     aria-live="polite"
-                >Loading job…</p>
+                >{{t "Loading job…" }}</p>
                 <div id="agent-job-summary"></div>
                 <section aria-labelledby="agent-job-attempt-heading"><h2
                         id="agent-job-attempt-heading"
-                    >Attempt and process</h2><div
+                    >{{t "Attempt and process" }}</h2><div
                         id="agent-job-attempt"
                     ></div></section>
                 <section aria-labelledby="agent-job-checks-heading"><h2
                         id="agent-job-checks-heading"
-                    >Required checks</h2><div
+                    >{{t "Required checks" }}</h2><div
                         id="agent-job-checks"
                     ></div></section>
                 <section aria-labelledby="agent-job-operations-heading"><h2
                         id="agent-job-operations-heading"
-                    >Operations and approvals</h2><div
+                    >{{t "Operations and approvals" }}</h2><div
                         id="agent-job-operations"
                     ></div><button
                         type="button"
                         id="agent-job-more-operations"
                         hidden
-                    >Load more operations</button></section>
+                    >{{t "Show the next operations" }}</button></section>
                 <section aria-labelledby="agent-job-artifacts-heading"><h2
                         id="agent-job-artifacts-heading"
-                    >Artifacts and diff</h2><div
+                    >{{t "Artifacts and diff" }}</h2><div
                         id="agent-job-artifacts"
                     ></div><button
                         type="button"
                         id="agent-job-more-artifacts"
                         hidden
-                    >Load more artifacts</button></section>
+                    >{{t "Show more artifacts" }}</button></section>
                 <section aria-labelledby="agent-job-inputs-heading"><h2
                         id="agent-job-inputs-heading"
-                    >Input delivery</h2><div id="agent-job-inputs"></div>
+                    >{{t "Input delivery" }}</h2><div id="agent-job-inputs"></div>
                     <form id="agent-job-input-form" hidden><label
                             for="agent-job-input"
-                        >Follow-up input for this job</label><textarea
+                        >{{t "Follow-up input for this job" }}</label><textarea
                             id="agent-job-input"
                             required
                             maxlength="20000"
-                        ></textarea><button type="submit">Send input</button></form>
+                        ></textarea><button type="submit">{{t "Send input" }}</button></form>
                 </section>
                 <section aria-labelledby="agent-job-events-heading"><h2
                         id="agent-job-events-heading"
-                    >Event summaries</h2><div
+                    >{{t "Event summaries" }}</h2><div
                         id="agent-job-events"
                     ></div><button
                         type="button"
                         id="agent-job-more-events"
                         hidden
-                    >Load more events</button></section>
+                    >{{t "Show more events" }}</button></section>
                 <div id="agent-job-controls" class="agent-actions"></div>
             </div>
         </div></div>

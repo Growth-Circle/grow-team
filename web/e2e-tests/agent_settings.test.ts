@@ -75,13 +75,29 @@ async function create_visible_grant(
             `[data-agent-action="profile-detail"][data-agent-id="${target_id}"]`,
             {visible: true},
         );
-        await page.click(`[data-agent-action="profile-detail"][data-agent-id="${target_id}"]`);
+        await page.$eval(
+            `[data-agent-action="profile-detail"][data-agent-id="${target_id}"]`,
+            (element) => {
+                if (!(element instanceof HTMLElement)) {
+                    throw new TypeError("Profile action is not an HTML element");
+                }
+                element.click();
+            },
+        );
     }
     await page.waitForSelector(
         `[data-agent-action="grant-open-${kind}"][data-agent-id="${target_id}"]`,
         {visible: true},
     );
-    await page.click(`[data-agent-action="grant-open-${kind}"][data-agent-id="${target_id}"]`);
+    await page.$eval(
+        `[data-agent-action="grant-open-${kind}"][data-agent-id="${target_id}"]`,
+        (element) => {
+            if (!(element instanceof HTMLElement)) {
+                throw new TypeError("Grant action is not an HTML element");
+            }
+            element.click();
+        },
+    );
     await page.waitForSelector("#agent-resource-grant-form", {visible: true});
     await page.select("#agent-grant-principal", String(principal_id));
     await page.select("#agent-grant-actions", action);
@@ -375,7 +391,7 @@ async function test_agent_settings(page: Page): Promise<void> {
             window.getComputedStyle(document.querySelector("#agent-job-overlay")!).opacity === "1",
     );
     await page.waitForFunction(() =>
-        document.querySelector("#agent-job-status")?.textContent?.includes("blocked"),
+        document.querySelector("#agent-job-status")?.textContent?.includes("stopped and cannot continue"),
     );
     await common.screenshot(page, "task9-job-light");
     await page.evaluate(() => {
@@ -387,18 +403,20 @@ async function test_agent_settings(page: Page): Promise<void> {
     await page.reload();
     await page.waitForSelector("#agent-job-overlay.show", {visible: true});
     await page.waitForFunction(() =>
-        document.querySelector("#agent-job-status")?.textContent?.includes("blocked"),
+        document.querySelector("#agent-job-status")?.textContent?.includes("stopped and cannot continue"),
     );
     assert.ok((await common.page_url_with_fragment(page)).endsWith(`#agent-jobs/${job_id}`));
     await page.goto(`http://zulip.zulipdev.com:9981/#agent-jobs/${evidence_job_id}`);
     await page.waitForFunction(() =>
-        document.querySelector("#agent-job-status")?.textContent?.includes("waiting_for_approval"),
+        document.querySelector("#agent-job-status")?.textContent?.includes("waits for your decision"),
     );
     await page.waitForFunction(() =>
         document.querySelector("#agent-job-checks")?.textContent?.includes("passing"),
     );
     await page.waitForFunction(() =>
-        document.querySelector("#agent-job-inputs")?.textContent?.includes("delivered"),
+        document
+            .querySelector("#agent-job-inputs")
+            ?.textContent?.includes("The agent received it and has not used it yet."),
     );
     await page.waitForFunction(() =>
         document.querySelector("#agent-job-events")?.textContent?.includes("attempt.started"),
@@ -409,7 +427,7 @@ async function test_agent_settings(page: Page): Promise<void> {
     assert.ok(await page.$("#agent-job-input-form:not([hidden])"));
     const evidence_text = await page.$eval("#agent-job-overlay", (node) => node.textContent ?? "");
     assert.match(evidence_text, /evidence\.patch/);
-    assert.match(evidence_text, /delivered/);
+    assert.match(evidence_text, /The agent received it and has not used it yet\./);
     assert.match(evidence_text, /attempt\.started/);
     await page.evaluate(() => {
         document.documentElement.classList.remove("dark-theme");

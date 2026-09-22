@@ -163,6 +163,10 @@ repository = agents.AgentRepository.objects.create(
 message_id = internal_send_private_message(owner, profile.bot_user, "Synthetic evidence task")
 assert message_id is not None
 message = Message.objects.get(id=message_id)
+task_source_message_id = internal_send_private_message(
+    owner, profile.bot_user, "Independent task source"
+)
+assert task_source_message_id is not None
 evidence_conversation = agents.AgentConversation.objects.create(
     realm=realm,
     profile=profile,
@@ -331,6 +335,8 @@ print(
             "provider_id": str(provider.id),
             "owner_id": owner.id,
             "profile_ids": [str(profile.id), str(second.id)],
+            "source_message_id": task_source_message_id,
+            "bot_user_id": profile.bot_user_id,
             "attachment_channel_id": attachment_stream.id,
         }
     )

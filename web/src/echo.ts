@@ -5,6 +5,7 @@ import * as z from "zod/mini";
 import render_message_controls from "../templates/message_controls.hbs";
 import render_message_controls_failed_msg from "../templates/message_controls_failed_msg.hbs";
 
+import type {SendAuthority} from "./agent_send_intent.ts";
 import * as alert_words from "./alert_words.ts";
 import * as blueslip from "./blueslip.ts";
 import * as browser_history from "./browser_history.ts";
@@ -100,6 +101,9 @@ export type RawLocalMessage = MessageRequestObject & {
     topic_links: TopicLink[];
     reactions: MessageReaction[];
     draft_id: string;
+    agent_send_key?: string;
+    agent_send_metadata?: string;
+    agent_send_authority?: SendAuthority;
 } & (StreamMessageObject | PrivateMessageObject);
 
 export type PostMessageAPIData = z.output<typeof send_message_api_response_schema>;

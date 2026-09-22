@@ -444,9 +444,8 @@ test("copy_paste", ({override, override_rewire}) => {
     assert.equal(upload_files_called, false);
 });
 
-test("uppy_events", ({override_rewire, mock_template}) => {
+test("uppy_events", ({override_rewire, disallow_rewire, mock_template}) => {
     mock_banners();
-    override_rewire(compose_ui, "smart_insert_inline", noop);
     override_rewire(compose_validate, "validate_and_update_send_button_status", noop);
 
     const callbacks = {};
@@ -546,6 +545,12 @@ test("uppy_events", ({override_rewire, mock_template}) => {
     assert.ok(compose_ui_autosize_textarea_called);
     assert.ok(uppy_set_file_state_called);
     assert.ok(uppy_set_file_meta_called);
+
+    // A late upload response must not restore a deliberately cleared placeholder.
+    $("textarea#compose-textarea").val("");
+    disallow_rewire(compose_ui, "insert_syntax_and_focus");
+    on_upload_success_callback(file, response);
+    assert.equal($("textarea#compose-textarea").val(), "");
 
     mock_template("compose_banner/upload_banner.hbs", false, (data) => {
         assert.equal(data.banner_type, "error");

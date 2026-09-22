@@ -1,5 +1,6 @@
 import $ from "jquery";
 
+import * as agent_send_intent from "./agent_send_intent.ts";
 import * as compose_pm_pill from "./compose_pm_pill.ts";
 import * as stream_data from "./stream_data.ts";
 import * as sub_store from "./sub_store.ts";
@@ -113,6 +114,13 @@ function get_or_set(
         const $elem = $<HTMLInputElement | HTMLTextAreaElement>(input_selector);
         const oldval = $elem.val()!;
         if (newval !== undefined) {
+            if (newval !== oldval) {
+                if (input_selector.includes("recipient_topic")) {
+                    agent_send_intent.change_visit();
+                } else {
+                    agent_send_intent.change_draft();
+                }
+            }
             $elem.val(newval);
         }
         if (no_trim) {
@@ -132,6 +140,9 @@ export let selected_recipient_id: number | "direct" | "" = "";
 export const DIRECT_MESSAGE_ID = "direct";
 
 export function set_selected_recipient_id(recipient_id: number | "direct" | ""): void {
+    if (selected_recipient_id !== recipient_id) {
+        agent_send_intent.change_visit();
+    }
     selected_recipient_id = recipient_id;
 }
 
@@ -247,6 +258,7 @@ export function private_message_recipient_ids(): number[] {
 // If anything in `UserPillWidget.onPillCreate` is desired, call
 // that directly after calling `set_private_message_recipient_ids`.
 export function set_private_message_recipient_ids(value: number[]): void {
+    agent_send_intent.change_visit();
     compose_pm_pill.set_from_user_ids(value, true);
 }
 

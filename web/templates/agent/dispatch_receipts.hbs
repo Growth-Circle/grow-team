@@ -1,0 +1,15 @@
+{{#if has_rows}}
+<ul class="agent-dispatch-receipts">
+    {{#each rows}}
+    <li>
+        <span class="agent-dispatch-receipt-name">{{this.name}}</span>
+        <span class="agent-dispatch-receipt-outcome">{{this.outcome}}</span>
+        {{#if this.job_url}}<a href="{{this.job_url}}">{{t "Open task" }}</a>{{/if}}
+    </li>
+    {{/each}}
+</ul>
+{{else if unavailable}}
+<p>{{t "The agent task status is not available now. Check the task receipt from the message menu." }}</p>
+{{else}}
+<p>{{t "This message started no agent task." }}</p>
+{{/if}}
