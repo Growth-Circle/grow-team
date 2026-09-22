@@ -2391,6 +2391,13 @@ li.topic-list-item {
         &:not(.user-circle) {
             place-self: start center;
         }
+
+        &.dm-avatar {
+            /* Frame 10a: the initials avatar centers like the
+               presence circle it replaces, not like the group
+               icon above. */
+            place-self: center;
+        }
     }
 
     .dm-name {
@@ -2398,9 +2405,81 @@ li.topic-list-item {
     }
 
     .user-circle {
-        /* User circles are approximately 8px at 15px/1em. */
-        font-size: 0.5333em;
-        align-self: start;
+        /* Presence state now paints as a dot on .dm-avatar below;
+           this element stays in the DOM only as a :has() hook for
+           that dot's color and never needs to be seen itself. */
+        display: none;
+    }
+
+    .dm-avatar {
+        position: relative;
+        /* 24px at 15px/1em, frame 10a. */
+        width: 1.6em;
+        height: 1.6em;
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-pill);
+        color: #ffffff;
+        /* 10px/700 at 15px/1em, frame 10a. */
+        font-size: 0.6667em;
+        font-weight: 700;
+        line-height: 1;
+
+        &:has(.user-circle-active, .user-circle-idle, .user-circle-deactivated)::after {
+            content: "";
+            position: absolute;
+            /* 9px, inset -1px, at 15px/1em, frame 10a. */
+            width: 0.6em;
+            height: 0.6em;
+            right: -0.0667em;
+            bottom: -0.0667em;
+            border-radius: var(--radius-pill);
+            /* Ring matches the row's own background, so the dot
+               reads as a cutout instead of clashing with the
+               avatar color underneath it. */
+            border: 2px solid var(--color-background);
+        }
+
+        &:has(.user-circle-active)::after {
+            background: var(--color-user-circle-active);
+        }
+
+        &:has(.user-circle-idle)::after {
+            background: var(--gradient-user-circle-idle-avatar);
+        }
+
+        &:has(.user-circle-deactivated)::after {
+            background: var(--color-user-circle-deactivated);
+        }
+    }
+
+    /* Identity-color palette for the initials avatar (frame 10a),
+       picked by user_id in pm_list_dom.ts. Values are duplicated
+       from people.ts's DEFAULT_AVATAR_PALETTE (private to that
+       file, and out of scope for this change); consolidate the two
+       lists if a later change touches both files.
+       ponytail: two copies of one palette can drift out of sync;
+       the real fix is one exported, shared palette. */
+    .dm-avatar-color-0 {
+        background: light-dark(hsl(24deg 45% 55%), hsl(24deg 40% 48%));
+    }
+
+    .dm-avatar-color-1 {
+        background: light-dark(hsl(276deg 35% 55%), hsl(276deg 30% 48%));
+    }
+
+    .dm-avatar-color-2 {
+        background: var(--color-user-circle-active);
+    }
+
+    .dm-avatar-color-3 {
+        background: light-dark(hsl(340deg 40% 52%), hsl(340deg 35% 45%));
+    }
+
+    .dm-avatar-color-4 {
+        background: light-dark(hsl(200deg 40% 50%), hsl(200deg 35% 43%));
     }
 
     .unread_count {

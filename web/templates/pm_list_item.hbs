@@ -4,7 +4,7 @@
         {{#if is_group}}
         <span class="conversation-partners-icon zulip-icon zulip-icon-dm-groups-3"></span>
         {{else}}
-        <span class="conversation-partners-icon zulip-icon zulip-icon-{{user_circle_class}} {{user_circle_class}} user-circle"></span>
+        <span class="conversation-partners-icon dm-avatar dm-avatar-color-{{avatar_color_index}}" aria-hidden="true">{{avatar_initials}}<span class="user-circle {{user_circle_class}}"></span></span>
         {{/if}}
 
         <span class="conversation-partners">
