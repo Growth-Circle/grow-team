@@ -1823,3 +1823,756 @@ button#register_auth_button_gitlab {
 #slack-import-unexpected-failure .text-error {
     font-size: 1em;
 }
+
+/* ==========================================================================
+   Login page: brand panel split (direction 1a).
+
+   New scope only: .login-split-page and .login-split. Rules below never
+   touch .split-view, .new-style, or .white-box, which other portico pages
+   still use.
+   ========================================================================== */
+
+.login-split-page {
+    /* Tokens live on the page wrapper (the outermost element with a new
+       class) so every descendant, including .login-split, inherits them
+       without a second copy. */
+    --login-split-page-bg: hsl(0deg 0% 96%);
+    --login-split-surface: hsl(0deg 0% 100%);
+    --login-split-border: hsl(160deg 7% 89%);
+    --login-split-shadow:
+        0 1px 2px hsl(174deg 20% 20% / 6%), 0 18px 44px hsl(174deg 20% 20% / 7%);
+    --login-split-brand-bg: hsl(172deg 63% 15%);
+    --login-split-brand-text: hsl(0deg 0% 100%);
+    --login-split-brand-url: hsl(168deg 40% 78%);
+    --login-split-brand-body: hsl(168deg 22% 84%);
+    --login-split-brand-fine: hsl(168deg 15% 72%);
+    --login-split-brand-rule: hsl(0deg 0% 100% / 12%);
+    --login-split-heading: hsl(173deg 42% 16%);
+    --login-split-body: hsl(168deg 6% 45%);
+    --login-split-muted: hsl(168deg 7% 56%);
+    --login-split-field-border: hsl(160deg 8% 86%);
+    --login-split-field-ring: hsl(172deg 60% 88%);
+    --login-split-rule: hsl(160deg 8% 90%);
+    --login-split-sso-border: hsl(165deg 8% 88%);
+    --login-split-sso-text: hsl(168deg 12% 28%);
+    --login-split-sso-hover: hsl(150deg 13% 97%);
+    --login-split-separator: hsl(165deg 11% 78%);
+    --login-split-error: hsl(1.1deg 44.7% 50.4%);
+    --login-split-sso-active: hsl(150deg 10% 94%);
+    --login-split-sso-border-hover: hsl(165deg 8% 82%);
+
+    padding: 2.5rem 0 4rem; /* 40px 0 64px */
+    background-color: var(--login-split-page-bg);
+
+    @media (prefers-color-scheme: dark) {
+        --login-split-page-bg: hsl(172deg 25% 9%);
+        --login-split-surface: hsl(172deg 18% 14%);
+        --login-split-border: hsl(172deg 14% 22%);
+        --login-split-brand-bg: hsl(172deg 63% 12%);
+        --login-split-heading: hsl(0deg 0% 96%);
+        --login-split-body: hsl(168deg 9% 72%);
+        --login-split-muted: hsl(168deg 8% 62%);
+        --login-split-field-border: hsl(172deg 12% 28%);
+        --login-split-field-ring: hsl(172deg 45% 30%);
+        --login-split-rule: hsl(172deg 12% 24%);
+        --login-split-sso-border: hsl(172deg 12% 28%);
+        --login-split-sso-text: hsl(0deg 0% 90%);
+        --login-split-sso-hover: hsl(172deg 16% 19%);
+        --login-split-sso-active: hsl(172deg 18% 26%);
+        --login-split-sso-border-hover: hsl(172deg 14% 34%);
+        --login-split-separator: hsl(172deg 10% 40%);
+        --login-split-error: hsl(1deg 62% 68%);
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    /* The portico header stays white on every other page (it shares a
+       logo file with all of them), so darken it only where a login card
+       is present. :has() degrades safely: unsupported browsers keep the
+       white header and the page still reads fine. */
+    .portico-wrap:has(.login-split) .header {
+        background-color: hsl(172deg 30% 12%);
+        color: hsl(0deg 0% 92%);
+    }
+
+    .portico-wrap:has(.login-split) .header .top-links a {
+        color: hsl(0deg 0% 92%);
+    }
+
+    .portico-wrap:has(.login-split) .portico-logo {
+        filter: brightness(0) invert(1);
+    }
+}
+
+.login-split {
+    display: grid;
+    grid-template-columns: 26.875rem minmax(0, 1fr); /* 430px + flexible */
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 62.5rem; /* 1000px */
+    min-height: 40rem; /* 640px */
+    margin-inline: auto;
+    overflow: hidden;
+    border: 1px solid var(--login-split-border);
+    border-radius: 12px;
+    background-color: var(--login-split-surface);
+    box-shadow: var(--login-split-shadow);
+    color: var(--login-split-body);
+    color-scheme: light;
+
+    @media (prefers-color-scheme: dark) {
+        /* Lets placeholder text, the caret, and browser autofill follow
+           the dark surface instead of staying light-themed. */
+        color-scheme: dark;
+    }
+}
+
+.login-split--solo {
+    /* No realm_name means no brand panel: collapse to one column at the
+       same width the two-column card itself uses below 920px. */
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 27.5rem; /* 440px */
+    min-height: 0;
+}
+
+/* -- brand panel -- */
+
+.login-split__brand {
+    display: flex;
+    flex-direction: column;
+    padding: 2.75rem 2.75rem 2.5rem; /* 44px 44px 40px */
+    background-color: var(--login-split-brand-bg);
+    color: var(--login-split-brand-text);
+    text-align: left;
+}
+
+.login-split__product {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem; /* 10px */
+}
+
+.login-split__product-mark {
+    width: 1.625rem; /* 26px */
+    height: 1.625rem;
+}
+
+.login-split__product-name {
+    font-size: 1.0625rem; /* 17px */
+    font-weight: 600;
+    letter-spacing: -0.005em;
+}
+
+.login-split__org {
+    display: flex;
+    flex-direction: column;
+    gap: 1.375rem; /* 22px */
+    /* Splits the free space evenly above and below, so the org block
+       centers whether or not the invite hint below it is rendered. */
+    margin-block: auto;
+}
+
+.login-split__org-icon {
+    width: 4.5rem; /* 72px */
+    height: 4.5rem;
+    border-radius: 14px;
+}
+
+.login-split__org-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem; /* 4px */
+    min-width: 0;
+}
+
+.login-split__org-name {
+    font-size: 2rem; /* 32px */
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    /* Wraps a long organization name instead of the ellipsis .info-box
+       uses elsewhere: cutting it off would hide information the
+       organization owner chose to show. */
+    overflow-wrap: anywhere;
+}
+
+.login-split__org-url {
+    font-size: 1rem; /* 16px */
+    color: var(--login-split-brand-url);
+    overflow-wrap: anywhere;
+}
+
+.login-split__org-description {
+    max-width: 19.375rem; /* 310px */
+    color: var(--login-split-brand-body);
+    font-size: 1.0625rem; /* 17px */
+    line-height: 1.55;
+
+    p {
+        margin: 0 0 0.5rem;
+    }
+
+    p:last-child {
+        margin-bottom: 0;
+    }
+
+    a {
+        color: var(--login-split-brand-url);
+        text-decoration: none;
+    }
+
+    a:hover {
+        text-decoration: underline;
+    }
+
+    img.emoji {
+        height: 1em;
+        vertical-align: text-bottom;
+    }
+}
+
+.login-split__invite-hint {
+    margin: 0;
+    padding-top: 1.125rem; /* 18px */
+    border-top: 1px solid var(--login-split-brand-rule);
+    color: var(--login-split-brand-fine);
+    font-size: 0.9375rem; /* 15px */
+}
+
+/* -- form column -- */
+
+.login-split__form {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 2.5rem; /* 40px */
+    text-align: start;
+
+    > * {
+        width: 100%;
+        max-width: 22.5rem; /* 360px, matches the mockup's form column */
+    }
+
+    /* One shared gap between stacked sections; the two rules after this
+       block narrow it for the divider and the stacked SSO buttons. */
+    > * + * {
+        margin-top: 1.75rem; /* 28px */
+    }
+}
+
+.login-split__divider + * {
+    margin-top: 1rem; /* 16px */
+}
+
+.login-split__sso-row {
+    display: flex;
+    gap: 0.625rem; /* 10px */
+}
+
+.login-split__sso {
+    flex: 1;
+}
+
+.login-split__title {
+    margin: 0;
+    color: var(--login-split-heading);
+    font-size: 1.875rem; /* 30px */
+    font-weight: 600;
+    letter-spacing: -0.015em;
+}
+
+.login-split__title + .login-split__subtitle {
+    margin-top: 0.375rem; /* 6px, matches the mockup's tight heading-subtitle pairing */
+}
+
+.login-split__subtitle {
+    margin: 0;
+    color: var(--login-split-muted);
+    font-size: 1.0625rem; /* 17px */
+}
+
+.login-split .alert {
+    /* Redeclared explicitly: form.errors renders inside #login_form, one
+       level below .login-split__form's direct-child selector above. */
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 22.5rem;
+    margin: 0 0 1rem;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--login-split-rule);
+    border-radius: 8px;
+    background-color: transparent;
+    color: var(--login-split-body);
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.35;
+    text-align: start;
+}
+
+.login-split .alert-error {
+    border-color: var(--login-split-error);
+    color: var(--login-split-error);
+}
+
+.login-split .alert p {
+    margin: 0 0 0.5rem;
+}
+
+.login-split .alert p:last-child {
+    margin-bottom: 0;
+}
+
+.login-split .alert a {
+    color: inherit;
+}
+
+/* -- fields -- */
+
+.login-split__field + .login-split__field {
+    margin-top: 1.125rem; /* 18px */
+}
+
+.login-split__label {
+    display: block;
+    margin-bottom: 0.4375rem; /* 7px */
+    color: var(--login-split-heading);
+    font-size: 0.9375rem; /* 15px */
+    font-weight: 600;
+}
+
+.login-split__field--password {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.75rem; /* 4px 12px */
+}
+
+.login-split__field--password .login-split__label {
+    order: 1;
+    margin-bottom: 0;
+}
+
+.login-split__field--password .login-split__forgot {
+    order: 2;
+    margin-inline-start: auto;
+}
+
+.login-split__field--password .login-split__password-control {
+    order: 3;
+    flex: 1 0 100%;
+    margin-top: 0.4375rem; /* 7px */
+}
+
+.login-split__forgot {
+    color: var(--color-link-portico-auth);
+    font-size: 0.875rem; /* 14px */
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.login-split__forgot:hover {
+    color: var(--color-link-portico-auth-hover);
+    text-decoration: underline;
+}
+
+.login-split__forgot:focus-visible {
+    outline: 2px solid hsl(172deg 81% 79%);
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
+.login-split__password-control {
+    position: relative;
+}
+
+.login-split__password-control input {
+    padding-inline-end: 2.75rem; /* 44px: room for the toggle icon */
+}
+
+.login-split__password-control .password_visibility_toggle {
+    position: absolute;
+    inset-inline-end: 0.875rem; /* 14px */
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.5;
+    cursor: pointer;
+}
+
+.login-split__password-control .password_visibility_toggle:hover {
+    opacity: 1;
+}
+
+.login-split__password-control .password_visibility_toggle:focus-visible {
+    opacity: 1;
+    outline: 2px solid hsl(172deg 81% 79%);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.login-split input,
+.login-split select {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    height: 3rem; /* 48px */
+    padding: 0 0.875rem; /* 14px */
+    font-family: inherit;
+    font-size: 1.0625rem; /* 17px */
+    color: var(--login-split-heading);
+    background-color: var(--login-split-surface);
+    border: 1px solid var(--login-split-field-border);
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.login-split input:hover,
+.login-split select:hover {
+    border-color: var(--login-split-muted);
+}
+
+.login-split input:focus-visible,
+.login-split select:focus-visible {
+    border-color: var(--color-action-button);
+    box-shadow: 0 0 0 3px var(--login-split-field-ring);
+}
+
+.login-split input:disabled,
+.login-split select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.login-split input.text-error,
+.login-split select.text-error {
+    border-color: var(--login-split-error);
+}
+
+.login-split label.text-error {
+    display: block;
+    margin-top: 0.375rem; /* 6px */
+    color: var(--login-split-error);
+    font-size: 0.8125rem; /* 13px */
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.login-split__submit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 3rem; /* 48px */
+    margin-top: 1.375rem; /* 22px */
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--color-action-button);
+    color: hsl(0deg 0% 100%);
+    font-family: inherit;
+    font-size: 1.0625rem; /* 17px */
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.1s ease-out;
+}
+
+.login-split__submit:hover {
+    background-color: var(--color-action-button-hover);
+}
+
+.login-split__submit:active {
+    background-color: var(--color-action-button-active);
+    clip-path: inset(1px round 8px);
+}
+
+.login-split__submit:focus-visible {
+    outline: 3px solid hsl(172deg 81% 79%);
+    outline-offset: 2px;
+    clip-path: none;
+}
+
+.login-split__submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* -- divider -- */
+
+.login-split__divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem; /* 12px */
+}
+
+.login-split__divider::before,
+.login-split__divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background-color: var(--login-split-rule);
+}
+
+.login-split__divider span {
+    color: var(--login-split-muted);
+    font-size: 0.875rem; /* 14px */
+    white-space: nowrap;
+}
+
+/* -- SSO -- */
+
+.login-split__sso-icon {
+    width: 1.0625rem; /* 17px */
+    height: 1.0625rem;
+    flex: none;
+}
+
+.login-split__sso-label {
+    white-space: nowrap;
+}
+
+.login-split button.login-social-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4375rem; /* 7px */
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 2.875rem; /* 46px */
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--login-split-surface);
+    border: 1px solid var(--login-split-sso-border);
+    border-radius: 8px;
+    color: var(--login-split-sso-text);
+    font-family: inherit;
+    font-size: 0.875rem; /* 14px */
+    font-weight: 600;
+    line-height: 1.3;
+    cursor: pointer;
+    transition: background-color 0.1s ease-out;
+}
+
+.login-split button.login-social-button:hover {
+    background-color: var(--login-split-sso-hover);
+    border-color: var(--login-split-sso-border-hover);
+}
+
+.login-split button.login-social-button:active {
+    background-color: var(--login-split-sso-active);
+    clip-path: inset(1px round 8px);
+}
+
+.login-split button.login-social-button:focus-visible {
+    outline: 3px solid hsl(172deg 81% 79%);
+    outline-offset: 2px;
+    clip-path: none;
+}
+
+.login-split button#login_auth_button_gitlab .login-split__sso-icon {
+    /* Matches the pre-redesign gitlab fix: its glyph reads small next to
+       the other providers at a plain fixed icon size. */
+    width: 1.25rem; /* 20px */
+    height: 1.25rem;
+}
+
+/* -- bottom actions -- */
+
+.login-split__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem; /* 8px */
+}
+
+.login-split__actions-separator {
+    color: var(--login-split-separator);
+}
+
+.login-split__link-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem; /* 6px */
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--color-link-portico-auth);
+    font-family: inherit;
+    font-size: 0.9375rem; /* 15px */
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.login-split__link-button:hover {
+    color: var(--color-link-portico-auth-hover);
+    text-decoration: underline;
+}
+
+.login-split__link-button:active {
+    color: var(--color-action-button-active);
+}
+
+.login-split__link-button:focus-visible {
+    outline: 2px solid hsl(172deg 81% 79%);
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
+/* -- two-factor step (templates/two_factor/_wizard_forms.html) --
+   That partial still renders plain .input-box fields and
+   .two-factor-button buttons; .new-style no longer styles them here,
+   so they need their own rules in this scope. */
+
+/* The two-factor wizard partial writes the input before its label, so the
+   column reverse puts the label back on top. The `#login_form .input-box`
+   rule above sets `display: block`, so this selector repeats the id to win. */
+.login-split #login_form .input-box {
+    display: flex;
+    flex-direction: column-reverse;
+}
+
+.login-split .input-box + .input-box {
+    margin-top: 1.125rem; /* 18px */
+}
+
+.login-split .input-box label {
+    display: block;
+    margin-bottom: 0.4375rem; /* 7px */
+    color: var(--login-split-heading);
+    font-size: 0.9375rem; /* 15px */
+    font-weight: 600;
+}
+
+.login-split .two-factor-button {
+    display: block;
+    width: 100%;
+    min-height: 3rem; /* 48px */
+    height: auto;
+    margin: 1.125rem 0 0;
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--color-action-button);
+    color: hsl(0deg 0% 100%);
+    font-family: inherit;
+    font-size: 1rem; /* 16px */
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.login-split .two-factor-button:hover {
+    background-color: var(--color-action-button-hover);
+}
+
+.login-split .two-factor-button:active {
+    background-color: var(--color-action-button-active);
+}
+
+.login-split .two-factor-button:focus-visible {
+    outline: 3px solid hsl(172deg 81% 79%);
+    outline-offset: 2px;
+}
+
+/* -- responsive -- */
+
+@media (width <= 920px) {
+    .login-split {
+        grid-template-columns: minmax(0, 1fr);
+        max-width: 27.5rem; /* 440px */
+        min-height: 0;
+        border-radius: 22px;
+    }
+
+    .login-split__brand {
+        padding: 1.75rem 1.5rem 1.625rem; /* 28px 24px 26px */
+        gap: 1rem; /* 16px */
+    }
+
+    .login-split__product-mark {
+        width: 1.375rem; /* 22px */
+        height: 1.375rem;
+    }
+
+    .login-split__product-name {
+        font-size: 0.9375rem; /* 15px */
+    }
+
+    .login-split__org {
+        flex-flow: row wrap;
+        align-items: center;
+        gap: 0.875rem; /* 14px */
+        margin-block: 0;
+    }
+
+    .login-split__org-icon {
+        width: 3.25rem; /* 52px */
+        height: 3.25rem;
+        border-radius: 11px;
+        flex: none;
+    }
+
+    .login-split__org-name {
+        font-size: 1.3125rem; /* 21px */
+        line-height: 1.2;
+    }
+
+    .login-split__org-url {
+        font-size: 0.875rem; /* 14px */
+    }
+
+    .login-split__org-description {
+        /* Forces the description onto its own row below the icon and
+           name, inside the same wrapping flex container. */
+        flex-basis: 100%;
+        max-width: none;
+        font-size: 0.9375rem; /* 15px */
+    }
+
+    .login-split__form {
+        padding: 1.75rem 1.5rem; /* 28px 24px */
+    }
+
+    .login-split__form > * {
+        max-width: 100%;
+    }
+
+    .login-split__title {
+        font-size: 1.625rem; /* 26px */
+    }
+
+    .login-split__subtitle {
+        display: none;
+    }
+
+    .login-split__sso-label {
+        display: none;
+    }
+
+    .login-split button.login-social-button {
+        min-height: 3rem; /* 48px */
+    }
+
+    .login-split button.login-social-button .login-split__sso-icon {
+        width: 1.25rem; /* 20px */
+        height: 1.25rem;
+    }
+}
+
+@media (width <= 520px) {
+    .login-split-page {
+        padding: 0 0 2rem; /* 32px */
+    }
+
+    .login-split {
+        max-width: 100%;
+    }
+
+    .login-split input,
+    .login-split select {
+        height: 3.125rem; /* 50px */
+    }
+
+    .login-split__submit {
+        min-height: 3.125rem; /* 50px */
+    }
+}

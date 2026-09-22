@@ -504,7 +504,7 @@ export function initialize(opts: {hide_other_views: () => void}): void {
         complete_rerender();
     });
 
-    $view.on("change", ".task-board-detail-checklist-item", function (this: HTMLInputElement) {
+    $view.on("change", ".task-board-detail-checklist-item", (event) => {
         if (open_task_id === undefined) {
             return;
         }
@@ -512,9 +512,11 @@ export function initialize(opts: {hide_other_views: () => void}): void {
         if (task === undefined) {
             return;
         }
-        const index = Number($(this).attr("data-index"));
+        const $item = $(event.currentTarget);
+        const index = Number($item.attr("data-index"));
+        const done = $item.is(":checked");
         const checklist = task.checklist.map((item, item_index) =>
-            item_index === index ? {...item, done: this.checked} : item,
+            item_index === index ? {...item, done} : item,
         );
         patch_task(task.id, {checklist: JSON.stringify(checklist)});
     });
