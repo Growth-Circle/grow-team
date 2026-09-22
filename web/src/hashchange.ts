@@ -3,6 +3,7 @@ import * as z from "zod/mini";
 
 import * as about_zulip from "./about_zulip.ts";
 import * as admin from "./admin.ts";
+import * as agent_job_panel from "./agent_job_panel.ts";
 import * as blueslip from "./blueslip.ts";
 import * as browser_history from "./browser_history.ts";
 import * as drafts_overlay_ui from "./drafts_overlay_ui.ts";
@@ -249,6 +250,7 @@ function do_hashchange_normal(from_reload: boolean, restore_selected_id: boolean
         case "#streams":
         case "#organization":
         case "#settings":
+        case "#agent-jobs":
         case "#about-zulip":
         case "#scheduled":
         case "#reminders":
@@ -317,6 +319,33 @@ function do_hashchange_overlay(old_hash: string | undefined): void {
             window.history.replaceState(null, "", browser_history.get_full_url(valid_hash));
             section = hash_parser.get_current_hash_section();
         }
+    }
+
+    if (base === "agent-jobs") {
+        if (!agent_job_panel.valid_job_id(section)) {
+            ui_report.error(
+                $t_html({defaultMessage: "Invalid agent job URL"}),
+                undefined,
+                $("#home-error"),
+                2000,
+            );
+            if (!coming_from_overlay) {
+                show_home_view();
+            }
+            return;
+        }
+        if (coming_from_overlay && old_base === base) {
+            agent_job_panel.change_target(section);
+            return;
+        }
+        if (base !== old_base) {
+            overlays.close_for_hash_change();
+        }
+        if (!coming_from_overlay) {
+            browser_history.set_hash_before_overlay(old_hash);
+        }
+        agent_job_panel.open(section);
+        return;
     }
 
     // Start by handling the specific case of going from

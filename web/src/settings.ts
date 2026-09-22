@@ -15,6 +15,7 @@ import * as information_density from "./information_density.ts";
 import * as overlays from "./overlays.ts";
 import {page_params} from "./page_params.ts";
 import * as people from "./people.ts";
+import * as settings_agents from "./settings_agents.ts";
 import * as settings_bots from "./settings_bots.ts";
 import * as settings_config from "./settings_config.ts";
 import * as settings_data from "./settings_data.ts";
@@ -111,6 +112,7 @@ export function build_page(): void {
         botserverrc: "botserverrc",
         timezones: timezones.timezones,
         can_create_new_bots: settings_bots.can_create_incoming_webhooks(),
+        realm_agent_enabled: realm.realm_agent_enabled,
         settings_label,
         demote_inactive_streams_values: settings_config.demote_inactive_streams_values,
         web_mark_read_on_scroll_policy_values:
@@ -184,6 +186,7 @@ export function open_settings_overlay(): void {
         name: "settings",
         $overlay: $("#settings_overlay_container"),
         on_close() {
+            settings_agents.reset();
             browser_history.exit_overlay();
             flatpickr.close_all();
             settings_panel_menu.mobile_deactivate_section();
@@ -208,6 +211,7 @@ export function launch(section: string, settings_tab: string | undefined): void 
 
 export function initialize(): void {
     const rendered_settings_overlay = render_settings_overlay({
+        realm_agent_enabled: realm.realm_agent_enabled,
         is_owner: current_user.is_owner,
         is_admin: current_user.is_admin,
         is_guest: current_user.is_guest,

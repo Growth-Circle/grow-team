@@ -9,6 +9,10 @@
 
     {{> settings/bot_list_admin . prefix="personal" }}
 
+    {{#if realm_agent_enabled}}
+        {{> settings/agent_settings }}
+    {{/if}}
+
     {{> settings/alert_word_settings }}
 
     {{> settings/attachments_settings }}

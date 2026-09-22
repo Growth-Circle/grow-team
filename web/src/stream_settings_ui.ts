@@ -37,6 +37,7 @@ import * as settings_components from "./settings_components.ts";
 import * as settings_config from "./settings_config.ts";
 import * as settings_data from "./settings_data.ts";
 import {type GroupSettingValue, current_user, realm} from "./state_data.ts";
+import * as stream_agent_settings from "./stream_agent_settings.ts";
 import * as stream_create from "./stream_create.ts";
 import * as stream_data from "./stream_data.ts";
 import * as stream_edit from "./stream_edit.ts";
@@ -1330,6 +1331,7 @@ export function open_create_stream(): void {
 }
 
 export function initialize(): void {
+    stream_agent_settings.initialize();
     $("#channels_overlay_container").on("click", ".create_stream_button", (e) => {
         e.preventDefault();
         open_create_stream();
