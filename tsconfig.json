@@ -40,7 +40,8 @@
         "composite": true,
     },
     "exclude": [
-        // This is a separate package with its own TypeScript configuration.
+        // These packages have separate TypeScript configurations.
+        "services/grow-agent-runner",
         "starlight_help",
 
         // Skip walking large generated directories.
