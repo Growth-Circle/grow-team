@@ -1,39 +1,53 @@
 # PRD Grow Team
 
-Status produk: internal, web-first, nama sementara **Grow Team**.
+Status produk: internal, web-first. Target pertama adalah tim lima sampai enam anggota. Produk dapat dipertimbangkan untuk klien setelah pilot internal dan gate operasi selesai.
 
 ## Masalah dan sasaran
 
-Tim kecil membutuhkan percakapan kerja yang dapat dibaca kembali menurut kanal dan topik, bukan arus chat tunggal. Sasaran awal adalah komunikasi harian yang dapat dipakai lima sampai enam anggota dari browser. Sasaran jangka lanjut adalah fondasi produk B2B, tanpa klaim harga, revenue, ROI, atau tanggal rilis.
+Tim membutuhkan percakapan kerja yang dapat dicari menurut kanal dan topik. Grow Team mempertahankan chat Zulip dan menambahkan kemampuan agent secara terkendali. Anggota memakai browser untuk chat, membuat tugas, melihat status, memberi input, dan meninjau approval. Runner dapat berada pada laptop atau server milik owner.
 
 ## Persona
 
-- **Anggota tim:** membaca, mencari, membalas, dan mengunggah konteks kerja.
-- **Administrator organisasi:** mengundang anggota, mengatur peran, kanal, dan kebijakan.
-- **Operator platform:** menjaga backup, runtime, ingress, dan pemulihan.
+- **Anggota:** memakai chat dan membuat tugas jika memiliki grant yang berlaku.
+- **Owner runner:** memasangkan perangkat dan mendaftarkan workspace, provider, serta katalog yang disetujui.
+- **Administrator realm:** mengelola kebijakan realm. Role ini tidak memberi authority runner atau credential owner lain.
+- **Operator platform:** menjaga deploy, backup, recovery, dan isolasi host.
 
-## Ruang lingkup saat ini
+## Cakupan chat dan bukti sebelumnya
 
-Chat, kanal, topik, DM, pencarian, unggah, peran, undangan, reset password, dan email transaksi tersedia pada fork. Smoke yang sudah teramati mencakup login, kanal/topik, unggah, undangan, email, dan backup. ACL, DM, pencarian, serta role belum diuji penuh. Aplikasi browser adalah jalur utama. Image fork Grow Team sudah dideploy ke `team.growc.id`; pemeriksaan halaman publik, sesi admin, tampilan pesan, dan identitas produk lulus. Cakupan dan batas pengujian tersedia dalam [laporan verifikasi](../../deploy/grow-team/BRANDING-VERIFICATION.md).
+Chat, kanal, topik, DM, pencarian, unggah, peran, undangan, reset password, dan email transaksi berasal dari fork Zulip. Bukti deploy bertanggal mencakup `team.growc.id`, halaman publik, sesi admin, tampilan pesan, event queue, dan identitas Grow Team. Lihat [laporan verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md). Bukti ini mendukung status chat. Bukti ini tidak menyatakan semua ACL, recovery penuh, atau rilis agent sudah selesai.
 
-## Target pilot AI
+## Perilaku target pilot agent
 
-Sesudah stabilisasi internal dan rilis image fork, Grow Team menargetkan pilot
-agent yang terus memantau kanal terkonfigurasi dan menjalankan tugas yang diminta.
-Pilot memakai FR-08–FR-18. Ini target inti yang belum diimplementasikan, bukan
-fitur yang sudah tersedia atau komitmen komersial.
+Pilot memiliki dua mode: agent ACP yang tersedia dan endpoint model yang dipilih. Tugas memasuki lifecycle durable dan melewati current access check. Operasi penting memerlukan approval yang terikat pada attempt, policy, argumen, dan tree. Hasil hanya diterbitkan setelah gate audience dan verification.
 
-## Di luar ruang lingkup saat ini
+Pilot tidak melakukan pemantauan umum. Trigger otomatis berasal dari mention personal yang sah atau DM antara satu anggota dan satu agent yang telah diotorisasi. DM grup memerlukan mention personal eksplisit. Tugas manual memilih profil secara eksplisit; input susulan memilih job yang dituju. Mention grup, wildcard, pesan bot, edit pesan, dan default tim tidak menambah trigger.
 
-Landing/marketing, billing, paket komersial, aplikasi Grow Team desktop/mobile,
-dan migrasi Buzz ke chat aktif. Buzz adalah arsip pemulihan, bukan target produk.
+## Status produk
+
+| Produk | Status | Batas |
+| --- | --- | --- |
+| Workspace chat internal | Bukti deploy bertanggal tersedia | Bukti ulang diperlukan untuk perubahan rilis. |
+| Control plane dan runner agent | Komponen source tersedia | Task 0–6 selesai dan lulus review komponen. |
+| Image runner | Intermediate image `1c3ebcde3d7e` diuji | Image rilis final belum ditetapkan. |
+| Enable profil | Kontrak explicit enable diterima | Source masih auto-enable setelah probe. Task9 harus memperbaikinya. |
+| UI agent, provider pilot, dan activation | Pending | UI belum dikirim. Realm dan provider pilot belum diaktifkan. |
+| Kesiapan rilis | Pending | Migrasi live, 106 acceptance rows, recovery, kapasitas, dan sertifikasi keamanan belum lengkap. |
 
 ## Metrik provisional
 
-Metrik belum menjadi KPI komersial. Untuk pilot, ukur keberhasilan login/undangan, pengiriman pesan realtime, pencarian, upload-download, delivery email, keberhasilan backup, dan jumlah insiden akses. Tetapkan baseline dan target setelah penggunaan internal stabil.
+Metrik belum menjadi KPI komersial. Untuk pilot, ukur keberhasilan login dan undangan, pengiriman pesan realtime, pencarian, upload-download, delivery email, keberhasilan backup, dan jumlah insiden akses. Tetapkan baseline dan target setelah penggunaan internal stabil.
+
+## Ruang lingkup komersial
+
+Billing, SLA, desktop/mobile app, dan operasi multi-klien belum masuk rilis internal. Isolasi pelanggan, lifecycle credential, support, dan offboarding memerlukan keputusan bisnis dan bukti operasi.
 
 ## Kebutuhan terkait
 
-Traceability: BR-01/BR-02 di [BRD](brd.md) membatasi PR-01 workspace internal,
-PR-02 pilot AI, dan PR-03 kesiapan B2B ini. PR-01 memakai FR-01–FR-07 dan FR-20; PR-02
-memakai FR-08–FR-18; PR-03 memakai FR-19. Risiko ada di [security](security.md).
+| Product requirement | Business requirement | Functional requirement |
+| --- | --- | --- |
+| PR-01 Workspace internal | BR-01 validasi workspace internal dahulu | FR-01–FR-07 dan FR-20 |
+| PR-02 Pilot agent internal | BR-02 validasi agent dengan authority eksplisit | FR-08–FR-18 |
+| PR-03 Kesiapan B2B | BR-03 komersialisasi setelah gate | FR-19 |
+
+Lihat [BRD](brd.md), [FRD](frd.md), [roadmap](roadmap.md), [security](security.md), dan tiga spesifikasi agent: [connections and coding harness](spec/2026-09-21-agent-connections-and-coding-harness.md), [lifecycle and mention flow](spec/2026-09-21-agent-lifecycle-and-mention-flow.md), serta [settings, connections, and team defaults](spec/2026-09-22-agent-settings-connections-and-team-defaults.md).

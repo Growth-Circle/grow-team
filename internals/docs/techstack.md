@@ -1,34 +1,34 @@
 # Tech Stack Grow Team
 
-Status: terverifikasi dari `pyproject.toml`, `package.json`, dan `deploy/grow-team/compose*.yaml` pada 2026-09-21.
+Status dokumen: penyelarasan sementara dari source, lockfile, dan bukti deploy bertanggal, 2026-09-22.
 
 | Lapisan | Teknologi dan peran | Status |
 | --- | --- | --- |
-| Aplikasi server | Python 3.10+, Django 5.2, Tornado | Terverifikasi. Django menangani aplikasi/data; Tornado menangani push server ke klien. |
-| Browser | TypeScript, jQuery, Handlebars, Webpack 5 | Terverifikasi. Ini bukan SPA baru atau aplikasi desktop. |
-| Data | PostgreSQL 14; volume uploads | Terverifikasi. PostgreSQL menyimpan metadata berkas; isi upload berada di volume aplikasi terpisah. |
-| Asinkron internal | RabbitMQ 4.2 | Terverifikasi untuk pesan/tugas durable aplikasi. Jangan samakan dengan worker AI baru. |
-| Data ephemeral | Redis | Terverifikasi sebagai penyimpanan ephemeral aplikasi. |
-| Cache | Memcached dengan SASL | Terverifikasi sebagai cache aplikasi. |
-| Runtime | Docker 29.8.1, Docker Compose 5.5.1, systemd | Terverifikasi dari panduan deploy. Engine khusus Grow Team. |
-| Ingress dan email | Cloudflare Tunnel; Worker Email Sending | Terverifikasi. Worker mengirim email transaksi; tidak ada SMTP/API-token blocker. |
-| AI privat | Gateway pada server Wulan lewat Tailscale/SSH | Terverifikasi sebagai koneksi privat. Integrasi aplikasi belum ada. |
+| Aplikasi server | Python 3.10+, Django 5.2, Tornado | Django menangani aplikasi dan data. Tornado menangani push ke browser. |
+| Browser chat | TypeScript, jQuery, Handlebars, Webpack 5 | Browser Zulip tetap menjadi jalur chat utama. UI agent dan settings browser masih pending. |
+| Data chat | PostgreSQL 14 dan volume uploads | PostgreSQL menyimpan metadata. Volume aplikasi menyimpan isi upload. |
+| Asinkron chat | RabbitMQ 4.2 | Dipakai aplikasi chat. Jangan samakan dengan runner agent. |
+| Data ephemeral | Redis | Dipakai aplikasi chat. |
+| Cache | Memcached dengan SASL | Dipakai aplikasi chat. |
+| Deploy chat | Docker 29.8.1, Docker Compose 5.5.1, systemd | Engine khusus Grow Team. Bukti deploy bertanggal ada untuk `team.growc.id`. |
+| Ingress dan email | Cloudflare Tunnel dan Cloudflare Email Worker | Tunnel menyediakan ingress. Worker mengirim email transaksi. |
+| Control plane agent | Django dan PostgreSQL | Source menyimpan pairing, policy, lifecycle, approval, publication, dan audit. |
+| Runner Linux | TypeScript dan Node 24.18.0 | Runner terpisah dari image Django. Runner menangani proses lokal, journal, workspace, dan containment. |
+| Protokol runner | ACP SDK 1.5.0, Codex ACP 1.12.0, Codex 0.154.0, Zod 4.6.5 | Versi dipatok untuk runner. |
+| Native payload | Codex Linux x64, `bwrap`, `rg`, `zsh` | Inventaris dan notice disiapkan. Image `1c3ebcde3d7e` telah diuji sebagai intermediate image. |
+| Base runner | Node 24.18.0 Trixie slim | Kandidat kompatibel untuk payload native. Final package dan SBOM masih gate rilis. |
+| Isolasi eksekusi | Rootless Docker, sandbox, checkout owner | Task 0–6 telah selesai dan lulus review komponen. Sertifikasi runtime produk tetap pending. |
+| Provider | Chat Completions atau Responses | Provider memakai kontrak wire terpisah. Provider nyata memerlukan bukti readiness dan rilis. |
+| Rahasia | Envelope encryption server dan referensi lokal runner | Field source bersifat write-only. Key production dan recovery penuh perlu bukti final. |
 
-Image aplikasi produksi memakai fork Grow Team. Pemeriksaan publik dan browser lulus
-untuk alur inti serta identitas baru, termasuk indikator pemuatan pesan.
-PostgreSQL, Redis, RabbitMQ, dan
-Memcached juga dipatok digest dalam override. Host aplikasi adalah `team.growc.id`;
-port HTTP hanya diekspos ke loopback. Nama paket, queue, dan setting Zulip tetap ada
-sebagai kompatibilitas teknis. Lihat
-[verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md).
+Bukti deploy chat sebelumnya meliputi image fork Grow Team, PostgreSQL, Redis, RabbitMQ, Memcached, Cloudflare Tunnel, Email Worker, dan deploy isolasi dari Hermes. Bukti itu juga mencakup pemeriksaan browser inti dan branding. Lihat [verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md). Bukti tersebut tidak membuktikan rilis agent.
 
-## Catatan operasi
+## Batas operasi
 
-- Gunakan `deploy/grow-team/compose.sh`, bukan engine Docker lain.
-- Konfigurasi dan credential host berada di path privat dan tidak dicantumkan di sini.
-- Backend email Python dipasang read-only ke container. Perakitan dan pemeriksaan startup image berjalan sebagai user aplikasi `zulip`.
-- Backup sebelum dan sesudah branding mencakup database, uploads, dan konfigurasi; checksum lokal serta remote lulus. Lokasinya dicatat dalam laporan verifikasi. Uji pemulihan stack penuh belum tercatat.
+- Gunakan `deploy/grow-team/compose.sh` untuk engine Docker khusus Grow Team.
+- Simpan konfigurasi dan credential host pada path privat.
+- Runner memakai koneksi keluar. Jangan buka port masuk pada runner.
+- Mode ACP dan endpoint adalah mode berbeda. Jangan lakukan fallback model atau switch mode otomatis.
+- Kontrak enable eksplisit setelah probe adalah target Task9. Source saat ini masih auto-enable profil siap.
 
-## Target yang belum ada
-
-Tidak ada Celery, katalog multi-model, task runner AI, atau agent otonom Grow Team dalam source/runtime terverifikasi. Rancangan target ada di [blueprint](blueprint.md) dan [roadmap](roadmap.md).
+Rujukan: [blueprint](blueprint.md), [security](security.md), dan tiga spesifikasi agent: [connections and coding harness](spec/2026-09-21-agent-connections-and-coding-harness.md), [lifecycle and mention flow](spec/2026-09-21-agent-lifecycle-and-mention-flow.md), serta [settings, connections, and team defaults](spec/2026-09-22-agent-settings-connections-and-team-defaults.md).

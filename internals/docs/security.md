@@ -1,43 +1,44 @@
 # Security Grow Team
 
-## Kontrol terverifikasi
+Status dokumen: penyelarasan sementara, 2026-09-22. Kontrol source, preflight, dan bukti deploy chat tidak menjadi sertifikasi keamanan atau kesiapan AI produksi.
 
-- Aplikasi hanya publish ke loopback dan masuk melalui Cloudflare Tunnel.
-- Engine Docker, volumes, systemd services, CPU/RAM limits, dan backup dipisah dari Hermes.
-- Container memakai secrets; credential host berada di path privat dan tidak dicatat di Git.
-- Email Worker menolak request tanpa relay secret; backend tidak mencatat isi email/token.
-- Endpoint profil tanpa autentikasi diuji memberi 401. Ini bukan bukti setiap halaman UI atau setiap ACL sudah diuji.
-- Backup memakai checksum; restore database sementara sudah diuji tanpa mengubah database aktif.
-- Gateway AI privat dapat dicapai melalui jalur Tailscale/SSH dan menolak request tanpa key.
-- Backup sebelum deploy `20260921T132110Z-zulip` memiliki checksum database, uploads, dan konfigurasi yang lulus secara lokal serta remote.
-- Backup sesudah penyesuaian konten bawaan `20260921T135739Z-zulip` juga memiliki salinan lokal dengan checksum yang cocok.
-- Image fork Grow Team berjalan. Pemeriksaan publik dan browser inti memberi hasil lulus untuk alur yang dicatat dalam verifikasi branding.
+## Bukti deploy chat bertanggal
 
-## Batas/gap terverifikasi
+- Aplikasi chat dipublikasi ke loopback melalui Cloudflare Tunnel.
+- Engine Docker, volumes, systemd services, limits, dan backup dipisahkan dari Hermes.
+- PostgreSQL 14, Redis, RabbitMQ, dan Memcached mendukung runtime chat Grow Team.
+- Cloudflare Email Worker menolak request tanpa relay secret. Backend tidak mencatat isi email atau token.
+- Endpoint profil tanpa autentikasi memberi 401 dalam pemeriksaan terdahulu.
+- Backup memakai checksum. Restore database sementara diuji tanpa mengubah database aktif.
+- Bukti deploy fork dan browser inti dicatat dalam [verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md).
 
-- Status email `delivered` bukan bukti email masuk inbox.
-- Pemulihan seluruh stack pada VPS kedua dan reboot host belum diuji.
-- Uji beban tim belum tercatat.
-- Pemeriksaan browser inti tidak membuktikan seluruh alur browser atau ACL.
-- Push mobile, billing, landing, dan AI agent belum diimplementasikan.
-- Fitur upstream untuk role, DM, search, dan realm tersedia di source, tetapi tes
-  otorisasi negatif untuk setiap kombinasi ACL, search, DM, dan tenant belum tercatat.
+Bukti ini menetapkan konteks deploy chat. Bukti ini tidak membuktikan setiap ACL, reboot host, pemulihan penuh, atau rilis agent.
 
-## Persyaratan sebelum AI
+## Kontrol agent di source
 
-1. Terapkan least privilege pada bot/API dan cek akses per context reference.
-2. Gunakan job durable dengan idempotency key, retry terbatas, dead-letter/review path, dan audit immutable sesuai retensi yang disetujui.
-3. Jangan kirim data lebih dari yang diperlukan ke gateway/model.
-4. Minta approval manusia untuk aksi eksternal atau aksi yang mengubah data penting.
-5. Threat-model sidecar, worker, gateway, prompt injection, kebocoran konteks, dan replay sebelum rilis.
+- Record agent membawa realm. Validasi dan policy menolak referensi lintas realm dan memakai current access.
+- Pairing perangkat tidak memberi authority tenant sebelum approval browser. Credential runner disimpan sebagai hash dan dapat dirotasi atau dicabut.
+- Secret provider bersifat write-only dan terenkripsi. Runner menyimpan referensi secret lokal, bukan isi secret dalam registry atau descriptor.
+- Grant memilih principal dan resource eksplisit. Administrator platform tidak otomatis mewarisi runner, provider, repository, atau profil milik owner lain.
+- Scope conversation dan audience binding membatasi context. Scope setup tidak memberi hak membaca history pesan.
+- Job, attempt, input, operation, approval, audit, artifact, verification, dan outbox menyimpan identity serta state durable.
+- Artifact private mengikuti ACL saat ini. Publication berhenti jika audience berubah atau verification tidak sah.
+- Task 0–6 untuk runner dan containment telah selesai dan lulus review komponen. Image `1c3ebcde3d7e` adalah intermediate image yang diuji, bukan bukti sertifikasi produk akhir.
 
-## Persyaratan sebelum B2B
+## Batas authority dan effect
 
-Review isolasi tenant, lifecycle credential, logging/redaction, backup encryption/retention, restore drill, patch process, incident response, dan offboarding. Model instance-per-client atau realm-bersama belum diputuskan. Lihat [BRD](brd.md) dan [roadmap](roadmap.md).
+Trigger otomatis berasal dari mention personal yang sah atau DM antara satu anggota dan satu agent yang telah diotorisasi. DM grup memerlukan mention personal eksplisit. Default tim tidak menambah recipient, grant, atau trigger. Mode ACP dan endpoint memakai konfigurasi, policy, dan readiness sendiri. Sistem tidak melakukan fallback model atau switch mode otomatis.
 
-## Bukti dan traceability
+Kontrak yang diterima mengharuskan enable eksplisit sesudah probe pada revision yang diuji. Source saat ini masih auto-enable profil siap. Task9 harus memperbaiki perilaku ini.
 
-Kontrol runtime bersumber dari `deploy/grow-team/compose.override.yaml` dan
-`VERIFICATION.md`. Kebutuhan AI adalah FR-08–FR-18; tenant isolation adalah
-FR-19; gate branding runtime adalah FR-20. Sebelum perubahan claim keamanan, jalankan skenario negatif yang dapat
-diulang dan simpan bukti rilis terpisah.
+Operasi lokal dan remote memakai proposal, consumption, evidence, dan reconciliation. Push dan draft PR adalah effect terpisah. Approval read, edit, atau check tidak memberi authority push atau PR.
+
+## Gate keamanan dan rilis
+
+- UI browser, provider nyata, dua mode runtime, dan smoke pilot belum disertifikasi.
+- Image final, package dan notice final, migrasi live, dan activation realm/provider belum memiliki bukti rilis final.
+- Backup/restore produksi, retained-key decryption, rollback kompatibel, capacity, dan host isolation pascarilis masih memerlukan evidence final.
+- Recovery rehearsal terbatas tidak membuktikan reboot host, VPS kedua, atau disaster recovery penuh.
+- Isolasi tenant komersial, lifecycle credential pelanggan, support, dan offboarding belum selesai.
+
+Simpan rahasia di path privat. Jangan salin rahasia ke Git, descriptor, event, artifact, telemetry, atau dokumen produk. Aktifkan hanya realm, runner, provider, dan fixture yang disetujui setelah gate final selesai. Lihat [roadmap](roadmap.md), [FRD](frd.md), serta tiga spesifikasi agent: [connections and coding harness](spec/2026-09-21-agent-connections-and-coding-harness.md), [lifecycle and mention flow](spec/2026-09-21-agent-lifecycle-and-mention-flow.md), dan [settings, connections, and team defaults](spec/2026-09-22-agent-settings-connections-and-team-defaults.md).

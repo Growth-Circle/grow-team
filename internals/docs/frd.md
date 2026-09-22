@@ -1,31 +1,34 @@
 # FRD Grow Team
 
-Status: FR-01, FR-02, FR-04, FR-05, FR-06, dan FR-07 memiliki smoke teramati.
-FR-03 adalah fitur upstream tersedia, tetapi ACL/DM/search penuh belum diuji.
-FR-20 memiliki pemeriksaan publik, browser inti, dan identitas produk yang lulus.
-FR-08–FR-19 adalah target.
+Status dokumen: penyelarasan sementara, 2026-09-22. Status menunjukkan bukti yang tersedia atau pekerjaan yang masih diperlukan. Status tidak menggantikan acceptance evidence rilis.
 
-| ID | Kebutuhan | Kriteria penerimaan |
-| --- | --- | --- |
-| FR-01 | Akses browser terautentikasi | Pengguna sah login; halaman profil tanpa autentikasi memberi 401. |
-| FR-02 | Kanal dan topik | Anggota dapat mengirim pesan ke kanal dan topik; event realtime memuat pesan sama. |
-| FR-03 | Pesan langsung dan pencarian | Fitur tersedia; pilot wajib membuktikan pengguna tanpa hak tidak dapat membaca atau menemukan pesan privat. |
-| FR-04 | Berkas | Upload lalu download menjaga isi; akses mengikuti hak pesan/realm. |
-| FR-05 | Administrasi | Admin dapat mengundang anggota dengan role dan masa berlaku terbatas. |
-| FR-06 | Email transaksi | Reset password dan notifikasi dapat dikirim melalui Worker terlindungi; request tanpa rahasia ditolak. |
-| FR-07 | Pemulihan | Backup ber-checksum dapat diuji ke target sementara tanpa mengubah database aktif. |
-| FR-20 | Rilis branding runtime | Image fork Grow Team berjalan di `team.growc.id`. Login memuat “Log in to Grow Team”. Logo, favicon, footer, bantuan, dan indikator pemuatan memakai Grow Team. Pemeriksaan publik dan browser inti lulus; lihat laporan verifikasi. |
-| FR-08 | Monitor kanal | Target: admin mengonfigurasi kanal; agent hanya memantau kanal itu dan menulis audit setiap trigger. |
-| FR-09 | Mention dan tugas manual | Target: mention bot atau perintah membuat satu job dengan origin realm/kanal/topik/pesan. |
-| FR-10 | Katalog model | Target: worker hanya memilih model dari allowlist gateway Wulan; fallback tercatat. |
-| FR-11 | Job tahan restart | Target: job menyimpan state, idempotency key, attempt, dan hasil; restart tidak menggandakan aksi. |
-| FR-12 | Jalur panjang | Target: streaming/long-running job memakai jalur privat langsung, bukan request Cloudflare yang dibatasi 120 detik. |
-| FR-13 | Batas eksekusi | Target: setiap job memiliki timeout, token/biaya limit, retry terbatas, dan alasan gagal. |
-| FR-14 | Cancel dan resume | Target: peminta/admin dapat cancel; resume membuat attempt baru dengan jejak ke job asal. |
-| FR-15 | Konteks sesuai izin | Target: worker cek hak akses saat enqueue dan sebelum baca setiap reference. |
-| FR-16 | Approval manusia | Target: aksi eksternal/data penting berhenti pada pending approval; keputusan dan aktor dicatat. |
-| FR-17 | Audit dan hasil | Target: event lifecycle dicatat; hasil dipost ke topik asal atau ditahan jika akses berubah. |
-| FR-18 | Runner terisolasi | Target: kerja opsional memakai container ephemeral dengan limit; aplikasi realtime tidak dihentikan/dibiarkan tidur. |
-| FR-19 | Tenant boundary | Target B2B: setiap job, audit, bot, dan reference memiliki realm/tenant boundary; tes lintas tenant gagal tertutup. |
+| ID | Kebutuhan | Kriteria penerimaan stabil | Status |
+| --- | --- | --- | --- |
+| FR-01 | Akses browser terautentikasi | Pengguna sah login. Halaman profil tanpa autentikasi memberi 401. | Bukti deploy chat bertanggal tersedia. |
+| FR-02 | Kanal dan topik | Anggota dapat mengirim pesan ke kanal dan topik. Event realtime memuat pesan yang sama. | Bukti browser inti bertanggal tersedia. |
+| FR-03 | Pesan langsung dan pencarian | Fitur tersedia. Pilot membuktikan pengguna tanpa hak tidak dapat membaca atau menemukan pesan privat. | Fitur upstream tersedia. Bukti ACL, DM, dan search negatif penuh masih diperlukan. |
+| FR-04 | Berkas | Upload lalu download menjaga isi. Akses mengikuti hak pesan atau realm. | Bukti upload-download perlu dipelihara per rilis. |
+| FR-05 | Administrasi | Admin dapat mengundang anggota dengan role dan masa berlaku terbatas. | Bukti deploy chat bertanggal tersedia. |
+| FR-06 | Email transaksi | Reset password dan notifikasi dapat dikirim melalui Worker terlindungi. Request tanpa rahasia ditolak. | Bukti deploy email bertanggal tersedia. |
+| FR-07 | Pemulihan | Backup ber-checksum dapat diuji ke target sementara tanpa mengubah database aktif. | Bukti terbatas tersedia. Pemulihan stack penuh tetap gate rilis. |
+| FR-08 | Trigger agent | Mention personal, DM satu anggota dengan satu agent yang diotorisasi, dan tindakan manual membuat receipt durable. DM grup memerlukan mention personal eksplisit. Mention grup, wildcard, pesan bot, edit, dan pemantauan kanal umum tidak memicu job. | Ada di source. UI dan activation belum dirilis. |
+| FR-09 | Tugas dan provenance | Job menyimpan requester, source, profil, runner, repository, trigger, scope, dan idempotency. | Ada di source. Browser flow belum dirilis. |
+| FR-10 | Mode dan provider | ACP dan endpoint memakai kontrak berbeda. Provider dipilih eksplisit dari konfigurasi yang diuji. | Ada di source. Jangan gunakan fallback atau switch mode otomatis. |
+| FR-11 | Lifecycle tahan restart | Job menyimpan state, idempotency key, attempt, event, input, checkpoint, dan hasil. Restart tidak menggandakan effect. | Ada di source. Bukti runtime nyata masih gate rilis. |
+| FR-12 | Jalur runner | Runner memakai koneksi keluar terikat origin. | Ada di source. Transport provider nyata belum disertifikasi. |
+| FR-13 | Batas eksekusi | Setiap job memiliki policy, budget, lease, deadline, limit, dan alasan gagal. | Ada di source. Pengukuran biaya dan capacity produksi belum lengkap. |
+| FR-14 | Cancel dan resume | Pembatalan dan resume memakai state durable serta attempt baru. Authority owner dan grant tetap berlaku. | Ada di source. Administrator tanpa grant tidak mendapat bypass. |
+| FR-15 | Konteks sesuai izin | Server memeriksa akses saat enqueue dan sebelum memakai reference. Scope setup tidak memberi hak membaca history pesan. | Ada di source. |
+| FR-16 | Approval manusia | Effect diproposalkan, dikonsumsi sekali, dan direkonsiliasi. Push dan draft PR adalah action terpisah. | Ada di source. Bukti effect end-to-end masih diperlukan. |
+| FR-17 | Audit dan hasil | Lifecycle dicatat. Hasil dipost hanya jika audience dan verification tetap sah. | Ada di source. Audit tidak dinyatakan administrator-proof. |
+| FR-18 | Runner terisolasi | Kerja opsional memakai containment rootless dan limit. Aplikasi realtime tidak dihentikan atau dibiarkan tidur. | Task 0–6 selesai dan lulus review komponen. Image `1c3ebcde3d7e` diuji sebagai intermediate image. Sertifikasi runtime produk masih pending. |
+| FR-19 | Tenant boundary | Setiap job, audit, bot, dan reference memiliki realm boundary. Tes lintas tenant gagal tertutup. | Model dan policy ada di source. Operasi B2B belum siap. |
+| FR-20 | Branding runtime | Image fork Grow Team berjalan di `team.growc.id`. Login, logo, favicon, footer, bantuan, dan indikator pemuatan memakai identitas Grow Team. | Bukti publik dan browser inti bertanggal ada dalam [laporan verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md). |
 
-FR-08–FR-19 tidak membuktikan adanya agent saat ini. FR-20 mencakup deployment dan pemeriksaan yang dicatat dalam [laporan verifikasi](../../deploy/grow-team/BRANDING-VERIFICATION.md). Implementasi AI memakai sidecar/API dan record durable, bukan asumsi Celery. Detail entitas target ada di [ERD](erd.md); gate ada di [roadmap](roadmap.md).
+## Kontrak settings dan default
+
+AS-01–AS-32 dari [spesifikasi settings](spec/2026-09-22-agent-settings-connections-and-team-defaults.md) masih pending Task9. Kontrak ini mencakup metadata runner, directory ACL, readiness draft, enable eksplisit, default tim revision-safe, dan UI lintas browser.
+
+Kontrak yang diterima menyatakan probe hanya merekam readiness. Enable adalah aksi eksplisit pada revision yang diuji. Source saat ini masih auto-enable profil setelah probe siap. Dokumentasi ini tidak menyatakan koreksi Task9 sudah diterapkan.
+
+Default tim tidak memberi grant, tidak mengubah job aktif, dan tidak membuat trigger baru. Gunakan [ERD](erd.md) untuk record aktual, [roadmap](roadmap.md) untuk gate rilis, serta spesifikasi [connections and coding harness](spec/2026-09-21-agent-connections-and-coding-harness.md) dan [lifecycle and mention flow](spec/2026-09-21-agent-lifecycle-and-mention-flow.md) untuk kontrak runner dan lifecycle.

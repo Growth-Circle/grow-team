@@ -1,63 +1,71 @@
 # Blueprint Grow Team
 
-Status: 2026-09-21. Dokumen ini membedakan **terverifikasi**, **target**, dan **keputusan terbuka**.
+Status dokumen: penyelarasan sementara, 2026-09-22. Grow Team mempertahankan chat Zulip untuk tim internal lima sampai enam anggota. Produk dapat masuk ke pasar klien setelah gate produk dan operasi selesai.
 
 ## Tujuan
 
-Grow Team adalah ruang kerja kolaborasi web untuk tim internal kecil, awalnya lima sampai enam anggota. Produk memakai fork Zulip 12.2 di `Growth-Circle/grow-team` dan tersedia di `team.growc.id`. Aplikasi awal menyediakan chat kanal, topik, pesan langsung, pencarian, unggah berkas, peran, dan undangan. Lihat [PRD](prd.md) dan [FRD](frd.md).
+Anggota memakai browser untuk kanal, topik, DM, pencarian, berkas, dan tugas agent yang disetujui. Chat tetap memakai model dan pengalaman Zulip. Pekerjaan agent yang diterima tetap durable saat pengguna menutup browser.
 
-## Kondisi terverifikasi
-
-```mermaid
-flowchart LR
-  Browser[Browser anggota] --> CF[Cloudflare Tunnel]
-  CF --> App[Grow Team: fork Zulip 12.2]
-  App --> PG[(PostgreSQL 14)]
-  App --> Redis[(Redis)]
-  App --> MQ[RabbitMQ]
-  App --> MC[Memcached]
-  App --> Mail[Cloudflare Email Worker]
-  HostTunnel[Unit tunnel AI host] -. Tailscale SSH .-> Wulan[Gateway AI privat]
-```
-
-Runtime produksi memakai image fork Grow Team. Login, registrasi, reset password,
-aset, bantuan, sesi admin, tampilan pesan, dan event queue lulus pemeriksaan browser.
-Endpoint profil tanpa autentikasi memberi 401. Logo, favicon, footer, serta indikator
-pemuatan memakai identitas Grow Team. Engine Docker, data, volume, systemd slice,
-dan tunnel dipisahkan dari Hermes. Aplikasi hanya dipublikasikan lewat loopback lalu
-tunnel. Cakupan pengujian dan identitas image dicatat dalam
-[verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md).
-
-## Target AI, belum diimplementasikan
+## Arsitektur chat yang sudah diverifikasi
 
 ```mermaid
 flowchart LR
-  App[Grow Team API/bot] --> Jobs[(AI job records)]
-  Jobs --> Worker[Durable AI worker]
-  Worker --> Gateway[Gateway AI privat]
-  Worker --> Audit[(Audit dan hasil)]
-  Human[Pengguna/admin] --> Approval[Persetujuan]
-  Approval --> Worker
+  Browser[Browser anggota] --> Tunnel[Cloudflare Tunnel]
+  Tunnel --> Zulip[Grow Team: fork Zulip 12.2]
+  Zulip --> PG[(PostgreSQL 14)]
+  Zulip --> Redis[(Redis)]
+  Zulip --> RabbitMQ[(RabbitMQ)]
+  Zulip --> Memcached[(Memcached)]
+  Zulip --> Worker[Cloudflare Email Worker]
 ```
 
-Unit tunnel host hanya membuktikan jalur jaringan privat; aplikasi belum terhubung
-ke gateway. Target AI memakai bot/API sidecar untuk memantau kanal terkonfigurasi,
-menangani mention/tugas manual, lalu membuat record pekerjaan tahan restart.
-Setiap job memakai idempotency key, retry terbatas, audit, dan konteks sesuai hak
-akses. Aksi eksternal wajib menunggu persetujuan manusia. Runner container ephemeral
-boleh dipakai untuk tugas opsional; aplikasi realtime tidak tidur.
+Bukti deploy chat sebelumnya mencakup `team.growc.id`, Cloudflare Tunnel, Email Worker, PostgreSQL 14, Redis, RabbitMQ, Memcached, dan engine Docker khusus Grow Team. Bukti juga mencakup login, registrasi, reset password, aset, bantuan, sesi admin, tampilan pesan, event queue, dan identitas branding. Aplikasi dipublikasi dari loopback melalui tunnel. Engine, data, volume, systemd slice, dan tunnel dipisahkan dari Hermes. Catatan ini adalah bukti bertanggal untuk chat. Catatan ini bukan bukti rilis agent saat ini. Lihat [verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md).
 
-## Batas arsitektur
+## Arsitektur agent yang diterima
 
-- Jangan mengubah Hermes, sumber daya, atau layanan Hermes.
-- Jangan menyimpan rahasia dalam Git atau dokumen ini.
-- Jangan memperkenalkan landing page, harga, billing, aplikasi desktop, atau aplikasi mobile.
-- Pertahankan protokol dan identifier Zulip yang diperlukan untuk kompatibilitas.
+```mermaid
+flowchart LR
+  Browser[Browser anggota] --> Django[Django control plane]
+  Django --> PG[(PostgreSQL: state durable)]
+  Django --> Chat[Chat Zulip dan bot profil]
+  Runner[Runner Linux milik owner] -->|Koneksi keluar| Django
+  Runner --> Sandbox[Sandbox rootless]
+  Runner --> ACP[Mode ACP]
+  Runner --> Endpoint[Mode endpoint model]
+  Runner --> Repo[Checkout lokal yang disetujui]
+  Django --> Approval[Approval dan publication gate]
+```
+
+Django menyimpan identitas, pairing, grant, profil, job, attempt, approval, artifact, audit, dan outbox. Runner TypeScript terpisah berjalan pada laptop atau server milik owner. Runner membuat koneksi keluar ke control plane. Runner tidak membuka port masuk.
+
+Dua mode awal tetap terpisah:
+
+- **ACP:** agent yang tersedia berjalan dalam sandbox dengan adapter yang didaftarkan owner.
+- **Endpoint:** runtime endpoint model memakai provider dan konfigurasi yang telah diuji.
+
+Endpoint model tidak memberi akses repository dengan sendirinya. Server dan runner memeriksa workspace, tools, pembatalan, pemeriksaan, dan publication.
+
+## Status komponen dan gate rilis
+
+| Area | Status | Arti |
+| --- | --- | --- |
+| Chat dan branding Grow Team | Bukti deploy bertanggal tersedia | Runtime chat telah diverifikasi pada cakupan laporan branding. Bukti perlu diulang untuk perubahan rilis berikutnya. |
+| Control plane agent | Ada di source | Model durable, protocol v1, pairing, secret, grant, lifecycle, dan audit tersedia. |
+| Runner dan containment | Komponen selesai direview untuk Task 0–6 | Task 0–6 telah melalui review komponen. Ini belum menjadi sertifikasi produk penuh. |
+| Image runner | Image `1c3ebcde3d7e` diuji sebagai intermediate image | Image ini bukan image rilis final. Paket, notice, recovery, dan gate rilis tetap perlu bukti final. |
+| Enable profil | Kontrak diterima, koreksi source pending Task9 | Probe seharusnya hanya merekam readiness. Enable harus berupa aksi eksplisit pada revision yang diuji. Source saat ini masih auto-enable setelah probe siap. |
+| UI dan operasi rilis | Pending | UI agent belum dikirim. Migrasi live, 106 acceptance rows, recovery, dan sertifikasi keamanan belum selesai. |
+
+## Batas otoritas
+
+Akses memerlukan intersection owner, realm, principal, resource, scope, grant aktif, dan ACL saat ini. Role administrator platform tidak memberi authority runner atau credential milik owner lain. Default tim tidak memberi grant baru.
+
+Trigger otomatis berasal dari mention personal yang sah atau DM antara satu anggota dan satu agent yang telah diotorisasi. DM grup memerlukan mention personal eksplisit. Tindakan manual memakai provenance pesan. Mention grup, wildcard, pesan bot, edit pesan, dan chat biasa tidak menjadi izin pemantauan umum. Sistem tidak melakukan fallback model atau perpindahan mode otomatis.
 
 ## Keputusan terbuka
 
-1. Pilih isolasi pelanggan: instance per klien atau realm bersama sebelum rilis komersial.
-2. Tetapkan kontrak gateway AI, kelas data, retensi audit, dan batas retry.
-3. Lengkapi pengujian akses privat, pencarian, peran, kapasitas, dan pemulihan stack penuh.
+1. Pilih isolasi pelanggan: instance per klien atau realm bersama.
+2. Tetapkan operasi dukungan, retensi, dan kewajiban komersial setelah pilot internal.
+3. Aktifkan realm, runner, atau provider hanya setelah gate rilis final selesai.
 
-Rujukan: [tech stack](techstack.md), [ERD](erd.md), [security](security.md), dan [roadmap](roadmap.md).
+Rujukan: [PRD](prd.md), [BRD](brd.md), [FRD](frd.md), [ERD](erd.md), [tech stack](techstack.md), [security](security.md), [roadmap](roadmap.md), dan tiga spesifikasi agent: [connections and coding harness](spec/2026-09-21-agent-connections-and-coding-harness.md), [lifecycle and mention flow](spec/2026-09-21-agent-lifecycle-and-mention-flow.md), serta [settings, connections, and team defaults](spec/2026-09-22-agent-settings-connections-and-team-defaults.md).
