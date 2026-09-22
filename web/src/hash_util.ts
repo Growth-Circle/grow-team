@@ -458,6 +458,7 @@ export function validate_settings_hash(
         "preferences",
         "notifications",
         "bots",
+        "agents",
         "alert-words",
         "uploaded-files",
         "topics",

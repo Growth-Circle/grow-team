@@ -1,11 +1,13 @@
-# Grow Agent runner foundation
+# Grow Agent runner
 
 The runner connects to Grow Team through outbound HTTPS requests. It opens no inbound port.
 This package uses a separate npm lockfile. It does not use the browser dependency tree.
 
-The current distribution supports Linux x64 with Node 24.18.0.
-Tasks 6–8 must provide the sandbox, runtime, and Git harness.
-The foundation does not certify chat or code execution. `doctor` reports no certified modes.
+The distribution supports Linux x64 with Node 24.18.0.
+`run` starts the coordinator and contained runtime supervisor.
+The runner checks local approval, current server authority, and retained state before execution.
+Setup probes measure capabilities. Coding evidence requires separate owner review and installation.
+`doctor` reports local checks; it does not certify a provider or profile.
 
 ## Development
 
@@ -48,6 +50,28 @@ A lost rotation response leaves `rotation_uncertain`. The runner does not replay
 Use `connect ORIGIN --repair` for an explicit new authorization. Revoke the reported orphan through its owner interface.
 An uncertain pairing start also requires this explicit action. No runner exists before exchange.
 
+## Set the owner-declared runner metadata
+
+Use the paired device credential to read the current name, category, and metadata revision:
+
+```sh
+node dist/cli.js metadata
+```
+
+Set the name and category with the revision from that read:
+
+```sh
+node dist/cli.js metadata set "Build server" server 1
+```
+
+The categories are `workstation`, `server`, and `unknown`. The CLI does not infer a category.
+Quote a name that has spaces. A stale revision fails; read metadata again before any new decision.
+If an update response is lost, the CLI reads current metadata and reports the observed value.
+It does not apply another update with a newer revision. The owner decides whether to change a conflicting value.
+The device route is `GET` or `POST /api/v1/agent/runner/metadata` with the current bearer credential.
+The POST body contains only `schema_version`, `name`, `host_kind`, and `expected_metadata_revision`.
+The response contains only the safe metadata fields and protocol envelope.
+
 ## Owner configuration
 
 Register a local workspace with an explicit CLI command:
@@ -68,7 +92,7 @@ Example `workspace.json`:
 ```
 
 Only alias, origin, allowed refs, checks, and revision go to the server.
-The local path stays in `registry.json`. The runtime must check this mapping before execution.
+The local path stays in `registry.json`. The runtime checks this mapping before execution.
 An exact retry preserves the repository ID. Change metadata with the next revision.
 The server derives owner, realm, and runner from the bearer credential.
 
@@ -77,10 +101,33 @@ Catalogs contain adapter identities and pinned image/toolchain digests. They do 
 The owner supplies each revision. An exact replay preserves readiness; changed metadata requires a newer revision.
 Browser profile settings cannot create local commands or host paths.
 
+Create owner-only `runtime.json` in the same runner state directory before `run`.
+Set `owner_approved` to `true`, `docker` to the approved executable, and `endpoint` to the current rootless Docker socket.
+Set `images` to the approved immutable model and tool image IDs.
+Set `model_image` to one image ID in that list.
+The runtime verifies Node, locked adapter dependencies, image approval, and the frozen containment installation.
+The catalog must report the matching adapter and sandbox image, toolchain digest, and revision.
+A changed catalog needs a new revision. Update the profile sandbox selection after that report.
+
+Use this owner sequence for coding work:
+
+1. Pair the runner. Register its owner-local secret and workspace.
+2. Approve `runtime.json` and report the matching catalog.
+3. Create the provider and draft profile with the selected runner, repository, adapter, sandbox, network, and budget.
+4. Request a setup. Let the runner report measured chat, tool, streaming, usage, and sandbox results.
+5. Review real provider coding evidence for the exact package and effective configuration. Install approved evidence with `scripts/install-coding-evidence.mjs`.
+6. Request a fresh setup. Require current `code_ready=true` and the matching profile revision.
+7. Enable the profile explicitly through the owner API. Then admit a coding job.
+
+A setup result measures current capability. Installed evidence binds a package and configuration.
+The owner enable action permits admission only after current readiness.
+See [RUNTIME.md](RUNTIME.md) for evidence and recovery contracts.
+See [CONTAINMENT.md](CONTAINMENT.md) for rootless Docker and image requirements.
+
 Use `secret NAME FILE` to register an owner-local secret reference.
 The file must have owner-only permissions. The registry stores its path, not its contents.
 `resolveSecret` reads the secret into memory only. Ordinary journal records reject credential fields.
-The later runtime broker must redact provider credentials from event text and tool output.
+The host broker filters known provider credentials before it retains event text and tool output.
 Do not put provider credentials in commands, metadata, events, or diagnostic text.
 
 ## Durable transport and execution boundary
@@ -98,7 +145,7 @@ It preserves old journal partitions, local workspace mappings, and secret refere
 It requires new catalog and workspace reports before runtime use.
 Old requests cannot use new runner credentials. History files never restore credentials automatically.
 
-`Coordinator` consumes a `Supervisor` and an owner registry. Tasks 6–8 must implement the interface in `src/supervisor.ts`.
+`run` constructs `RuntimeSupervisor`, runtime extensions, and `Coordinator` from the owner state.
 `inspect` must enumerate all owned processes and containers, including unknown journal entries.
 `stop` must confirm that effects have stopped. Recovery stops host processes before credential checks or server requests.
 It recovers pending claim identities, reconciles server leases, and reports stopped evidence before new claims.
@@ -141,11 +188,12 @@ Idle polling sends an empty-lease heartbeat after containment and credential che
 The coordinator checks controls, heartbeats, and lease expiry. A separate expiry timer stops effects during a blocked request.
 Transport or credential failure confirms local containment before polling backoff or reconnect. Current authority must still be checked at each broker effect.
 Reserved environment values are not inherited. Only the fixed owner-approved environment allowlist reaches adapters.
-The later runtime supplies isolated HOME and credential paths through its own supervisor boundary.
+The runtime supplies isolated HOME and credential paths through its supervisor boundary.
 
-The current `run` driver has no execution adapter. It cannot claim new work or certify runtime readiness.
-It refuses recovery when old local attempts require unavailable runtime inspection.
-A live service is not evidence that a profile is ready.
+The `run` command recovers remote operations before it starts service polling. It stops active work on exit.
+Setup polling claims a current setup, runs a contained probe, and reports measured capabilities.
+Job claims require the approved local catalog and current chat readiness.
+A live service and a successful `doctor` check do not establish profile readiness.
 
 ## Owner remote and Titen configuration
 
@@ -195,7 +243,8 @@ systemctl --user enable --now grow-agent.service
 ```
 
 The service runs under the owner account, uses umask 0077, and opens no inbound port.
-Do not enable it for coding work until the runtime and sandbox gates pass.
+Start the user service only after the owner approves the runtime configuration and image list.
+Keep the profile disabled until a current setup records coding readiness and the owner enables it.
 
 ## Assemble a local distribution
 
@@ -210,7 +259,8 @@ It includes Node, JavaScript, schemas, source notices, licenses, and a generated
 `release-manifest.json` records package integrity and file SHA-256 values.
 
 The source bundle includes the pinned Codex LICENSE and NOTICE, complete Bubblewrap and wrapper sources, and vendor notices.
-Original copyright and source notices remain intact.
-Native embedded dependencies still require SBOM review before external redistribution.
+It includes the PCRE2 10.45 license and provenance record.
+The release includes the Node license and dependency notices. Original copyright and source notices remain intact.
+Review native embedded dependencies and the generated SBOM before external redistribution.
 Zsh requires the supported Linux base libraries, including `libtinfo.so.6`, `libm.so.6`, and `libc.so.6`.
-Tasks 11–12 retain acceptance, recovery, certification, and pilot release gates.
+Real provider certification, normal job delivery, recovery, and pilot release still require live evidence.

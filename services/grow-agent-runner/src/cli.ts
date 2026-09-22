@@ -1,12 +1,14 @@
 #!/usr/bin/env node
+import {randomUUID} from "node:crypto";
 import {readFileSync} from "node:fs";
 import {homedir} from "node:os";
 import {join} from "node:path";
 import {fileURLToPath} from "node:url";
 import {PrivateStore, controlOrigin} from "./config.js";
 import {Journal} from "./journal.js";
-import {Transport, Connection} from "./transport.js";
+import {Transport, Connection, TransportError} from "./transport.js";
 import {OwnerRegistry, doctor} from "./owner.js";
+import type {Data} from "./protocol.js";
 import {RuntimeSupervisor} from "./runtime-supervisor.js";
 import {Coordinator, runService} from "./supervisor.js";
 import {
@@ -49,6 +51,88 @@ export function createRuntimeExtensions(
     };
 }
 
+type HostKind = "workstation" | "server" | "unknown";
+type MetadataUpdate = {name: string; host_kind: HostKind; expected_metadata_revision: number};
+type RunnerMetadata = {name: string; host_kind: HostKind; metadata_revision: number};
+
+function safeName(value: string): boolean {
+    return value.length > 0 && value.length <= 200 && !/[/\\\x00-\x1f\x7f]/.test(value);
+}
+
+function metadataFrom(value: Data): RunnerMetadata {
+    const metadata = value.metadata;
+    if (
+        !metadata ||
+        typeof metadata !== "object" ||
+        Array.isArray(metadata) ||
+        typeof metadata.name !== "string" ||
+        !safeName(metadata.name) ||
+        !["workstation", "server", "unknown"].includes(metadata.host_kind) ||
+        !Number.isSafeInteger(metadata.metadata_revision) ||
+        metadata.metadata_revision < 1
+    )
+        throw new TransportError("protocol", "invalid_metadata");
+    return {
+        name: metadata.name,
+        host_kind: metadata.host_kind as HostKind,
+        metadata_revision: metadata.metadata_revision,
+    };
+}
+
+export function parseMetadataCommand(args: string[]): MetadataUpdate | null {
+    if (args.length === 1 && args[0] === "metadata") return null;
+    if (args.length !== 5 || args[0] !== "metadata" || args[1] !== "set")
+        throw new Error("Use metadata or metadata set NAME CATEGORY EXPECTED_REVISION");
+    const name = args[2] ?? "",
+        host_kind = args[3] ?? "",
+        revision = args[4] ?? "";
+    if (
+        !safeName(name) ||
+        !["workstation", "server", "unknown"].includes(host_kind) ||
+        !/^[1-9][0-9]*$/.test(revision)
+    )
+        throw new Error("Invalid runner metadata arguments");
+    const expected_metadata_revision = Number(revision);
+    if (!Number.isSafeInteger(expected_metadata_revision))
+        throw new Error("Invalid runner metadata revision");
+    return {name, host_kind: host_kind as HostKind, expected_metadata_revision};
+}
+
+export async function readRunnerMetadata(transport: Transport): Promise<RunnerMetadata> {
+    return metadataFrom(await transport.request("/runner/metadata"));
+}
+
+export async function setRunnerMetadata(
+    transport: Transport,
+    update: MetadataUpdate,
+): Promise<Data> {
+    try {
+        const result = await transport.mutate(
+            "runner_metadata",
+            `metadata:${randomUUID()}`,
+            "/runner/metadata",
+            update,
+        );
+        return {outcome: "updated", metadata: metadataFrom(result)};
+    } catch (error) {
+        if (
+            !(error instanceof TransportError) ||
+            (error.kind !== "transient" &&
+                !(error.kind === "protocol" && error.code === "invalid_response"))
+        )
+            throw error;
+        const observed = await readRunnerMetadata(transport);
+        return {
+            outcome: "observed_after_uncertain_update",
+            metadata: observed,
+            requested_matches:
+                observed.metadata_revision === update.expected_metadata_revision + 1 &&
+                observed.name === update.name &&
+                observed.host_kind === update.host_kind,
+        };
+    }
+}
+
 export async function main(args = process.argv.slice(2)): Promise<void> {
     if (process.versions.node !== "24.18.0") throw new Error("Node 24.18.0 is required");
     if (args[0] === "doctor") {
@@ -57,7 +141,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     }
     if (!args[0] || args[0] === "help") {
         console.log(
-            "grow-agent connect ORIGIN [--repair]\ngrow-agent status\ngrow-agent rotate\ngrow-agent workspace ALIAS PATH METADATA.json\ngrow-agent catalog CATALOG.json\ngrow-agent secret NAME FILE\ngrow-agent remote CONFIG.json\ngrow-agent titen CONFIG.json\ngrow-agent memory-signal SIGNAL.json\ngrow-agent doctor\ngrow-agent run",
+            "grow-agent connect ORIGIN [--repair]\ngrow-agent status\ngrow-agent rotate\ngrow-agent metadata\ngrow-agent metadata set NAME CATEGORY EXPECTED_REVISION\ngrow-agent workspace ALIAS PATH METADATA.json\ngrow-agent catalog CATALOG.json\ngrow-agent secret NAME FILE\ngrow-agent remote CONFIG.json\ngrow-agent titen CONFIG.json\ngrow-agent memory-signal SIGNAL.json\ngrow-agent doctor\ngrow-agent run",
         );
         return;
     }
@@ -96,6 +180,18 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
                 await connection.rotate();
                 console.log("Credential rotated.");
                 break;
+            case "metadata": {
+                const update = parseMetadataCommand(args);
+                await connection.access();
+                console.log(
+                    JSON.stringify(
+                        update === null
+                            ? {metadata: await readRunnerMetadata(transport)}
+                            : await setRunnerMetadata(transport, update),
+                    ),
+                );
+                break;
+            }
             case "workspace":
                 await connection.access();
                 await registry.workspace(

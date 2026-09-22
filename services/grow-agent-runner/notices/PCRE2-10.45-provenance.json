@@ -1,0 +1,11 @@
+{
+    "component": "PCRE2",
+    "version": "10.45",
+    "notice_file": "PCRE2-10.45-LICENCE.md",
+    "notice_sha256": "9cf7ac6976099a1d856826d3ef1b093bd6b84489dc6100628ac79e740cf9885a",
+    "source_url": "https://raw.githubusercontent.com/PCRE2Project/pcre2/aa8a3e5ba20749965953a0bde69343b172f175b4/LICENCE.md",
+    "source_tag": "pcre2-10.45",
+    "source_commit": "aa8a3e5ba20749965953a0bde69343b172f175b4",
+    "runtime_evidence": "The pinned rg 15.2.0 version probe reported PCRE2 10.45.",
+    "scope": "This names one runtime notice input. It does not inventory all static or embedded native components."
+}

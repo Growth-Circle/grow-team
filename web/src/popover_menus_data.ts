@@ -45,6 +45,7 @@ type ActionPopoverContext = {
     conversation_time_url: string;
     should_display_delete_option: boolean;
     should_display_read_receipts_option: boolean;
+    should_display_agent_task_receipt: boolean;
     should_display_add_reaction_option: boolean;
     should_display_message_report_option: boolean;
 };
@@ -210,6 +211,10 @@ export function get_actions_popover_content_context(message_id: number): ActionP
 
     const should_display_delete_option = message_delete.get_deletability(message);
     const should_display_read_receipts_option = realm.realm_enable_read_receipts && not_spectator;
+    // The dispatch view returns only the requester's own receipts, so this
+    // menu item can only ever show data for a message the viewer sent.
+    const should_display_agent_task_receipt =
+        not_spectator && message.sender_id === current_user.user_id;
     const should_display_remind_me_option = not_spectator;
 
     const should_display_message_report_option = (): boolean => {
@@ -254,6 +259,7 @@ export function get_actions_popover_content_context(message_id: number): ActionP
         conversation_time_url,
         should_display_delete_option,
         should_display_read_receipts_option,
+        should_display_agent_task_receipt,
         should_display_quote_message,
         should_display_message_report_option: should_display_message_report_option(),
     };

@@ -4,6 +4,8 @@ import type * as tippy from "tippy.js";
 
 import render_message_actions_popover from "../templates/popovers/message_actions_popover.hbs";
 
+import * as agent_message_send from "./agent_message_send.ts";
+import * as agent_task_composer from "./agent_task_composer.ts";
 import * as clipboard_handler from "./clipboard_handler.ts";
 import * as compose_reply from "./compose_reply.ts";
 import * as condense from "./condense.ts";
@@ -141,6 +143,20 @@ export function initialize({
                     quote_content,
                     forward_message: true,
                 });
+                e.preventDefault();
+                e.stopPropagation();
+                popover_menus.hide_current_popover_if_visible(instance);
+            });
+
+            $popper.one("click", ".agent_create_task", (e) => {
+                agent_task_composer.open_for_message(message_id);
+                e.preventDefault();
+                e.stopPropagation();
+                popover_menus.hide_current_popover_if_visible(instance);
+            });
+
+            $popper.one("click", ".agent_task_receipt", (e) => {
+                void agent_message_send.show_receipts(message_id);
                 e.preventDefault();
                 e.stopPropagation();
                 popover_menus.hide_current_popover_if_visible(instance);

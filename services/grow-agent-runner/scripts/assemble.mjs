@@ -42,6 +42,21 @@ copyFileSync(
     join(output, "notices/Node-LICENSE"),
 );
 const sha = (p) => createHash("sha256").update(readFileSync(p)).digest("hex");
+const npmProductionSbom = () => {
+    const packagePath = join(output, "package.json");
+    const original = readFileSync(packagePath);
+    const production = JSON.parse(original);
+    delete production.devDependencies;
+    writeFileSync(packagePath, `${JSON.stringify(production, null, 2)}\n`);
+    try {
+        return execFileSync("npm", ["sbom", "--offline", "--sbom-format=cyclonedx", "--omit=dev"], {
+            cwd: output,
+            maxBuffer: 8 * 1024 * 1024,
+        });
+    } finally {
+        writeFileSync(packagePath, original);
+    }
+};
 const files = [];
 function walk(dir) {
     for (const entry of readdirSync(dir, {withFileTypes: true})) {
@@ -53,6 +68,7 @@ function walk(dir) {
 }
 walk(output);
 const lock = JSON.parse(readFileSync(join(output, "package-lock.json"), "utf8"));
+const codexNoticePaths = ["notices/codex-0.154.0/LICENSE", "notices/codex-0.154.0/NOTICE"];
 const packages = [];
 for (const [path, entry] of Object.entries(lock.packages)) {
     if (!path || entry.dev) continue;
@@ -70,19 +86,31 @@ for (const [path, entry] of Object.entries(lock.packages)) {
                         f.path.startsWith(`${path}/`) &&
                         /license|copying|notice|unlicense/i.test(f.path.split("/").at(-1)),
                 )
-                .map((f) => f.path),
+                .map((f) => f.path)
+                .concat(
+                    ["node_modules/@openai/codex", "node_modules/@openai/codex-linux-x64"].includes(
+                        path,
+                    )
+                        ? codexNoticePaths
+                        : [],
+                )
+                .sort(),
         });
     } catch (e) {
         if (e.code !== "ENOENT") throw e;
     }
 }
-writeFileSync(
-    join(output, "sbom.cdx.json"),
-    execFileSync("npm", ["sbom", "--sbom-format=cyclonedx", "--omit=dev", "--package-lock-only"], {
-        cwd: output,
-        maxBuffer: 8 * 1024 * 1024,
-    }),
+const sbomPath = join(output, "sbom.cdx.json");
+writeFileSync(sbomPath, npmProductionSbom());
+const sbom = JSON.parse(readFileSync(sbomPath, "utf8"));
+if (!Array.isArray(sbom.components)) throw new Error("Installed production SBOM has no components");
+const pcreNoticePath = join(output, "notices/PCRE2-10.45-LICENCE.md");
+const pcreNoticeSha256 = sha(pcreNoticePath);
+const pcreProvenance = JSON.parse(
+    readFileSync(join(output, "notices/PCRE2-10.45-provenance.json"), "utf8"),
 );
+if (pcreProvenance.notice_sha256 !== pcreNoticeSha256)
+    throw new Error("PCRE2 notice hash mismatch");
 writeFileSync(
     join(output, "release-manifest.json"),
     JSON.stringify(
@@ -91,6 +119,25 @@ writeFileSync(
             platform: "linux-x64",
             lock_sha256: sha(join(output, "package-lock.json")),
             packages,
+            npm_sbom: {
+                path: "sbom.cdx.json",
+                scope: "installed_linux_production",
+                sha256: sha(sbomPath),
+                component_count: sbom.components.length,
+            },
+            native_notices: [
+                {
+                    component: "PCRE2",
+                    version: "10.45",
+                    runtime_consumer: "rg 15.2.0",
+                    path: "notices/PCRE2-10.45-LICENCE.md",
+                    sha256: pcreNoticeSha256,
+                    provenance_path: "notices/PCRE2-10.45-provenance.json",
+                    source_url: pcreProvenance.source_url,
+                    source_commit: pcreProvenance.source_commit,
+                    scope: "Named runtime notice input only; not an exhaustive native component inventory.",
+                },
+            ],
             files,
             certified_modes: [],
             release_gates: [

@@ -1,0 +1,230 @@
+"use strict";
+
+const assert = require("node:assert/strict");
+
+const {mock_esm, zrequire} = require("./lib/namespace.cjs");
+const {run_test} = require("./lib/test.cjs");
+
+let next_response;
+let last_call;
+mock_esm("../src/channel", {
+    get(options) {
+        last_call = {method: "GET", ...options};
+        return Promise.resolve(next_response);
+    },
+    post(options) {
+        last_call = {method: "POST", ...options};
+        return Promise.resolve(next_response);
+    },
+    patch(options) {
+        last_call = {method: "PATCH", ...options};
+        return Promise.resolve(next_response);
+    },
+});
+const api = zrequire("agent_api");
+
+run_test("shared provider profile payload uses a versioned network snapshot", () => {
+    const provider = {id: "provider", owner_id: 1, config_version: 3};
+    const hidden_profile = {
+        provider_id: "provider",
+        configuration: {network_retained: true, policy: {network: null}},
+    };
+    const fallback = {targets: []};
+    assert.deepEqual(api.profile_network_choice("provider", provider, undefined, 2, fallback), {
+        provider_network_version: 3,
+    });
+    assert.deepEqual(
+        api.profile_network_choice("provider", provider, hidden_profile, 2, fallback),
+        {
+            retain_network: true,
+        },
+    );
+    assert.deepEqual(
+        api.profile_network_choice(
+            "provider",
+            provider,
+            {
+                ...hidden_profile,
+                provider_id: "old-provider",
+            },
+            2,
+            fallback,
+        ),
+        {provider_network_version: 3},
+    );
+    assert.deepEqual(api.profile_network_choice("", undefined, hidden_profile, 2, fallback), {
+        network: fallback,
+    });
+});
+
+run_test("directory requests one bounded filtered page", async () => {
+    next_response = {schema_version: 1, count: 0, profiles: []};
+    const result = await api.list_profiles({
+        offset: 20,
+        limit: 20,
+        ownership: "shared",
+        access: "complete",
+        host_kind: "server",
+        search: "builder",
+    });
+    assert.equal(result.count, 0);
+    assert.equal(last_call.method, "GET");
+    assert.match(last_call.url, /offset=20/);
+    assert.match(last_call.url, /ownership=shared/);
+    assert.match(last_call.url, /host_kind=server/);
+    assert.match(last_call.url, /search=builder/);
+});
+
+run_test("malformed directory row cannot reach renderer", async () => {
+    next_response = {schema_version: 1, count: 1, profiles: [{id: "profile", name: "unsafe"}]};
+    await assert.rejects(api.list_profiles(), /Invalid input|expected/i);
+});
+
+run_test("profile detail accepts a safe named channel attachment", async () => {
+    const profile = {
+        id: "profile",
+        name: "Agent",
+        description: "",
+        runner_id: null,
+        provider_id: null,
+        repository_id: null,
+        state: "draft",
+        desired_state: "draft",
+        readiness_state: "unchecked",
+        revision: 1,
+        metadata_revision: 1,
+        bot_user_id: 12,
+        default_mode: "answer",
+        capabilities: {},
+        owner_id: 1,
+        mode: "acp",
+        adapter_id: "grow",
+        adapter_version: "1",
+        enabled_revision: null,
+        readiness_revision: null,
+        allowed_actions: ["edit"],
+        owner: {id: 1, name: "Owner"},
+        runner: null,
+        provider: null,
+        repository: null,
+        access: {complete: true, runner: true, provider: true, repository: true},
+        configuration: null,
+    };
+    next_response = {
+        schema_version: 1,
+        profile,
+        setup: null,
+        attachments: [{stream_id: 42, name: "Denmark", bot_member: true}],
+    };
+    const result = await api.get_profile("profile");
+    assert.deepEqual(result.attachments, [{stream_id: 42, name: "Denmark", bot_member: true}]);
+    next_response.attachments = [{stream_id: 42, name: 42, bot_member: true}];
+    await assert.rejects(api.get_profile("profile"), /Invalid input|expected/i);
+});
+
+run_test("selection sends versioned form payload and preserves explicit identity", async () => {
+    next_response = {
+        schema_version: 1,
+        selection: {
+            selection_source: "explicit",
+            profile_id: "chosen",
+            profile_revision: 3,
+            selection_revision: null,
+            selection_state: "explicit",
+            eligible: true,
+            queue_permitted: false,
+            reason: "runner_offline",
+        },
+    };
+    const result = await api.resolve_selection({
+        source_message_id: 41,
+        job_kind: "answer",
+        explicit_profile_id: "chosen",
+        selection_state: "explicit",
+    });
+    assert.equal(result.profile_id, "chosen");
+    assert.equal(result.queue_permitted, false);
+    assert.deepEqual(JSON.parse(last_call.data.payload), {
+        schema_version: 1,
+        source_message_id: 41,
+        job_kind: "answer",
+        explicit_profile_id: "chosen",
+        selection_state: "explicit",
+    });
+});
+
+run_test("job evidence requires attempt identity", async () => {
+    next_response = {
+        schema_version: 1,
+        job: {
+            id: "job",
+            profile_id: "profile",
+            requester_id: 1,
+            source_message_id: null,
+            status: "completed",
+            phase: "deliver",
+            version: 2,
+            request: "task",
+            job_kind: "answer",
+            delivery_target: "answer",
+            blocked_reason: null,
+            result: null,
+            allowed_actions: [],
+        },
+        attempts: [],
+        operations: [],
+        artifacts: [
+            {
+                id: "artifact",
+                kind: "diff",
+                filename: "safe.patch",
+                size: 1,
+                checksum: "a",
+                media_type: "text/plain",
+            },
+        ],
+        required_checks: [],
+        operations_cursor: {offset: 0, next_offset: 0, truncated: false},
+        artifacts_cursor: {offset: 0, next_offset: 1, truncated: false},
+    };
+    await assert.rejects(api.get_job("job"), /Invalid input|expected/i);
+    next_response.artifacts[0].attempt_id = "attempt";
+    const result = await api.get_job("job");
+    assert.equal(result.artifacts[0].attempt_id, "attempt");
+});
+
+run_test("one message keeps separate target receipts", async () => {
+    next_response = {
+        schema_version: 1,
+        source_message_id: 81,
+        dispatch_receipts: [
+            {
+                profile_id: "a",
+                decision: "accepted",
+                reason: "",
+                job_id: "job-a",
+                job_status: "queued",
+            },
+            {
+                profile_id: "b",
+                decision: "rejected",
+                reason: "access_denied",
+                job_id: null,
+                job_status: null,
+            },
+        ],
+    };
+    const result = await api.message_dispatch(81);
+    assert.equal(result.dispatch_receipts.length, 2);
+    assert.equal(result.dispatch_receipts[0].job_id, "job-a");
+    assert.equal(result.dispatch_receipts[1].decision, "rejected");
+    assert.equal(last_call.url, "/json/agent/messages/81/dispatch");
+});
+
+run_test("lost acknowledgement resolves the original send key and tombstone", async () => {
+    next_response = {schema_version: 1, source_message_id: 81, deleted: false};
+    assert.equal((await api.recover_send_intent("stable-key")).source_message_id, 81);
+    assert.equal(last_call.url, "/json/agent/send-intents/stable-key");
+    next_response.deleted = true;
+    assert.equal((await api.recover_send_intent("stable-key")).deleted, true);
+});

@@ -10,10 +10,16 @@ from django.views.decorators.csrf import csrf_exempt
 
 from zerver.actions import agent_approvals as approvals
 from zerver.actions import agent_jobs as jobs
-from zerver.actions.agents import _validate_setup, authenticate_runner_token
+from zerver.actions.agents import (
+    RunnerCredentialError,
+    _validate_setup,
+    authenticate_runner_token,
+    update_runner_metadata,
+)
 from zerver.lib import agent_job_requests as r
 from zerver.lib import agent_protocol as p
 from zerver.lib.agent_context import agent_transaction, selected_context
+from zerver.lib.agent_requests import RunnerMetadataUpdate
 from zerver.lib.agent_results import store_artifact
 from zerver.lib.agent_secrets import decrypt_agent_secret
 from zerver.lib.exceptions import JsonableError
@@ -53,6 +59,37 @@ def runner(request: HttpRequest) -> agents.AgentRunner:
     if token is None:
         raise ValueError("Runner credential is unavailable.")
     return authenticate_runner_token(token).runner
+
+
+@endpoint("GET", "POST")
+def metadata(request: HttpRequest) -> HttpResponse:
+    token = _device_token(request)
+    assert token is not None
+    credential = authenticate_runner_token(token)
+    device = credential.runner
+    if not device.owner.is_active:
+        raise RunnerCredentialError("credential_invalid")
+    if request.method == "POST":
+        if len(request.body) > 65536:
+            raise ValueError("Device payload exceeds its limit.")
+        data = RunnerMetadataUpdate.model_validate_json(request.body)
+        device = update_runner_metadata(
+            device.owner,
+            device,
+            expected_metadata_revision=data.expected_metadata_revision,
+            name=data.name,
+            host_kind=data.host_kind,
+        )
+    return _success(
+        request,
+        {
+            "metadata": {
+                "name": device.name,
+                "host_kind": device.host_kind,
+                "metadata_revision": device.metadata_revision,
+            }
+        },
+    )
 
 
 @endpoint("POST")

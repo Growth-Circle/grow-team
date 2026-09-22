@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from typing_extensions import override
 
-from zerver.actions.agents import create_profile, record_readiness
+from zerver.actions.agents import create_profile, enable_profile, record_readiness
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.models import Message, agents
 
@@ -74,6 +74,7 @@ class AgentLifecycleTests(ZulipTestCase):
             },
         )
         self.profile.refresh_from_db()
+        enable_profile(self.owner, self.profile, expected_revision=self.profile.revision)
         # Sequential tests own an outer transaction. Acquire its guard before assertions.
         # Separate TransactionTestCase tests exercise real contention and rollback.
         from time import sleep
@@ -782,6 +783,8 @@ class AgentLifecycleTests(ZulipTestCase):
                 },
             },
         )
+        profile.refresh_from_db()
+        enable_profile(self.owner, profile, expected_revision=profile.revision)
         message = Message.objects.get(
             id=self.send_group_direct_message(
                 self.owner, [profile.bot_user, self.example_user("iago")], "Code task"
@@ -951,6 +954,8 @@ class AgentLifecycleTests(ZulipTestCase):
                 },
             },
         )
+        profile.refresh_from_db()
+        enable_profile(self.owner, profile, expected_revision=profile.revision)
         message = Message.objects.get(
             id=self.send_group_direct_message(
                 self.owner, [profile.bot_user, self.example_user("iago")], "Code task"

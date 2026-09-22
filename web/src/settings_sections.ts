@@ -4,6 +4,7 @@ import * as alert_words_ui from "./alert_words_ui.ts";
 import * as attachments_ui from "./attachments_ui.ts";
 import * as blueslip from "./blueslip.ts";
 import * as settings_account from "./settings_account.ts";
+import * as settings_agents from "./settings_agents.ts";
 import * as settings_bots from "./settings_bots.ts";
 import * as settings_emoji from "./settings_emoji.ts";
 import * as settings_exports from "./settings_exports.ts";
@@ -56,6 +57,7 @@ export function get_group(section: string, base: string): string {
 export function initialize(): void {
     // personal
     load_func_dict.set("your-account", settings_account.set_up);
+    load_func_dict.set("agents", settings_agents.set_up);
     load_func_dict.set("preferences", () => {
         settings_preferences.set_up(settings_preferences.user_settings_panel);
     });
@@ -122,5 +124,6 @@ export function reset_sections(): void {
     settings_muted_users.reset();
     alert_words_ui.reset();
     settings_folders.reset();
+    settings_agents.reset();
     // settings_users doesn't need a reset()
 }

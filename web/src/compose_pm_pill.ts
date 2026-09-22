@@ -1,5 +1,6 @@
 import $ from "jquery";
 
+import * as agent_send_intent from "./agent_send_intent.ts";
 import type {InputPillConfig} from "./input_pill.ts";
 import * as input_pill from "./input_pill.ts";
 import type {User} from "./people.ts";
@@ -37,11 +38,13 @@ export function initialize({
     widget = initialize_pill();
 
     widget.onPillCreate(() => {
+        agent_send_intent.change_visit();
         on_pill_create_or_remove();
         $("#private_message_recipient").trigger("focus");
     });
 
     widget.onPillRemove(() => {
+        agent_send_intent.change_visit();
         on_pill_create_or_remove();
     });
 }

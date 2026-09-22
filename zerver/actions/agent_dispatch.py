@@ -51,6 +51,10 @@ def preflight_profile(
     profile: agents.AgentProfile,
     source: Message | None,
     destination: p.ConversationScope | None,
+    *,
+    job_kind: str | None = None,
+    repository: agents.AgentRepository | None = None,
+    strict_readiness: bool = False,
 ) -> str:
     actor = UserProfile.objects.get(id=actor.id, realm=actor.realm, is_active=True)
     if not UserProfile.objects.filter(
@@ -63,24 +67,37 @@ def preflight_profile(
     try:
         agent_jobs.require_ready(profile)
     except ValueError:
-        if profile.desired_state != "enabled":
+        if strict_readiness or profile.desired_state != "enabled":
             raise
-    repository, _base_ref, complete = coding_choices(profile)
-    if profile.default_mode != "code":
-        repository = None
+    effective_kind = job_kind or profile.default_mode
+    if job_kind is None:
+        repository, _base_ref, complete = coding_choices(profile)
+        if effective_kind != "code":
+            repository = None
+    else:
+        if repository is not None and repository.id != profile.default_repository_id:
+            raise ValueError("Repository requires a new configuration.")
+        complete = (
+            repository is not None
+            and len(repository.allowed_refs) == 1
+            and bool(repository.required_checks)
+            and bool(profile.capability_report.get("code_ready", False))
+        )
     required = ["profile.use", "context.read"]
-    if profile.default_mode == "code" and complete:
+    if effective_kind == "code" and complete:
         required += ["repository.read", "repository.edit", "checks.run"]
     for action in required:
         check_agent_access(actor, profile, repository, source, action, destination=destination)
-    if (profile.default_mode != "code" or complete) and (
+    if (effective_kind != "code" or complete) and (
         agents.AgentJob.objects.filter(realm=actor.realm, status="queued").count()
         >= settings.queued_job_limit
         or agents.AgentJob.objects.filter(profile=profile, status="queued").count()
         >= settings.profile_queue_limit
     ):
+        if strict_readiness:
+            raise ValueError("Agent queue is full.")
         raise AgentAccessDenied("Agent access denied.")
-    return "needs_input" if profile.default_mode == "code" and not complete else "accepted"
+    return "needs_input" if effective_kind == "code" and not complete else "accepted"
 
 
 def _receipt(

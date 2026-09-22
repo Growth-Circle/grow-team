@@ -8,13 +8,21 @@ from datetime import datetime, timedelta
 from urllib.parse import urlsplit
 
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Q
 from django.utils.timezone import now
 
 from zerver.actions.create_user import do_create_user
 from zerver.actions.streams import bulk_add_subscriptions
+from zerver.actions.user_settings import do_change_full_name
 from zerver.lib import agent_protocol as protocol
-from zerver.lib.agent_policy import check_agent_access, require_agent_resource_access
+from zerver.lib.agent_policy import (
+    AgentAccessDenied,
+    _readable_scope,
+    _visibility_scopes,
+    accessible_profiles,
+    check_agent_access,
+    require_agent_resource_access,
+)
 from zerver.lib.agent_requests import SetupResult
 from zerver.lib.agent_secrets import credential_matches, encrypt_agent_secret, hash_agent_credential
 from zerver.lib.streams import filter_stream_authorization_for_adding_subscribers
@@ -23,8 +31,9 @@ from zerver.lib.users import (
     check_full_name,
     validate_short_name_and_construct_bot_email,
 )
-from zerver.models import UserProfile, agents
-from zerver.models.groups import UserGroup
+from zerver.models import Message, UserProfile, agents
+from zerver.models.groups import NamedUserGroup, UserGroup
+from zerver.models.realm_audit_logs import AuditLogEventType, RealmAuditLog
 from zerver.models.streams import Stream
 
 PAIRING_MAX_FAILURES = 5
@@ -181,6 +190,142 @@ def revoke_runner(runner: agents.AgentRunner) -> None:
     )
 
 
+@transaction.atomic()
+def update_runner_metadata(
+    owner: UserProfile,
+    runner: agents.AgentRunner,
+    *,
+    expected_metadata_revision: int,
+    name: str,
+    host_kind: str,
+) -> agents.AgentRunner:
+    runner = agents.AgentRunner.objects.select_for_update().get(id=runner.id)
+    require_agent_resource_access(owner, runner, target_kind="runner", action="runner.use")
+    if runner.owner_id != owner.id or runner.metadata_revision != expected_metadata_revision:
+        raise ValueError("Runner metadata is stale.")
+    if host_kind not in {"workstation", "server", "unknown"}:
+        raise ValueError("Runner host kind is invalid.")
+    runner.name = name
+    runner.host_kind = host_kind
+    runner.metadata_revision += 1
+    runner.save(update_fields=["name", "host_kind", "metadata_revision", "updated_at"])
+    return runner
+
+
+@transaction.atomic()
+def update_team_default(
+    actor: UserProfile,
+    *,
+    profile: agents.AgentProfile | None,
+    expected_selection_revision: int,
+) -> agents.AgentRealmSettings:
+    actor = UserProfile.objects.select_for_update().get(id=actor.id, is_active=True)
+    if not actor.is_realm_admin:
+        raise ValueError("Team default is unavailable.")
+    settings = agents.AgentRealmSettings.objects.select_for_update().get(realm=actor.realm)
+    if settings.default_selection_revision != expected_selection_revision:
+        raise ValueError("Team default is stale.")
+    old_profile_id = settings.default_profile_id
+    if profile is not None:
+        if not settings.enabled:
+            raise ValueError("Agent connections are disabled.")
+        profile = agents.AgentProfile.objects.select_for_update().get(
+            id=profile.id, realm=actor.realm
+        )
+        if not UserProfile.objects.filter(
+            id=profile.bot_user_id, realm=actor.realm, is_active=True
+        ).exists():
+            raise ValueError("Team default is unavailable.")
+        if not accessible_profiles(actor).filter(id=profile.id).exists():
+            raise ValueError("Team default is unavailable.")
+        from zerver.actions.agent_jobs import require_ready
+
+        require_ready(profile)
+        repository = profile.default_repository
+        required_actions = ["profile.use", "context.read"]
+        if profile.default_mode == "code":
+            if (
+                not profile.capability_report.get("code_ready", False)
+                or repository is None
+                or len(repository.allowed_refs) != 1
+                or not repository.required_checks
+            ):
+                raise ValueError("Coding configuration is incomplete.")
+            required_actions += ["repository.read", "repository.edit", "checks.run"]
+        scopes = _visibility_scopes(actor, profile, profile, "profile", {"profile.use"})
+        scopes += _visibility_scopes(actor, profile, profile.runner, "runner", {"runner.use"})
+        if profile.provider is not None:
+            scopes += _visibility_scopes(
+                actor, profile, profile.provider, "provider", {"provider.use"}
+            )
+        if repository is not None:
+            scopes += _visibility_scopes(
+                actor, profile, repository, "repository", set(required_actions)
+            )
+        permitted = False
+        for scope in scopes:
+            source = (
+                Message.objects.filter(id=scope.anchor_message_id, realm=actor.realm).first()
+                if scope is not None and scope.anchor_message_id is not None
+                else None
+            )
+            destination = scope if source is None else None
+            try:
+                for action in required_actions:
+                    check_agent_access(
+                        actor, profile, repository, source, action, destination=destination
+                    )
+            except AgentAccessDenied:
+                continue
+            permitted = True
+            break
+        if not permitted:
+            raise ValueError("Team default is unavailable.")
+        group_grants = agents.AgentGrant.objects.filter(
+            realm=actor.realm,
+            target_kind="profile",
+            profile=profile,
+            principal_group__isnull=False,
+            revoked_at__isnull=True,
+            owner__is_active=True,
+        ).filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now()))
+        if not any(
+            "profile.use" in grant.actions
+            and UserGroup.objects.filter(id=grant.principal_group_id, realm=actor.realm).exists()
+            and not NamedUserGroup.objects.filter(
+                id=grant.principal_group_id, deactivated=True
+            ).exists()
+            and _readable_scope(actor, profile.bot_user, grant.scope)[0]
+            for grant in group_grants
+        ):
+            raise ValueError("Team default requires an audience grant.")
+    settings.default_profile = profile
+    settings.default_selected_by = actor
+    settings.default_selected_at = now()
+    settings.default_selection_revision += 1
+    settings.save(
+        update_fields=[
+            "default_profile",
+            "default_selected_by",
+            "default_selected_at",
+            "default_selection_revision",
+            "updated_at",
+        ]
+    )
+    RealmAuditLog.objects.create(
+        realm=actor.realm,
+        acting_user=actor,
+        event_type=AuditLogEventType.AGENT_TEAM_DEFAULT_CHANGED,
+        event_time=settings.default_selected_at,
+        extra_data={
+            "old_profile_id": str(old_profile_id) if old_profile_id else None,
+            "new_profile_id": str(profile.id) if profile else None,
+            "selection_revision": settings.default_selection_revision,
+        },
+    )
+    return settings
+
+
 class RunnerCredentialError(ValueError):
     def __init__(self, code: str) -> None:
         super().__init__("Runner credential is unavailable.")
@@ -305,6 +450,312 @@ def register_provider(
     except Exception:
         raise ValueError("Invalid provider configuration.") from None
     return provider
+
+
+@transaction.atomic()
+def update_provider(
+    owner: UserProfile,
+    provider: agents.AgentProvider,
+    *,
+    expected_config_version: int,
+    expected_metadata_revision: int,
+    **values: object,
+) -> agents.AgentProvider:
+    runner = agents.AgentRunner.objects.select_for_update().get(id=provider.runner_id)
+    provider = agents.AgentProvider.objects.select_for_update().get(id=provider.id)
+    if provider.runner_id != runner.id:
+        raise ValueError("Runner binding changed.")
+    if (
+        not owner.is_active
+        or provider.realm_id != owner.realm_id
+        or provider.owner_id != owner.id
+        or provider.config_version != expected_config_version
+    ):
+        raise ValueError("Provider configuration is stale.")
+    if provider.metadata_revision != expected_metadata_revision:
+        raise ValueError("Provider metadata is stale.")
+    if runner.owner_id != owner.id or runner.revoked_at is not None:
+        raise ValueError("Runner is unavailable.")
+    credential = values.pop("credential_replacement", None)
+    local_ref = values.pop("local_credential_ref", None)
+    credential_changed = credential is not None or (
+        local_ref is not None
+        and (provider.secret_id is not None or local_ref != provider.local_credential_ref)
+    )
+    if credential is not None and local_ref not in (None, ""):
+        raise ValueError("Provider credential is invalid.")
+    if local_ref == "" and credential is None and provider.secret_id is None:
+        raise ValueError("Provider credential is required.")
+    _safe_provider_url(str(values["base_url"]))
+    if not values["name"] or values["model_id"] not in values["allowed_models"]:
+        raise ValueError("Invalid provider configuration.")
+    metadata_changed = values["name"] != provider.name
+    configuration_fields = [
+        "base_url",
+        "model_id",
+        "allowed_models",
+        "context_window_tokens",
+        "max_output_tokens",
+        "api_mode",
+        "network_policy",
+        "data_scope",
+    ]
+    configuration_changed = credential_changed or any(
+        values[field] != getattr(provider, field) for field in configuration_fields
+    )
+    if not metadata_changed and not configuration_changed:
+        return provider
+    if configuration_changed:
+        next_version = provider.config_version + 1
+        if credential is not None:
+            credential_ref = {"kind": "server", "id": str(uuid.uuid4()), "version": 1}
+        elif local_ref is not None:
+            credential_ref = {"kind": "local", "id": local_ref, "version": next_version}
+        elif provider.secret_id is not None:
+            if provider.secret.revoked_at is not None:
+                raise ValueError("Provider is unavailable.")
+            credential_ref = {
+                "kind": "server",
+                "id": str(provider.secret_id),
+                "version": provider.secret.version,
+            }
+        else:
+            credential_ref = {
+                "kind": "local",
+                "id": provider.local_credential_ref,
+                "version": next_version,
+            }
+        try:
+            protocol.ProviderConfig.model_validate(
+                {
+                    "id": str(provider.id),
+                    "owner_user_id": provider.owner_id,
+                    "runner_id": str(provider.runner_id),
+                    "name": values["name"],
+                    "base_url": values["base_url"],
+                    "api_mode": values["api_mode"],
+                    "model_id": values["model_id"],
+                    "allowed_models": values["allowed_models"],
+                    "credential_ref": credential_ref,
+                    "context_window_tokens": values["context_window_tokens"],
+                    "max_output_tokens": values["max_output_tokens"],
+                    "config_version": next_version,
+                    "data_scope": values["data_scope"],
+                    "network": values["network_policy"],
+                    "capability_report": {"config_version": next_version},
+                }
+            )
+        except ValueError:
+            raise ValueError("Invalid provider configuration.") from None
+    if credential is not None:
+        ciphertext, wrapped_key, key_id = encrypt_agent_secret(
+            str(credential), realm_id=owner.realm_id, owner_id=owner.id, version=1
+        )
+        provider.secret = agents.AgentSecret.objects.create(
+            realm=owner.realm,
+            owner=owner,
+            ciphertext=ciphertext,
+            wrapped_key=wrapped_key,
+            key_id=key_id,
+        )
+        provider.local_credential_ref = ""
+    elif local_ref is not None and (
+        provider.secret_id is not None or local_ref != provider.local_credential_ref
+    ):
+        provider.secret = None
+        provider.local_credential_ref = str(local_ref)
+    for field in [
+        "name",
+        "base_url",
+        "model_id",
+        "allowed_models",
+        "context_window_tokens",
+        "max_output_tokens",
+        "api_mode",
+        "network_policy",
+        "data_scope",
+    ]:
+        setattr(provider, field, values[field])
+    if metadata_changed:
+        provider.metadata_revision += 1
+    if not configuration_changed:
+        provider.save(update_fields=["name", "metadata_revision", "updated_at"])
+        return provider
+    provider.config_version = next_version
+    provider.capability_report = {"config_version": next_version}
+    provider.save()
+    profiles = agents.AgentProfile.objects.select_for_update().filter(provider=provider)
+    profiles.update(
+        readiness_state="unchecked",
+        readiness_revision=None,
+        readiness_digest="",
+        readiness_configuration_digest="",
+        readiness_configuration=None,
+        capability_report={},
+    )
+    agents.AgentProbeGrant.objects.filter(provider=provider, revoked_at__isnull=True).update(
+        revoked_at=now()
+    )
+    return provider
+
+
+@transaction.atomic()
+def update_profile(
+    owner: UserProfile,
+    profile: agents.AgentProfile,
+    *,
+    expected_metadata_revision: int,
+    expected_revision: int,
+    name: str,
+    description: str,
+    provider: agents.AgentProvider | None,
+    repository: agents.AgentRepository | None,
+    adapter_id: str,
+    adapter_version: str,
+    mode: str,
+    default_mode: str,
+    sandbox_alias: str,
+    actions: list[str],
+    network: dict[str, object] | None,
+    retain_network: bool,
+    hard_cost_cap: bool,
+    budget: dict[str, object],
+    provider_network_version: int | None = None,
+) -> agents.AgentProfile:
+    # Setup validation takes this same runner lock before profile and provider rows.
+    runner = agents.AgentRunner.objects.select_for_update().get(id=profile.runner_id)
+    if provider is not None:
+        provider = agents.AgentProvider.objects.select_for_update().get(id=provider.id)
+    if provider_network_version is not None and (
+        provider is None or provider.config_version != provider_network_version
+    ):
+        raise ValueError("Provider configuration is stale.")
+    profile = (
+        agents.AgentProfile.objects.select_for_update()
+        .select_related("bot_user")
+        .get(id=profile.id)
+    )
+    if profile.runner_id != runner.id:
+        raise ValueError("Runner binding changed.")
+    check_agent_access(owner, profile, None, None, "profile.manage")
+    if (
+        profile.metadata_revision != expected_metadata_revision
+        or profile.revision != expected_revision
+        or profile.desired_state == "archived"
+    ):
+        raise ValueError("Profile configuration is stale.")
+    require_agent_resource_access(owner, runner, target_kind="runner", action="runner.use")
+    if provider is not None:
+        require_agent_resource_access(
+            owner, provider, target_kind="provider", action="provider.use"
+        )
+    if repository is not None:
+        require_agent_resource_access(
+            owner, repository, target_kind="repository", action="repository.read"
+        )
+    if (provider is not None and provider.runner_id != runner.id) or (
+        repository is not None and repository.runner_id != runner.id
+    ):
+        raise ValueError("Profile resource is unavailable.")
+    catalog = protocol.RunnerCatalog.model_validate(runner.catalog_report)
+    if not any(
+        item.id == adapter_id and item.version == adapter_version for item in catalog.adapters
+    ):
+        raise ValueError("Adapter is unavailable.")
+    if (
+        mode not in {"acp", "endpoint"}
+        or default_mode not in {"answer", "code"}
+        or (mode == "endpoint" and provider is None)
+    ):
+        raise ValueError("Profile configuration is invalid.")
+    if catalog.revision != runner.catalog_revision or any(
+        item.catalog_revision != catalog.revision for item in catalog.sandboxes
+    ):
+        raise ValueError("Runner catalog is unavailable.")
+    sandbox = next((item for item in catalog.sandboxes if item.alias == sandbox_alias), None)
+    if sandbox is None:
+        raise ValueError("Sandbox is unavailable.")
+    default_network = protocol.serialize_payload(protocol.NetworkPolicy())
+    if provider_network_version is not None:
+        if network is not None or retain_network:
+            raise ValueError("Profile network choice is invalid.")
+        network_data = provider.network_policy
+    elif retain_network:
+        if network is not None or profile.provider_id != (provider.id if provider else None):
+            raise ValueError("Profile network cannot be retained for a new provider.")
+        network_data = profile.policy["network"]
+    else:
+        if network is None and profile.policy["network"] != default_network:
+            raise ValueError("Explicit network choice is required.")
+        network_data = protocol.serialize_payload(
+            protocol.NetworkPolicy.model_validate(network if network is not None else {})
+        )
+        if (
+            network_data != default_network
+            and provider is not None
+            and provider.owner_id != owner.id
+        ):
+            raise ValueError("Shared provider network must be retained.")
+    if network_data != default_network and (
+        provider is None or network_data != provider.network_policy
+    ):
+        raise ValueError("Profile network is unavailable.")
+    policy = {
+        "version": profile.policy["version"],
+        "actions": actions,
+        "grant_ids": profile.policy.get("grant_ids", []),
+        "scope": profile.policy["scope"],
+        "sandbox": protocol.serialize_payload(sandbox),
+        "network": network_data,
+        "hard_cost_cap": hard_cost_cap,
+    }
+    policy_data = protocol.serialize_payload(protocol.Policy.model_validate(policy))
+    budget_data = protocol.serialize_payload(protocol.Budget.model_validate(budget))
+    name = check_full_name(name, user_profile=None, realm=None)
+    metadata_changed = profile.name != name or profile.description != description
+    execution_changed = not (
+        profile.adapter_id == adapter_id
+        and profile.adapter_version == adapter_version
+        and profile.mode == mode
+        and profile.default_mode == default_mode
+        and profile.provider_id == (provider.id if provider else None)
+        and profile.default_repository_id == (repository.id if repository else None)
+        and profile.policy == policy_data
+        and profile.budget == budget_data
+    )
+    if not metadata_changed and not execution_changed:
+        return profile
+    if metadata_changed:
+        profile.name, profile.description = name, description
+        profile.metadata_revision += 1
+    if not execution_changed:
+        profile.save(update_fields=["name", "description", "metadata_revision", "updated_at"])
+        if profile.bot_user.full_name != name:
+            do_change_full_name(profile.bot_user, name, acting_user=owner, notify=False)
+        return profile
+    profile.adapter_id, profile.adapter_version, profile.mode = adapter_id, adapter_version, mode
+    profile.default_mode, profile.provider, profile.default_repository = (
+        default_mode,
+        provider,
+        repository,
+    )
+    profile.policy, profile.budget = policy_data, budget_data
+    profile.revision += 1
+    profile.readiness_state = "unchecked"
+    profile.readiness_revision = None
+    profile.readiness_digest = profile.readiness_configuration_digest = ""
+    profile.readiness_configuration = None
+    profile.capability_report = {}
+    profile.enabled_revision = None
+    if profile.desired_state == "enabled":
+        profile.desired_state = "draft"
+    profile.save()
+    agents.AgentProbeGrant.objects.filter(
+        setup_operation__profile=profile, revoked_at__isnull=True
+    ).update(revoked_at=now())
+    if metadata_changed and profile.bot_user.full_name != name:
+        do_change_full_name(profile.bot_user, name, acting_user=owner, notify=False)
+    return profile
 
 
 @transaction.atomic()
@@ -706,6 +1157,7 @@ def create_profile(
     description: str = "",
     policy: dict[str, object] | None = None,
     budget: dict[str, object] | None = None,
+    provider_network_version: int | None = None,
 ) -> agents.AgentProfile:
     from zerver.lib.agent_policy import AgentAccessDenied
 
@@ -715,6 +1167,12 @@ def create_profile(
         require_agent_resource_access(owner, runner, target_kind="runner", action="runner.use")
     except AgentAccessDenied:
         raise ValueError("Runner is unavailable.") from None
+    if provider is not None:
+        provider = agents.AgentProvider.objects.select_for_update().get(id=provider.id)
+    if provider_network_version is not None and (
+        provider is None or provider.config_version != provider_network_version
+    ):
+        raise ValueError("Provider configuration is stale.")
     if provider is not None:
         if provider.realm_id != owner.realm_id or provider.runner_id != runner.id:
             raise ValueError("Provider is unavailable.")
@@ -748,6 +1206,8 @@ def create_profile(
     ):
         raise ValueError("Adapter is unavailable.")
     policy_data: dict[str, object] = _default_policy(owner, runner) if policy is None else policy
+    if provider_network_version is not None:
+        policy_data = {**policy_data, "network": provider.network_policy}
     budget_data: dict[str, object] = dict(_default_budget()) if budget is None else budget
     try:
         policy_data = protocol.serialize_payload(protocol.Policy.model_validate(policy_data))
@@ -963,9 +1423,6 @@ def record_setup_result(
             protocol.serialize_payload(protocol.execution_configuration(probe)) if ready else None
         )
         profile.capability_report = protocol.serialize_payload(result.capabilities)
-        if ready and profile.desired_state == "draft":
-            profile.desired_state = "enabled"
-            profile.enabled_revision = profile.revision
         profile.save()
         setup.phase = "ready" if ready else "needs_action"
     else:

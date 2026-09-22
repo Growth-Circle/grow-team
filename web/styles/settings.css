@@ -2532,3 +2532,166 @@ label.preferences-radio-choice-label {
         }
     }
 }
+
+#agent-settings,
+#agent-job-overlay {
+    [hidden] {
+        display: none !important;
+    }
+
+    .agent-settings-tabs,
+    .agent-actions,
+    .agent-pagination {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-block: 0.75rem;
+    }
+
+    .agent-settings-tabs button[aria-current="page"] {
+        font-weight: 700;
+        border-bottom: 2px solid currentcolor;
+    }
+
+    .agent-settings-panel,
+    .agent-job-body section {
+        margin-block: 1.25rem;
+    }
+
+    .agent-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+        gap: 0.75rem;
+    }
+
+    .agent-card {
+        padding: 0.75rem;
+        border: 1px solid var(--color-border-table-bordered);
+        border-radius: var(--radius-md);
+        background: var(--color-background-popover);
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .agent-card p {
+        margin-block: 0.25rem;
+    }
+
+    .agent-inline-form,
+    .agent-editor {
+        display: grid;
+        grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr);
+        gap: 0.65rem;
+        align-items: center;
+        max-width: 46rem;
+        margin-block: 1rem;
+    }
+
+    .agent-editor fieldset {
+        display: grid;
+        grid-template-columns: subgrid;
+        grid-column: 1 / -1;
+        gap: 0.65rem;
+    }
+
+    .agent-editor p,
+    .agent-inline-form p,
+    .agent-actions {
+        grid-column: 1 / -1;
+    }
+
+    .agent-editor input:not([type="checkbox"]),
+    .agent-editor textarea,
+    .agent-editor select,
+    .agent-inline-form input,
+    .agent-inline-form select,
+    #agent-job-input {
+        min-width: 0;
+        width: 100%;
+        color: var(--color-text-default);
+        background: var(--color-background-legacy-input);
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible,
+    select:focus-visible,
+    a:focus-visible {
+        outline: 2px solid currentcolor;
+        outline-offset: 2px;
+    }
+}
+
+#agent-job-overlay .agent-job-container {
+    width: min(74rem, 96vw);
+    max-height: 96vh;
+    overflow: hidden;
+}
+
+#agent-job-overlay .agent-job-body {
+    padding: 1rem;
+    overflow: auto;
+    overflow-wrap: anywhere;
+    flex: 1;
+    min-height: 0;
+}
+
+#agent-job-overlay #agent-job-input {
+    min-height: 6rem;
+}
+
+#agent-task-dialog {
+    width: min(36rem, calc(100vw - 2rem));
+    max-height: calc(100vh - 2rem);
+    overflow: auto;
+    padding: 1.5rem;
+    border: 1px solid var(--color-border-table-bordered);
+    border-radius: var(--radius-md);
+    color: var(--color-text-default);
+    background: var(--color-background-popover);
+
+    &::backdrop {
+        background: hsl(0deg 0% 0% / 50%);
+    }
+
+    form {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    select,
+    textarea {
+        width: 100%;
+        min-width: 0;
+        color: var(--color-text-default);
+        background: var(--color-background-legacy-input);
+    }
+
+    textarea {
+        min-height: 8rem;
+    }
+
+    button:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    a:focus-visible {
+        outline: 2px solid currentcolor;
+        outline-offset: 2px;
+    }
+}
+
+@media (width <= 40rem) {
+    #agent-settings .agent-inline-form,
+    #agent-settings .agent-editor {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    #agent-settings .agent-editor fieldset {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    #agent-job-overlay .agent-job-container {
+        width: 100vw;
+        max-height: 100vh;
+    }
+}

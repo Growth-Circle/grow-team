@@ -48,6 +48,98 @@ class AgentPolicyTests(ZulipTestCase):
         self.grant(target_kind="runner", action="runner.use")
         check_agent_access(self.member, self.profile, None, None, "profile.use")
 
+    def test_deactivated_resource_owner_invalidates_shared_grants(self) -> None:
+        self.grant(target_kind="profile", action="profile.use")
+        self.grant(target_kind="runner", action="runner.use")
+        check_agent_access(self.member, self.profile, None, None, "profile.use")
+        self.owner.is_active = False
+        self.owner.save(update_fields=["is_active"])
+        with self.assertRaises(AgentAccessDenied):
+            check_agent_access(self.member, self.profile, None, None, "profile.use")
+
+    def test_team_default_accepts_an_active_scoped_group_grant(self) -> None:
+        from uuid import uuid4
+
+        from zerver.actions.agents import (
+            create_profile,
+            enable_profile,
+            record_readiness,
+            update_team_default,
+        )
+
+        self.owner.role = UserProfile.ROLE_REALM_ADMINISTRATOR
+        self.owner.save(update_fields=["role"])
+        settings = agents.AgentRealmSettings.objects.create(realm=self.realm, enabled=True)
+        self.runner.catalog_report = {
+            "revision": 1,
+            "adapters": [
+                {
+                    "id": "codex-acp",
+                    "version": "1",
+                    "auth_state": "ready",
+                    "capabilities": {"config_version": 1},
+                }
+            ],
+            "sandboxes": [
+                {
+                    "alias": "default",
+                    "image_digest": "sha256:" + "a" * 64,
+                    "toolchain_digest": "b" * 64,
+                    "catalog_revision": 1,
+                    "cpu_millicores": 100,
+                    "memory_bytes": 67108864,
+                    "pids_limit": 16,
+                    "temporary_bytes": 1048576,
+                }
+            ],
+        }
+        self.runner.save(update_fields=["catalog_report"])
+        self.profile = create_profile(
+            self.owner,
+            name="Active profile",
+            runner=self.runner,
+            adapter_id="codex-acp",
+            adapter_version="1",
+            idempotency_key=uuid4(),
+        )
+        setup = agents.AgentSetupOperation.objects.get(profile=self.profile)
+        record_readiness(
+            self.runner,
+            setup,
+            {
+                "schema_version": 1,
+                "profile_id": str(self.profile.id),
+                "profile_revision": self.profile.revision,
+                "runner_id": str(self.runner.id),
+                "descriptor_digest": setup.descriptor_digest,
+                "configuration_digest": setup.configuration_digest,
+                "state": "ready",
+                "capabilities": {"chat_ready": True, "config_version": 1},
+            },
+        )
+        self.profile.refresh_from_db()
+        enable_profile(self.owner, self.profile, expected_revision=self.profile.revision)
+        group = UserGroup.objects.create(realm=self.realm)
+        agents.AgentGrant.objects.create(
+            realm=self.realm,
+            owner=self.owner,
+            principal_group=group,
+            target_kind="profile",
+            profile=self.profile,
+            actions=["profile.use"],
+            scope={
+                "kind": "direct",
+                "participant_user_ids": [self.owner.id, self.profile.bot_user_id],
+            },
+        )
+        update_team_default(
+            self.owner,
+            profile=self.profile,
+            expected_selection_revision=settings.default_selection_revision,
+        )
+        settings.refresh_from_db()
+        self.assertEqual(settings.default_profile_id, self.profile.id)
+
     def test_realm_admin_does_not_bypass_runner_grant(self) -> None:
         self.grant(target_kind="profile", action="profile.use")
         admin = self.member

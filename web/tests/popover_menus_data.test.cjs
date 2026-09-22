@@ -286,6 +286,64 @@ test("not_my_message_view_actions", ({override}) => {
     assert.equal(response.move_message_menu_item, undefined);
 });
 
+test("the task receipt item appears only on your own message", ({override}) => {
+    set_page_params_no_edit_restrictions({override});
+    override(realm, "realm_can_delete_any_message_group", everyone.id);
+    override(current_user, "user_id", me.user_id);
+    const list = init_message_list();
+    message_lists.set_current(list);
+
+    // The dispatch view returns only the requester's own receipts, so this
+    // item must appear on the sender's own message and stay away from
+    // another person's message.
+    const messages = [
+        {
+            id: 1,
+            sender_id: me.user_id,
+            is_hidden: false,
+            sent_by_me: true,
+            locally_echoed: false,
+            is_stream: true,
+            stream_id: 1,
+            collapsed: false,
+            unread: false,
+            submessages: [],
+            edit_history: [
+                {
+                    prev_content: "Previous content",
+                    prev_stream: 0,
+                    prev_topic: "Previous topic",
+                },
+            ],
+        },
+        {
+            id: 2,
+            sender_id: mike.user_id,
+            is_hidden: false,
+            sent_by_me: false,
+            locally_echoed: false,
+            is_stream: true,
+            stream_id: 1,
+            collapsed: false,
+            unread: false,
+            edit_history: [
+                {
+                    prev_content: "Previous content",
+                    prev_stream: 0,
+                    prev_topic: "Previous topic",
+                },
+            ],
+        },
+    ];
+
+    add_message_with_view(list, messages);
+
+    const own_message = popover_menus_data.get_actions_popover_content_context(1);
+    const other_message = popover_menus_data.get_actions_popover_content_context(2);
+    assert.equal(own_message.should_display_agent_task_receipt, true);
+    assert.equal(other_message.should_display_agent_task_receipt, false);
+});
+
 test("not_my_message_view_source_and_move", ({override}) => {
     set_page_params_no_edit_restrictions({override});
     override(realm, "realm_can_delete_any_message_group", everyone.id);

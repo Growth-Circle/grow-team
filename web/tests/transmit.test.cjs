@@ -71,6 +71,25 @@ run_test("transmit_message_ajax", () => {
     assert.ok(error_func_called);
 });
 
+run_test("send authority stays local while the stable agent key is transmitted", ({override}) => {
+    const request = {
+        type: "stream",
+        local_id: "agent-local",
+        sender_id: 1,
+        queue_id: null,
+        to: "[3]",
+        content: "task",
+        topic: "topic",
+        agent_send_key: "stable-key",
+        agent_send_authority: {visit_token: "private-visit"},
+    };
+    override(channel, "post", ({data}) => {
+        assert.equal(data.agent_send_key, "stable-key");
+        assert.equal("agent_send_authority" in data, false);
+    });
+    transmit.send_message(request, noop, noop);
+});
+
 run_test("transmit_message_ajax_reload_pending", () => {
     /* istanbul ignore next */
     const success = () => {

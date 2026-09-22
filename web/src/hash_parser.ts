@@ -63,6 +63,7 @@ export function is_overlay_hash(hash: string | undefined): boolean {
         "drafts",
         "groups",
         "settings",
+        "agent-jobs",
         "organization",
         "invite",
         "keyboard-shortcuts",

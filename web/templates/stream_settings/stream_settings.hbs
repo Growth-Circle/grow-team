@@ -69,6 +69,20 @@
                       }}
                 </div>
             </div>
+            {{#if realm_agent_enabled}}
+                <section class="stream-agent-settings" aria-label="Channel agents">
+                    <h3>Channel agents</h3>
+                    <p>Attachment, channel membership, and profile grants are separate.</p>
+                    <button type="button" class="stream-agent-load">Load attached agents</button>
+                    <div class="stream-agent-status" role="status" aria-live="polite"></div>
+                    <div class="stream-agent-list"></div>
+                    <form class="stream-agent-attach" hidden>
+                        <label for="stream-agent-profile">Authorized agent profile</label>
+                        <select id="stream-agent-profile" required></select>
+                        <button type="submit">Attach agent to channel</button>
+                    </form>
+                </section>
+            {{/if}}
         </div>
 
         <div id="personal-stream-settings" class="stream_section" data-stream-section="personal">

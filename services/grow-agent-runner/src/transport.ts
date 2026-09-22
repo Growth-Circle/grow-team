@@ -10,6 +10,7 @@ const routes = new Set([
     "/pairings/exchange",
     "/runner/token/refresh",
     "/runner/catalog",
+    "/runner/metadata",
     "/runner/setup-authority",
     "/runner/authority",
     "/runner/credential-access",

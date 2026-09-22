@@ -8,6 +8,7 @@ import * as z from "zod/mini";
 
 import render_upload_banner from "../templates/compose_banner/upload_banner.hbs";
 
+import * as agent_send_intent from "./agent_send_intent.ts";
 import * as blueslip from "./blueslip.ts";
 import * as compose_actions from "./compose_actions.ts";
 import * as compose_banner from "./compose_banner.ts";
@@ -28,6 +29,7 @@ type ZulipMeta = {
 let drag_drop_img: HTMLElement | null = null;
 let compose_upload_object: Uppy<ZulipMeta, TusBody>;
 const upload_objects_by_message_edit_row = new Map<number, Uppy<ZulipMeta, TusBody>>();
+const upload_compose_visits = new Map<string, string>();
 
 // This list should be kept identical to the one defined as
 // THUMBNAIL_ACCEPT_IMAGE_TYPES in zerver/lib/thumbnail.py
@@ -300,6 +302,8 @@ export let upload_files = (
 
     for (const file of files) {
         let file_id;
+        const compose_visit =
+            config.mode === "compose" ? agent_send_intent.current_visit_token() : undefined;
         try {
             compose_ui.insert_syntax_and_focus(
                 get_translated_status(file.name),
@@ -314,6 +318,10 @@ export let upload_files = (
                 type: file.type,
                 data: file,
             });
+            if (compose_visit) {
+                upload_compose_visits.set(file_id, compose_visit);
+                agent_send_intent.change_draft();
+            }
         } catch {
             // Errors are handled by info-visible and upload-error event callbacks.
             continue;
@@ -334,12 +342,18 @@ export let upload_files = (
         // eslint-disable-next-line @typescript-eslint/no-loop-func
         config.upload_banner_cancel_button(file_id).on("click", () => {
             compose_ui.set_prevent_next_spinner(true);
-            compose_ui.replace_syntax(get_translated_status(file.name), "", config.textarea());
+            if (
+                config.mode !== "compose" ||
+                compose_visit === agent_send_intent.current_visit_token()
+            ) {
+                compose_ui.replace_syntax(get_translated_status(file.name), "", config.textarea());
+            }
             compose_ui.set_prevent_next_spinner(false);
             compose_ui.autosize_textarea(config.textarea());
             config.textarea().trigger("focus");
 
             uppy.removeFile(file_id);
+            upload_compose_visits.delete(file_id);
             hide_upload_banner(uppy, config, file_id);
         });
         // eslint-disable-next-line @typescript-eslint/no-loop-func
@@ -630,6 +644,16 @@ export function setup_upload(config: Config): Uppy<ZulipMeta, TusBody> {
         }
 
         const $text_area = config.textarea();
+        if (
+            config.mode === "compose" &&
+            file.id !== undefined &&
+            (upload_compose_visits.get(file.id) !== agent_send_intent.current_visit_token() ||
+                !$text_area.val()?.includes(get_translated_status(file.meta.name)))
+        ) {
+            hide_upload_banner(uppy, config, file.id, 1100);
+            upload_compose_visits.delete(file.id);
+            return;
+        }
         const replacement_successful = compose_ui.replace_syntax(
             // We need to replace the original file name, and not the
             // possibly modified filename returned in the response by
@@ -639,8 +663,11 @@ export function setup_upload(config: Config): Uppy<ZulipMeta, TusBody> {
             syntax_to_insert,
             $text_area,
         );
-        if (!replacement_successful) {
+        if (!replacement_successful && config.mode !== "compose") {
             compose_ui.insert_syntax_and_focus(syntax_to_insert, $text_area);
+        }
+        if (config.mode === "compose" && replacement_successful) {
+            agent_send_intent.change_draft();
         }
 
         compose_ui.autosize_textarea($text_area);
@@ -648,6 +675,7 @@ export function setup_upload(config: Config): Uppy<ZulipMeta, TusBody> {
         // Hide upload status after waiting 100ms after the 1s transition to 100%
         // so that the user can see the progress bar at 100%.
         hide_upload_banner(uppy, config, file.id, 1100);
+        upload_compose_visits.delete(file.id);
     });
 
     uppy.on("info-visible", () => {
@@ -696,13 +724,26 @@ export function setup_upload(config: Config): Uppy<ZulipMeta, TusBody> {
         // Hide the upload status banner on error so only the error banner shows
         hide_upload_banner(uppy, config, file.id);
         show_error_message(config, message, file.id);
-        compose_ui.replace_syntax(get_translated_status(file.name), "", config.textarea());
+        if (
+            config.mode !== "compose" ||
+            file.id === undefined ||
+            upload_compose_visits.get(file.id) === agent_send_intent.current_visit_token()
+        ) {
+            compose_ui.replace_syntax(get_translated_status(file.name), "", config.textarea());
+        }
+        upload_compose_visits.delete(file.id);
         compose_ui.autosize_textarea(config.textarea());
     });
 
     uppy.on("restriction-failed", (file) => {
         assert(file !== undefined);
-        compose_ui.replace_syntax(get_translated_status(file.name), "", config.textarea());
+        if (
+            config.mode !== "compose" ||
+            file.id === undefined ||
+            upload_compose_visits.get(file.id) === agent_send_intent.current_visit_token()
+        ) {
+            compose_ui.replace_syntax(get_translated_status(file.name), "", config.textarea());
+        }
         compose_ui.autosize_textarea(config.textarea());
     });
 

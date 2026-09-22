@@ -84,6 +84,7 @@ def require_control(actor: UserProfile, job: agents.AgentJob) -> None:
         action="job.control",
         repository=job.repository,
         source_message=job.source_message,
+        require_active_authority=True,
     ):
         raise AgentAccessDenied("Agent access denied.")
 
@@ -610,6 +611,7 @@ def check_attempt_access(
         action=action,
         repository=job.repository,
         source_message=job.source_message,
+        require_active_authority=True,
     ):
         raise AgentAccessDenied("Agent access denied.")
     if job.repository_id is not None:
@@ -625,6 +627,7 @@ def check_attempt_access(
             target_kind="repository",
             action=repo_action,
             source_message=job.source_message,
+            require_active_authority=True,
         ):
             raise AgentAccessDenied("Agent access denied.")
     require_snapshot_resources(job, attempt, actor=actor)
@@ -642,6 +645,7 @@ def require_snapshot_resources(
         action="runner.use",
         repository=job.repository,
         source_message=job.source_message,
+        require_active_authority=True,
     ):
         raise AgentAccessDenied("Agent access denied.")
     descriptor = p.AttemptDescriptor.model_validate(attempt.descriptor)
@@ -654,6 +658,7 @@ def require_snapshot_resources(
             action="provider.use",
             repository=job.repository,
             source_message=job.source_message,
+            require_active_authority=True,
         ):
             raise AgentAccessDenied("Agent access denied.")
         if current.config_version != descriptor.provider.config_version or provider_config(current)[

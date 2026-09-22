@@ -109,6 +109,7 @@ from zerver.models import (
     UserProfile,
     UserStatus,
     UserTopic,
+    agents,
 )
 from zerver.models.constants import MAX_TOPIC_NAME_LENGTH
 from zerver.models.custom_profile_fields import custom_profile_fields_for_realm
@@ -509,6 +510,10 @@ def fetch_initial_state_data(
         state["realm_url"] = state["realm_uri"] = realm.url
         state["realm_bot_domain"] = realm.get_bot_domain()
         state["realm_available_video_chat_providers"] = realm.get_enabled_video_chat_providers()
+        state["realm_agent_enabled"] = bool(
+            user_profile
+            and agents.AgentRealmSettings.objects.filter(realm=realm, enabled=True).exists()
+        )
         state["settings_send_digest_emails"] = settings.SEND_DIGEST_EMAILS
 
         state["realm_digest_emails_enabled"] = (
