@@ -74,7 +74,7 @@ for (const mode of [
             git("config", "user.email", "fixture@invalid");
             writeFileSync(join(source, "a.txt"), "old\n");
             git("add", "a.txt");
-            git("commit", "-qm", "fixture");
+            git("commit", "-qm", "fixture\n\nCo-Authored-By: CADIS <agent@cadis.digital>");
             git("remote", "add", "origin", "https://example.invalid/test/repo");
             const api = mode.startsWith("endpoint-chat") ? "chat_completions" : "responses";
             let count = 0;
@@ -426,7 +426,7 @@ for (const mode of [
         },
     );
 }
-for (const mode of ["endpoint", "acp"]) {
+for (const mode of ["endpoint", "acp", "endpoint-text"]) {
     test(
         `${mode} setup probe uses selected contained runtime and synthetic tool round-trip`,
         {timeout: 90000},
@@ -449,9 +449,17 @@ for (const mode of ["endpoint", "acp"]) {
                 const body = JSON.parse(raw);
                 count++;
                 assert.deepEqual(
-                    body.tools.map((t: any) => t.name),
-                    ["grow_probe_echo"],
+                    (body.tools ?? []).map((t: any) => t.name),
+                    count === 1 ? [] : ["grow_probe_echo"],
                 );
+                if (count === 1) {
+                    assert(!("tools" in body));
+                    assert(!("parallel_tool_calls" in body));
+                }
+                if (mode === "endpoint-text" && count === 2) {
+                    res.writeHead(400).end('{"error":{"code":"tools_unsupported"}}');
+                    return;
+                }
                 const output =
                     count === 2
                         ? [
@@ -484,7 +492,10 @@ for (const mode of ["endpoint", "acp"]) {
             const d: any = {
                 setup_operation_id: randomUUID(),
                 profile_revision: 1,
-                adapter: {mode, version: mode === "acp" ? "1.12.0" : "0.1.0"},
+                adapter: {
+                    mode: mode === "acp" ? "acp" : "endpoint",
+                    version: mode === "acp" ? "1.12.0" : "0.1.0",
+                },
                 provider: {
                     base_url: `http://127.0.0.1:${port}/v1`,
                     api_mode: "responses",
@@ -539,11 +550,14 @@ for (const mode of ["endpoint", "acp"]) {
                 assert.equal(result.state, "ready", JSON.stringify({result, count}));
                 assert.equal(result.capabilities.chat_ready, true);
                 assert.equal(result.capabilities.code_ready, false);
-                assert.equal(result.capabilities.tool_calling, "passed");
+                assert.equal(
+                    result.capabilities.tool_calling,
+                    mode === "endpoint-text" ? "unsupported" : "passed",
+                );
                 assert.equal(result.capabilities.streaming, "passed");
                 assert.equal(result.capabilities.usage, "passed");
                 assert.equal(result.capabilities.sandbox, "passed");
-                assert.equal(count, 3);
+                assert.equal(count, mode === "endpoint-text" ? 2 : 3);
                 assert(checks > 5);
                 assert.deepEqual(await supervisor.inspect(), []);
                 writeFileSync(

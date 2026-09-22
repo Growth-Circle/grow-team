@@ -344,6 +344,159 @@ class AgentLifecycleTests(ZulipTestCase):
             self.assertIsNone(job.result_message_id)
             self.assertEqual(results.publish_result(job.id), first)
 
+    def test_prepared_result_poll_fences_input_then_stop_unlocks_publication(self) -> None:
+        import hashlib
+        import tempfile
+        from datetime import timedelta
+
+        from django.test import override_settings
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib import agent_protocol as p
+        from zerver.lib import agent_results as results
+        from zerver.lib.agent_secrets import hash_agent_credential
+        from zerver.views.agent_jobs import job_data
+
+        token = "synthetic-completion-token-" + "a" * 40
+        agents.AgentRunnerCredential.objects.create(
+            runner=self.runner,
+            realm=self.owner.realm,
+            token_hash=hash_agent_credential(token),
+            refresh_hash=hash_agent_credential("refresh" + token),
+            expires_at=now() + timedelta(hours=1),
+            refresh_expires_at=now() + timedelta(days=1),
+        )
+        directory = tempfile.mkdtemp(prefix="grow-fix1-completion-")
+        with override_settings(AGENT_ARTIFACT_ROOT=directory):
+            for route in ["controls", "heartbeat"]:
+                with self.subTest(route=route):
+                    message_id = self.send_group_direct_message(
+                        self.owner,
+                        [self.profile.bot_user, self.example_user("iago")],
+                        content="Completion boundary " + route,
+                    )
+                    job = actions.create_job(
+                        self.owner,
+                        profile=self.profile,
+                        source=Message.objects.get(id=message_id),
+                        request="Bounded completion",
+                        idempotency_key=uuid4(),
+                        job_kind="answer",
+                        delivery_target="answer",
+                    )
+                    actions.claim_work(self.runner, claim_key=uuid4())
+                    attempt = agents.AgentAttempt.objects.get(job=job)
+
+                    def event(
+                        kind: str,
+                        payload: dict[str, object],
+                        job: agents.AgentJob = job,
+                        attempt: agents.AgentAttempt = attempt,
+                    ) -> None:
+                        attempt.refresh_from_db()
+                        actions.record_event(
+                            self.runner,
+                            p.RunnerEvent.model_validate(
+                                {
+                                    "schema_version": 1,
+                                    "job_id": str(job.id),
+                                    "attempt_id": str(attempt.id),
+                                    "lease_epoch": attempt.lease_epoch,
+                                    "event_id": str(uuid4()),
+                                    "sequence": attempt.event_cursor + 1,
+                                    "type": kind,
+                                    "occurred_at": now().isoformat(),
+                                    "payload": payload,
+                                }
+                            ),
+                        )
+
+                    def poll(
+                        route: str = route,
+                        job: agents.AgentJob = job,
+                        attempt: agents.AgentAttempt = attempt,
+                    ) -> str:
+                        if route == "controls":
+                            response = self.client.get(
+                                "/api/v1/agent/runner/controls",
+                                HTTP_AUTHORIZATION="Bearer " + token,
+                            )
+                            self.assertEqual(response.status_code, 200, response.content)
+                            return str(response.json()["controls"][0]["control"])
+                        value = actions.heartbeat(
+                            self.runner,
+                            [p.LeaseIdentity(job_id=job.id, attempt_id=attempt.id, lease_epoch=1)],
+                        )
+                        return str(value[0]["control"])
+
+                    event("attempt.started", {"process_state": "active"})
+                    content = b"Completed answer"
+                    artifact = results.store_artifact(
+                        self.runner,
+                        job.id,
+                        attempt.id,
+                        1,
+                        chunks=[content],
+                        checksum=hashlib.sha256(content).hexdigest(),
+                        kind="summary",
+                        filename="answer.txt",
+                        media_type="text/plain",
+                    )
+                    proposal = {"artifact_ids": [str(artifact.id)], "summary": "Completed answer"}
+                    event("result.prepared", proposal)
+                    job.refresh_from_db()
+                    item = actions.add_input(
+                        self.owner,
+                        job.id,
+                        expected_version=job.version,
+                        client_key=uuid4(),
+                        text="Accepted before the stop boundary",
+                    )
+                    self.assertEqual(poll(), "continue")
+                    job.refresh_from_db()
+                    self.assertEqual(job.status, "running")
+                    self.assertIsNone(job.result_proposal)
+                    actions.deliver_inputs(self.runner, job.id, attempt.id, 1)
+                    event(
+                        "input.applied",
+                        {
+                            "input_id": str(item.id),
+                            "input_sequence": item.sequence,
+                            "delivery_state": "applied",
+                        },
+                    )
+                    event("result.prepared", proposal)
+                    self.assertEqual(poll(), "stop")
+                    job.refresh_from_db()
+                    attempt.refresh_from_db()
+                    self.assertEqual(attempt.process_state, "stopping")
+                    self.assertTrue(attempt.active)
+                    self.assertNotIn("input", job_data(self.owner, job)["allowed_actions"])
+                    with self.assertRaisesRegex(ValueError, "Stopping execution"):
+                        actions.add_input(
+                            self.owner,
+                            job.id,
+                            expected_version=job.version,
+                            client_key=uuid4(),
+                            text="After stop boundary",
+                        )
+                    with self.assertRaisesRegex(ValueError, "Empty containment"):
+                        results.verify_result(job, attempt, [artifact])
+                    event(
+                        "attempt.stopped",
+                        {
+                            "process_state": "stopped",
+                            "stop_confirmed": True,
+                            "summary": "",
+                            "adapter_session_ref": None,
+                        },
+                    )
+                    receipt = results.publish_result(job.id)
+                    job.refresh_from_db()
+                    self.assertEqual(job.status, "completed")
+                    self.assertEqual(receipt, results.publish_result(job.id))
+
     def test_operation_broker_rejects_answer_mutation_and_requires_typed_authority(self) -> None:
         self.assertIsNotNone(
             importlib.util.find_spec("zerver.actions.agent_approvals"),
@@ -1302,6 +1455,14 @@ class AgentLifecycleTests(ZulipTestCase):
                     process.returncode, 0, stderr.decode() + " evidence=" + str(directory)
                 )
                 self.assertTrue(json.loads(stdout)["passed"])
+                self.assertEqual(json.loads(stdout)["completion_stops"], 1)
+                from zerver.lib.agent_results import publish_result
+
+                receipt = publish_result(job.id)
+                job.refresh_from_db()
+                self.assertEqual(job.status, "completed")
+                self.assertEqual(receipt, publish_result(job.id))
+
             finally:
                 if process.poll() is None:
                     process.kill()

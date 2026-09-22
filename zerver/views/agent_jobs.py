@@ -27,7 +27,9 @@ def job_data(actor: UserProfile, job: agents.AgentJob) -> dict[str, object]:
             actions.append("resume")
         if job.status not in agent_jobs.TERMINAL | {"cancel_requested"} and (
             job.status == "queued"
-            or agents.AgentAttempt.objects.filter(job=job, active=True).exists()
+            or agents.AgentAttempt.objects.filter(
+                job=job, active=True, process_state__in=["starting", "active"]
+            ).exists()
         ):
             actions.append("input")
     except AgentAccessDenied:

@@ -1,3 +1,4 @@
+import {checkpointContext} from "./checkpoint-store.js";
 import * as acp from "@agentclientprotocol/sdk";
 import {Readable, Writable} from "node:stream";
 import {createServer, type Server} from "node:http";
@@ -16,6 +17,7 @@ export function permissionDecision(options: Data[]): Data {
         : {outcome: {outcome: "cancelled"}};
 }
 export function nativeMessages(body: Data, tools: RuntimeTools): Message[] {
+    if (body.tools === undefined && tools.catalog.length === 0) body = {...body, tools: []};
     if (!Array.isArray(body.tools) || body.tools.length !== tools.catalog.length)
         throw new Error("Native catalog changed");
     for (const item of body.tools) {
@@ -251,7 +253,7 @@ export class AcpRuntime implements Runtime {
         return {chat_ready: text.trim() === "PROBE_OK", native_resume: "unsupported"};
     }
     async resume(checkpoint: Data): Promise<boolean> {
-        this.checkpoint = `Untrusted previous checkpoint data:\n${this.model.filter.text(String(checkpoint.summary ?? "")).slice(0, 20000)}\nCurrent task:\n`;
+        this.checkpoint = `${this.model.filter.text(checkpointContext(checkpoint))}\nCurrent task:\n`;
         return false;
     }
     async cancel(): Promise<void> {

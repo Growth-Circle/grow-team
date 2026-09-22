@@ -60,15 +60,18 @@ export function encode(
                               : {}),
                       },
             ),
-            tools: tools.map((t) => ({type: "function", function: t})),
-            parallel_tool_calls: false,
+            ...(tools.length
+                ? {
+                      tools: tools.map((t) => ({type: "function", function: t})),
+                      parallel_tool_calls: false,
+                  }
+                : {}),
         };
     return {
         model,
         stream: true,
         store: false,
         max_output_tokens: limit,
-        parallel_tool_calls: false,
         input: messages.flatMap((m) =>
             m.role === "tool"
                 ? [{type: "function_call_output", call_id: m.callId, output: m.text}]
@@ -82,7 +85,9 @@ export function encode(
                       })),
                   ] as Data[]),
         ),
-        tools: tools.map((t) => ({type: "function", ...t})),
+        ...(tools.length
+            ? {tools: tools.map((t) => ({type: "function", ...t})), parallel_tool_calls: false}
+            : {}),
     };
 }
 // Consume a complete bounded response before a caller may execute a tool.

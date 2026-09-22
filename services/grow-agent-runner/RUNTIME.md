@@ -49,7 +49,8 @@ The host broker owns provider credentials. The model container gets no provider,
 Each model container has network disabled, a read-only root, fixed resource limits, and no project mount.
 A single read-only Unix socket mount carries model and tool requests to the host broker.
 The private socket parent stays outside the container. The tool container has no socket mount.
-Socket ownership records remain in the runner state directory. Private socket directories remain below `/tmp/grow-broker-*`.
+Socket ownership records remain in the runner state directory. Private socket directories remain below `/run/user/UID/grow-broker-*`.
+The runner validates ownership, private mode, and absence of symlinks. This path remains shared when the service uses `PrivateTmp=yes`.
 Each session creates a new container and socket. An old mount cannot acquire a replacement socket inode.
 
 The native shared request gate fixes environments, model, approval policy, and turn sandbox policy.
@@ -85,10 +86,29 @@ Setup checks observe the existing claim and grant. They cannot extend a grant or
 The independent watchdog discovers model and tool containers through the same installation labels.
 Stopped containers, volume metadata, snapshots, socket records, and artifacts remain available for inspection.
 
-Native session load and active steering remain unsupported until certification.
-Both modes use checkpoint data for a fresh session. Checkpoint text has no authority.
+Native session load and active steering remain unsupported. Both modes queue additional input for the next legal turn boundary.
+The runner records pending input before dispatch. It records the runtime outcome before acknowledging the input to the server.
+The input cursor advances only after that acknowledgement. Checkpoints use the acknowledged cursor.
+An uncertain dispatch cannot replay automatically. A lost acknowledgement can use the durable runtime receipt through input reconciliation.
+
+Before result preparation, the runtime polls and drains accepted input. The model session stays available until the next control or heartbeat poll closes the input boundary.
+That poll marks a valid prepared result as stopping only when no accepted input remains unapplied.
+Input accepted before this boundary invalidates the result and keeps execution active. Input after the boundary is rejected.
+Confirmed stop evidence then permits result publication. Publication still requires empty containment.
+A later input wakes the queue. The original active deadline remains in force.
+The runner stops on cancellation or deadline. A stopped interrupted attempt requires explicit recovery.
+
+Each published repository checkpoint retains a local immutable snapshot under the owner-only runner state directory.
+Recovery accepts only the server-selected checkpoint with matching job, source attempt, repository policy, base commit, and complete checkpoint record.
+It checks the retained archive hash and final tree before publishing `workspace.prepared` or starting a model session.
+A missing or changed snapshot blocks recovery. It never falls back silently to the base tree.
+A fresh session receives bounded summary, remaining work, next step, context references, and current request data.
+Pending input runs as a separate identified turn. Checkpoint text has no authority.
 Context recovery preserves the active input once. It does not replay uncertain tools.
-New live input receives `not_applied`; the caller must stop and reconcile before a fresh attempt.
+
+Cleanup always attempts scope stop, including after runtime close failure.
+An unconfirmed stop writes `containment-recovery.json` and blocks probes and jobs.
+Inspection clears that block only after it confirms no owned active containers.
 Hard monetary caps fail closed until reviewed pricing reservations exist.
 Token reservations use conservative input byte counts and fixed output ceilings.
 An uncertain provider request retains its reservation. Only explicit 429 or 5xx responses permit bounded retries.
@@ -100,3 +120,65 @@ npm run test:runtime
 ```
 
 This suite uses synthetic providers and real rootless containers. It makes no real model calls.
+
+## Coding certification evidence
+
+The plain-chat probe sends no tool fields. A separate tool session uses the same provider and dialect.
+A text-only provider can retain chat readiness after an explicit tool-request rejection. It cannot gain coding readiness.
+
+Synthetic probes alone keep `code_ready=false`. Task 11 must run real-provider certification before the owner installs coding evidence.
+The evidence file and its approved SHA-256 remain in the owner-only runner state directory.
+No model process can read or write these files. There is no external certification service or signing-key lifecycle.
+
+Task 11 must use the exact current probe configuration and distribution for these tests:
+
+1. Read a selected repository file through a consumed Grow operation.
+2. Edit that repository through a consumed Grow operation.
+3. Verify that the final tree differs from the approved base tree.
+4. Run every owner-required check on that final tree with zero exit status and no timeout.
+5. For patch-only policy, prepare the final diff and retain its artifact identity and delivery receipt.
+6. For remote publication policy, retain the trusted Git receipt and prove conflict rejection and idempotent replay.
+7. Prove model and tool containment after cancellation and checkpoint recovery.
+8. Retain provider request identifiers and the bounded test records outside model access.
+
+Record real results. Do not promote the synthetic fixtures used by unit tests.
+Hash retained outputs, receipts, provider identifiers, and containment evidence with SHA-256.
+Patch-only evidence needs no remote credential, push grant, or remote receipt.
+Verify those artifact hashes before owner approval. The installer validates bindings and result fields; it cannot rerun historical provider work.
+The owner approval establishes trust in the retained test evidence.
+
+Construct `evidence.json` with these fields:
+
+- `version`: `1`.
+- `issued_at` and `expires_at`: UTC timestamps, with at most 30 days between them.
+- `configuration_digest`: the selected probe descriptor digest for execution configuration.
+- `configuration`: the exact output from `effectiveConfiguration(descriptor)`.
+- `package`: the exact output from `runtimePackageIdentity(config.model_image)`.
+- `tools`: the exact Grow coding tool catalog for that descriptor and repository binding.
+- `cases.provider`: `real_provider: true` and `request_ids_sha256`.
+- `cases.read`: `passed: true` and `output_sha256`.
+- `cases.edit`: `passed: true`, different `before_tree` and `after_tree`, and `diff_sha256`.
+- `cases.checks.definitions`: the exact approved repository check definitions.
+- `cases.checks.results`: one record per check with `check_id`, `exit_code: 0`, `timed_out: false`, final `tree_hash`, and `output_sha256`.
+- `cases.publication`: `passed: true` and final `tree_hash`.
+- For patch-only policy, include `kind: "patch"`, `artifact_id`, `diff_artifact_sha256`, and `delivery_receipt_sha256`.
+- For policy with `git.push` or `git.draft_pr`, include `kind: "remote"`, `conflict_rejected: true`, `replay_idempotent: true`, and `remote_receipt_sha256`.
+- `cases.containment`: `model_stopped: true`, `tool_stopped: true`, `cancellation_passed: true`, `recovery_passed: true`, and `evidence_sha256`.
+
+The approved repository must define at least one required check.
+`runtimePackageIdentity` binds the model image, compiled host modules, protocol schema, package lock, native patch manifest, and Node version.
+The execution configuration binds the runner, profile revision, provider, credentials version, adapter, repository policy, tools, sandbox, network policy, and budgets.
+The check definitions must match the repository binding digest. All checks and publication must identify the tested edited tree.
+Changed bytes, configuration, scope, version, results, or expiry reject the evidence.
+
+Keep both input files owner-only. From the tested distribution, run this explicit owner installation command:
+
+```bash
+node scripts/install-coding-evidence.mjs STATE_DIRECTORY PROBE_DESCRIPTOR_FILE EVIDENCE_FILE
+```
+
+The command installs `coding-certification.json` and records its canonical SHA-256 in `runtime.json` as `coding_evidence_sha256`.
+Restart the runner, then request a fresh setup probe through the existing control plane.
+The current grant and configuration checks still apply. Coding readiness requires the installed evidence and successful current capability probes.
+This installation does not send an enable request or change backend profile activation behavior.
+Task 9 owns the separately planned activation changes. Task 11 still owns release-wide real-provider acceptance.

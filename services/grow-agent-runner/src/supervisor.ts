@@ -35,6 +35,11 @@ export interface ProbeChannel extends ProbeAuthority {
 }
 export interface AttemptChannel {
     event(type: string, payload: Data): Promise<void>;
+    pollInputs?(): Promise<void>;
+    inputApplied?(
+        input: Data,
+        receipt: {outcome: "applied" | "not_applied"; receipt_id: string},
+    ): Promise<void>;
     operations: OperationBoundary;
     lease: () => Data;
     request?(route: string, extra?: Data): Promise<Data>;
@@ -163,6 +168,7 @@ export class Coordinator {
     private active: Session | null = null;
     private reconciled = false;
     private generation = 0;
+    private inputFlights = new Map<string, Promise<void>>();
     private claiming: Promise<void> | null = null;
     private stopping: Promise<void> | null = null;
     private stopFailure: Error | null = null;
@@ -380,6 +386,8 @@ export class Coordinator {
         try {
             await this.supervisor.start(structuredClone(d), {
                 event: (type, payload) => this.enqueue(session, type, payload),
+                pollInputs: () => this.collectInputs(session),
+                inputApplied: (input, receipt) => this.finishInput(session, input, receipt),
                 operations: new OperationBoundary(
                     this.journal,
                     this.transport,
@@ -510,11 +518,59 @@ export class Coordinator {
             .filter((e) => e.request.attempt_id === attemptId && e.request.input.id === inputId);
     }
     async applyInput(d: Data, input: Data): Promise<void> {
+        const key = `${d.attempt_id}:${input.id}`;
+        const prior = this.inputFlights.get(key);
+        if (prior) return prior;
+        const flight = this.deliverInput(d, input);
+        this.inputFlights.set(key, flight);
+        try {
+            await flight;
+        } finally {
+            this.inputFlights.delete(key);
+        }
+    }
+    private async finishInput(
+        session: Session,
+        input: Data,
+        receipt: {outcome: "applied" | "not_applied"; receipt_id: string},
+    ): Promise<void> {
+        const id = `input:${session.descriptor.attempt_id}:${input.id}`;
+        this.journal.complete(id, receipt);
+        this.lease(session);
+        if (receipt.outcome !== "applied") return;
+        const event = this.journal
+            .list("event")
+            .find((entry) =>
+                entry.request.events?.some(
+                    (e: Data) =>
+                        e.attempt_id === session.descriptor.attempt_id &&
+                        e.type === "input.applied" &&
+                        e.payload.input_id === input.id,
+                ),
+            );
+        if (event) {
+            if (event.state !== "done") await this.serial(session, async () => {});
+            return;
+        }
+        await this.enqueue(session, "input.applied", {
+            input_id: input.id,
+            input_sequence: input.sequence,
+            delivery_state: "applied",
+        });
+    }
+    private async deliverInput(d: Data, input: Data): Promise<void> {
         const session = this.sessionFor(d),
             lease = this.lease(session);
         parse("input", input);
         const previous = this.inputsFor(d.attempt_id, input.id).at(-1);
-        if (previous?.state === "done" && previous.response?.outcome === "applied") return;
+        if (previous?.state === "done" && previous.response?.outcome === "applied") {
+            await this.finishInput(
+                session,
+                input,
+                previous.response as {outcome: "applied"; receipt_id: string},
+            );
+            return;
+        }
         if (previous && previous.state !== "done")
             throw new Error("Input delivery is uncertain; reconcile its receipt");
         if (input.delivery_state === "delivery_uncertain")
@@ -536,15 +592,7 @@ export class Coordinator {
             structuredClone(session.descriptor),
             structuredClone(input),
         );
-        // Record a late runtime receipt without granting any further execution authority.
-        this.journal.complete(id, receipt);
-        this.lease(session);
-        if (receipt.outcome === "applied")
-            await this.enqueue(session, "input.applied", {
-                input_id: input.id,
-                input_sequence: input.sequence,
-                delivery_state: "applied",
-            });
+        await this.finishInput(session, input, receipt);
     }
     async reconcileInput(
         attemptId: string,
@@ -711,20 +759,33 @@ export class Coordinator {
             session.version = Math.max(session.version, heartbeat.job_version);
             session.expiry = Date.parse(heartbeat.lease_expires_at);
             this.armWatchdog(session);
-            const inputs = await this.serial(session, () =>
-                this.transport.request("/runner/inputs", this.lease(session)),
-            );
-            this.lease(session);
-            for (const input of inputs.inputs) {
-                this.lease(session);
-                await this.applyInput(d, input);
-            }
+            await this.collectInputs(session);
         } catch (error) {
             if (session.valid) {
                 await this.stopSession(session);
                 this.reconciled = false;
             }
             throw error;
+        }
+    }
+    private async collectInputs(session: Session): Promise<void> {
+        const d = session.descriptor;
+        const inputs = await this.serial(session, () =>
+            this.transport.request("/runner/inputs", this.lease(session)),
+        );
+        this.lease(session);
+        for (const input of inputs.inputs) {
+            this.lease(session);
+            void this.applyInput(d, input).catch(async () => {
+                if (session.valid) {
+                    this.reconciled = false;
+                    await this.stopSession(session).catch(() => {
+                        this.stopFailure = new Error(
+                            "Input recovery requires confirmed containment",
+                        );
+                    });
+                }
+            });
         }
     }
     async pollSetups(): Promise<void> {

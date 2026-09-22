@@ -124,7 +124,7 @@ export class ModelBudgetLedger {
     }
 }
 export class ModelBroker {
-    readonly observed = {streaming: false, usage: false};
+    readonly observed = {streaming: false, usage: false, tool_request_rejected: false};
     private busy = false;
     private inputUsed = 0;
     private outputUsed = 0;
@@ -325,6 +325,13 @@ export class ModelBroker {
                             const context = /context_length_exceeded|context_window_exceeded/.test(
                                 Buffer.concat(chunks).toString(),
                             );
+                            if (
+                                status === 400 &&
+                                !context &&
+                                Array.isArray(payload.tools) &&
+                                payload.tools.length > 0
+                            )
+                                this.observed.tool_request_rejected = true;
                             reject(new ProviderFailure(context ? "context" : "protocol"));
                             return;
                         }

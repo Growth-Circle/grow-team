@@ -369,3 +369,7 @@ export function finalDiff(w: Workspace, tree: string): Buffer {
         "--",
     ]);
 }
+export function snapshotTree(w: Workspace, tree: string): Buffer {
+    if (!/^[0-9a-f]{40}$/.test(tree)) throw new Error("Invalid checkpoint tree");
+    return ownGit(w, ["archive", "--format=tar", tree]);
+}

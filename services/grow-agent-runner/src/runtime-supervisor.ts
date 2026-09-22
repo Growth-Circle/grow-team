@@ -1,3 +1,6 @@
+import {codingReadiness} from "./certification.js";
+import {retainCheckpoint, restoreCheckpoint} from "./checkpoint-store.js";
+import {InputQueue} from "./input-queue.js";
 import {readFileSync} from "node:fs";
 import {execFileSync} from "node:child_process";
 import {join} from "node:path";
@@ -37,6 +40,7 @@ interface Active {
     runtime?: Runtime;
     task: Promise<void>;
     inputCursor: number;
+    inputs: InputQueue;
 }
 export class RuntimeSupervisor implements Supervisor {
     private active = new Map<string, Active>();
@@ -93,6 +97,7 @@ export class RuntimeSupervisor implements Supervisor {
     canExecute(): boolean {
         const registry = this.registry.read();
         return (
+            !this.store.read("containment-recovery.json")?.blocked &&
             this.config.owner_approved === true &&
             registry.catalog_reported === true &&
             registry.catalog?.adapters.some(
@@ -101,23 +106,66 @@ export class RuntimeSupervisor implements Supervisor {
         );
     }
     async inspect(): Promise<ProcessHandle[]> {
-        return (await this.sandbox.inspect()) as ProcessHandle[];
+        const handles = (await this.sandbox.inspect()) as ProcessHandle[];
+        if (handles.length === 0 && this.store.read("containment-recovery.json")?.blocked)
+            this.store.write("containment-recovery.json", {
+                blocked: false,
+                confirmed_at: new Date().toISOString(),
+            });
+        return handles;
+    }
+    private assertContainment(): void {
+        if (this.store.read("containment-recovery.json")?.blocked)
+            throw new Error("Containment requires confirmed recovery");
+    }
+    private async closeScope(
+        scope: string,
+        kind: "attempt" | "probe",
+        runtime?: Runtime,
+    ): Promise<void> {
+        let closeError: unknown;
+        try {
+            await runtime?.close();
+        } catch (error) {
+            closeError = error;
+        }
+        let confirmed = false;
+        try {
+            confirmed = (await this.sandbox.stopScope(scope, kind)).confirmed;
+        } catch {}
+        if (!confirmed) {
+            this.store.write("containment-recovery.json", {
+                blocked: true,
+                scope,
+                kind,
+                observed_at: new Date().toISOString(),
+            });
+            throw new Error("Containment stop is unconfirmed");
+        }
+        if (closeError) throw new Error("Runtime close failed; scope stop confirmed");
     }
     async stop(handle: ProcessHandle): Promise<{confirmed: boolean}> {
         const item = this.active.get(handle.attempt_id);
         item?.abort.abort();
-        if (item?.runtime) await item.runtime.cancel();
-        const stopped = await this.sandbox.stopScope(
-            handle.attempt_id,
-            handle.attempt_id.startsWith("probe-") ? "probe" : "attempt",
-        );
+        try {
+            await item?.runtime?.cancel();
+        } catch {}
+        let confirmed = false;
+        try {
+            await this.closeScope(
+                handle.attempt_id,
+                handle.attempt_id.startsWith("probe-") ? "probe" : "attempt",
+            );
+            confirmed = true;
+        } catch {}
         if (item) {
             await item.task.catch(() => {});
             this.active.delete(handle.attempt_id);
         }
-        return stopped;
+        return {confirmed};
     }
     async start(descriptor: Data, channel: AttemptChannel): Promise<void> {
+        this.assertContainment();
         if (this.active.has(descriptor.attempt_id)) throw new Error("Attempt already started");
         this.registry.assertRuntime(descriptor);
         assertDataScope(descriptor);
@@ -128,9 +176,16 @@ export class RuntimeSupervisor implements Supervisor {
             (descriptor.adapter.mode === "endpoint" && descriptor.adapter.version !== "0.1.0")
         )
             throw new Error("Unsupported runtime version");
+        const abort = new AbortController();
         const active: Active = {
             d: structuredClone(descriptor),
-            abort: new AbortController(),
+            abort,
+            inputs: new InputQueue(
+                this.log,
+                descriptor,
+                abort.signal,
+                descriptor.checkpoint?.input_cursor ?? 0,
+            ),
             task: Promise.resolve(),
             inputCursor: descriptor.checkpoint?.input_cursor ?? 0,
         };
@@ -138,15 +193,18 @@ export class RuntimeSupervisor implements Supervisor {
         // The model loop stays outside the Coordinator lane and control polling.
         active.task = this.execute(active, channel).catch(async () => {
             active.abort.abort();
-            await active.runtime?.close();
-            const stopped = await this.sandbox.stopScope(active.d.attempt_id, "attempt");
-            if (stopped.confirmed)
+            let confirmed = false;
+            try {
+                await this.closeScope(active.d.attempt_id, "attempt");
+                confirmed = true;
+            } catch {}
+            if (confirmed)
                 await channel
                     .event("attempt.interrupted", {
                         process_state: "stopped",
                         adapter_session_ref: null,
                         stop_confirmed: true,
-                        summary: "Runtime stopped; inspect recovery records before retry.",
+                        summary: "",
                     })
                     .catch(() => {});
         });
@@ -254,6 +312,13 @@ export class RuntimeSupervisor implements Supervisor {
                     adapter_session_ref: null,
                     input_cursor: active.inputCursor,
                 });
+                await retainCheckpoint(
+                    join(this.store.root, "snapshots"),
+                    d,
+                    checkpoint,
+                    w,
+                    channel.lease,
+                );
                 await request("/runner/checkpoints", {checkpoint});
                 current();
             },
@@ -265,6 +330,7 @@ export class RuntimeSupervisor implements Supervisor {
                 stop_confirmed: false,
                 summary: "",
             });
+            await authority.assertCurrent();
             if (d.repository) {
                 const source = this.registry.assertWorkspace(d.repository);
                 const base =
@@ -297,6 +363,14 @@ export class RuntimeSupervisor implements Supervisor {
                     channel.lease,
                     {root: join(this.store.root, "workspaces"), source, approvedCommit: base},
                 );
+                if (d.checkpoint)
+                    await restoreCheckpoint(
+                        join(this.store.root, "snapshots"),
+                        d,
+                        workspace,
+                        channel.lease,
+                    );
+                await authority.assertCurrent();
                 await channel.event("workspace.prepared", workspace.record);
                 broker = new ToolBroker(
                     d,
@@ -358,7 +432,7 @@ export class RuntimeSupervisor implements Supervisor {
                       );
             active.runtime = runtime;
             await runtime.startSession();
-            if (d.checkpoint) await runtime.resume(d.checkpoint);
+            if (d.checkpoint) await runtime.resume({...d.checkpoint, current_request: d.request});
             await channel.event("attempt.started", {
                 process_state: "active",
                 adapter_session_ref: null,
@@ -411,42 +485,67 @@ export class RuntimeSupervisor implements Supervisor {
                 });
             }
             if (this.extensions.context) context += await this.extensions.context(d, channel);
-            const answer = filter.text(
-                await runtime.sendTurn(d.request + context, `request:${d.attempt_id}`),
-            );
-            current();
-            const summary = artifacts.retain(
-                d.job_id,
-                d.attempt_id,
-                "summary",
-                Buffer.from(answer),
-            );
-            await upload(summary);
-            let result: Data = {
-                summary: answer.slice(0, 4096),
-                artifact_ids: [...artifactIds],
-                tree_hash: null,
-            };
-            if (broker && d.job_kind !== "answer") {
-                const verification = await broker.verifyFinalTree();
-                result = {
-                    ...result,
-                    tree_hash: verification.tree,
+            await channel.pollInputs?.();
+            let answer =
+                d.checkpoint && active.inputs.hasPending()
+                    ? ""
+                    : filter.text(
+                          await runtime.sendTurn(d.request + context, `request:${d.attempt_id}`),
+                      );
+            for (;;) {
+                await channel.pollInputs?.();
+                let next: string | null;
+                while (
+                    (next = await active.inputs.next(
+                        runtime,
+                        async (input, receipt) => {
+                            if (!channel.inputApplied)
+                                throw new Error("Input receipt callback unavailable");
+                            await channel.inputApplied(input, receipt);
+                        },
+                        (text) => filter.text(text),
+                    )) !== null
+                ) {
+                    answer = next;
+                    active.inputCursor = active.inputs.cursor;
+                }
+                current();
+                const summary = artifacts.retain(
+                    d.job_id,
+                    d.attempt_id,
+                    "summary",
+                    Buffer.from(answer),
+                );
+                await upload(summary);
+                let result: Data = {
+                    summary: answer.slice(0, 4096),
                     artifact_ids: [...artifactIds],
-                    verification,
+                    tree_hash: null,
                 };
-                if (this.extensions.publish)
+                if (broker && d.job_kind !== "answer") {
+                    const verification = await broker.verifyFinalTree();
+                    result = {
+                        ...result,
+                        tree_hash: verification.tree,
+                        artifact_ids: [...artifactIds],
+                        verification,
+                    };
+                }
+                await channel.pollInputs?.();
+                if (active.inputs.hasPending()) continue;
+                if (broker && d.job_kind !== "answer" && this.extensions.publish)
                     await this.extensions.publish(d, broker, result, channel);
+                await channel.event("result.prepared", {
+                    summary: result.summary,
+                    artifact_ids: result.artifact_ids,
+                    tree_hash: result.tree_hash,
+                });
+                await active.inputs.wait();
+                current();
             }
-            await channel.event("result.prepared", {
-                summary: result.summary,
-                artifact_ids: result.artifact_ids,
-                tree_hash: result.tree_hash,
-            });
-            await runtime.close();
         } finally {
             clearTimeout(timer);
-            await active.runtime?.close();
+            await this.closeScope(d.attempt_id, "attempt", active.runtime);
         }
     }
     async applyInput(
@@ -455,8 +554,9 @@ export class RuntimeSupervisor implements Supervisor {
     ): Promise<{outcome: "applied" | "not_applied"; receipt_id: string}> {
         const active = this.active.get(d.attempt_id);
         if (!active || active.abort.signal.aborted) throw new Error("Input attempt is unavailable");
-        // No uncertified native steering. Replan must use a fresh attempt and checkpoint.
-        return {outcome: "not_applied", receipt_id: randomUUID()};
+        for (const key of ["job_id", "attempt_id", "lease_epoch"])
+            if (active.d[key] !== d[key]) throw new Error("Input belongs to another attempt");
+        return active.inputs.submit(input);
     }
     async probe(
         d: Data,
@@ -466,6 +566,7 @@ export class RuntimeSupervisor implements Supervisor {
         capabilities: Data;
         requirements: Data[];
     }> {
+        this.assertContainment();
         if (!authority) throw new Error("A current setup authority channel is required");
         if (
             (d.adapter.mode === "acp" &&
@@ -553,12 +654,12 @@ export class RuntimeSupervisor implements Supervisor {
                 return args;
             },
         );
-        const runtime: Runtime =
+        const makeRuntime = (selectedTools: RuntimeTools): Runtime =>
             d.adapter.mode === "endpoint"
                 ? new ContainedEndpointRuntime(
                       d,
                       model,
-                      tools,
+                      selectedTools,
                       modelAuthority,
                       this.sandbox,
                       this.config.model_image,
@@ -567,12 +668,24 @@ export class RuntimeSupervisor implements Supervisor {
                 : new AcpRuntime(
                       d,
                       model,
-                      tools,
+                      selectedTools,
                       modelAuthority,
                       this.sandbox,
                       this.config.model_image,
                       this.store.root,
                   );
+        const chatTools = new RuntimeTools(
+            [],
+            `probe-chat-${d.setup_operation_id}`,
+            this.log,
+            modelAuthority,
+            filter,
+            async () => {
+                throw new Error("Plain chat cannot call tools");
+            },
+        );
+        const chatRuntime = makeRuntime(chatTools),
+            runtime = makeRuntime(tools);
         try {
             const contained = await this.sandbox.runProbe(
                 d,
@@ -586,7 +699,9 @@ export class RuntimeSupervisor implements Supervisor {
                 contained.output.toString() === "GROW_SANDBOX_OK"
             )
                 capabilities.sandbox = "passed";
-            Object.assign(capabilities, await runtime.probe());
+            Object.assign(capabilities, await chatRuntime.probe());
+            await chatRuntime.close();
+            await runtime.startSession();
             await authority.validate();
             const before = echoCalls;
             const answer = await runtime.sendTurn(
@@ -597,28 +712,50 @@ export class RuntimeSupervisor implements Supervisor {
                 echoCalls === before + 1 && answer.trim() === "PROBE_OK" ? "passed" : "unsupported";
             capabilities.streaming = model.observed.streaming ? "passed" : "unsupported";
             capabilities.usage = model.observed.usage ? "passed" : "unsupported";
-            capabilities.code_ready = false;
+            capabilities.code_ready =
+                capabilities.chat_ready &&
+                ["tool_calling", "streaming", "usage", "sandbox"].every(
+                    (key) => capabilities[key] === "passed",
+                ) &&
+                codingReadiness(this.store, d, this.config);
             return {
                 state: capabilities.chat_ready ? "ready" : "needs_action",
                 capabilities,
                 requirements: [],
             };
         } catch {
+            await authority.validate();
+            const unsupportedTools =
+                capabilities.chat_ready && model.observed.tool_request_rejected;
+            if (unsupportedTools) capabilities.tool_calling = "unsupported";
+            capabilities.streaming = model.observed.streaming ? "passed" : "unknown";
+            capabilities.usage = model.observed.usage ? "passed" : "unknown";
+            capabilities.code_ready = false;
             return {
-                state: "needs_action",
+                state: unsupportedTools ? "ready" : "needs_action",
                 capabilities,
-                requirements: [
-                    {
-                        code: "probe_incomplete",
-                        surface: "diagnostic",
-                        action: "view_diagnostic",
-                        diagnostic_id: null,
-                    },
-                ],
+                requirements: unsupportedTools
+                    ? []
+                    : [
+                          {
+                              code: "probe_incomplete",
+                              surface: "diagnostic",
+                              action: "view_diagnostic",
+                              diagnostic_id: null,
+                          },
+                      ],
             };
         } finally {
-            await runtime.close();
-            await this.sandbox.stopScope(`probe-${d.setup_operation_id}`, "probe");
+            let closeFailed = false;
+            for (const process of [chatRuntime, runtime]) {
+                try {
+                    await process.close();
+                } catch {
+                    closeFailed = true;
+                }
+            }
+            await this.closeScope(`probe-${d.setup_operation_id}`, "probe");
+            if (closeFailed) throw new Error("Runtime close failed; scope stop confirmed");
         }
     }
 }

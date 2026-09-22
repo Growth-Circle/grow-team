@@ -94,7 +94,10 @@ def controls(request: HttpRequest) -> HttpResponse:
                 from zerver.lib.agent_context import AgentBusy
 
                 try:
-                    jobs.locked_attempt(device, item.job_id, item.id, item.lease_epoch)
+                    job, current = jobs.locked_attempt(
+                        device, item.job_id, item.id, item.lease_epoch
+                    )
+                    jobs.fence_prepared_result(job, current)
                 except AgentBusy:
                     raise
                 except (ValueError, JsonableError, ObjectDoesNotExist):

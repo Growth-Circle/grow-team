@@ -783,11 +783,13 @@ def add_input(
             raise ValueError("Job cannot accept input.")
         if job.input_sequence >= 100:
             raise ValueError("Job input limit exceeded.")
-        if (
-            job.status != "queued"
-            and not agents.AgentAttempt.objects.filter(job=job, active=True).exists()
-        ):
+        active_attempt = (
+            agents.AgentAttempt.objects.select_for_update().filter(job=job, active=True).first()
+        )
+        if job.status != "queued" and active_attempt is None:
             raise ValueError("Stopped execution cannot accept new input.")
+        if active_attempt is not None and active_attempt.process_state in {"stopping", "unknown"}:
+            raise ValueError("Stopping execution cannot accept new input.")
         require_audience(job)
         check_agent_access(actor, job.profile, job.repository, job.source_message, "profile.use")
         if source_message_id is not None:
@@ -1173,6 +1175,24 @@ def deliver_inputs(
         return [input_data(item) for item in items]
 
 
+def fence_prepared_result(job: agents.AgentJob, attempt: agents.AgentAttempt) -> None:
+    """Call under the current job and attempt locks before returning control."""
+    if (
+        job.status != "verifying"
+        or job.result_proposal is None
+        or not attempt.active
+        or attempt.process_state != "active"
+        or agents.AgentInput.objects.filter(
+            job=job, delivery_state__in=["pending", "delivered", "delivery_uncertain"]
+        ).exists()
+    ):
+        return
+    attempt.process_state = "stopping"
+    attempt.save(update_fields=["process_state"])
+    job.version += 1
+    job.save(update_fields=["version"])
+
+
 def heartbeat(
     runner: agents.AgentRunner, identities: list[p.LeaseIdentity]
 ) -> list[dict[str, object]]:
@@ -1193,6 +1213,7 @@ def heartbeat(
             if attempt.process_state in {"starting", "active"} and job.status in EXECUTING:
                 # An expired lease never comes back to life after a late heartbeat.
                 locked_attempt(runner, job.id, attempt.id, attempt.lease_epoch)
+                fence_prepared_result(job, attempt)
                 limit = attempt.created_at + timedelta(
                     seconds=attempt.descriptor["budget"]["active_seconds"]
                 )

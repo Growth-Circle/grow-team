@@ -14,9 +14,13 @@ store.write("connection.json", {
 const journal = new Journal(store.root),
     transport = new Transport(config.origin, journal, () => config.token);
 let channel, descriptor;
+let stops = 0;
 const supervisor = {
     inspect: async () => [],
-    stop: async () => ({confirmed: true}),
+    stop: async () => {
+        stops++;
+        return {confirmed: true};
+    },
     canExecute: () => true,
     start: async (d, c) => {
         descriptor = d;
@@ -104,12 +108,26 @@ try {
         rejected = true;
     }
     if (!rejected) throw Error("Stale CAS accepted");
+    await channel.event("result.prepared", {
+        summary: "Synthetic retained artifact",
+        artifact_ids: [upload.artifact_id],
+        tree_hash: null,
+    });
+    const version = channel.lease().job_version;
+    try {
+        await coordinator.tick();
+    } catch (error) {
+        if (!String(error.message).includes("authority revoked")) throw error;
+    }
+    if (stops !== 1) throw Error("Prepared result did not trigger confirmed containment");
+
     console.log(
         JSON.stringify({
             passed: true,
             artifact_id: upload.artifact_id,
             operation_hash: consumed.operation_hash,
-            version: channel.lease().job_version,
+            version,
+            completion_stops: stops,
             context_count: context.references.length,
         }),
     );

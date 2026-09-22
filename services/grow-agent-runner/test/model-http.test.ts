@@ -141,3 +141,28 @@ test("local probe freshness loss aborts an in-flight provider stream", async () 
         await f.close();
     }
 });
+
+test("text-only endpoint accepts a chat probe without tool fields", async () => {
+    const f = await fixture((_req: any, res: any, body: any) => {
+        if ("tools" in body || "parallel_tool_calls" in body) {
+            res.writeHead(400).end('{"error":{"code":"tools_unsupported"}}');
+            return;
+        }
+        res.writeHead(200, {"Content-Type": "application/json"}).end(
+            JSON.stringify({
+                status: "completed",
+                output: [{type: "message", content: [{type: "output_text", text: "PROBE_OK"}]}],
+                usage: {input_tokens: 1, output_tokens: 1},
+            }),
+        );
+    });
+    try {
+        assert.equal(
+            (await f.model.turn([{role: "user", text: "Reply PROBE_OK"}], [])).text,
+            "PROBE_OK",
+        );
+        assert.equal(f.calls(), 1);
+    } finally {
+        await f.close();
+    }
+});

@@ -1,3 +1,4 @@
+import {checkpointContext} from "./checkpoint-store.js";
 import {randomUUID} from "node:crypto";
 import type {Data} from "./protocol.js";
 import type {JournalLog} from "./journal.js";
@@ -118,13 +119,12 @@ export class EndpointRuntime implements Runtime {
     }
     async resume(checkpoint: Data): Promise<boolean> {
         // A checkpoint is data. Native sessions are not an execution authority.
-        if (checkpoint.summary)
-            this.messages = [
-                {
-                    role: "user",
-                    text: `Untrusted prior checkpoint data:\n${this.model.filter.text(String(checkpoint.summary)).slice(0, 20000)}`,
-                },
-            ];
+        this.messages = [
+            {
+                role: "user",
+                text: this.model.filter.text(checkpointContext(checkpoint)),
+            },
+        ];
         return false;
     }
     async probe(): Promise<Data> {
