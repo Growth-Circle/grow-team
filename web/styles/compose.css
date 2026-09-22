@@ -175,7 +175,11 @@
 /* Main geometry for this element is in zulip.css */
 #compose-content {
     background-color: var(--color-compose-box-background);
-    padding: 4px 4px 6px;
+    /* No outer padding: the header, content, and toolbar
+       sections below each carry their own padding, so the
+       card's white background reaches the rounded border
+       on every side. */
+    padding: 0;
     border: 1px solid var(--color-border-compose-content);
     border-radius: var(--radius-xl);
     box-shadow: var(--box-shadow-raised-card);
@@ -198,9 +202,6 @@
     #compose_banners {
         max-height: min(25vh, 240px);
         overflow-y: auto;
-        /* Align to compose controls; that's 112px width,
-           plus 4px of grid gap for 116px here. */
-        margin-right: calc(var(--compose-send-controls-width) + 4px);
 
         .main-view-banner {
             padding-right: 4px;
@@ -258,7 +259,7 @@
             height: var(--compose-recipient-box-min-height);
 
             .conversation-arrow {
-                font-size: 1.1429em; /* 16px / 14px em */
+                font-size: 0.8571em; /* 12px at the 14px recipient-row em */
                 /* Fix the line-height to the font size
                    to maintain a circle that scales. */
                 line-height: 1;
@@ -338,22 +339,9 @@
         box-shadow: none;
         border: none;
         height: 100%;
-        display: grid;
-        /* Vlad's design calls for 122px for the send column
-           at its widest; 112px accounts for 6px of gap and
-           4px outside padding. The Tenang "Send" pill can need
-           more than that once its label is translated, so the
-           column grows to fit it instead of clipping the text. */
-        grid-template:
-            minmax(0, 1fr) var(--compose-formatting-buttons-row-height)
-            / minmax(0, 1fr) minmax(
-                var(--compose-send-controls-width),
-                max-content
-            );
-        grid-template-areas:
-            "message-content-container message-send-controls-container"
-            "message-formatting-controls-container message-send-controls-container";
-        gap: 0 4px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
     }
 
     .message_content {
@@ -362,14 +350,22 @@
 }
 
 #message-content-container {
-    grid-area: message-content-container;
+    /* Grows to fill the space above the toolbar row in the
+       compose card's flex column. */
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 12px 14px 8px;
     display: grid;
     grid-template: minmax(0, 1fr) / minmax(0, 1fr) var(
             --composebox-buttons-width
         );
     grid-template-areas: "message-content composebox-buttons";
-    border-radius: var(--radius-md);
-    border: 1px solid var(--color-message-content-container-border);
+    border-radius: var(--radius-xl);
+    /* This section spans the full card width, flush against
+       the card's own border, so it stays borderless in the
+       resting state; a visible border only appears to carry
+       focus/validation feedback below. */
+    border: 1px solid transparent;
 
     &:has(.new_message_textarea:focus) {
         border-color: var(--color-message-content-container-border-focus);
@@ -498,36 +494,20 @@
     display: none;
 }
 
-#message-send-controls-container {
-    grid-area: message-send-controls-container;
-    /* A columnar flex does a nice job here
-       holding Drafts to the top of the
-       container, and the send button to
-       the bottom--even as the compose box
-       expands or contracts. */
-    display: flex;
-    flex-direction: column;
-    /* With a columnar flex, this ensures that
-       send controls occupy the same space as
-       the adjacent textbox. */
-    justify-content: space-between;
-    /* We add 6px of margin to the grid-gap of
-       6px, for 12px of space between the Send
-       button and the textarea. */
-    margin-left: 6px;
-
-    @media (width < $sm_min), ((width >= $sm_min) and (width < $mc_min)) {
-        margin-left: 0;
-    }
-}
-
 #message-formatting-controls-container {
-    grid-area: message-formatting-controls-container;
-    border-radius: 0 0 var(--radius-md) var(--radius-md);
-    background-color: var(--color-message-formatting-controls-container);
-    /* margin on either side to let the border of
-       .message-content-container show through. */
-    margin: 0 1px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 14px 12px;
+    border-top: 1px solid light-dark(hsl(170deg 10% 91%), hsl(180deg 10% 22%));
+
+    > .compose-scrolling-buttons-container {
+        /* Fills the remaining width of the toolbar row; its
+           own horizontal scroll (.compose-scrollable-buttons)
+           takes over once the icon groups no longer fit. */
+        flex: 1 1 auto;
+        min-width: 0;
+    }
 }
 
 .compose-scrolling-buttons-container {
@@ -654,6 +634,14 @@
     }
 }
 
+#compose-limit-indicator {
+    /* Sits inline in the toolbar row now, next to the Send
+       options and Send buttons, instead of stacked above them
+       in a side column. */
+    margin-top: 0;
+    flex-shrink: 0;
+}
+
 #compose {
     position: fixed;
     bottom: 0;
@@ -676,36 +664,52 @@
 
 #compose_top {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    /* Matched to 4px grid-gap on .messagebox grid. */
-    padding-bottom: 4px;
-    /* Align to compose controls; that's 112px width,
-       plus 4px of grid gap for 116px here. */
-    margin-right: calc(var(--compose-send-controls-width) + 4px);
+    align-items: center;
+    gap: 9px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--color-border-popover-menu-separator);
+
+    @media (width < $sm_min) {
+        padding: 10px 12px;
+        border-bottom-color: light-dark(hsl(170deg 10% 91%), hsl(180deg 10% 22%));
+    }
+}
+
+@media (width < $sm_min) {
+    /* Replace the channel/topic chevron with a plain slash,
+       matching the narrow-screen header. */
+    #compose-recipient .topic-marker-container {
+        .conversation-arrow {
+            display: none;
+        }
+
+        &::before {
+            content: "/";
+            color: light-dark(hsl(180deg 6% 60%), hsl(170deg 8% 60%));
+        }
+    }
+
+    #compose-channel-recipient {
+        min-width: 0;
+    }
 }
 
 #compose_close {
-    position: absolute;
-    top: 0;
-    right: 0;
-    color: var(--color-compose-send-control-button);
+    /* Sits in flow as the last item of the header row now,
+       instead of floating over the top-right corner. */
+    position: static;
+    font-size: 1em; /* 16px at 16px/1em */
+    color: light-dark(hsl(180deg 10% 42%), hsl(170deg 8% 60%));
     background: transparent;
-    /* 12.5px at 14px em */
-    font-size: 0.8928em;
     font-weight: normal;
-    /* 3px 7px at 12.5px font size at 14px em */
-    line-height: 1.6em;
-    opacity: 0.7;
+    line-height: 1;
     border: 0;
-    /* 3px 7px at 12.5px font size at 14px em */
-    padding: 0.24em 0.56em;
+    padding: 4px;
     border-radius: var(--radius-md);
     vertical-align: unset;
     text-shadow: none;
 
     &:hover {
-        opacity: 1;
         background: var(--color-compose-embedded-button-background-hover);
         color: var(--color-compose-send-control-button-interactive);
     }
@@ -1241,6 +1245,18 @@ textarea.new_message_textarea {
         border-radius: var(--radius-md);
     }
 
+    .decorated-channel-name {
+        font-weight: 600;
+    }
+
+    /* Size the channel icon to the header row's spec. Its color
+       stays on the channel's own configured color (or the
+       default icon color for direct messages), so we do not
+       touch it here. */
+    .channel-privacy-type-icon .zulip-icon {
+        font-size: 0.9375em; /* 15px at 16px/1em */
+    }
+
     .dropdown_widget_value {
         text-overflow: ellipsis;
         overflow: hidden;
@@ -1400,16 +1416,17 @@ textarea.new_message_textarea {
 }
 
 .compose-send-or-save-button {
-    border-radius: var(--radius-pill);
+    border-radius: var(--radius-md);
     border: 0;
     margin-bottom: 0;
     color: var(--color-compose-send-button-icon-color);
     background-color: var(--color-compose-send-button-background);
 
     @media (width < $sm_min) {
-        /* Drop to a square, icon-only button at this width, to
-           match #send_later (which is also square here). */
-        border-radius: var(--radius-md);
+        /* Grow into a single round, icon-only button at this
+           width; there is no separate Send-options button in
+           this row any more (see #send_later). */
+        border-radius: var(--radius-pill);
     }
 
     &:active {
@@ -1437,27 +1454,23 @@ textarea.new_message_textarea {
 
 #compose-send-button {
     /* Fit the "Send" label and arrow instead of a fixed icon-only
-       width; the pill grows with translated text length. */
+       width; the button grows with translated text length. */
     width: auto;
-    height: var(--height-control-md);
-    padding: 0 1.1429em; /* 16px at 14px/em */
-    gap: 0.5714em; /* 8px at 14px/em */
-    /* Allow to grow but not shrink */
-    flex: 1 0 auto;
+    height: 2.125em; /* 34px at 16px/1em */
+    padding: 0 16px;
+    gap: 8px;
+    /* Sits at a fixed size in the toolbar row; the scrollable
+       icon groups (not this button) absorb width pressure. */
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 600;
-    /* Flex items respect z-index values;
-       this is needed to keep the send
-       button over top of the vdots
-       background */
-    z-index: 1;
     font-size: inherit;
 
     .zulip-icon-send {
         display: block;
-        font-size: 1.1429em; /* 16px at 14px/em */
+        font-size: 1em; /* 16px at 16px/1em */
     }
 
     .loader {
@@ -1465,25 +1478,38 @@ textarea.new_message_textarea {
     }
 }
 
-@media (width < $sm_min), ((width >= $sm_min) and (width < $mc_min)) {
+@media (width >= $sm_min) and (width < $mc_min) {
     #compose-send-button {
-        /* Drop to a square, icon-only button,
-        and don't flex any wider. There isn't
-        room for the "Send" label at this width. */
-        width: 30px;
+        /* Drop to a square, icon-only button.
+           There isn't room for the "Send" label at this width. */
+        width: 1.875em; /* 30px at 16px/1em */
         padding: 0;
-        flex-grow: 0;
 
         .compose-send-button-label {
             display: none;
         }
 
-        /* Given the fixed-pixel width of the narrow send button,
-           don't let the send icon grow larger than a font-size
-           of 20px, which is as large as the send icon can grow
-           inside the squared off send button. */
         .zulip-icon-send {
             font-size: min(1.1429em, 20px);
+        }
+    }
+}
+
+@media (width < $sm_min) {
+    #compose-send-button {
+        /* A single round Send button; there is no separate
+           Send-options button in this row at this width (see
+           #send_later, which joins the formatting icons instead). */
+        width: 2.75em; /* 44px at 16px/1em */
+        height: 2.75em;
+        padding: 0;
+
+        .compose-send-button-label {
+            display: none;
+        }
+
+        .zulip-icon-send {
+            font-size: 1.1875em; /* 19px at 16px/1em */
         }
     }
 }
@@ -1599,6 +1625,8 @@ textarea.new_message_textarea {
        make a compact, predictably tall recipient row. */
     line-height: 1;
     display: flex;
+    gap: 9px;
+    font-size: 0.875em; /* 14px at 16px/1em */
     flex: 1 1 0;
     /* Use this containing flex element to
       establish the minimum height of all its
@@ -1613,6 +1641,12 @@ textarea.new_message_textarea {
       themselves, where necessary. */
     min-height: var(--compose-recipient-box-min-height);
     min-width: 0;
+
+    #compose-drafts-button,
+    #compose_close {
+        align-self: center;
+        flex-shrink: 0;
+    }
 
     .compose-new-recipient-button {
         border-radius: var(--radius-md);
@@ -1670,7 +1704,7 @@ textarea.new_message_textarea {
         line-height: 1;
         height: var(--compose-control-button-size);
         width: var(--compose-control-button-size);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1723,9 +1757,9 @@ textarea.new_message_textarea {
         }
 
         .compose_control_button {
-            height: 40px;
-            width: 40px;
-            border-radius: 10px;
+            height: var(--compose-control-button-touch-size);
+            width: var(--compose-control-button-touch-size);
+            border-radius: var(--radius-lg);
         }
     }
 }
@@ -1735,7 +1769,7 @@ textarea.new_message_textarea {
 .compose-control-buttons-overflow {
     display: none;
     position: absolute;
-    bottom: calc(var(--compose-control-button-size) + 10px);
+    bottom: calc(var(--compose-formatting-buttons-row-height) + 10px);
     left: 0;
     z-index: 105;
     box-sizing: border-box;
@@ -1745,13 +1779,13 @@ textarea.new_message_textarea {
     gap: 2px;
     padding: 8px;
     border: 1px solid var(--color-border-popover-menu);
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     background-color: var(--color-background-popover-menu);
     box-shadow: 0 12px 28px hsl(180deg 20% 20% / 10%);
 
     .compose-control-buttons-overflow-heading {
         padding: 8px 12px 6px;
-        font-size: 12px;
+        font-size: 0.75em; /* 12px at 16px/1em */
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -1768,9 +1802,9 @@ textarea.new_message_textarea {
         justify-content: flex-start;
         gap: 12px;
         width: 100%;
-        height: 34px;
+        height: var(--compose-control-menu-row-height);
         padding: 0 12px;
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         font-size: var(--compose-control-button-icon-size);
         color: var(--color-text-default);
 
@@ -1783,12 +1817,12 @@ textarea.new_message_textarea {
 
     .compose-control-button-label {
         flex: 1;
-        font-size: 15px;
+        font-size: 0.8333em; /* 15px at 18px/1em, the icon font size */
     }
 
     .compose-control-buttons-overflow-note {
         margin: 6px 12px 4px;
-        font-size: 13px;
+        font-size: 0.8125em; /* 13px at 16px/1em */
         line-height: 1.5;
         color: var(--color-text-item);
     }
@@ -1812,9 +1846,9 @@ textarea.new_message_textarea {
         background-color: var(--color-background-compose-sheet);
 
         .compose_control_button {
-            height: 44px;
+            height: var(--compose-control-sheet-row-height);
             gap: 14px;
-            border-radius: 12px;
+            border-radius: var(--radius-xl);
         }
     }
 }
@@ -1823,20 +1857,8 @@ textarea.new_message_textarea {
     display: flex;
 }
 
-.message-send-controls {
-    display: flex;
-
-    @media (width < $sm_min) {
-        /* At small widths, we display the
-           diminutive Send button and vdots
-           in a column, using `column-reverse`
-           to put the vdots above Send. */
-        flex-direction: column-reverse;
-    }
-
-    .compose-button-disabled {
-        pointer-events: none;
-    }
+.compose-button-disabled {
+    pointer-events: none;
 }
 
 #compose-send-button.disabled-message-send-controls {
@@ -1976,89 +1998,63 @@ textarea.new_message_textarea {
 
 /* vdots icon located next to `Send` button which shows
    options to schedule the message. */
+/* Send options (schedule-send) button, next to `Send` in the
+   toolbar row. */
 #send_later {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 38px;
-    /* Allow to grow but not shrink */
-    flex: 1 0 auto;
-    height: var(--height-control-md);
-    /* A small gap now that Send is a standalone pill button,
-       rather than a shape vdots needs to flow flush against. */
-    margin-left: 6px;
-    border-radius: var(--radius-pill);
-    /* Flex items respect z-index values;
-       this is needed to keep the vdots
-       background beneath the send button. */
-    z-index: 0;
+    flex-shrink: 0;
+    width: var(--compose-formatting-buttons-row-height);
+    height: var(--compose-formatting-buttons-row-height);
+    border-radius: var(--radius-md);
+    color: var(--color-compose-control-button-icon);
     font-size: inherit;
 
-    &:focus-visible {
-        /* Use a border, not an outline, so the focus ring
-           doesn't get clipped by a neighboring button. */
-        outline: 0;
-        border: 2px solid var(--color-compose-focus-ring);
+    &:hover {
+        background-color: var(--color-compose-control-button-background-hover);
     }
 
-    @media ((width >= $sm_min) and (width < $mc_min)) {
-        width: 32px;
+    &:focus:not(:focus-visible) {
+        outline: none;
+    }
+
+    &:focus-visible {
+        outline: 1.5px solid var(--color-compose-focus-ring);
+        outline-offset: 1px;
     }
 
     @media (width < $sm_min) {
-        /* Drop to a square, rounded button. */
-        width: 30px;
-        /* This reduces the vdots button so that
-           it and the send button fit within the
-           53px height the compose textarea occupies,
-           including its top border. */
-        height: 25px;
-        margin-left: 0;
-        border-radius: var(--radius-md);
+        /* Match the neighboring formatting-toolbar icons at this
+           width, rather than standing out as its own shape; the
+           round Send button carries the primary action. */
+        width: 2.5em; /* 40px at 16px/1em */
+        height: 2.5em;
+        border-radius: var(--radius-lg);
     }
 
     .zulip-icon {
-        padding: 5px 0 5px 2px;
-        /* 17px at 14px/1em */
-        font-size: 1.2143em;
-        flex-grow: 1;
+        font-size: var(--compose-control-button-icon-size);
 
         @media (width < $sm_min) {
-            /* Keep vdots centered above the
-               Send button at smallest sizes. */
-            padding-left: 0;
-        }
-
-        @media (width < $sm_min), ((width >= $sm_min) and (width < $mc_min)) {
-            /* As with the send icon, we limit the vdots to 20px
-               so it doesn't appear too crowded above the send
-               button. */
-            font-size: min(1.2143em, 20px);
+            font-size: 1.25em; /* 20px at 16px/1em */
         }
     }
 }
 
 #compose-drafts-button {
-    /* Use border-box sizing to make
-       width calculations more predictable
-       in a flex context. */
-    box-sizing: border-box;
-    /* In a columnar flex, we need to
-       use alignment to keep the Drafts
-       button from expanding the full
-       width of the column. */
-    align-self: flex-start;
-    /* Keep the Drafts button text
-       aligned with the Send button's
-       lefthand edge */
-    padding: 0 8px;
-    margin-left: -8px;
-    /* Allow the button to occupy as much
-       as 100% of the container width, plus
-       the 8px from the negative left margin. */
-    max-width: calc(100% + 8px);
+    /* Sits inline at the end of the header row now, next to
+       the close icon, instead of stacked above the Send
+       button in a side column. */
     display: flex;
+    align-items: center;
     gap: 2px;
+    max-width: 9em;
+    padding: 2px 4px;
+    border-radius: var(--radius-md);
+    font-size: 0.8125em; /* 13px at 16px/1em */
+    font-weight: 400;
+    color: var(--color-text-item);
 
     .compose-drafts-text {
         /* Set an ellipsis when the translated
@@ -2067,17 +2063,6 @@ textarea.new_message_textarea {
         white-space: nowrap;
         overflow-x: hidden;
         text-overflow: ellipsis;
-        flex-grow: 1;
-    }
-
-    @media (width < $mc_min) {
-        /* Reduce the padding on the sides so the
-        button's edge isn't too close to the textarea */
-        margin-left: -3px;
-        max-width: calc(100% + 3px);
-        /* Align the `Drafts` text with the
-           send icon below. */
-        padding: 0 3px;
     }
 }
 
