@@ -14,8 +14,9 @@ import * as peer_data from "./peer_data.ts";
 import * as recent_view_util from "./recent_view_util.ts";
 import * as rendered_markdown from "./rendered_markdown.ts";
 import * as search from "./search.ts";
-import {current_user} from "./state_data.ts";
+import {current_user, realm} from "./state_data.ts";
 import * as stream_data from "./stream_data.ts";
+import * as stream_topic_history from "./stream_topic_history.ts";
 import type {StreamSubscription} from "./sub_store.ts";
 import * as unread from "./unread.ts";
 import * as unread_ui from "./unread_ui.ts";
@@ -24,6 +25,7 @@ import * as util from "./util.ts";
 type MessageViewHeaderContext = {
     title?: string | undefined;
     title_html?: string | undefined;
+    topic_name?: string;
     description?: string;
     link?: string;
     is_spectator?: boolean;
@@ -60,7 +62,7 @@ function build_conversation_title_html(
     const unread_label = _.escape(format_topic_unread_count(unread_count));
     return [
         _.escape(stream_name),
-        '<span class="message-header-topic-divider" aria-hidden="true">/</span>',
+        '<i class="zulip-icon zulip-icon-chevron-right message-header-topic-divider" aria-hidden="true"></i>',
         `<span class="message-header-topic-name">${_.escape(topic_display_name)}</span>`,
         `<span class="message-header-topic-unread-count${hide_class}">${unread_label}</span>`,
     ].join(" ");
@@ -171,10 +173,40 @@ function get_message_view_header_context(filter: Filter | undefined): MessageVie
                 util.get_final_topic_display_name(topic_name),
                 unread.num_unread_for_topic(current_stream.stream_id, topic_name),
             ),
+            topic_name,
         };
     }
 
     return context;
+}
+
+// Builds the conversation header's "Follow" and topic-actions
+// controls (mockup 10a). These are appended after the template
+// render, not part of message_view_header.hbs, and reuse the
+// existing `.change_visibility_policy` / `.recipient-row-topic-menu`
+// trigger classes that user_topic_popover.ts and topic_popover.ts
+// already bind popovers to, so both open real, working menus.
+function build_conversation_actions_html(stream_id: number, topic_name: string): string {
+    const topic_url = new URL(
+        stream_topic_history.channel_topic_permalink_hash(stream_id, topic_name),
+        realm.realm_url,
+    ).href;
+    const escaped_topic_name = _.escape(topic_name);
+    const follow_label = _.escape($t({defaultMessage: "Follow"}));
+    const topic_actions_label = _.escape($t({defaultMessage: "Topic actions"}));
+    return [
+        `<span class="change_visibility_policy message-header-follow-button" data-stream-id="${stream_id}" data-topic-name="${escaped_topic_name}" aria-haspopup="true">`,
+        '<button type="button" class="action-button action-button-subtle-neutral message-header-action-button" tabindex="0">',
+        '<i class="zulip-icon zulip-icon-follow" aria-hidden="true"></i>',
+        `<span class="action-button-label">${follow_label}</span>`,
+        "</button>",
+        "</span>",
+        `<span class="recipient-row-topic-menu message-header-topic-menu" data-stream-id="${stream_id}" data-topic-name="${escaped_topic_name}" data-topic-url="${_.escape(topic_url)}" aria-haspopup="true">`,
+        `<button type="button" class="icon-button icon-button-neutral message-header-topic-menu-button" tabindex="0" aria-label="${topic_actions_label}">`,
+        '<i class="zulip-icon zulip-icon-more-vertical" aria-hidden="true"></i>',
+        "</button>",
+        "</span>",
+    ].join("");
 }
 
 export function colorize_message_view_header(): void {
@@ -203,12 +235,25 @@ function update_conversation_unread_pill(): void {
 function append_and_display_title_area(context: MessageViewHeaderContext): void {
     const $message_view_header_elem = $("#message_view_header");
     $message_view_header_elem.html(render_message_view_header(context));
-    $message_view_header_elem.toggleClass(
-        "message-header-is-conversation",
-        context.title_html !== undefined,
-    );
+    const is_conversation = context.title_html !== undefined;
+    $message_view_header_elem.toggleClass("message-header-is-conversation", is_conversation);
     if (context.stream_settings_link) {
         colorize_message_view_header();
+    }
+    if (
+        is_conversation &&
+        context.stream !== undefined &&
+        context.topic_name !== undefined &&
+        !context.stream.is_archived &&
+        !context.is_spectator &&
+        stream_data.is_subscribed(context.stream.stream_id)
+    ) {
+        // Only offer these for a conversation the viewer can actually
+        // follow or act on; see the popover wiring note on
+        // build_conversation_actions_html above.
+        $message_view_header_elem.append(
+            build_conversation_actions_html(context.stream.stream_id, context.topic_name),
+        );
     }
     $message_view_header_elem.removeClass("notdisplayed");
     const $content = $message_view_header_elem.find("span.rendered_markdown");

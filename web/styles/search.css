@@ -2,13 +2,13 @@
    `.top-navbar-container` (zulip.css) also reads --search-box-width to
    reserve room for the field next to the channel/topic title, so the
    override lives here, at the shared ancestor, to keep both in sync.
-   Height reuses the shared "Tenang" control-height primitive (already
-   documented in app_variables.css as covering the search box), so it
-   always matches the other redesigned controls. The two breakpoints
-   below are unchanged from app_variables.css. */
+   Height reuses --height-menu-row (34px, app_variables.css), the
+   shared control-height token that already matches mockup 10a's
+   search box. The two breakpoints below are unchanged from
+   app_variables.css. */
 .top-navbar-container {
-    --search-box-width: 18.5714em; /* 260px at 14px em */
-    --search-box-height: var(--height-control-md);
+    --search-box-width: 30em; /* 420px at 14px em, mockup 10a's search box */
+    --search-box-height: var(--height-menu-row); /* 34px, matches mockup 10a */
 
     @media (width < $md_min) {
         --search-box-width: 2.5em;
@@ -43,7 +43,7 @@
         align-self: center;
         text-decoration: none;
         padding: 0 0.4117em; /* 7px at 17px em */
-        font-size: 1.1429em; /* 16px at 14px em */
+        font-size: 1.0714em; /* 15px at 14px em, matches mockup 10a */
         border: none;
         background-color: transparent;
         color: var(--color-search-icons);
@@ -108,7 +108,10 @@
         }
 
         #searchbox-input-container {
-            width: var(--search-box-width);
+            /* min() keeps --search-box-width a cap rather than a fixed
+               width, so the box still fits when the conversation header
+               next to it also needs room (its buttons don't shrink). */
+            width: min(100%, var(--search-box-width));
 
             @media (width < $md_min) {
                 /* Square off the icon-only presentation. */
@@ -121,7 +124,7 @@
         }
 
         .search-input {
-            border-radius: var(--radius-pill);
+            border-radius: var(--radius-md); /* 8px, matches mockup 10a */
             color: var(--color-text-search);
             box-shadow: none;
         }

@@ -53,13 +53,14 @@
             margin: 0 6px 0 5px;
             /* Align all icons to center. */
             align-self: center;
+            font-size: 1.2143em; /* 17px at 14px em, matches mockup 10a */
         }
     }
 
     .message-header-navbar-title {
         font-weight: 600;
-        /* 16px at 14px em */
-        font-size: 1.1429em;
+        /* 19px at 14px em, matches mockup 10a's conversation title */
+        font-size: 1.3571em;
         /* Allow long navbar titles (e.g., stream names) to collapse. */
         flex: 0 1 auto;
         overflow: hidden;
@@ -69,10 +70,24 @@
     /* Channel / topic breadcrumb pieces, appended after the channel name
        inside `.message-header-navbar-title` for a conversation view. Each
        piece carries the mockup's 10px gap as its own left margin, and
-       resets the title's bold weight (only the channel name is bold). */
-    .message-header-topic-divider,
+       resets the title's bold weight (only the channel name is bold).
+       Margins below are each expressed against that piece's own font
+       size (the divider sets its own, smaller one), not the 19px title. */
+    .message-header-topic-divider {
+        margin-left: 0.7692em; /* 10px at 13px em */
+        /* 13px at 19px em. Frame 10a swaps the old "/" text divider for
+           a small chevron glyph, set on the divider span by
+           build_conversation_title_html() in message_view_header.ts. */
+        font-size: 0.6842em;
+        /* Light value from frame 10a (the current main-view source);
+           dark value from frame 1a (kept as the dark-mode reference).
+           No shared token matches this muted gray, see
+           KEPUTUSAN-SUMBER.md's source-authority order. */
+        color: light-dark(hsl(180deg 8% 55%), hsl(180deg 6% 60%));
+    }
+
     .message-header-topic-name {
-        margin-left: 0.7143em; /* 10px at 14px em */
+        margin-left: 0.5263em; /* 10px at 19px em */
         font-weight: 400;
     }
 
@@ -81,8 +96,8 @@
         align-items: center;
         margin-left: 0.7143em; /* 10px at 14px em */
         padding: 0.2143em 0.7143em; /* 3px 10px at 14px em */
-        /* 13px at 14px em, matches .unread_count's own conversion. */
-        font-size: 0.9286em;
+        /* 13px at 19px em, matches .unread_count's own conversion. */
+        font-size: 0.6842em;
         font-weight: 600;
         border-radius: var(--radius-pill);
         background-color: var(--color-background-unread-counter-normal);
@@ -92,6 +107,50 @@
         &.hide {
             display: none;
         }
+    }
+
+    /* Conversation-header actions (mockup 10a): a bordered "Follow"
+       button and an icon-only topic-actions button, pushed to the end
+       of the row. Both are appended by message_view_header.ts (not
+       this template) and reuse the shared action-button / icon-button
+       components, wired to the trigger classes the app's existing
+       topic popovers already listen for (see user_topic_popover.ts
+       and topic_popover.ts), so they open real, working menus. */
+    .message-header-follow-button,
+    .message-header-topic-menu {
+        flex: none;
+        align-self: center;
+    }
+
+    .message-header-follow-button {
+        /* Consumes the row's free space, so this button and the topic
+           menu after it sit at the end of the row (frame 10a has no
+           channel description next to them in a conversation view;
+           see the display: none rule below). */
+        margin-left: auto;
+    }
+
+    .message-header-topic-menu {
+        margin-left: 0.7143em; /* 10px at 14px em, gap after the Follow button */
+    }
+
+    .message-header-action-button {
+        min-height: var(--height-icon-button); /* 32px, matches mockup 10a */
+        background-color: transparent;
+        border: 1px solid var(--color-outline-input);
+
+        &:hover,
+        &:focus-visible {
+            background-color: var(--color-background-neutral-subtle-action-button-hover);
+        }
+
+        &:active {
+            background-color: var(--color-background-neutral-subtle-action-button-active);
+        }
+    }
+
+    .message-header-topic-menu-button .zulip-icon {
+        font-size: 1.2em; /* 18px at 15px em, matches mockup 10a */
     }
 
     /* A conversation view (a channel narrowed to one topic) shows the
