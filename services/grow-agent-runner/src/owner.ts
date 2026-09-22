@@ -198,6 +198,10 @@ export class OwnerRegistry {
         this.transport.journal.protectSecret(value);
         return value;
     }
+    memoryProtectedSecrets(): string[] {
+        const state = this.read();
+        return Object.values(state.secrets).map((path) => localSecret(path as string));
+    }
     configureTiten(value: unknown): void {
         const config = record(value);
         exact(config, ["endpoint", "credential_secret_ref", "subjects"]);

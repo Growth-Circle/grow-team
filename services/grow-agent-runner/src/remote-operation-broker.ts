@@ -1,7 +1,7 @@
 import {execFileSync} from "node:child_process";
 import {randomUUID} from "node:crypto";
 import {setTimeout as sleep} from "node:timers/promises";
-import type {Data} from "./protocol.js";
+import {canonical, type Data} from "./protocol.js";
 import type {JournalLog} from "./journal.js";
 import type {AttemptChannel} from "./supervisor.js";
 
@@ -31,6 +31,9 @@ const gitEnvironment = (credential: string | null): NodeJS.ProcessEnv => {
     }
     return env;
 };
+
+// Host Git commands must not load a caller repository's local configuration.
+const trustedGitDirectory = "/";
 
 function sha(value: string | null): boolean {
     return value === null || /^[0-9a-f]{40}$/.test(value);
@@ -78,10 +81,12 @@ export class RemoteGitBroker {
                     ...args,
                 ],
                 {
+                    cwd: trustedGitDirectory,
                     env: gitEnvironment(credential),
                     encoding: "utf8",
                     timeout: 20000,
                     maxBuffer: 1024 * 1024,
+                    stdio: ["ignore", "pipe", "pipe"],
                 },
             ).trim();
         } catch {
@@ -116,7 +121,12 @@ export class RemoteGitBroker {
                     request.expected_remote_head,
                     request.commit,
                 ],
-                {env: gitEnvironment(null), timeout: 10000, stdio: "ignore"},
+                {
+                    cwd: trustedGitDirectory,
+                    env: gitEnvironment(null),
+                    timeout: 10000,
+                    stdio: "ignore",
+                },
             );
         } catch {
             throw new Error("Approved remote head is not a candidate ancestor");
@@ -166,7 +176,12 @@ export class RemoteGitBroker {
                     args.base_commit,
                     args.expected_remote_head,
                 ],
-                {env: gitEnvironment(null), timeout: 10000, stdio: "ignore"},
+                {
+                    cwd: trustedGitDirectory,
+                    env: gitEnvironment(null),
+                    timeout: 10000,
+                    stdio: "ignore",
+                },
             );
         } catch {
             throw new Error("Approved remote head is outside the candidate lineage");
@@ -361,6 +376,35 @@ export class RemoteOperationBroker {
         channel.lease();
         return true;
     }
+    private action(operation: Data): "git.push" | "git.draft_pr" {
+        const action = operation.arguments?.action;
+        if (action !== "git.push" && action !== "git.draft_pr")
+            throw new Error("Invalid consumed remote operation action");
+        return action;
+    }
+    private async noEffect(channel: AttemptChannel, operation: Data): Promise<void> {
+        const action = this.action(operation);
+        await channel.event("tool.finished", {
+            operation_id: operation.operation_id,
+            tool_class: action,
+            argument_digest: operation.operation_hash,
+            status: "cancelled",
+            artifact_id: null,
+            exit_code: null,
+            summary: "Input arrived before remote dispatch.",
+        });
+        channel.operations.finishEffect(operation.operation_id, {
+            outcome: "no_effect",
+            operation_id: operation.operation_id,
+            observed_at: new Date().toISOString(),
+        });
+    }
+    private async dispatchable(channel: AttemptChannel, operation: Data): Promise<boolean> {
+        if (await this.currentPublication(channel)) return true;
+        // The operation is consumed and started, but no remote request has started.
+        await this.noEffect(channel, operation);
+        return false;
+    }
     private async approve(
         channel: AttemptChannel,
         id: string,
@@ -394,30 +438,24 @@ export class RemoteOperationBroker {
         }
         if (!(await this.currentPublication(channel))) return null;
         const operation = await channel.operations.consume(channel.lease(), proposal);
+        const action = this.action(operation);
+        if (action !== args.action) throw new Error("Consumed remote operation changed action");
         channel.operations.beginEffect(id);
         await channel.event("tool.started", {
             operation_id: id,
-            tool_class: args.action,
+            tool_class: action,
             argument_digest: operation.operation_hash,
             status: "started",
             artifact_id: null,
             exit_code: null,
             summary: "",
         });
-        return operation;
+        return (await this.dispatchable(channel, operation)) ? operation : null;
     }
     private async receipt(channel: AttemptChannel, operation: Data, receipt: Data): Promise<void> {
+        this.action(operation);
         await channel.operations.remoteReceipt(channel.lease(), receipt);
         channel.operations.finishEffect(receipt.operation_id, receipt);
-        await channel.event("tool.finished", {
-            operation_id: receipt.operation_id,
-            tool_class: operation.tool_class,
-            argument_digest: operation.operation_hash,
-            status: "succeeded",
-            artifact_id: null,
-            exit_code: 0,
-            summary: "",
-        });
     }
     async publish(
         descriptor: Data,
@@ -469,7 +507,7 @@ export class RemoteOperationBroker {
             {tree_hash: candidate.tree, diff_artifact_id: result.verification.diff.id},
         );
         if (!push) return false;
-        if (!(await this.currentPublication(channel))) return false;
+        if (!(await this.dispatchable(channel, push))) return false;
         await this.git.push({
             remote: config.remote,
             branch,
@@ -496,7 +534,7 @@ export class RemoteOperationBroker {
             action: "git.draft_pr",
             repository_id: descriptor.repository.id,
             remote: config.remote,
-            base: descriptor.base_ref,
+            base: descriptor.repository.base_ref,
             head: branch,
             commit: candidate.commit,
             title,
@@ -508,7 +546,7 @@ export class RemoteOperationBroker {
             diff_artifact_id: result.verification.diff.id,
         });
         if (!pr) return false;
-        if (!(await this.currentPublication(channel))) return false;
+        if (!(await this.dispatchable(channel, pr))) return false;
         const created = await new GitHubDraftProvider(config.github).create(config.remote, args);
         await this.receipt(channel, pr, {
             remote: config.remote,
@@ -528,20 +566,21 @@ export class RemoteOperationBroker {
         for (const effect of this.journal.list("effect")) {
             if (effect.state !== "uncertain") continue;
             const operation = effect.request.operation;
-            if (!operation || !["git.push", "git.draft_pr"].includes(operation.tool_class))
-                continue;
+            if (!operation) continue;
+            const action = this.action(operation);
             const args = operation.arguments as Data;
             const config = this.recoveryConfiguration(args.remote);
             if (!config) continue;
             let receipt: Data | null = null;
-            if (operation.tool_class === "git.push") {
+            const retained = this.journal.get(`remote:${operation.operation_id}`)?.request.receipt;
+            if (action === "git.push") {
                 const head = await this.git.head({
                     remote: args.remote,
                     branch: args.branch,
                     credential: config.git_credential,
                 });
                 if (head === args.commit)
-                    receipt = {
+                    receipt = retained ?? {
                         remote: args.remote,
                         branch: args.branch,
                         commit: args.commit,
@@ -553,7 +592,7 @@ export class RemoteOperationBroker {
             } else if (config.github) {
                 const found = await new GitHubDraftProvider(config.github).find(args.remote, args);
                 if (found)
-                    receipt = {
+                    receipt = retained ?? {
                         remote: args.remote,
                         branch: args.head,
                         commit: args.commit,
@@ -563,6 +602,8 @@ export class RemoteOperationBroker {
                         observed_at: new Date().toISOString(),
                     };
             }
+            if (receipt && retained && canonical(receipt) !== canonical(retained))
+                throw new Error("Retained remote receipt differs from remote observation");
             const authority = this.journal.get(`authority:${operation.operation_id}`);
             const attemptId = authority?.request.lease?.attempt_id;
             if (receipt && typeof attemptId === "string")

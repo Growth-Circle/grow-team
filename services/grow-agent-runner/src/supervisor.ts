@@ -46,6 +46,7 @@ export interface AttemptChannel {
     request?(route: string, extra?: Data): Promise<Data>;
     upload?(payload: Data, bytes: Buffer): Promise<Data>;
     download?(referenceId: string): Promise<Buffer>;
+    runtimeTerminated?(): void;
 }
 export class OperationBoundary {
     private identity: Data;
@@ -309,6 +310,25 @@ export class Coordinator {
         await this.transport.mutate("stop", id, "/runner/stop-evidence", entry.request);
         this.assertScope();
     }
+    private runtimeTerminated(session: Session): void {
+        if (!session.valid || this.active !== session) return;
+        this.retire(session);
+        this.generation++;
+        // The RuntimeSupervisor calls this from its active task. Defer the control-plane
+        // report so it cannot await RuntimeSupervisor.stop through the same task.
+        const report = new Promise<void>((resolve) => setImmediate(resolve)).then(() =>
+            this.stopped(session.descriptor),
+        );
+        this.stopping = report;
+        void report
+            .catch(() => {
+                this.stopFailure = new Error("Runtime termination requires owner recovery");
+                this.reconciled = false;
+            })
+            .finally(() => {
+                if (this.stopping === report) this.stopping = null;
+            });
+    }
     async recover(): Promise<void> {
         await this.contain();
         this.assertScope();
@@ -426,6 +446,7 @@ export class Coordinator {
                         this.lease(session);
                         return response as Buffer;
                     }),
+                runtimeTerminated: () => this.runtimeTerminated(session),
             });
             this.lease(session);
         } catch (error) {

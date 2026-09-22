@@ -875,6 +875,83 @@ class AgentLifecycleRaceTests(ZulipTransactionTestCase):
         self.assertIsNone(approval.consumed_at)
         self.assertEqual(operation.status, "proposed")
 
+    def test_cancelled_remote_operation_allows_replacement_result(self) -> None:
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_approvals as approvals
+        from zerver.lib import agent_protocol as p
+
+        job, attempt, operation, approval = self.prepare_approval()
+        approvals.consume_operation(
+            self.runner,
+            job.id,
+            attempt.id,
+            1,
+            operation_id=operation.operation_id,
+            expected_version=operation.version,
+            operation_hash=operation.argument_digest,
+            nonce=approval.nonce,
+        )
+
+        def event(sequence: int, kind: str, payload: dict[str, object]) -> None:
+            jobs.record_event(
+                self.runner,
+                p.RunnerEvent.model_validate(
+                    {
+                        "schema_version": 1,
+                        "job_id": str(job.id),
+                        "attempt_id": str(attempt.id),
+                        "lease_epoch": 1,
+                        "sequence": sequence,
+                        "event_id": str(uuid4()),
+                        "occurred_at": now().isoformat(),
+                        "type": kind,
+                        "payload": payload,
+                    }
+                ),
+            )
+
+        event(
+            3,
+            "tool.started",
+            {
+                "operation_id": str(operation.operation_id),
+                "argument_digest": operation.argument_digest,
+                "tool_class": "git.push",
+                "status": "started",
+                "artifact_id": None,
+                "exit_code": None,
+                "summary": "",
+            },
+        )
+        event(
+            4,
+            "tool.finished",
+            {
+                "operation_id": str(operation.operation_id),
+                "argument_digest": operation.argument_digest,
+                "tool_class": "git.push",
+                "status": "cancelled",
+                "artifact_id": None,
+                "exit_code": None,
+                "summary": "Input arrived before remote dispatch.",
+            },
+        )
+        artifact = agents.AgentArtifact.objects.get(attempt=attempt, kind="diff")
+        event(
+            5,
+            "result.prepared",
+            {
+                "artifact_ids": [str(artifact.id)],
+                "tree_hash": "b" * 40,
+                "summary": "Replacement result after accepted input.",
+            },
+        )
+        operation.refresh_from_db()
+        self.assertEqual(operation.status, "cancelled")
+        job.refresh_from_db()
+        self.assertEqual(job.status, "verifying")
+
     def test_remote_unknown_outcome_blocks_resume_until_exact_receipt(self) -> None:
         from django.utils.timezone import now
 

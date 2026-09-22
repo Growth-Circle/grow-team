@@ -127,6 +127,39 @@ test("candidate commit binds the verified tree and carries the CADIS trailer", (
     );
 });
 
+test("remote Git inspection ignores a caller local URL rewrite", async () => {
+    const root = mkdtempSync(join(tmpdir(), "grow-remote-isolation-"));
+    const rewritten = join(root, "rewritten.git"),
+        source = join(root, "source");
+    mkdirSync(source);
+    git(root, "init", "--bare", "rewritten.git");
+    git(source, "init", "-q");
+    const head = commit(source, "isolated\n");
+    git(
+        root,
+        `--git-dir=${rewritten}`,
+        "fetch",
+        source,
+        `${head}:refs/heads/grow-agent/job/attempt`,
+    );
+    git(source, "config", `url.${rewritten}.insteadOf`, "https://approved.invalid/repo.git");
+    const previous = process.cwd();
+    process.chdir(source);
+    try {
+        await assert.rejects(
+            () =>
+                new RemoteGitBroker().head({
+                    remote: "https://approved.invalid/repo.git",
+                    branch: "grow-agent/job/attempt",
+                    credential: null,
+                }),
+            /Remote Git operation failed/,
+        );
+    } finally {
+        process.chdir(previous);
+    }
+});
+
 test("draft provider reconciles a lost create acknowledgement without a duplicate post", async () => {
     const requests: any[] = [];
     const expected = {
@@ -247,8 +280,11 @@ test("publication creates exact approved push and draft operations before extern
                         version: 1,
                         nonce: `nonce-${operations.length}`,
                         status: "proposed",
-                        ...args,
-                        extras,
+                        arguments: args,
+                        scope: extras,
+                        approval_id: null,
+                        approval_version: null,
+                        expires_at: null,
                     };
                     operations.push(operation);
                     return operation;
@@ -257,7 +293,6 @@ test("publication creates exact approved push and draft operations before extern
                     ...operation,
                     status: "started",
                     version: 2,
-                    tool_class: operation.action,
                 }),
                 beginEffect: (id: string) => effects.push(`begin:${id}`),
                 remoteReceipt: async (_lease: any, receipt: any) => receipts.push(receipt),
@@ -271,8 +306,11 @@ test("publication creates exact approved push and draft operations before extern
                 job_id: "job",
                 attempt_id: "attempt",
                 request: "Implement the approved change",
-                base_ref: "main",
-                repository: {id: "repo", canonical_origin: "https://github.example/org/repo.git"},
+                repository: {
+                    id: "repo",
+                    base_ref: "main",
+                    canonical_origin: "https://github.example/org/repo.git",
+                },
             },
             {
                 candidateCommit: async () => ({
@@ -286,11 +324,11 @@ test("publication creates exact approved push and draft operations before extern
             channel,
         );
         assert.deepEqual(
-            operations.map((operation) => operation.action),
+            operations.map((operation) => operation.arguments.action),
             ["git.push", "git.draft_pr"],
         );
-        assert.equal(operations[0].commit, "b".repeat(40));
-        assert.equal(operations[0].extras.diff_artifact_id, "diff-id");
+        assert.equal(operations[0].arguments.commit, "b".repeat(40));
+        assert.equal(operations[0].scope.diff_artifact_id, "diff-id");
         assert.equal(receipts.length, 2);
         assert.equal(receipts[1].pull_request_id, "44");
         assert.equal(effects.filter((item) => item.startsWith("begin:")).length, 2);
@@ -303,7 +341,8 @@ test("publication creates exact approved push and draft operations before extern
 
 test("accepted input before a remote approval effect leaves the stale candidate unpublished", async () => {
     const operations: any[] = [],
-        effects: string[] = [];
+        effects: string[] = [],
+        events: any[] = [];
     let polls = 0,
         pending = false;
     const git: any = {
@@ -320,7 +359,7 @@ test("accepted input before a remote approval effect leaves the stale candidate 
     );
     const channel: any = {
         lease: () => ({job_id: "job", attempt_id: "attempt", lease_epoch: 1}),
-        event: async () => {},
+        event: async (type: string, payload: any) => events.push({type, payload}),
         pollInputs: async () => {
             polls++;
             if (polls >= 5) pending = true;
@@ -346,16 +385,19 @@ test("accepted input before a remote approval effect leaves the stale candidate 
                     operation_hash: "hash",
                     version: 1,
                     nonce: "nonce",
-                    status: "proposed",
-                    ...args,
-                    extras,
+                    status: "authorized",
+                    arguments: args,
+                    scope: extras,
+                    approval_id: null,
+                    approval_version: null,
+                    expires_at: null,
                 };
                 operations.push(operation);
                 return operation;
             },
-            consume: async () => {
+            consume: async (_lease: any, operation: any) => {
                 effects.push("consume");
-                return {};
+                return {...operation, status: "started", version: 2};
             },
             beginEffect: () => effects.push("begin"),
             remoteReceipt: async () => {},
@@ -370,8 +412,11 @@ test("accepted input before a remote approval effect leaves the stale candidate 
                 job_id: "job",
                 attempt_id: "attempt",
                 request: "Apply accepted input",
-                base_ref: "main",
-                repository: {id: "repo", canonical_origin: "https://github.example/org/repo.git"},
+                repository: {
+                    id: "repo",
+                    base_ref: "main",
+                    canonical_origin: "https://github.example/org/repo.git",
+                },
             },
             {
                 candidateCommit: async () => ({
@@ -387,7 +432,12 @@ test("accepted input before a remote approval effect leaves the stale candidate 
         false,
     );
     assert.equal(operations.length, 1);
-    assert.deepEqual(effects, []);
+    assert.deepEqual(effects, ["consume", "begin"]);
+    assert.deepEqual(
+        events.map((event) => event.type),
+        ["tool.started", "tool.finished"],
+    );
+    assert.equal(events[1].payload.status, "cancelled");
 });
 
 test("a later candidate extends a reconciled push after input defers draft PR approval", async () => {
@@ -462,15 +512,19 @@ test("a later candidate extends a reconciled push after input defers draft PR ap
                         operation_hash: `hash-${operations.length}`,
                         nonce: `nonce-${operations.length}`,
                         status: "proposed",
-                        ...args,
-                        extras,
+                        arguments: args,
+                        scope: extras,
+                        approval_id: null,
+                        approval_version: null,
+                        expires_at: null,
                     };
                     operations.push(operation);
                     return operation;
                 },
                 consume: async (_lease: any, operation: any) => ({
                     ...operation,
-                    tool_class: operation.action,
+                    status: "started",
+                    version: operation.version + 1,
                 }),
                 beginEffect: () => {},
                 remoteReceipt: async () => {},
@@ -494,8 +548,11 @@ test("a later candidate extends a reconciled push after input defers draft PR ap
             job_id: "job",
             attempt_id: "attempt",
             request: "Apply the accepted input",
-            base_ref: "main",
-            repository: {id: "repo", canonical_origin: "https://github.example/org/repo.git"},
+            repository: {
+                id: "repo",
+                base_ref: "main",
+                canonical_origin: "https://github.example/org/repo.git",
+            },
         };
         assert.equal(
             await publisher.publish(
@@ -551,8 +608,9 @@ test("restart recovery observes the remote branch before it submits the retained
     );
     const operation = {
         operation_id: "op-1",
-        tool_class: "git.push",
+        operation_hash: "h",
         arguments: {
+            action: "git.push",
             remote: "https://github.example/org/repo.git",
             branch: "grow-agent/job/attempt",
             commit: "c".repeat(40),
@@ -564,6 +622,19 @@ test("restart recovery observes the remote branch before it submits the retained
     });
     journal.prepare("effect", "effect:op-1", "local", {operation});
     journal.uncertain("effect:op-1");
+    const retained = {
+        remote: "https://github.example/org/repo.git",
+        branch: "grow-agent/job/attempt",
+        commit: "c".repeat(40),
+        operation_id: "op-1",
+        pull_request_id: null,
+        pull_request_url: null,
+        observed_at: "2026-09-22T00:00:00.000Z",
+    };
+    journal.prepare("remote_receipt", "remote:op-1", "/runner/operations/reconcile", {
+        receipt: retained,
+    });
+    journal.uncertain("remote:op-1");
     const receipts: any[] = [];
     const publisher = new RemoteOperationBroker(
         () => null,
@@ -579,4 +650,5 @@ test("restart recovery observes the remote branch before it submits the retained
     }));
     assert.equal(receipts[0].attemptId, "attempt-1");
     assert.equal(receipts[0].receipt.commit, "c".repeat(40));
+    assert.deepEqual(receipts[0].receipt, retained);
 });

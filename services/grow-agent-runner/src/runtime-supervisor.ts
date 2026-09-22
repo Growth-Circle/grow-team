@@ -193,20 +193,22 @@ export class RuntimeSupervisor implements Supervisor {
         // The model loop stays outside the Coordinator lane and control polling.
         active.task = this.execute(active, channel).catch(async () => {
             active.abort.abort();
-            let confirmed = false;
             try {
                 await this.closeScope(active.d.attempt_id, "attempt");
-                confirmed = true;
-            } catch {}
-            if (confirmed)
-                await channel
-                    .event("attempt.interrupted", {
-                        process_state: "stopped",
-                        adapter_session_ref: null,
-                        stop_confirmed: true,
-                        summary: "",
-                    })
-                    .catch(() => {});
+            } catch {
+                // A failed containment check remains unknown. The coordinator retains
+                // execution ownership until its normal stop path completes.
+                await channel.event("attempt.interrupted", {
+                    process_state: "unknown",
+                    adapter_session_ref: null,
+                    stop_confirmed: false,
+                    summary: "",
+                });
+                return;
+            }
+            // The coordinator retires the channel now and reports its valid stopped
+            // event after this active task settles. Do not call stop from this task.
+            channel.runtimeTerminated?.();
         });
     }
     private async secret(

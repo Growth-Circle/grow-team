@@ -35,6 +35,7 @@ export function createRuntimeExtensions(
     const context = new BoundedTitenContext(
         log,
         (descriptor) => registry.titenFor(descriptor) as TitenContextConnection | null,
+        journal.identityScope(),
     );
     return {
         context: async (descriptor: any, channel: any) => {
@@ -130,6 +131,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
                             audience: item.audience,
                             repository: {canonical_origin: "memory-signal"},
                         }) as TitenContextConnection | null,
+                    () => registry.memoryProtectedSecrets(),
                 ).record(signal);
                 console.log("Verified owner memory signal recorded.");
                 break;

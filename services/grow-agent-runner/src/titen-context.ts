@@ -1,7 +1,7 @@
 import {createHash} from "node:crypto";
 import {closeSync, constants, fstatSync, openSync, readFileSync} from "node:fs";
 import {PrivateStore} from "./config.js";
-import type {Data} from "./protocol.js";
+import {canonical, type Data} from "./protocol.js";
 import type {JournalLog} from "./journal.js";
 
 export interface TitenConnection {
@@ -174,28 +174,42 @@ export class BoundedTitenContext {
     constructor(
         private journal: JournalLog,
         private resolveConnection: (descriptor: Data) => TitenContextConnection | null,
+        private runnerScope = "",
     ) {}
     async enrich(descriptor: Data): Promise<string> {
-        const connection = this.resolveConnection(descriptor);
-        const reference = originReference(descriptor.repository?.canonical_origin ?? "");
-        if (!connection || !reference) return "";
-        const compileId = `titen-compile:${descriptor.attempt_id}`;
-        if (this.journal.get(compileId)) return "";
-        const resolveId = `titen-resolve:${descriptor.attempt_id}`;
-        this.journal.prepare("titen_resolve", resolveId, "local", {
-            reference,
-            subject_id: connection.subject_id,
-        });
-        this.journal.uncertain(resolveId);
         try {
-            const client = new TitenClient(connection);
-            const projectId = await client.resolveProject(reference);
-            this.journal.complete(resolveId, {completed: true});
+            const connection = this.resolveConnection(descriptor);
+            const reference = originReference(descriptor.repository?.canonical_origin ?? "");
+            if (
+                !connection ||
+                !reference ||
+                typeof descriptor.job_id !== "string" ||
+                !descriptor.job_id
+            )
+                return "";
+            const audience = descriptor.audience;
+            if (
+                !audience ||
+                !Number.isSafeInteger(audience.realm_id) ||
+                !Number.isSafeInteger(audience.requester_user_id)
+            )
+                throw new Error("Invalid Titen context audience");
+            const compileId = `titen-compile:job:${descriptor.job_id}`;
+            if (this.journal.get(compileId)) return "";
+            // Create the job fence before any optional Titen request.
             this.journal.prepare("titen_compile", compileId, "local", {
-                project_id: projectId,
+                job_id: descriptor.job_id,
+                project_reference: reference,
                 subject_id: connection.subject_id,
+                requester: {
+                    realm_id: audience.realm_id,
+                    requester_user_id: audience.requester_user_id,
+                },
+                runner_scope: this.runnerScope,
             });
             this.journal.uncertain(compileId);
+            const client = new TitenClient(connection);
+            const projectId = await client.resolveProject(reference);
             const context = await client.compile({
                 subject_id: connection.subject_id,
                 project_id: projectId,
@@ -203,7 +217,7 @@ export class BoundedTitenContext {
                 max_tokens: 1200,
                 top_k: 5,
             });
-            this.journal.complete(compileId, {completed: true});
+            this.journal.complete(compileId, {completed: true, project_id: projectId});
             const text = JSON.stringify(context);
             if (Buffer.byteLength(text) > 51200) throw new Error("Titen context exceeds limit");
             return `\nUntrusted owner memory:\n${text}`;
@@ -251,17 +265,9 @@ function signal(value: unknown): Data {
         throw new Error("Invalid memory idempotency key");
     if (!/^[a-z0-9][a-z0-9_.-]*\/[a-z0-9][a-z0-9_.-]*$/.test(item.project_reference))
         throw new Error("Invalid memory project reference");
-    if (
-        !["user_statement", "tool_result", "imported_source", "decision", "system_event"].includes(
-            item.kind,
-        )
-    )
+    if (!["tool_result", "decision", "system_event"].includes(item.kind))
         throw new Error("Invalid memory observation kind");
-    if (
-        !["user_statement", "tool_result", "imported_source", "decision", "system_event"].includes(
-            item.source_type,
-        )
-    )
+    if (!["tool_result", "decision", "system_event"].includes(item.source_type))
         throw new Error("Invalid memory source type");
     if (!item.content.isWellFormed() || Buffer.byteLength(item.content) > 32000)
         throw new Error("Invalid memory content");
@@ -305,6 +311,31 @@ function signal(value: unknown): Data {
     return item;
 }
 
+const protectedPattern =
+    /-----BEGIN(?: [A-Z0-9]+)? PRIVATE KEY-----|\b(?:authorization\s*:\s*(?:basic|bearer)|bearer\s+)[a-z0-9._~+\/-]+=*|\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret)\s*[:=]\s*\S+|\bAKIA[0-9A-Z]{16}\b/i;
+const forbiddenProvenance =
+    /\b(?:recall(?:ed)?|transcript|prompt|chain.of.thought|reasoning|model[ _-]?output)\b/i;
+
+function protectedText(item: Data, knownSecrets: string[]): void {
+    const fields = [
+        item.content,
+        item.source_ref,
+        item.source_id,
+        ...item.claims.map((claim: Data) => claim.statement),
+    ];
+    if (
+        fields.some(
+            (value) =>
+                typeof value !== "string" ||
+                protectedPattern.test(value) ||
+                knownSecrets.some((secret) => secret && value.includes(secret)),
+        )
+    )
+        throw new Error("Protected content cannot enter memory");
+    if (forbiddenProvenance.test(item.source_ref) || forbiddenProvenance.test(item.source_id))
+        throw new Error("Memory provenance is not eligible for durable storage");
+}
+
 function evidence(path: string, expected: string): void {
     const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
     try {
@@ -327,6 +358,7 @@ export class OwnerMemorySignals {
     constructor(
         private store: PrivateStore,
         private resolveConnection: (signal: Data) => TitenContextConnection | null,
+        private knownSecrets: () => string[] = () => [],
     ) {}
     async record(value: unknown): Promise<void> {
         const item = signal(value),
@@ -334,24 +366,57 @@ export class OwnerMemorySignals {
         if (!connection) throw new Error("No owner-approved Titen subject mapping");
         evidence(item.evidence_path, item.evidence_sha256);
         const stored = this.store.read<Record<string, Data>>("memory-signals.json") ?? {};
-        if (stored[item.idempotency_key]) return;
+        const requestDigest = createHash("sha256").update(canonical(item)).digest("hex");
+        const existing = stored[item.idempotency_key];
+        if (existing && existing.request_digest !== requestDigest)
+            throw new Error("Memory idempotency key belongs to a different signal");
+        protectedText(item, this.knownSecrets());
+        if (existing?.state === "complete") return;
         const client = new TitenClient(connection);
         const projectId = await client.resolveProject(item.project_reference);
-        const remembered = await client.remember({
-            subject_id: connection.subject_id,
-            project_id: projectId,
-            kind: item.kind,
-            content: item.content,
-            source_type: item.source_type,
-            source_ref: item.source_ref,
-            source_id: item.source_id,
-            trust: "verified",
-            visibility: "organization",
-            idempotency_key: item.idempotency_key,
-        });
-        if (typeof remembered.observation_id !== "string" || !remembered.observation_id)
-            throw new Error("Invalid remembered observation");
-        await client.consolidate({
+        if (
+            existing &&
+            (existing.project_id !== projectId || existing.subject_id !== connection.subject_id)
+        )
+            throw new Error("Memory idempotency scope changed");
+        let observationId = existing?.observation_id;
+        if (typeof observationId !== "string" || !observationId) {
+            const remembered = await client.remember({
+                subject_id: connection.subject_id,
+                project_id: projectId,
+                kind: item.kind,
+                content: item.content,
+                source_type: item.source_type,
+                source_ref: item.source_ref,
+                source_id: item.source_id,
+                trust: "verified",
+                visibility: "organization",
+                idempotency_key: item.idempotency_key,
+            });
+            if (
+                typeof remembered.observation_id !== "string" ||
+                !remembered.observation_id ||
+                remembered.subject_id !== connection.subject_id ||
+                remembered.project_id !== projectId ||
+                remembered.kind !== item.kind ||
+                remembered.trust !== "verified" ||
+                remembered.visibility !== "organization"
+            )
+                throw new Error("Invalid remembered observation");
+            observationId = remembered.observation_id;
+            stored[item.idempotency_key] = {
+                request_digest: requestDigest,
+                project_id: projectId,
+                subject_id: connection.subject_id,
+                evidence_sha256: item.evidence_sha256,
+                source_ref: item.source_ref,
+                source_id: item.source_id,
+                observation_id: observationId,
+                state: "remembered",
+            };
+            this.store.write("memory-signals.json", stored);
+        }
+        const consolidated = await client.consolidate({
             subject_id: connection.subject_id,
             project_id: projectId,
             idempotency_key: item.idempotency_key,
@@ -361,15 +426,37 @@ export class OwnerMemorySignals {
                 ...(claim.confidence === undefined ? {} : {confidence: claim.confidence}),
                 trust: "verified",
                 visibility: "organization",
-                sources: [{observation_id: remembered.observation_id, relation: "supports"}],
+                sources: [{observation_id: observationId, relation: "supports"}],
             })),
         });
+        if (
+            consolidated.subject_id !== connection.subject_id ||
+            consolidated.project_id !== projectId ||
+            !Array.isArray(consolidated.claims) ||
+            consolidated.claims.length !== item.claims.length ||
+            consolidated.claims.some(
+                (claim: Data, index: number) =>
+                    typeof claim.claim_id !== "string" ||
+                    !claim.claim_id ||
+                    claim.kind !== item.claims[index].kind ||
+                    claim.trust !== "verified" ||
+                    claim.visibility !== "organization" ||
+                    !Array.isArray(claim.evidence_ids) ||
+                    claim.evidence_ids.length !== 1 ||
+                    claim.evidence_ids[0] !== observationId,
+            )
+        )
+            throw new Error("Invalid consolidated memory claim");
         stored[item.idempotency_key] = {
+            request_digest: requestDigest,
             project_id: projectId,
             subject_id: connection.subject_id,
             evidence_sha256: item.evidence_sha256,
             source_ref: item.source_ref,
             source_id: item.source_id,
+            observation_id: observationId,
+            claim_ids: consolidated.claims.map((claim: Data) => claim.claim_id),
+            state: "complete",
             recorded_at: new Date().toISOString(),
         };
         this.store.write("memory-signals.json", stored);
