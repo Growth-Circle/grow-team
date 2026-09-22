@@ -2529,8 +2529,8 @@ body:not(.spectator-view) {
         /* Put styling on div rather than img to gracefully handle
            uBlock Origin blocking of gravatar, which seems to make
            the img disappear. */
-        width: 1.5em; /* 24px at 16px em */
-        height: 1.5em; /* 24px at 16px em */
+        width: 1.875em; /* 30px at 16px em, matches frame 10a's topbar */
+        height: 1.875em; /* 30px at 16px em */
         background-size: cover;
         border-radius: var(--radius-pill);
         background-color: var(--color-background-image-loader);
