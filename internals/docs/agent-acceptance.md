@@ -1,6 +1,6 @@
 # Bukti penerimaan platform agent Grow Team
 
-Status: implementasi berlangsung. Ketiga spesifikasi tetap berada dalam `spec/`.
+Status: implementasi berlangsung. Ketiga spesifikasi implementasi tetap berada dalam `spec/`.
 
 Dokumen ini mencatat hasil nyata untuk setiap kriteria penerimaan. Baris hanya
 menjadi lulus setelah tes dan bukti yang disebutkan tersedia pada commit rilis.
@@ -89,6 +89,20 @@ memastikan proses yang sudah berhenti tidak memperpanjang lease dan receipt stop
 dapat dipulihkan. Controller memverifikasi 1.436 berkas paket, 27 modul hasil
 build, serta 60 berkas image. Alur provider nyata dan browser masih menunggu
 sertifikasi integrasi.
+
+Backend pengaturan dan CLI perangkat pada `6725a74` lulus review independen.
+Suite API memuat 37 tes; koreksi batas input kemudian lulus dua regresi tambahan.
+Sepuluh tes CLI dan transport lulus. Review juga memeriksa lima kasus backend
+dan empat kasus CLI secara langsung. Lihat [tes pengaturan](../../zerver/tests/test_agents_api.py),
+[tes default tim](../../zerver/tests/test_agents_selection.py), dan
+[tes metadata CLI](../../services/grow-agent-runner/test/metadata.test.ts).
+
+Bukti mencakup CAS metadata, proyeksi resource sesuai ACL, pemulihan draft,
+aktivasi eksplisit setelah probe, default tim, serta credential yang hanya dapat
+ditulis. Edit konfigurasi provider membatalkan kesiapan lama; edit metadata tidak
+mengubah konfigurasi eksekusi. Respons CLI yang hilang diperiksa melalui pembacaan
+metadata tanpa mengulang penulisan. UI, paket rilis, dan produksi masih menunggu
+verifikasi; bukti ini tidak menyelesaikan seluruh kriteria AS.
 
 Integrasi backup pada commit `bafbc67` lulus 43 tes dan review independen.
 Lihat [tes file backup](../../zerver/tests/test_agents_backup.py),
@@ -198,35 +212,35 @@ tersebut tidak menyatakan fitur sudah tersedia di produksi atau spesifikasi sele
 | ID | Skenario | Hasil wajib | Status dan bukti |
 | --- | --- | --- | --- |
 | AS-01 | Anggota memakai agent yang dibagikan                            | Dapat membuat tugas tanpa pairing, instalasi lokal, atau profil baru. | Belum diuji. |
-| AS-02 | Workstation dan server melalui pairing                          | Protokol sama; owner/realm terikat benar; kategori berasal dari deklarasi pemilik. | Belum diuji. |
+| AS-02 | Workstation dan server melalui pairing                          | Protokol sama; owner/realm terikat benar; kategori berasal dari deklarasi pemilik. | Sebagian: metadata deklarasi pemilik dan CAS melalui browser/device API lulus pada `6725a74`; pairing lewat UI belum diuji lengkap. |
 | AS-03 | Browser berbeda, termasuk ponsel                                | Nama/lokasi runner tetap tepat; tidak ada tebakan “perangkat ini”. | Belum diuji. |
 | AS-04 | Empat kombinasi lokasi runner dan model                         | Label membedakan eksekusi tools dari lokasi inferensi; localhost merujuk runner. | Belum diuji. |
-| AS-05 | Kategori atau status belum diketahui                            | Unknown tetap terlihat; tidak berubah menjadi server atau offline berdasarkan fallback. | Belum diuji. |
+| AS-05 | Kategori atau status belum diketahui                            | Unknown tetap terlihat; tidak berubah menjadi server atau offline berdasarkan fallback. | Sebagian: heartbeat stale diproyeksikan unknown pada direktori dan resolver `6725a74`; tampilan browser belum diuji lengkap. |
 | AS-06 | Katalog adapter runner A dan B berbeda                          | Form hanya menawarkan hasil runner terpilih; callback lama tidak mengganti hasil runner baru. | Belum diuji. |
 | AS-07 | Adapter terpasang tetapi auth unknown/logout                    | UI meminta tindakan yang tepat; tidak mengumumkan code_ready. | Belum diuji. |
 | AS-08 | Endpoint tanpa discovery model atau tools                       | Model manual dapat diprobe; kegagalan tools tidak disamarkan sebagai Coding siap. | Belum diuji. |
 | AS-09 | Runner diubah saat form koneksi terbuka                         | Provider/repository yang tidak cocok dibatalkan; secret/path tidak berpindah otomatis. | Belum diuji. |
 | AS-10 | Endpoint localhost/private                                      | Request probe berasal dari runner berizin; browser dan server web tidak melakukan probe ke host tersebut. | Belum diuji. |
-| AS-11 | Create/retry profil setelah respons hilang                      | Satu identitas profil dan bot; status setup dapat ditemukan kembali. | Belum diuji. |
+| AS-11 | Create/retry profil setelah respons hilang                      | Satu identitas profil dan bot; status setup dapat ditemukan kembali. | Sebagian: recovery memakai retry key pemilik dan identitas profil existing lulus pada `6725a74`; pemulihan browser belum diuji. |
 | AS-12 | Probe selesai setelah pengguna mengetik atau mengosongkan field | Nilai draft terbaru tetap utuh; tidak ada probe ulang per keystroke. | Belum diuji. |
 | AS-13 | Save berlangsung lalu pengguna mengedit atau menutup form       | Hasil lama tidak menghapus draft baru; cancel sebelum submit tidak mengirim mutasi. | Belum diuji. |
-| AS-14 | Draft lulus probe, belum enable                                 | Profil siap tetap draft dan tidak menerima tugas; enable revision yang tepat mengaktifkannya. | Belum diuji. |
-| AS-15 | Hanya grant profil yang diberikan                               | UI tidak mengklaim akses lengkap; admission menolak resource lain yang belum diberikan. | Belum diuji. |
-| AS-16 | Admin memilih profil privat atau profil realm lain              | Tidak menembus ACL; pilihan default tidak memberi grant tambahan. | Belum diuji. |
+| AS-14 | Draft lulus probe, belum enable                                 | Profil siap tetap draft dan tidak menerima tugas; enable revision yang tepat mengaktifkannya. | Sebagian: probe tidak mengaktifkan draft secara otomatis pada `6725a74`; perjalanan probe dan enable di browser belum diuji. |
+| AS-15 | Hanya grant profil yang diberikan                               | UI tidak mengklaim akses lengkap; admission menolak resource lain yang belum diberikan. | Sebagian: proyeksi akses parsial dan irisan grant resource lulus pada `6725a74`; tampilan serta admission produk belum diuji lengkap. |
+| AS-16 | Admin memilih profil privat atau profil realm lain              | Tidak menembus ACL; pilihan default tidak memberi grant tambahan. | Sebagian: default memerlukan grant dan akses terkini pada `6725a74`; pemilihan tidak menerbitkan grant. Alur admin di browser belum diuji. |
 | AS-17 | Default tim dipakai dua anggota                                 | Identitas agent sama, job terpisah, izin kedua anggota diperiksa sendiri. | Belum diuji. |
 | AS-18 | Anggota memilih profil lain                                     | Pilihan eksplisit menang atas default, recents, serta refresh status. | Belum diuji. |
 | AS-19 | Anggota mengosongkan pemilih                                    | Callback resolver tidak mengisi ulang default pada draft yang sama. | Belum diuji. |
 | AS-20 | Admin mengganti default A menjadi B saat draft A terbuka        | Draft dan job A tetap ke A; form baru memakai B jika sah. | Belum diuji. |
-| AS-21 | Default offline atau kapasitas penuh                            | Tidak berpindah agent otomatis; antrean/rejection mengikuti admission existing. | Belum diuji. |
-| AS-22 | Default paused, stale, revoked, atau tidak dapat diketahui      | Tidak dipilih untuk form baru; reason disesuaikan ACL dan tidak membocorkan ID tersembunyi. | Belum diuji. |
+| AS-21 | Default offline atau kapasitas penuh                            | Tidak berpindah agent otomatis; antrean/rejection mengikuti admission existing. | Sebagian: resolver mempertahankan pilihan offline tanpa fallback pada `6725a74`; antrean penuh dan tampilan browser masih memerlukan verifikasi. |
+| AS-22 | Default paused, stale, revoked, atau tidak dapat diketahui      | Tidak dipilih untuk form baru; reason disesuaikan ACL dan tidak membocorkan ID tersembunyi. | Sebagian: penolakan default tidak siap serta redaksi default tersembunyi lulus pada `6725a74`; tampilan browser belum diuji lengkap. |
 | AS-23 | Default Diskusi dipilih untuk permintaan Coding eksplisit       | Tidak menaikkan kemampuan atau grant; pengguna memilih agent yang sesuai. | Belum diuji. |
 | AS-24 | Mention eksplisit, chat biasa, DM, dan pesan bot                | Default tim tidak menambah penerima atau trigger di luar aturan AT/AF. | Belum diuji. |
-| AS-25 | Dua admin menyimpan expected revision yang sama                 | Satu perubahan menang; pihak lain mendapat conflict dan dapat membaca keadaan terbaru. | Belum diuji. |
-| AS-26 | Izin dicabut antara resolve dan submit                          | Tidak ada spawn tanpa otoritas; profile ID kosong tidak diisi default server diam-diam. | Belum diuji. |
+| AS-25 | Dua admin menyimpan expected revision yang sama                 | Satu perubahan menang; pihak lain mendapat conflict dan dapat membaca keadaan terbaru. | Sebagian: CAS dan audit perubahan default lulus pada `6725a74`; dua admin melalui browser belum diuji. |
+| AS-26 | Izin dicabut antara resolve dan submit                          | Tidak ada spawn tanpa otoritas; profile ID kosong tidak diisi default server diam-diam. | Sebagian: pencabutan grant sesudah resolve ditolak saat admission pada `6725a74`; alur browser dan proses nyata belum diuji. |
 | AS-27 | Logout/realm switch dengan request tertunda                     | Data/cache/callback realm lama tidak muncul pada konteks baru. | Belum diuji. |
-| AS-28 | Credential atau model profil berubah                            | Kesiapan lama tidak berlaku; secret tidak tersalin ke browser/anggota atau artifact. | Belum diuji. |
-| AS-29 | Default diganti, label runner diedit, atau default dikosongkan  | Tidak ada restart proses, perubahan budget, atau pembatalan job sebagai efek samping. | Belum diuji. |
-| AS-30 | Profil default diarsip atau pemilik dinonaktifkan               | Tidak ada pengambilalihan credential/ownership atau pengalihan job; pengguna mendapat jalur pemulihan yang sah. | Belum diuji. |
+| AS-28 | Credential atau model profil berubah                            | Kesiapan lama tidak berlaku; secret tidak tersalin ke browser/anggota atau artifact. | Sebagian: credential write-only, retensi network tersembunyi, dan invalidasi kesiapan setelah edit konfigurasi lulus pada `6725a74`; jalur browser/artifact belum diuji lengkap. |
+| AS-29 | Default diganti, label runner diedit, atau default dikosongkan  | Tidak ada restart proses, perubahan budget, atau pembatalan job sebagai efek samping. | Sebagian: metadata/default terpisah dari revision eksekusi pada `6725a74`; proses nyata dan efek UI belum diuji lengkap. |
+| AS-30 | Profil default diarsip atau pemilik dinonaktifkan               | Tidak ada pengambilalihan credential/ownership atau pengalihan job; pengguna mendapat jalur pemulihan yang sah. | Sebagian: pemilik nonaktif menutup otoritas dan pemilihan default pada `6725a74`; alur arsip serta pemulihan browser belum diuji lengkap. |
 | AS-31 | Penggunaan dipindah dari laptop ke server                       | Profil/runner baru diprobe dan diberi grant; job serta bot lama tetap dapat ditelusuri. | Belum diuji. |
 | AS-32 | Migrasi aditif, UI lintas browser, dan regresi chat             | Data existing memakai default null/lokasi unknown; query tidak per kartu; AT-33/AT-36 dan regresi chat tetap lulus. | Belum diuji. |
 

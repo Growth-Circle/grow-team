@@ -355,8 +355,8 @@ assert.equal(provider.createdPullRequests(operationId), 1);
 
 - [ ] Complete authorized discovery, edit, readiness, ownership, and check-evidence contracts needed by the browser.
 - [ ] Add the Agent directory, Devices, Model connections, and Team default settings areas.
-- [ ] Add owner-declared runner location metadata with a separate metadata revision.
-- [ ] Add realm default selection with explicit audience grants, current policy checks, and compare-and-set revisions.
+- [x] Add owner-declared runner location metadata with a separate metadata revision.
+- [x] Add realm default selection with explicit audience grants, current policy checks, and compare-and-set revisions.
 - [ ] Keep profile drafts, probe readiness, and explicit activation separate through stale callback and reload recovery.
 - [ ] Add runner pairing/approval, status, revocation, repository registration guidance, and explicit grants.
 - [ ] Add provider forms, write-only secret input, local references, versioned probes, and capability limits.
