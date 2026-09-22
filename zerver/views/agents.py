@@ -196,6 +196,17 @@ def _runner_data(runner: agents.AgentRunner, actor: UserProfile | None = None) -
         "metadata_revision": runner.metadata_revision,
         "catalog_revision": runner.catalog_revision,
         "catalog": runner.catalog_report if owner else None,
+        "catalog_summary": {
+            "revision": runner.catalog_revision,
+            "reported_at": runner.catalog_report.get("reported_at"),
+            "adapters": [
+                {"id": item["id"], "version": item["version"], "auth_state": item["auth_state"]}
+                for item in runner.catalog_report.get("adapters", [])
+            ],
+            "sandboxes": [
+                {"alias": item["alias"]} for item in runner.catalog_report.get("sandboxes", [])
+            ],
+        },
         "allowed_actions": ["edit", "revoke"]
         if owner and actor and actor.is_active and runner.revoked_at is None
         else [],

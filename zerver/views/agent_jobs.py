@@ -319,6 +319,7 @@ def get_job(request: HttpRequest, user_profile: UserProfile, job_id: UUID) -> Ht
         artifacts = [
             {
                 "id": str(item.id),
+                "attempt_id": str(item.attempt_id),
                 "kind": item.kind,
                 "filename": item.filename,
                 "size": item.size,

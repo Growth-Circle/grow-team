@@ -1091,7 +1091,12 @@ class AgentAPITests(ZulipTestCase):
 
     def test_shared_runner_create_list_detail_and_cross_realm_denial(self) -> None:
         member = self.example_user("othello")
-        self.post_agent(
+        self.login_user(member)
+        self.assertEqual(
+            self.assert_json_success(self.client_get("/json/agent/runners"))["count"], 0
+        )
+        self.login_user(self.owner)
+        grant = self.post_agent(
             "grants",
             {
                 "target_kind": "runner",
@@ -1102,6 +1107,18 @@ class AgentAPITests(ZulipTestCase):
             },
         )
         self.login_user(member)
+        runner_data = self.assert_json_success(self.client_get("/json/agent/runners"))["runners"][0]
+        self.assertIsNone(runner_data["catalog"])
+        self.assertEqual(
+            runner_data["catalog_summary"],
+            {
+                "revision": 1,
+                "reported_at": None,
+                "adapters": [{"id": "acp", "version": "1", "auth_state": "ready"}],
+                "sandboxes": [{"alias": "default"}],
+            },
+        )
+        self.assertNotIn("image_digest", json.dumps(runner_data["catalog_summary"]))
         created = self.post_agent("profiles", self.profile_payload())
         profile = agents.AgentProfile.objects.get(runner=self.runner)
         self.assertEqual(profile.owner_id, member.id)
@@ -1109,6 +1126,12 @@ class AgentAPITests(ZulipTestCase):
             self.assert_json_success(self.client_get("/json/agent/profiles"))["count"], 1
         )
         self.assertEqual(self.client_get(f"/json/agent/profiles/{profile.id}").status_code, 200)
+        self.login_user(self.owner)
+        self.post_agent(f"grants/{grant['grant']['id']}/revoke", {"expected_revision": 1})
+        self.login_user(member)
+        self.assertEqual(
+            self.assert_json_success(self.client_get("/json/agent/runners"))["count"], 0
+        )
         self.login_user(self.mit_user("sipbtest"))
         self.assertEqual(
             self.assert_json_success(self.client_get("/json/agent/profiles", subdomain="zephyr"))[
@@ -1309,6 +1332,57 @@ class AgentAPITests(ZulipTestCase):
         )
         self.assertEqual(len(page["operations"]), 1)
         self.assertTrue(page["operations_cursor"]["truncated"])
+
+        # Artifact pages must retain attempt identity after a resume.
+        previous_artifact = agents.AgentArtifact.objects.create(
+            realm=self.owner.realm,
+            attempt=attempt,
+            kind="diff",
+            checksum="a" * 64,
+            size=1,
+            storage_ref=f"artifacts/{uuid4()}",
+            filename="first.patch",
+            expires_at=now() + timedelta(days=1),
+        )
+        attempt.active = False
+        attempt.ended_at = now()
+        attempt.process_state = "stopped"
+        attempt.save(update_fields=["active", "ended_at", "process_state"])
+        resumed = agents.AgentAttempt.objects.create(
+            realm=self.owner.realm,
+            job=job,
+            runner=self.runner,
+            number=attempt.number + 1,
+            lease_epoch=attempt.lease_epoch + 1,
+            lease_expires_at=now() + timedelta(minutes=5),
+            descriptor=attempt.descriptor,
+            descriptor_digest=attempt.descriptor_digest,
+            process_state="active",
+            tree_hash="e" * 40,
+        )
+        current_artifact = agents.AgentArtifact.objects.create(
+            realm=self.owner.realm,
+            attempt=resumed,
+            kind="diff",
+            checksum="b" * 64,
+            size=1,
+            storage_ref=f"artifacts/{uuid4()}",
+            filename="second.patch",
+            expires_at=now() + timedelta(days=1),
+        )
+        first_page = self.assert_json_success(
+            self.client_get(f"/json/agent/jobs/{job.id}", {"artifact_limit": 1})
+        )
+        second_page = self.assert_json_success(
+            self.client_get(
+                f"/json/agent/jobs/{job.id}", {"artifact_offset": 1, "artifact_limit": 1}
+            )
+        )
+        self.assertEqual(first_page["artifacts"][0]["id"], str(previous_artifact.id))
+        self.assertEqual(first_page["artifacts"][0]["attempt_id"], str(attempt.id))
+        self.assertEqual(second_page["artifacts"][0]["id"], str(current_artifact.id))
+        self.assertEqual(second_page["artifacts"][0]["attempt_id"], str(resumed.id))
+        self.assertTrue(first_page["artifacts_cursor"]["truncated"])
 
     def test_pause_requires_current_revision_and_rejects_late_readiness(self) -> None:
         from zerver.actions.agents import record_readiness
