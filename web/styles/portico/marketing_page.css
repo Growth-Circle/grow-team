@@ -985,7 +985,7 @@ label.label-title {
     font-size: 1rem;
     background: linear-gradient(
         145deg,
-        hsl(191deg 56% 55%),
+        hsl(172deg 56% 55%),
         hsl(169deg 65% 42%)
     );
     color: hsl(0deg 0% 100%);
@@ -1579,7 +1579,7 @@ button {
 
     background: linear-gradient(
         145deg,
-        hsl(191deg 56% 55%),
+        hsl(172deg 56% 55%),
         hsl(169deg 65% 42%)
     );
 
@@ -3512,7 +3512,7 @@ button {
             padding: 50px;
             background: linear-gradient(
                 180deg,
-                hsl(191deg 56% 55%),
+                hsl(172deg 56% 55%),
                 hsl(169deg 65% 42%)
             );
 

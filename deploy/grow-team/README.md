@@ -29,7 +29,7 @@ Gunakan topik untuk memisahkan pekerjaan di dalam setiap channel.
 Branch `grow-team` dimulai dari tag upstream `12.2`, commit `1e73e1d754761b73c18135a3f25d0673f31cd8b3`.
 Remote `upstream` menunjuk ke `zulip/zulip`; `origin` menunjuk ke `Growth-Circle/grow-team`.
 Image resmi `ghcr.io/zulip/zulip-server:12.2-0` menjadi base image runtime.
-Image fork `grow-team/server:12.2-grow-team.4` membawa identitas Grow Team.
+Image fork `grow-team/server:12.2-grow-team.6` membawa identitas Grow Team.
 Base image dan image pendukung dipatok dengan digest.
 Image fork dibangun lokal dan mencatat commit sumber pada label serta `build_id`.
 

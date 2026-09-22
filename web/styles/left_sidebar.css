@@ -6,7 +6,7 @@
        and shadow give the hover feedback instead. */
     opacity: 1;
     transition: opacity 140ms linear;
-    font-size: inherit;
+    font-size: var(--font-size-sidebar-heading);
     font-weight: var(--font-weight-sidebar-heading);
     letter-spacing: var(--letter-spacing-sidebar-heading);
     /* Override heading margin from Bootstrap. */
@@ -1242,7 +1242,7 @@ li.active-sub-filter {
                    calibrated against, independent of the
                    14px-em/0.9286em size .unread_count uses
                    elsewhere. */
-                font-size: 12px;
+                font-size: 0.8571em; /* 12px at 14px/1em, scales with information density */
             }
 
             /* Show the same styles when each item is
@@ -2259,7 +2259,7 @@ ul.topic-list.topic-list-has-topics::before {
     left: 9px;
     border: 1px solid var(--color-topic-indent-border);
     border-right: 0;
-    border-radius: 9px 0 0 9px;
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
     width: 6px;
     pointer-events: none;
 }

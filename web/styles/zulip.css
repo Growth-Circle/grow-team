@@ -202,13 +202,13 @@ p.n-margin {
 }
 
 .all-messages-search-caution {
-    border: 1px solid hsl(192deg 19% 75% / 20%);
-    box-shadow: 0 0 2px hsl(192deg 19% 75% / 20%);
+    border: 1px solid var(--color-border-tip);
+    box-shadow: 0 0 2px var(--color-border-tip);
 }
 
 .history-limited-box,
 .all-messages-search-caution {
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     display: none;
     margin: 0 auto 12px;
     padding: 5px;
@@ -298,7 +298,7 @@ p.n-margin {
     max-width: calc(100% - 20px);
     padding: 15px;
     background-color: var(--color-background-modal);
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
     box-shadow: 0 0 30px hsl(0deg 0% 0% / 25%);
     box-sizing: border-box;
 }
@@ -482,7 +482,7 @@ body.has-overlay-scrollbar {
             overflow: hidden;
             text-overflow: ellipsis;
             /* Button curvature and transitions. */
-            border-radius: 4px;
+            border-radius: var(--radius-xs);
             transition: transform 100ms ease-out;
 
             &:hover,
@@ -903,7 +903,7 @@ strong {
            the message without overflowing the boundary of the message in any case. */
         outline: 1px solid var(--color-selected-message-outline);
         /* Matches the message card's own corner radius. */
-        border-radius: var(--radius-xl);
+        border-radius: var(--radius-md);
         outline-offset: -1px;
     }
 }
@@ -993,7 +993,7 @@ div.focused-message-list.is-conversation-view .recipient_row {
     line-height: 1.2142em;
     padding: 0 5px;
     color: var(--color-text-default);
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     border: 1px solid hsl(0deg 0% 80%);
     font-family: inherit;
 
@@ -1002,11 +1002,11 @@ div.focused-message-list.is-conversation-view .recipient_row {
         box-shadow linear 0.2s;
 
     &:focus {
-        border-color: hsl(206deg 80% 62% / 80%);
+        border-color: var(--color-outline-input-focus);
         outline: 0;
         box-shadow:
             inset 0 1px 1px hsl(0deg 0% 0% / 7.5%),
-            0 0 8px hsl(206deg 80% 62% / 60%);
+            0 0 8px var(--color-box-shadow-input-focus);
     }
 
     &.empty-topic-display::placeholder {
@@ -1053,6 +1053,12 @@ div.focused-message-list.is-conversation-view .recipient_row {
     vertical-align: top;
     border-radius: var(--radius-pill);
     overflow: hidden;
+
+    /* The guest badge (app_components.css .guest-avatar::after) sits
+       partly outside this box on purpose. Do not clip it here. */
+    &.guest-avatar {
+        overflow: visible;
+    }
 
     &.guest-avatar::after {
         outline: 2px solid hsl(0deg 0% 100%);
@@ -1255,7 +1261,7 @@ nav {
     left: -1.3571em; /* 50% of 38px = 19px at 14px/em */
     top: -3.0714em; /* -43px at 14px/em */
     z-index: 1;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
 }
 
 #page_loading_indicator {
@@ -1274,7 +1280,7 @@ nav {
     /* -43px at 14px/1em */
     top: -3.0714em;
     z-index: 1;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
 }
 
 #create_stream_subscribers {
@@ -1384,7 +1390,7 @@ div.topic_edit_spinner .loading_indicator_spinner {
 
     padding: var(--input-vertical-padding) var(--input-horizontal-padding);
     color: var(--color-text-default);
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     border: var(--input-border-width) solid var(--color-border-legacy-input);
     background-color: var(--color-background-legacy-input);
     box-shadow: inset 0 1px 1px hsl(0deg 0% 0% / 7.5%);
@@ -1398,7 +1404,7 @@ div.topic_edit_spinner .loading_indicator_spinner {
         outline: 0;
         box-shadow:
             inset 0 1px 1px hsl(0deg 0% 0% / 7.5%),
-            0 0 8px hsl(206deg 80% 62% / 60%);
+            0 0 8px var(--color-box-shadow-input-focus);
     }
 }
 
@@ -1504,7 +1510,7 @@ div.topic_edit_spinner .loading_indicator_spinner {
 
     .flatpickr-confirm {
         color: hsl(0deg 0% 100%);
-        background-color: hsl(213deg 90% 65%);
+        background-color: hsl(172.44deg 88.15% 26.47%);
         font-size: var(--flatpickr-confirm-button-font-size);
         font-weight: 600;
     }
@@ -1539,7 +1545,7 @@ div.topic_edit_spinner .loading_indicator_spinner {
 
     .overlay-content {
         width: 440px;
-        border-radius: 4px;
+        border-radius: var(--radius-xs);
     }
 
     .zulip-version-info,
@@ -2196,8 +2202,8 @@ body:not(.spectator-view) {
 
         &:focus {
             background: hsl(0deg 0% 100%);
-            border: 1px solid hsl(229.09deg 21.57% 10% / 80%);
-            box-shadow: 0 0 6px hsl(228deg 9.8% 20% / 30%);
+            border: 1px solid hsl(180deg 21.57% 10% / 80%);
+            box-shadow: 0 0 6px hsl(180deg 9.8% 20% / 30%);
         }
     }
 }
@@ -2390,7 +2396,7 @@ body:not(.spectator-view) {
             bottom: 0;
             width: 3px;
             background-color: var(--color-outline-focus);
-            border-radius: 4px;
+            border-radius: var(--radius-xs);
         }
 
         .dropdown-list-item-common-styles {
@@ -2546,7 +2552,7 @@ body:not(.spectator-view) {
         padding: 2px;
         font-size: 0.8em;
         position: absolute;
-        border-radius: 10px;
+        border-radius: var(--radius-lg);
         bottom: -2px;
         right: -2px;
     }

@@ -18,7 +18,7 @@
 .color-swatch-label {
     width: var(--size-color-swatch);
     height: var(--size-color-swatch);
-    border-radius: 50%;
+    border-radius: var(--radius-pill);
     cursor: pointer;
 
     &:focus-visible {
@@ -41,7 +41,7 @@
 }
 
 .custom-color-swatch-icon {
-    border-radius: 50%;
+    border-radius: var(--radius-pill);
     background: var(--gradient-custom-swatch);
 }
 

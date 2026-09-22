@@ -14,7 +14,7 @@
 
     & button {
         font-weight: 700;
-        color: hsl(240deg 100% 50%);
+        color: var(--color-text-url);
         font-family: inherit;
         font-size: inherit;
     }
@@ -74,7 +74,7 @@
                 text-align: center;
                 border: 2px solid var(--color-border-todo-checkbox);
 
-                border-radius: 4px;
+                border-radius: var(--radius-xs);
                 filter: brightness(1);
 
                 cursor: pointer;
@@ -135,14 +135,14 @@
     & input[type="text"] {
         /* Reset from zulip.css */
         height: unset;
-        border: 1px solid hsl(0deg 0% 80%);
+        border: 1px solid var(--color-outline-input);
         box-shadow: inset 0 1px 1px hsl(0deg 0% 0% / 7.5%);
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         color: var(--color-text-default);
         font-family: inherit;
 
         &:focus {
-            border-color: hsl(206deg 80% 62% / 80%);
+            border-color: var(--color-outline-input-focus);
             outline: 0;
             box-shadow: none;
             background-color: var(--color-background-widget-input);
@@ -183,7 +183,7 @@
         border-color: var(--color-border-poll-vote);
         border-style: solid;
         font-weight: 600;
-        border-radius: 3px;
+        border-radius: var(--radius-xs);
         /* We don't want poll-vote tallies to spill
            digits onto second lines in narrow viewports. */
         flex-shrink: 0;
@@ -224,13 +224,13 @@
 button {
     &.add-task,
     &.poll-option {
-        color: hsl(156deg 41% 40%);
-        border: 1px solid hsl(156deg 28% 70%);
+        color: var(--color-poll-vote);
+        border: 1px solid var(--color-border-todo-checkbox);
         width: max-content;
         flex: 0 0 auto;
-        border-radius: 3px;
+        border-radius: var(--radius-md);
         background-color: var(--color-background-widget-button);
-        padding: 4px;
+        padding: 6px;
         padding-left: 14px;
         padding-right: 14px;
         font-family: inherit;
@@ -239,7 +239,7 @@ button {
         &:hover,
         &:focus {
             outline: 0;
-            border-color: hsl(156deg 30% 50%);
+            border-color: var(--color-border-todo-checkbox-hover);
             transition: 0.2s ease;
             transition-property: background-color, border-color, color;
         }
@@ -270,7 +270,7 @@ input {
 }
 
 .widget-error {
-    color: hsl(1deg 45% 50%);
+    color: var(--color-text-danger-subtle-action-button);
     font-size: 0.8571em; /* 12px at 14px/em */
     display: flex;
     align-items: center;
@@ -285,7 +285,7 @@ input {
        as part of information density work. */
     flex: 0 0 30.5px;
     min-height: 30.5px;
-    border-radius: 3px;
+    border-radius: var(--radius-md);
     border: 1px solid var(--color-border-zulip-button);
     background-color: var(--color-background-zulip-button);
     font-size: inherit;
@@ -325,7 +325,7 @@ input {
 }
 
 .current-user-vote {
-    background-color: hsl(156deg 10% 90% / 90%);
+    background-color: var(--color-background-poll-vote-focus);
 }
 
 .add-task-wrapper {

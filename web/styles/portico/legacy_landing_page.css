@@ -805,7 +805,7 @@ button {
 
     background: linear-gradient(
         145deg,
-        hsl(191deg 56% 55%),
+        hsl(172deg 56% 55%),
         hsl(169deg 65% 42%)
     );
 
@@ -2751,7 +2751,7 @@ button {
         border-radius: 0;
         background: linear-gradient(
             145deg,
-            hsl(191deg 56% 55%),
+            hsl(172deg 56% 55%),
             hsl(169deg 65% 42%)
         );
 
@@ -2848,7 +2848,7 @@ button {
             padding: 50px;
             background: linear-gradient(
                 180deg,
-                hsl(191deg 56% 55%),
+                hsl(172deg 56% 55%),
                 hsl(169deg 65% 42%)
             );
 

@@ -31,7 +31,7 @@
     border: var(--recent-view-body-border-width) solid
         var(--color-border-recent-view-table);
     border-top: none;
-    border-radius: 0 0 5px 5px;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
     overflow: hidden;
 }
 
@@ -45,7 +45,9 @@
     & td {
         box-sizing: border-box;
         vertical-align: middle;
-        padding: 0.1875em 0.5em; /* 3px 8px at 16px/1em */
+        /* Tenang roominess: taller conversation rows. */
+        padding: 0.2857em 0.5714em; /* 4px 8px at 14px/1em */
+        line-height: 1.5;
     }
 
     /* Suppress focus rings when focus was set programmatically
@@ -78,7 +80,7 @@
         }
 
         &.recent-view-topic-visibility {
-            border-radius: 0.3125em; /* 5px at 16px/1em */
+            border-radius: var(--radius-sm);
             outline-offset: 0.3125em; /* 5px at 16px/1em */
         }
 
@@ -149,7 +151,7 @@
     .table_fix_head {
         padding: 0 !important;
         border: 1px solid var(--color-border-recent-view-table);
-        border-radius: 5px 5px 0 0;
+        border-radius: var(--radius-sm) var(--radius-sm) 0 0;
         overflow: hidden;
     }
 
@@ -223,7 +225,7 @@
         color: var(--color-text-default);
         background-color: var(--color-background-zulip-button);
         border: 1px solid var(--color-border-zulip-button);
-        border-radius: 40px;
+        border-radius: var(--radius-pill);
         /* Matching to the height of the filter search box. */
         height: var(--recent-topics-filters-height);
         /* Legacy 12px at 14px/1em. */
@@ -362,7 +364,7 @@
         height: 1.5em;
         /* 4px at 16px/1em */
         padding: 0.25em 0;
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         overflow: hidden;
 
         /*
@@ -408,9 +410,8 @@
     .recent_view_participant_overflow {
         border: 0;
         /* Keep the rounded corners from ballooning
-           to a circle at smaller font sizes.
-           6px at 16px/1em */
-        border-radius: 0.375em;
+           to a circle at smaller font sizes. */
+        border-radius: var(--radius-sm);
         color: var(--color-recent-view-participant-overflow-text);
         display: block;
         height: 100%;
@@ -475,8 +476,11 @@
                 background: linear-gradient(
                     90deg,
                     var(--color-unread-marker) 30%,
-                    hsl(217deg 64% 59% / 0%)
+                    transparent
                 );
+                /* 2px, below the --radius-xs floor: this caps a
+                   2px-wide bar, so any radius at or past 1px
+                   already renders the same full rounded end. */
                 border-radius: 2px 0 0 2px;
             }
         }
@@ -526,7 +530,8 @@
         color: var(--color-text-recent-view-table-thead-th);
         text-transform: uppercase;
         font-weight: 600;
-        line-height: 1.25em; /* 20px at 16px/1em */
+        /* Tenang roominess: taller column-header row. */
+        line-height: 1.5em; /* 21px at 14px/1em */
         z-index: 1;
 
         .recent-view-header-wrapper {
@@ -571,7 +576,7 @@
         .zulip-icon-chevron-right {
             font-size: 0.9375em; /* 15px at 16px/1em */
             align-self: center;
-            color: hsl(0deg 0% 60%);
+            color: var(--color-arrow-recent-view-table-thead-th);
             padding: 0 0.125em; /* 2px at 16px/1em */
         }
     }
@@ -635,7 +640,7 @@
                highlight doesn't push adjacent elements out of alignment. */
             padding: 0.25em; /* 4px at 16px/1em */
             margin: 0;
-            border-radius: 3px;
+            border-radius: var(--radius-xs);
             transition: background-color 100ms ease-in-out;
 
             &:hover {
@@ -696,7 +701,7 @@
 
     &.recent-view-participants-hidden {
         td {
-            padding: 0.375em 0.5em; /* 6px 8px at 16px/1em */
+            padding: 0.5714em; /* 8px at 14px/1em */
         }
 
         .recent_topic_users,
@@ -768,7 +773,7 @@
         .zulip-icon-chevron-right {
             grid-area: chevron-right;
             font-size: 0.9375em; /* 15px at 16px/1em */
-            color: hsl(0deg 0% 60%);
+            color: var(--color-arrow-recent-view-table-thead-th);
             padding: 0 0.125em; /* 2px at 16px/1em */
         }
 
@@ -937,9 +942,9 @@
 
 .recent-view-body-row {
     outline-offset: -0.25em; /* -4px at 16px/1em */
-    border-radius: 0.625em; /* 10px at 16px/1em */
+    border-radius: var(--radius-lg);
 }
 
 .recent-view-table-unread-count {
-    border-radius: 0.3125em; /* 5px at 16px/1em */
+    border-radius: var(--radius-sm);
 }

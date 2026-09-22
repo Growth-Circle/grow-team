@@ -181,7 +181,12 @@
            the card shape (--radius-xl, drawn by .message_header and
            .message_row below) needs to read as a separate card from
            the next one. */
-        margin-bottom: 14px;
+        margin-bottom: 1em;
+
+        /* The card shape is drawn by the header's top corners and the
+           last row's bottom corners. The shadow lifts the whole group
+           off the feed background, so it reads as one card. */
+        box-shadow: var(--box-shadow-raised-card);
 
         .message_row:last-of-type {
             border-radius: var(--last-message-row-border-radius);

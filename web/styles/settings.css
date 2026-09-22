@@ -82,7 +82,7 @@ h3,
 
 .user-avatar-section {
     .inline-block {
-        box-shadow: 0 0 10px hsl(0deg 0% 0% / 10%);
+        box-shadow: var(--box-shadow-raised-card);
     }
 }
 
@@ -199,7 +199,7 @@ h3,
 
 .table {
     & tbody {
-        border-bottom: 1px solid hsl(0deg 0% 87%);
+        border-bottom: 1px solid var(--color-border-table-bordered);
     }
 }
 
@@ -353,7 +353,7 @@ h3,
 .list_select {
     padding: 0 25px 0 6px;
     color: var(--color-text-default);
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     border: var(--input-border-width) solid var(--color-border-legacy-input);
     cursor: pointer;
     background-color: var(--color-background-legacy-input);
@@ -757,8 +757,8 @@ input[type="checkbox"] {
 
     overflow-wrap: anywhere;
     background-color: transparent;
-    border-radius: 4px;
-    color: hsl(156deg 30% 50%);
+    border-radius: var(--radius-md);
+    color: var(--color-text-success-text-action-button);
     padding: 3px 10px;
 
     &.account-alert-notification {
@@ -767,12 +767,12 @@ input[type="checkbox"] {
     }
 
     &:not(:empty) {
-        border: 1px solid hsl(156deg 30% 50%);
+        border: 1px solid var(--color-text-success-text-action-button);
     }
 
     &.alert-error {
-        color: hsl(2deg 46% 68%);
-        border-color: hsl(2deg 46% 68%);
+        color: var(--color-text-danger-text-action-button);
+        border-color: var(--color-text-danger-text-action-button);
     }
 
     .loading_indicator_spinner {
@@ -783,7 +783,7 @@ input[type="checkbox"] {
 
     /* make the spinner green like the text and box. */
     .loading_indicator_spinner svg path {
-        fill: hsl(178deg 100% 40%);
+        fill: var(--color-text-success-text-action-button);
     }
 
     .loading_indicator_text {
@@ -883,7 +883,7 @@ input[type="checkbox"] {
 }
 
 .required-symbol {
-    color: hsl(0deg 66% 60%);
+    color: var(--color-text-danger-text-action-button);
 }
 
 .settings-profile-user-field {
@@ -909,7 +909,7 @@ input[type="checkbox"] {
 }
 
 .control-label-disabled {
-    color: hsl(0deg 0% 50%);
+    color: var(--color-text-item);
 }
 
 .admin-realm-message-retention-days {
@@ -973,7 +973,7 @@ input[type="checkbox"] {
     #emoji-file-name {
         white-space: nowrap;
         font-style: italic;
-        color: hsl(0deg 0% 67%);
+        color: var(--color-text-item);
     }
 
     #emoji_preview_text {
@@ -1023,7 +1023,7 @@ input[type="checkbox"] {
         }
 
         .fa-ellipsis-v {
-            color: hsl(0deg 0% 75%);
+            color: var(--color-text-item);
             position: relative;
             top: 1px;
         }
@@ -1185,11 +1185,6 @@ input[type="checkbox"] {
     margin: 0 0 10px;
 }
 
-#download_zuliprc {
-    color: hsl(0deg 0% 100%);
-    text-decoration: none;
-}
-
 #realm_domains_table {
     margin: 0;
 }
@@ -1282,7 +1277,7 @@ input[type="checkbox"] {
 }
 
 label.preferences-radio-choice-label {
-    border-bottom: 1px solid hsl(0deg 0% 0% / 20%);
+    border-bottom: 1px solid var(--color-outline-input);
     padding: 8px 0 10px;
     display: flex;
 
@@ -1298,7 +1293,7 @@ label.preferences-radio-choice-label {
         cursor: pointer;
 
         &:focus {
-            outline: 1px dotted hsl(0deg 0% 20%);
+            outline: 1px dotted var(--color-outline-focus);
             outline: 5px auto -webkit-focus-ring-color;
             outline-offset: -2px;
         }
@@ -1352,7 +1347,7 @@ label.preferences-radio-choice-label {
     .avatar {
         height: 2.625em; /* 42px / 16px em */
         width: 2.625em; /* 42px / 16px em */
-        border-radius: 0.25em; /* 4px / 16px em */
+        border-radius: var(--radius-pill);
     }
 }
 
@@ -1448,7 +1443,7 @@ label.preferences-radio-choice-label {
     max-width: 73.1429em; /* 1024px at 14px em */
     margin: 2.5vh auto;
     overflow: hidden;
-    border-radius: 4px;
+    border-radius: var(--radius-xl);
 
     .time-limit-custom-input {
         width: 5ch;
@@ -1468,7 +1463,7 @@ label.preferences-radio-choice-label {
     & h5 {
         font-size: 1em;
         font-weight: normal;
-        line-height: 1.2;
+        line-height: 1.5;
         margin: 10px 0;
     }
 
@@ -1550,7 +1545,7 @@ label.preferences-radio-choice-label {
             }
 
             &:focus-visible {
-                border-radius: 4px;
+                border-radius: var(--radius-md);
                 outline: 1px solid var(--color-outline-focus);
                 outline-offset: -2px;
             }
@@ -1558,7 +1553,7 @@ label.preferences-radio-choice-label {
             .sidebar-item-icon {
                 font-size: 1.4em;
                 text-align: center;
-                color: hsl(0deg 0% 53%);
+                color: var(--color-sidebar-action);
             }
 
             .text {
@@ -1569,7 +1564,7 @@ label.preferences-radio-choice-label {
             .locked {
                 font-size: 1em;
                 text-align: center;
-                color: hsl(0deg 0% 62%);
+                color: var(--color-text-item);
             }
         }
 
@@ -1626,7 +1621,7 @@ label.preferences-radio-choice-label {
             font-weight: 600;
             position: absolute;
             right: 0.7142em; /* 10px at 14px em */
-            color: hsl(0deg 0% 67%);
+            color: var(--color-text-item);
             cursor: pointer;
         }
 
@@ -1679,18 +1674,18 @@ label.preferences-radio-choice-label {
 .realm_jitsi_server_url_custom_input {
     padding: var(--input-vertical-padding) var(--input-horizontal-padding);
     color: var(--color-text-default);
-    border: var(--input-border-width) solid hsl(0deg 0% 80%);
+    border: var(--input-border-width) solid var(--border-color-textarea);
     transition:
         border-color linear 0.2s,
         box-shadow linear 0.2s;
     font-family: inherit;
 
     &:focus {
-        border-color: hsl(206deg 80% 62% / 80%);
+        border-color: var(--focus-border-color-textarea);
         outline: 0;
         box-shadow:
             inset 0 1px 1px hsl(0deg 0% 0% / 7.5%),
-            0 0 8px hsl(206deg 80% 62% / 60%);
+            0 0 8px var(--color-box-shadow-input-focus);
     }
 }
 
@@ -1803,9 +1798,9 @@ label.preferences-radio-choice-label {
 }
 
 .subsection-failed-status p {
-    background-color: hsl(0deg 43% 91%);
+    background-color: var(--color-background-danger-banner);
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     margin: 0 0 0 5px;
 }
 
@@ -1916,13 +1911,13 @@ label.preferences-radio-choice-label {
         max-width: 206px;
 
         &:focus-within {
-            border-color: hsl(206deg 80% 62% / 80%);
+            border-color: var(--focus-border-color-textarea);
             outline: 0;
             outline: 1px dotted \9;
 
             box-shadow:
                 inset 0 1px 1px hsl(0deg 0% 0% / 7.5%),
-                0 0 8px hsl(206deg 80% 62% / 60%);
+                0 0 8px var(--color-box-shadow-input-focus);
         }
     }
 }
@@ -1950,7 +1945,7 @@ label.preferences-radio-choice-label {
 .modal-textarea {
     color: var(--color-text-default);
     background-color: var(--background-color-textarea);
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     vertical-align: middle;
     border: var(--input-border-width) solid var(--border-color-textarea);
     padding: var(--input-vertical-padding) var(--input-horizontal-padding);
@@ -1970,7 +1965,7 @@ label.preferences-radio-choice-label {
 
         box-shadow:
             inset 0 1px 1px hsl(0deg 0% 0% / 7.5%),
-            0 0 8px hsl(206.5deg 80% 62% / 60%);
+            0 0 8px var(--color-box-shadow-input-focus);
     }
 
     &:disabled {
@@ -1991,7 +1986,7 @@ label.preferences-radio-choice-label {
     padding: 0.3125em var(--view-only-field-horizontal-padding);
     background-color: var(--background-color-view-only-textarea);
     border: var(--input-border-width) solid var(--border-color-textarea);
-    border-radius: 4px;
+    border-radius: var(--radius-md);
 }
 
 .modal-textarea:disabled {
@@ -2054,7 +2049,7 @@ label.preferences-radio-choice-label {
             .fa-chevron-left {
                 transform: translate(-50px, 0);
                 opacity: 0;
-                color: hsl(0deg 0% 67%);
+                color: var(--color-text-item);
                 padding: 2px 10px;
                 cursor: pointer;
                 transition: 0.3s ease;
@@ -2389,7 +2384,7 @@ label.preferences-radio-choice-label {
 #admin_users_table .deactivated_user,
 #admin_imported_users_table .deactivated_user,
 #admin_deactivated_users_table .active-user {
-    color: hsl(0deg 0% 64%);
+    color: var(--color-text-item);
 
     & a {
         color: inherit;
@@ -2404,8 +2399,8 @@ label.preferences-radio-choice-label {
 .settings_text_input {
     padding: var(--input-vertical-padding) var(--input-horizontal-padding);
     color: var(--color-text-default);
-    border-radius: 4px;
-    border: var(--input-border-width) solid hsl(0deg 0% 80%);
+    border-radius: var(--radius-md);
+    border: var(--input-border-width) solid var(--border-color-textarea);
     box-shadow: inset 0 1px 1px hsl(0deg 0% 0% / 7.5%);
     transition:
         border-color linear 0.2s,
@@ -2420,17 +2415,17 @@ label.preferences-radio-choice-label {
     font-family: inherit;
 
     &:focus {
-        border-color: hsl(206deg 80% 62% / 80%);
+        border-color: var(--focus-border-color-textarea);
         outline: 0;
         box-shadow:
             inset 0 1px 1px hsl(0deg 0% 0% / 7.5%),
-            0 0 8px hsl(206deg 80% 62% / 60%);
+            0 0 8px var(--color-box-shadow-input-focus);
     }
 }
 
 .empty-required-field {
-    border: 1px solid hsl(3deg 57% 33%);
-    border-radius: 5px;
+    border: 1px solid var(--color-invalid-input-border);
+    border-radius: var(--radius-md);
 
     .settings_url_input,
     .settings_text_input,
@@ -2440,7 +2435,7 @@ label.preferences-radio-choice-label {
         margin-bottom: 0;
 
         &:focus {
-            border-color: hsl(206deg 80% 62% / 80%);
+            border-color: var(--focus-border-color-textarea);
         }
     }
 }
@@ -2455,8 +2450,8 @@ label.preferences-radio-choice-label {
         background-color: var(--color-background-integration-url);
         padding: 10px;
         font-size: 0.85rem;
-        border: 1px solid hsl(0deg 0% 87%);
-        border-radius: 4px;
+        border: 1px solid var(--color-border-table-bordered);
+        border-radius: var(--radius-md);
         overflow-wrap: break-word;
         word-break: break-all;
     }

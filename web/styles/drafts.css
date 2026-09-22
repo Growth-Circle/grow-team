@@ -8,7 +8,7 @@
         align-items: center;
         flex-direction: row;
         justify-content: space-between;
-        gap: 5px;
+        gap: 8px;
 
         .drafts-header-note {
             text-align: left;
@@ -23,24 +23,28 @@
         .delete-drafts-group {
             display: flex;
             justify-content: flex-end;
-            gap: 10px;
+            gap: 12px;
 
             .delete-selected-drafts-button {
                 &:focus {
-                    background-color: hsl(0deg 0% 93%);
+                    background-color: var(
+                        --color-background-neutral-icon-button-square-hover
+                    );
                 }
             }
 
             .select-drafts-button {
                 display: flex;
                 align-items: center;
-                gap: 5px;
+                gap: 8px;
                 margin-right: 25px;
                 padding-left: 15px;
                 padding-right: 15px;
 
                 &:focus {
-                    background-color: hsl(0deg 0% 93%);
+                    background-color: var(
+                        --color-background-neutral-subtle-action-button-hover
+                    );
                 }
             }
 

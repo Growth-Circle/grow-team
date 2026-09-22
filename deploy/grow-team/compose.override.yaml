@@ -16,7 +16,7 @@ services:
     cpus: 0.25
     mem_limit: 256m
   zulip:
-    image: grow-team/server:12.2-grow-team.4
+    image: grow-team/server:12.2-grow-team.6
     pull_policy: never
     build: !reset null
     cpus: 2

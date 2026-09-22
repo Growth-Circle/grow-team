@@ -32,7 +32,7 @@ details summary::-webkit-details-marker {
 .top-menu {
     position: fixed;
     width: 100%;
-    background: hsl(240deg 100% 10% / 60%);
+    background: hsl(172deg 100% 10% / 60%);
     backdrop-filter: blur(10px);
     color: hsl(0deg 0% 100%);
     z-index: 10;
@@ -40,7 +40,7 @@ details summary::-webkit-details-marker {
     transition: background-color 0.3s ease-out;
 
     &:hover {
-        background: hsl(240deg 100% 10% / 85%);
+        background: hsl(172deg 100% 10% / 85%);
     }
 }
 
@@ -103,13 +103,13 @@ details summary::-webkit-details-marker {
 
 .top-menu-item:hover {
     color: hsl(0deg 0% 100%);
-    background: hsl(240deg 100% 10% / 10%);
+    background: hsl(172deg 100% 10% / 10%);
     transition-duration: 0.05s;
 }
 
 .top-menu-item:active {
     color: hsl(0deg 0% 100%);
-    background: hsl(240deg 100% 10% / 20%);
+    background: hsl(172deg 100% 10% / 20%);
 }
 
 .top-menu-item.top-menu-tab,
@@ -146,7 +146,7 @@ details summary::-webkit-details-marker {
     transition:
         background,
         color 0.2s;
-    background: hsl(240deg 100% 10% / 60%);
+    background: hsl(172deg 100% 10% / 60%);
     color: hsl(0deg 0% 100%);
     pointer-events: none;
     user-select: none;
@@ -186,13 +186,13 @@ details summary::-webkit-details-marker {
 }
 
 .top-menu-tab .top-menu-tab-input:not(:checked) + label:hover {
-    background: hsl(240deg 100% 10% / 10%);
+    background: hsl(172deg 100% 10% / 10%);
     color: hsl(0deg 0% 100%);
     transition-duration: 0.1s;
 }
 
 .top-menu-tab .top-menu-tab-input:not(:checked) + label:active {
-    background: hsl(240deg 100% 10% / 20%);
+    background: hsl(172deg 100% 10% / 20%);
     color: hsl(0deg 0% 100%);
 }
 
@@ -211,7 +211,7 @@ details summary::-webkit-details-marker {
 }
 
 .top-menu-submenu-backdrop {
-    background: hsl(240deg 100% 10% / 60%);
+    background: hsl(172deg 100% 10% / 60%);
     opacity: 0;
     height: 0;
     width: 100%;
@@ -415,7 +415,7 @@ details summary::-webkit-details-marker {
 
 .top-menu-mobile {
     display: none;
-    background: hsl(240deg 100% 10% / 40%);
+    background: hsl(172deg 100% 10% / 40%);
     backdrop-filter: blur(10px);
     z-index: 20;
 
@@ -442,7 +442,7 @@ details summary::-webkit-details-marker {
 .top-menu-mobile[open] {
     bottom: 0;
     height: 100%;
-    background: hsl(240deg 100% 5.9% / 80%);
+    background: hsl(172deg 100% 5.9% / 80%);
     backdrop-filter: blur(20px);
 }
 
@@ -577,12 +577,12 @@ details summary::-webkit-details-marker {
 }
 
 .top-menu-mobile-summary:active {
-    background: hsl(229deg 47% 17% / 80%);
+    background: hsl(172deg 47% 17% / 80%);
     backdrop-filter: blur(10px);
 }
 
 .top-menu-mobile[open] > .top-menu-mobile-summary {
-    background: hsl(229deg 47% 17% / 80%);
+    background: hsl(172deg 47% 17% / 80%);
     backdrop-filter: blur(10px);
 }
 
@@ -591,28 +591,28 @@ details summary::-webkit-details-marker {
     (backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))
 ) {
     .top-menu {
-        background: hsl(240deg 100% 10% / 80%);
+        background: hsl(172deg 100% 10% / 80%);
     }
 
     .top-menu-mobile {
-        background: hsl(240deg 100% 10% / 80%);
+        background: hsl(172deg 100% 10% / 80%);
     }
 
     .top-menu-mobile[open] {
-        background: hsl(240deg 100% 5.9% / 100%);
+        background: hsl(172deg 100% 5.9% / 100%);
     }
 
     .top-menu-mobile-summary:active {
-        background: hsl(229deg 47% 17% / 95%);
+        background: hsl(172deg 47% 17% / 95%);
     }
 
     .top-menu-mobile[open] > .top-menu-mobile-summary {
-        background: hsl(229deg 47% 17% / 95%);
+        background: hsl(172deg 47% 17% / 95%);
     }
 }
 
 .top-menu-mobile[open] > .top-menu-mobile-summary:active {
-    background: hsl(229deg 47% 20% / 100%);
+    background: hsl(172deg 47% 20% / 100%);
 }
 
 .top-menu-mobile-summary::marker {
@@ -652,11 +652,11 @@ details summary::-webkit-details-marker {
 
 @media (hover: hover) and (pointer: fine) {
     .top-menu-mobile-summary:hover {
-        background: hsl(229deg 47% 18% / 100%);
+        background: hsl(172deg 47% 18% / 100%);
     }
 
     .top-menu-mobile[open] > .top-menu-mobile-summary:hover {
-        background: hsl(229deg 47% 18% / 100%);
+        background: hsl(172deg 47% 18% / 100%);
     }
 
     .top-menu-mobile-summary:hover::after {
@@ -667,7 +667,7 @@ details summary::-webkit-details-marker {
 /* menu responsivity */
 @media (width <= 1311px) {
     .top-menu {
-        background: hsl(240deg 100% 10% / 50%);
+        background: hsl(172deg 100% 10% / 50%);
     }
 
     .top-menu-logo {

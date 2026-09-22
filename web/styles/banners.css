@@ -11,11 +11,11 @@
     grid-template-areas: var(--banner-grid-template-areas);
     place-items: start;
     border: 1px solid;
-    border-radius: 6px;
+    border-radius: var(--radius-xl);
 }
 
 .banner-link {
-    color: var(--color-text-link);
+    color: var(--color-text-link-banner);
     text-decoration: none;
     text-decoration-color: var(--color-text-link-decoration);
 
@@ -36,7 +36,7 @@
     align-items: flex-start;
     flex-wrap: wrap;
     width: 100%;
-    gap: 0 0.625em; /* 10px at 16px/1em */
+    gap: 0 0.75em; /* 12px at 16px/1em */
 }
 
 .banner-label {
@@ -53,15 +53,18 @@
        cannot use flexbox center alignment as we also need to
        account for the UI when the banner has a muli-line label.
     */
-    padding: 0.25em 0; /* 4px at 16px/1em */
-    line-height: 1.25; /* 20px at 16px/1em */
+    padding: 0.375em 0; /* 6px at 16px/1em */
+    /* 24px at 16px/1em. With the padding above, this totals 36px,
+       matching --height-control-md so the label lines up with the
+       action buttons next to it. */
+    line-height: 1.5;
     text-align: start;
 }
 
 .banner-action-buttons {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5em; /* 8px at 16px/1em */
+    gap: 0.625em; /* 10px at 16px/1em */
 }
 
 .banner-action-buttons:empty {

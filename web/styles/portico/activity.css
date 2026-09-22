@@ -3,7 +3,7 @@
 }
 
 .activity-head {
-    background-color: hsl(208deg 100% 97%);
+    background-color: hsl(172deg 100% 97%);
     position: sticky;
     top: 0;
 
@@ -13,7 +13,7 @@
 }
 
 .activity-foot {
-    background-color: hsl(208deg 100% 97%);
+    background-color: hsl(172deg 100% 97%);
     font-weight: 700;
     position: sticky;
     bottom: 0;
@@ -104,7 +104,7 @@
 
 tr.admin td:first-child {
     font-weight: bold;
-    color: hsl(240deg 100% 50%);
+    color: hsl(172.44deg 88.15% 26.47%);
     font-size: 110%;
 }
 
@@ -159,11 +159,23 @@ tr.admin td:first-child {
         box-shadow: inset 0 1px 1px hsl(0deg 0% 0% / 7.5%);
 
         &:focus {
-            border-color: hsl(206deg 80% 62% / 80%);
+            border-color: var(
+                --color-outline-input-focus,
+                light-dark(
+                    color-mix(in oklch, hsl(229deg 22% 10%) 80%, transparent),
+                    color-mix(in oklch, hsl(0deg 0% 100%) 50%, transparent)
+                )
+            );
             outline: 0;
             box-shadow:
                 inset 0 1px 1px hsl(0deg 0% 0% / 7.5%),
-                0 0 8px hsl(206.494deg 80% 62% / 60%);
+                0 0 8px var(
+                    --color-box-shadow-input-focus,
+                    light-dark(
+                        color-mix(in oklch, hsl(228deg 10% 20%) 30%, transparent),
+                        color-mix(in oklch, hsl(0deg 0% 100%) 40%, transparent)
+                    )
+                );
         }
     }
 
@@ -425,11 +437,23 @@ tr.admin td:first-child {
     color: hsl(0deg 0% 33%);
 
     &:focus {
-        border-color: hsl(206deg 80% 62% / 80%);
+        border-color: var(
+            --color-outline-input-focus,
+            light-dark(
+                color-mix(in oklch, hsl(229deg 22% 10%) 80%, transparent),
+                color-mix(in oklch, hsl(0deg 0% 100%) 50%, transparent)
+            )
+        );
         outline: 0;
         box-shadow:
             inset 0 1px 1px hsl(0deg 0% 0% / 7.5%),
-            0 0 8px hsl(206.494deg 80% 62% / 60%);
+            0 0 8px var(
+                --color-box-shadow-input-focus,
+                light-dark(
+                    color-mix(in oklch, hsl(228deg 10% 20%) 30%, transparent),
+                    color-mix(in oklch, hsl(0deg 0% 100%) 40%, transparent)
+                )
+            );
     }
 }
 
