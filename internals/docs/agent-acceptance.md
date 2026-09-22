@@ -74,6 +74,22 @@ dan 56 berkas di dalam image runtime. Socket paket juga lulus melalui layanan
 atribut ekspor Git. Alur Django lengkap dengan provider nyata, browser, dan
 produksi tetap menjadi gate terpisah; belum ada mode yang dinyatakan tersertifikasi.
 
+Broker Git dan integrasi memory pada `6cf3fda` lulus review akhir dan 177 tes
+runner. Git bare nyata serta fixture HTTP memeriksa expected head, konsumsi izin,
+PR draft, respons terputus, identitas remote, dan replay receipt yang sama.
+Tes backend tambahan membuktikan pembatalan operasi tanpa efek tidak menghalangi
+hasil pengganti. Lihat [tes broker Git](../../services/grow-agent-runner/test/remote-operation-broker.test.ts)
+dan [tes memory](../../services/grow-agent-runner/test/titen-context.test.ts).
+
+Recall dibatasi satu kali per job logis. Credential opsional yang tidak tersedia
+tidak menghentikan pekerjaan patch yang aman. Penulisan memory tetap melalui
+perintah pemilik dengan bukti bertipe; tes memakai fixture lokal tanpa menulis
+memory nyata. [Tes penghentian runtime](../../services/grow-agent-runner/test/task8-runtime-termination.test.ts)
+memastikan proses yang sudah berhenti tidak memperpanjang lease dan receipt stop
+dapat dipulihkan. Controller memverifikasi 1.436 berkas paket, 27 modul hasil
+build, serta 60 berkas image. Alur provider nyata dan browser masih menunggu
+sertifikasi integrasi.
+
 Integrasi backup pada commit `bafbc67` lulus 43 tes dan review independen.
 Lihat [tes file backup](../../zerver/tests/test_agents_backup.py),
 [tes perintah backup](../../zerver/tests/test_agents_backup_command.py), dan
@@ -120,15 +136,15 @@ tersebut tidak menyatakan fitur sudah tersedia di produksi atau spesifikasi sele
 | AT-21 | Member kehilangan akses kanal/repo | Pembacaan berikutnya dan publikasi ditolak sesuai scope baru. | Sebagian: pemeriksaan akses terkini pada context, attachment, dan publikasi lulus pada `8c59211`; integrasi runner/browser belum diuji. |
 | AT-22 | Permintaan lintas realm | List, count, detail, event, approval, dan download tidak membocorkan data. | Sebagian: penolakan API job, event, input, approval, dan artifact lintas realm lulus pada `8c59211`; integrasi UI belum diuji. |
 | AT-23 | Topik pindah dari privat ke audiens lebih luas | Hasil ditahan sampai tujuan dan audiens disetujui. | Sebagian: audience binding dan race perubahan akses lulus pada `8c59211`; alur review browser belum diuji. |
-| AT-24 | Diff berubah setelah approval | Approval lama tidak dapat digunakan. | Sebagian: pemeriksaan hash, nonce, tree, expiry, dan grant approval lulus pada `8c59211`; broker Git nyata belum diuji. |
-| AT-25 | Dua keputusan approval bersamaan | Tepat satu konsumsi operasi berhasil. | Sebagian: konsumsi tunggal backend lulus pada `8c59211`; tool broker `968e2ce` menolak consume yang tidak pasti dan ID berulang. Alur approval browser/runtime belum diuji lengkap. |
-| AT-26 | Push/PR berhasil, respons terputus | Remote direkonsiliasi; efek tidak digandakan. | Belum diuji. |
+| AT-24 | Diff berubah setelah approval | Approval lama tidak dapat digunakan. | Sebagian: backend memeriksa hash, nonce, tree, expiry, dan grant; broker `6cf3fda` mengikat operasi ke commit serta expected head dan menolak otoritas berubah. Alur approval browser belum diuji lengkap. |
+| AT-25 | Dua keputusan approval bersamaan | Tepat satu konsumsi operasi berhasil. | Sebagian: konsumsi tunggal backend dan broker `6cf3fda` menolak konsumsi tidak pasti serta efek berulang. Alur approval browser/runtime belum diuji lengkap. |
+| AT-26 | Push/PR berhasil, respons terputus | Remote direkonsiliasi; efek tidak digandakan. | Sebagian: Git bare dan fixture HTTP pada `6cf3fda` membuktikan replay receipt tanpa efek kedua, termasuk penolakan identitas PR berubah. Alur produk lengkap belum disertifikasi. |
 | AT-27 | Model mengaku tes lulus tanpa proses tes | Completion verifier menolak completed. | Sebagian: verifier backend dan proses check runner `968e2ce` memerlukan operasi sah, exit berhasil, output terbatas, dan tree cocok; completion runtime lengkap belum diuji. |
 | AT-28 | Edit setelah tes | Bukti tes yang sudah tidak sesuai tree dinyatakan stale. | Sebagian: pemeriksaan akhir serta invalidasi sesudah edit lulus pada `968e2ce`; alur edit/check melalui kedua model belum diuji lengkap. |
 | AT-29 | Konteks penuh, ringkasan gagal, atau provider error | Retry terbatas; tugas/checkpoint tetap dapat ditinjau. | Belum diuji. |
-| AT-30 | Titen tidak tersedia | Pekerjaan yang aman dapat berjalan tanpa klaim recall berhasil. | Belum diuji. |
+| AT-30 | Titen tidak tersedia | Pekerjaan yang aman dapat berjalan tanpa klaim recall berhasil. | Sebagian: tes `6cf3fda` membuktikan recall sekali per job dan fallback tanpa klaim sukses saat koneksi atau credential opsional gagal. Alur produk lengkap belum diuji. |
 | AT-31 | Reply akhir diulang karena worker restart | Satu pesan hasil, dengan result message ID yang sama. | Sebagian: publikasi serta receipt atomik saat retry dan race lulus pada `8c59211`; restart worker nyata belum diuji. |
-| AT-32 | Secret sintetis pada error/header/output | Tidak muncul pada chat, event, artifact yang dibagikan, atau telemetry. | Sebagian: enkripsi, field secret write-only, dan error backend lulus pada `3469f2f`; output runner, artifact, dan telemetry belum diuji. |
+| AT-32 | Secret sintetis pada error/header/output | Tidak muncul pada chat, event, artifact yang dibagikan, atau telemetry. | Sebagian: enkripsi dan secret write-only backend lulus; tes runner memeriksa redaksi serta penolakan bentuk credential sebelum panggilan memory pada `6cf3fda`. Jalur browser dan telemetry rilis belum diuji lengkap. |
 | AT-33 | UI dark/light, keyboard, layar sempit | Semua state utama dan approval dapat dioperasikan. | Belum diuji. |
 | AT-34 | Upgrade/rollback runner | Versi tidak kompatibel ditolak dengan pesan pemulihan; job lama tetap terbaca. | Belum diuji. |
 | AT-35 | Pemulihan database dan artifact | Hubungan job, approval, result, dan checksum tetap konsisten. | Sebagian: tooling `7fb02b5` memverifikasi dump/restore sintetis, relasi data, checksum artifact, serta dekripsi kunci lama/baru; source rilis dan produksi belum diuji. |
@@ -169,7 +185,7 @@ tersebut tidak menyatakan fitur sudah tersedia di produksi atau spesifikasi sele
 | AF-29 | Runner gagal sebelum dapat membalas | UI/sistem melaporkan start failure dari record, tanpa membutuhkan output model. | Belum diuji. |
 | AF-30 | Cancel saat permission request menunggu | Approval tidak dapat dipakai; proses berhenti atau tampil belum terkonfirmasi. | Sebagian: otoritas cancel backend dan penghentian container `968e2ce` lulus; permission request ACP serta UI belum diuji lengkap. |
 | AF-31 | Cancel bersamaan dengan completion | Transisi memakai versi; hanya hasil sah yang menang dan tersimpan. | Sebagian: satu pemenang terminal pada race cancel dan publikasi lulus pada `8c59211`; integrasi proses nyata belum diuji. |
-| AF-32 | Resume setelah operasi remote tidak pasti | Rekonsiliasi dilakukan sebelum retry; approval lama tidak diaktifkan ulang. | Sebagian: penahanan resume untuk outcome remote yang belum pasti lulus pada `8c59211`; rekonsiliasi provider Git nyata belum diuji. |
+| AF-32 | Resume setelah operasi remote tidak pasti | Rekonsiliasi dilakukan sebelum retry; approval lama tidak diaktifkan ulang. | Sebagian: backend menahan resume dengan efek tidak pasti; broker `6cf3fda` merekonsiliasi remote asli dan receipt yang sama tanpa efek kedua. Resume melalui browser belum diuji lengkap. |
 | AF-33 | Profil pause saat ada tugas aktif | Kerja baru tertahan; UI tidak mengklaim tugas aktif otomatis berhenti. | Sebagian: pause memerlukan revision saat ini pada `3469f2f`; perilaku job aktif dan status UI belum diuji. |
 | AF-34 | Profil arsip/rename dan pesan lama dibuka | Identitas historis tetap tepat; tidak dialihkan ke agent lain. | Belum diuji. |
 | AF-35 | Pindah/ubah audiens ketika hasil akan terbit | Result broker menahan publikasi yang memperluas akses. | Sebagian: serialisasi perubahan source, membership, dan audiens dengan publikasi lulus pada `8c59211`; UI pemulihan belum diuji. |

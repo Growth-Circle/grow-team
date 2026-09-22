@@ -328,15 +328,15 @@ assert.equal(toolBroker.mutationCount, 0);
 
 **Interfaces:** Consume server-approved operation hashes and return verifiable remote receipts. Memory uses authorized stable subjects and resolved repository projects.
 
-- [ ] Keep Git write credentials outside the project sandbox.
-- [ ] Bind push to the reviewed commit, remote, task branch, and expected remote head.
-- [ ] Create draft PRs only from approved title/body/base/head and reconcile uncertain responses.
-- [ ] Reject changed diff, expired approval, stale policy, and double consumption.
-- [ ] Resolve lowercase Git origin before one bounded Titen compile per task.
-- [ ] Treat memory as untrusted reference data. Degrade safely on outage.
-- [ ] Permit durable memory writes only for explicitly authorized, typed, verified signals.
-- [ ] Test local bare-remote races and a real HTTP Git-provider fixture with lost acknowledgements.
-- [ ] Run focused tests and commit the task.
+- [x] Keep Git write credentials outside the project sandbox.
+- [x] Bind push to the reviewed commit, remote, task branch, and expected remote head.
+- [x] Create draft PRs only from approved title/body/base/head and reconcile uncertain responses.
+- [x] Reject changed diff, expired approval, stale policy, and double consumption.
+- [x] Resolve lowercase Git origin before one bounded Titen compile per task.
+- [x] Treat memory as untrusted reference data. Degrade safely on outage.
+- [x] Permit durable memory writes only for explicitly authorized, typed, verified signals.
+- [x] Test local bare-remote races and a real HTTP Git-provider fixture with lost acknowledgements.
+- [x] Run focused tests and commit the task.
 
 Test example:
 
