@@ -2421,7 +2421,7 @@ li.topic-list-item {
         align-items: center;
         justify-content: center;
         border-radius: var(--radius-pill);
-        color: #ffffff;
+        color: hsl(0deg 0% 100%);
         /* 10px/700 at 15px/1em, frame 10a. */
         font-size: 0.6667em;
         font-weight: 700;
