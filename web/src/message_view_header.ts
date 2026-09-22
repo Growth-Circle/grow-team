@@ -177,7 +177,6 @@ function get_message_view_header_context(filter: Filter | undefined): MessageVie
     return context;
 }
 
-
 export function colorize_message_view_header(): void {
     const current_sub = narrow_state.stream_sub();
     if (!current_sub) {

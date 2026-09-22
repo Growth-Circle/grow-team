@@ -2427,7 +2427,11 @@ li.topic-list-item {
         font-weight: 700;
         line-height: 1;
 
-        &:has(.user-circle-active, .user-circle-idle, .user-circle-deactivated)::after {
+        &:has(
+                .user-circle-active,
+                .user-circle-idle,
+                .user-circle-deactivated
+            )::after {
             content: "";
             position: absolute;
             /* 9px, inset -1px, at 15px/1em, frame 10a. */
