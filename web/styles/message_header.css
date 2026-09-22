@@ -193,7 +193,11 @@
     }
 }
 
-.message-feed {
+/* Scoped to .message-list (web/templates/message_list.hbs), the
+   actual ancestor of .recipient_row; an earlier .message-feed here
+   matched no element in the DOM, so this whole block never applied
+   and the topic bar sat flush against the first card below it. */
+.message-list {
     .recipient_row {
         /* Gives the topic header some breathing room from the next
            topic's header below. Each message now draws its own card
