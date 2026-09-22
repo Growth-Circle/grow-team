@@ -340,12 +340,33 @@ const FRAGMENTS_HIDDEN_FROM_EXPANDED_VIEWS_LIST = new Set([
     "feed",
     "narrow/has/reaction/sender/me",
     "drafts",
+    "scheduled",
+    "reminders",
 ]);
+
+// Frame 10a orders the expanded list as Inbox, Mentions, Recent
+// conversations, Starred messages. Fragments not listed here keep
+// their natural order after the ranked ones.
+const EXPANDED_VIEWS_LIST_ORDER = ["inbox", "narrow/is/mentioned", "recent", "narrow/is/starred"];
 
 export function get_built_in_views(): navigation_views.BuiltInViewMetadata[] {
     return navigation_views
         .get_built_in_views()
-        .filter((view) => !FRAGMENTS_HIDDEN_FROM_EXPANDED_VIEWS_LIST.has(view.fragment));
+        .filter((view) => !FRAGMENTS_HIDDEN_FROM_EXPANDED_VIEWS_LIST.has(view.fragment))
+        .toSorted((view1, view2) => {
+            const rank1 = EXPANDED_VIEWS_LIST_ORDER.indexOf(view1.fragment);
+            const rank2 = EXPANDED_VIEWS_LIST_ORDER.indexOf(view2.fragment);
+            if (rank1 === -1 && rank2 === -1) {
+                return 0;
+            }
+            if (rank1 === -1) {
+                return 1;
+            }
+            if (rank2 === -1) {
+                return -1;
+            }
+            return rank1 - rank2;
+        });
 }
 
 export function initialize(): void {

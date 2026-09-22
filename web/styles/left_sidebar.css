@@ -9,6 +9,10 @@
     font-size: var(--font-size-sidebar-heading);
     font-weight: var(--font-weight-sidebar-heading);
     letter-spacing: var(--letter-spacing-sidebar-heading);
+    /* Frame 10a/1a: group titles are written in normal case in the
+       source string (for correct translation) and shown as capitals
+       through this transform instead of a literal uppercase string. */
+    text-transform: uppercase;
     /* Override heading margin from Bootstrap. */
     margin: 0;
     /* Show an ellipsis on a heading when
@@ -404,6 +408,11 @@
 
 .left-sidebar-new-conversation-button {
     margin: var(--left-sidebar-sections-vertical-gutter) var(--left-sidebar-right-margin);
+    /* Frame 10a: 18px between the button and the group below it. */
+    margin-bottom: 18px;
+    /* Frame 10a/1a: 10px, one step rounder than the default control
+       radius, to keep this primary action visually distinct. */
+    border-radius: var(--radius-lg);
     /* 40px at 14px/1em; taller than the standard control-md
        height so this primary action stays prominent. */
     min-height: 2.8571em;
@@ -661,8 +670,7 @@
     .narrow-filter:not(.stream-expanded),
     .stream-list-toggle-inactive-or-muted-channels,
     .topic-list-item:not(.active-sub-filter),
-    &.hide-topic-bracket ul.topic-list.topic-list-has-topics::before,
-    &.hide-topic-bracket ul.topic-list.topic-list-has-topics::after {
+    &.hide-topic-bracket ul.topic-list.topic-list-has-topics::before {
         display: none;
     }
 }
@@ -1176,6 +1184,19 @@ li.top-left-active-filter {
     }
 }
 
+/* Frame 10a: the active channel row uses the neutral canvas tone,
+   not the brand-tinted --color-background-active-narrow-filter
+   used for the active view/nav row (li.top-left-active-filter,
+   never used inside #stream_filters). Scoped to #stream_filters so
+   the shared active-row rule above still applies everywhere else. */
+#stream_filters li.active-filter {
+    background-color: var(--color-background-hover-narrow-filter);
+
+    &:hover {
+        background-color: var(--color-background-hover-narrow-filter);
+    }
+}
+
 /* The active topic row sits under the active nav row and needs a
    dimmer brand-subtle background step so the two levels read as
    distinct in both light and dark mode. There is no &:hover rule
@@ -1379,14 +1400,19 @@ li.active-sub-filter {
 
 #left-sidebar-navigation-list {
     margin-bottom: 0;
+    /* Frame 10a: 2px between the group title and its first row. */
+    margin-top: 2px;
     display: grid;
     line-height: var(--line-height-sidebar-row);
+    /* Frame 10a: 4px between rows within the group. */
+    row-gap: 4px;
     /* Explicitly ensure parity with the line-height
        for the sake of low-resolution screens, whose
        font-rendering and rounding may cause icons
        to appear out of alignment. This grid feature should
-       only apply in the expanded-navigation view. */
-    grid-auto-rows: var(--height-sidebar-row);
+       only apply in the expanded-navigation view.
+       Frame 10a: 34px view rows, not the 36px --height-sidebar-row. */
+    grid-auto-rows: var(--height-menu-row);
 
     .left-sidebar-navigation-label-container {
         .left-sidebar-navigation-label {
@@ -1395,6 +1421,14 @@ li.active-sub-filter {
             white-space: nowrap;
         }
     }
+}
+
+#left-sidebar-navigation-area {
+    /* Frame 10a: 18px between this group and the channel list
+       below it. #left-sidebar-navigation-area sits outside the
+       scrolling container, so this margin is safe to add without
+       touching the sticky channel/direct-message section headers. */
+    margin-bottom: 18px;
 }
 
 /* Don't show unread counts on views... */
@@ -1409,6 +1443,31 @@ li.active-sub-filter {
     &.selected-home-view .unread_count {
         visibility: visible;
     }
+}
+
+/* Frame 10a: Inbox keeps the full green badge (it already uses
+   .normal-count), but with the same colors as .prominent-count,
+   instead of the pale .normal-count tint. */
+.top_left_inbox .unread_count.normal-count {
+    background-color: var(--color-background-unread-counter-prominent);
+    color: var(--color-unread-counter-prominent);
+    box-shadow: none;
+}
+
+/* Frame 10a: Mentions shows a bare bold number, not a pill badge. */
+.top_left_mentions .unread_count.normal-count {
+    background-color: transparent;
+    box-shadow: none;
+    padding: 0;
+    color: var(--color-unread-counter-normal);
+}
+
+/* Frame 10a: quiet counts (Starred messages here) read at
+   hsl(180deg 10% 38%) in light mode, never lighter, so small text
+   stays readable on white. Dark mode keeps the existing quiet tone. */
+.top_left_starred_messages .unread_count.quiet-count {
+    color: light-dark(hsl(180deg 10% 38%), hsl(170deg 8% 60%));
+    font-weight: 400;
 }
 
 .sidebar-menu-icon.hide {
@@ -1647,8 +1706,9 @@ li.active-sub-filter {
         & .top_left_row.top-left-active-filter {
             display: grid;
             /* In the absence of auto rows in the condensed state,
-                we set an explicit height on the active filter. */
-            height: var(--height-sidebar-row);
+                we set an explicit height on the active filter,
+                matching the 34px expanded view row height. */
+            height: var(--height-menu-row);
         }
     }
 
@@ -1763,7 +1823,11 @@ li.active-sub-filter {
 
 .subscription_block {
     user-select: text;
-    min-height: var(--height-menu-row);
+    /* 32px at 16px/1em, frame 10a channel row height. Deliberately
+       not --height-menu-row (34px): that token's own comment claims
+       channel rows too, but frame 10a draws channel rows 2px
+       shorter than menu/view rows. */
+    min-height: 2em;
     grid-template-columns:
         var(--left-sidebar-toggle-width-offset) var(
             --left-sidebar-icon-column-width
@@ -1797,19 +1861,11 @@ li.active-sub-filter {
         display: flex;
         place-content: center center;
 
-        .zulip-icon.zulip-icon-globe {
-            /* 12px at 14px/1em */
-            font-size: 0.8571em;
-        }
-
-        .zulip-icon.zulip-icon-hashtag {
-            /* 13px at 14px/1em */
-            font-size: 0.9286em;
-        }
-
+        .zulip-icon.zulip-icon-globe,
+        .zulip-icon.zulip-icon-hashtag,
         .zulip-icon.zulip-icon-lock {
-            /* 13px at 14px/1em */
-            font-size: 0.9286em;
+            /* 16px at 14px/1em, frame 10a channel row icon size. */
+            font-size: 1.1429em;
         }
     }
 
@@ -2268,38 +2324,19 @@ ul.topic-list {
 }
 
 ul.topic-list.topic-list-has-topics::before {
+    /* Frame 10a: a single straight tree line, not a bracket with a
+       rounded cap and a separate bottom-closing edge. top/bottom
+       keep their original inset so the line still clears the
+       channel row above it; only the line's own look changes. */
     content: " ";
     display: block;
     position: absolute;
     /* 12px at 16px/1em */
     top: 0.75em;
     bottom: 0.75em;
-    left: 9px;
-    border: 1px solid var(--color-topic-indent-border);
-    border-right: 0;
-    border-radius: var(--radius-md) 0 0 var(--radius-md);
-    width: 6px;
+    left: 14px;
+    border-left: 2px solid light-dark(hsl(172deg 30% 82%), hsl(172deg 25% 30%));
     pointer-events: none;
-}
-
-ul.topic-list.topic-list-has-topics::after {
-    content: " ";
-    display: block;
-    position: absolute;
-    /* -14px at 16px/1em */
-    top: -0.875em;
-    /* 12px at 16px/1em */
-    bottom: 0.75em;
-    left: 16px;
-    width: 4px;
-    border-bottom: 1px solid var(--color-topic-indent-border);
-    pointer-events: none;
-}
-
-ul.topic-list:has(.show-more-topics)::after {
-    /* When the show all topics control is displayed,
-       extend the bottom bracket. */
-    width: 18px;
 }
 
 #stream_filters .narrow-filter,
@@ -2317,23 +2354,20 @@ ul.topic-list:has(.show-more-topics)::after {
 
 /* The grouping border should not be shown
    in the more topics modal. */
-#more-topics-modal .topic-list.topic-list-has-topics::before,
-#more-topics-modal .topic-list.topic-list-has-topics::after {
+#more-topics-modal .topic-list.topic-list-has-topics::before {
     border: 0;
 }
 
 li.topic-list-item {
     position: relative;
     padding-right: 5px;
-    margin-left: var(--left-sidebar-toggle-width-offset);
+    /* 26px at 16px/1em, frame 10a/1a topic row indent. */
+    margin-left: 26px;
 
     &:has(.zoomed-new-topic) {
         /* We set a margin equal to starting-offset of filter-input to match
            its alignment */
-        margin-left: calc(
-            var(--left-sidebar-toggle-width-offset) -
-                var(--input-icon-starting-offset)
-        );
+        margin-left: calc(26px - var(--input-icon-starting-offset));
     }
 }
 
