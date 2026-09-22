@@ -3511,13 +3511,25 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentHumanCreateJobRequest"
                   description:
                     Send exactly one form field named payload. Its value is the serialized JSON
                     request object.
                   example:
-                    '{"schema_version":1,"profile_id":"00000000-0000-4000-8000-000000000001","source_message_id":9,"repository_id":null,"request":"Summarize
-                    this thread.","idempotency_key":"00000000-0000-4000-8000-000000000002","job_kind":"answer","delivery_target":"answer","base_ref":"","context_message_ids":[],"context_attachment_ids":[]}'
+                    {
+                      "schema_version": 1,
+                      "profile_id": "00000000-0000-4000-8000-000000000001",
+                      "source_message_id": 9,
+                      "repository_id": null,
+                      "request": "Summarize this thread.",
+                      "idempotency_key": "00000000-0000-4000-8000-000000000002",
+                      "job_kind": "answer",
+                      "delivery_target": "answer",
+                      "base_ref": "",
+                      "context_message_ids": [],
+                      "context_attachment_ids": [],
+                    }
               required:
                 - payload
             encoding:
@@ -3623,11 +3635,18 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentHumanMessagePreflightRequest"
                   description:
                     Send exactly one form field named payload. Its value is the serialized JSON
                     request object.
-                  example: '{"schema_version":1,"profile_ids":["00000000-0000-4000-8000-000000000001"],"source_message_id":9,"destination":null}'
+                  example:
+                    {
+                      "schema_version": 1,
+                      "profile_ids": ["00000000-0000-4000-8000-000000000001"],
+                      "source_message_id": 9,
+                      "destination": null,
+                    }
               required:
                 - payload
             encoding:
@@ -4260,13 +4279,20 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentHumanInputRequest"
                   description:
                     Send exactly one form field named payload. Its value is the serialized JSON
                     request object.
                   example:
-                    '{"schema_version":1,"expected_version":3,"client_key":"00000000-0000-4000-8000-000000000003","text":"Use
-                    concise bullets.","input_type":"steering","source_message_id":null}'
+                    {
+                      "schema_version": 1,
+                      "expected_version": 3,
+                      "client_key": "00000000-0000-4000-8000-000000000003",
+                      "text": "Use concise bullets.",
+                      "input_type": "steering",
+                      "source_message_id": null,
+                    }
               required:
                 - payload
             encoding:
@@ -4379,11 +4405,18 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentHumanCompleteDraftRequest"
                   description:
                     Send exactly one form field named payload. Its value is the serialized JSON
                     request object.
-                  example: '{"schema_version":1,"expected_version":3,"repository_id":"00000000-0000-4000-8000-000000000001","base_ref":"main"}'
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_version": 3,
+                      "repository_id": "00000000-0000-4000-8000-000000000001",
+                      "base_ref": "main",
+                    }
               required:
                 - payload
             encoding:
@@ -4496,11 +4529,12 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentHumanJobControlRequest"
                   description:
                     Send exactly one form field named payload. Its value is the serialized JSON
                     request object.
-                  example: '{"schema_version":1,"expected_version":3}'
+                  example: {"schema_version": 1, "expected_version": 3}
               required:
                 - payload
             encoding:
@@ -4613,11 +4647,17 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentHumanResumeRequest"
                   description:
                     Send exactly one form field named payload. Its value is the serialized JSON
                     request object.
-                  example: '{"schema_version":1,"expected_version":3,"checkpoint_id":null}'
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_version": 3,
+                      "checkpoint_id": null,
+                    }
               required:
                 - payload
             encoding:
@@ -4730,11 +4770,19 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentHumanApprovalDecisionRequest"
                   description:
                     Send exactly one form field named payload. Its value is the serialized JSON
                     request object.
-                  example: '{"schema_version":1,"expected_version":1,"operation_hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","nonce":"00000000-0000-4000-8000-000000000004","decision":"approved"}'
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_version": 1,
+                      "operation_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                      "nonce": "00000000-0000-4000-8000-000000000004",
+                      "decision": "approved",
+                    }
               required:
                 - payload
             encoding:
@@ -5092,11 +5140,18 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsProfileCreateRequest"
                   description: Send one payload field with a JSON request object.
                   example:
-                    '{"schema_version":1,"runner_id":"00000000-0000-4000-8000-000000000001","name":"Example
-                    agent","adapter_id":"example","adapter_version":"1","idempotency_key":"00000000-0000-4000-8000-000000000001"}'
+                    {
+                      "schema_version": 1,
+                      "runner_id": "00000000-0000-4000-8000-000000000001",
+                      "name": "Example agent",
+                      "adapter_id": "example",
+                      "adapter_version": "1",
+                      "idempotency_key": "00000000-0000-4000-8000-000000000001",
+                    }
               required:
                 - payload
             encoding:
@@ -5399,9 +5454,18 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsProfileUpdateRequest"
                   description: Send one payload field with a JSON request object.
-                  example: '{"schema_version":1,"expected_metadata_revision":1,"expected_revision":1,"name":"Example","adapter_id":"example","adapter_version":"1"}'
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_metadata_revision": 1,
+                      "expected_revision": 1,
+                      "name": "Example",
+                      "adapter_id": "example",
+                      "adapter_version": "1",
+                    }
               required:
                 - payload
             encoding:
@@ -5516,9 +5580,15 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsPairingApprovalRequest"
                   description: Send one payload field with a JSON request object.
-                  example: '{"schema_version":1,"pairing_id":"00000000-0000-4000-8000-000000000001","user_code":"ABCD1234"}'
+                  example:
+                    {
+                      "schema_version": 1,
+                      "pairing_id": "00000000-0000-4000-8000-000000000001",
+                      "user_code": "ABCD1234",
+                    }
               required:
                 - payload
             encoding:
@@ -5857,9 +5927,16 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsRunnerMetadataUpdateRequest"
                   description: Send one payload field with a JSON request object.
-                  example: '{"schema_version":1,"expected_metadata_revision":1,"name":"Example","host_kind":"server"}'
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_metadata_revision": 1,
+                      "name": "Example",
+                      "host_kind": "server",
+                    }
               required:
                 - payload
             encoding:
@@ -5974,9 +6051,10 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsRevisionRequestRequest"
                   description: Send one payload field with a JSON request object.
-                  example: '{"schema_version":1,"expected_revision":1}'
+                  example: {"schema_version": 1, "expected_revision": 1}
               required:
                 - payload
             encoding:
@@ -6223,9 +6301,21 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsProviderCreateRequest"
                   description: Send one payload field with a JSON request object.
-                  example: '{"schema_version":1,"runner_id":"00000000-0000-4000-8000-000000000001","name":"Example","base_url":"https://example.test","model_id":"model","allowed_models":["model"],"context_window_tokens":1024,"max_output_tokens":128,"local_credential_ref":"synthetic-provider-credential"}'
+                  example:
+                    {
+                      "schema_version": 1,
+                      "runner_id": "00000000-0000-4000-8000-000000000001",
+                      "name": "Example",
+                      "base_url": "https://example.test",
+                      "model_id": "model",
+                      "allowed_models": ["model"],
+                      "context_window_tokens": 1024,
+                      "max_output_tokens": 128,
+                      "local_credential_ref": "synthetic-provider-credential",
+                    }
               required:
                 - payload
             encoding:
@@ -6430,9 +6520,21 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsProviderUpdateRequest"
                   description: Send one payload field with a JSON request object.
-                  example: '{"schema_version":1,"expected_config_version":1,"expected_metadata_revision":1,"name":"Example","base_url":"https://example.test","model_id":"model","allowed_models":["model"],"context_window_tokens":1024,"max_output_tokens":128}'
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_config_version": 1,
+                      "expected_metadata_revision": 1,
+                      "name": "Example",
+                      "base_url": "https://example.test",
+                      "model_id": "model",
+                      "allowed_models": ["model"],
+                      "context_window_tokens": 1024,
+                      "max_output_tokens": 128,
+                    }
               required:
                 - payload
             encoding:
@@ -6547,9 +6649,15 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsSetupRequestRequest"
                   description: Send one payload field with a JSON request object.
-                  example: '{"schema_version":1,"expected_revision":1,"retry_key":"00000000-0000-4000-8000-000000000001"}'
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_revision": 1,
+                      "retry_key": "00000000-0000-4000-8000-000000000001",
+                    }
               required:
                 - payload
             encoding:
@@ -6796,9 +6904,16 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsRepositoryCreateRequest"
                   description: Send one payload field with a JSON request object.
-                  example: '{"schema_version":1,"runner_id":"00000000-0000-4000-8000-000000000001","workspace_alias":"example","allowed_refs":["main"]}'
+                  example:
+                    {
+                      "schema_version": 1,
+                      "runner_id": "00000000-0000-4000-8000-000000000001",
+                      "workspace_alias": "example",
+                      "allowed_refs": ["main"],
+                    }
               required:
                 - payload
             encoding:
@@ -7004,9 +7119,10 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsRevisionRequestRequest"
                   description: Send one payload field with a JSON request object.
-                  example: '{"schema_version":1,"expected_revision":1}'
+                  example: {"schema_version": 1, "expected_revision": 1}
               required:
                 - payload
             encoding:
@@ -7121,9 +7237,10 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsArchiveProfileRequest"
                   description: Send one payload field with a JSON request object.
-                  example: '{"schema_version":1,"expected_revision":1}'
+                  example: {"schema_version": 1, "expected_revision": 1}
               required:
                 - payload
             encoding:
@@ -7238,9 +7355,10 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsRevisionRequestRequest"
                   description: Send one payload field with a JSON request object.
-                  example: '{"schema_version":1,"expected_revision":1}'
+                  example: {"schema_version": 1, "expected_revision": 1}
               required:
                 - payload
             encoding:
@@ -7355,9 +7473,15 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsSetupRequestRequest"
                   description: Send one payload field with a JSON request object.
-                  example: '{"schema_version":1,"expected_revision":1,"retry_key":"00000000-0000-4000-8000-000000000001"}'
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_revision": 1,
+                      "retry_key": "00000000-0000-4000-8000-000000000001",
+                    }
               required:
                 - payload
             encoding:
@@ -7688,9 +7812,18 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsGrantCreateRequest"
                   description: Send one payload field with a JSON request object.
-                  example: '{"schema_version":1,"target_kind":"profile","target_id":"00000000-0000-4000-8000-000000000001","expected_revision":1,"actions":["profile.use"],"principal_user_id":2}'
+                  example:
+                    {
+                      "schema_version": 1,
+                      "target_kind": "profile",
+                      "target_id": "00000000-0000-4000-8000-000000000001",
+                      "expected_revision": 1,
+                      "actions": ["profile.use"],
+                      "principal_user_id": 2,
+                    }
               required:
                 - payload
             encoding:
@@ -7798,9 +7931,10 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsRevisionRequestRequest"
                   description: Send one payload field with a JSON request object.
-                  example: '{"schema_version":1,"expected_revision":1}'
+                  example: {"schema_version": 1, "expected_revision": 1}
               required:
                 - payload
             encoding:
@@ -7915,9 +8049,15 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsChannelRequestRequest"
                   description: Send one payload field with a JSON request object.
-                  example: '{"schema_version":1,"expected_revision":1,"stream_id":1}'
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_revision": 1,
+                      "stream_id": 1,
+                    }
               required:
                 - payload
             encoding:
@@ -8220,9 +8360,15 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsDefaultSelectionUpdateRequest"
                   description: Send one payload field with a JSON request object.
-                  example: '{"schema_version":1,"expected_selection_revision":1,"profile_id":"00000000-0000-4000-8000-000000000001"}'
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_selection_revision": 1,
+                      "profile_id": "00000000-0000-4000-8000-000000000001",
+                    }
               required:
                 - payload
             encoding:
@@ -8330,9 +8476,10 @@ paths:
               additionalProperties: false
               properties:
                 payload:
-                  type: string
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsSelectionResolveRequest"
                   description: Send one payload field with a JSON request object.
-                  example: '{"schema_version":1,"source_message_id":1}'
+                  example: {"schema_version": 1, "source_message_id": 1}
               required:
                 - payload
             encoding:
@@ -42240,6 +42387,11 @@ components:
           format: uuid
           type: string
           nullable: true
+        provider_network_version:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Copy the selected provider's current approved network policy into this profile. Do not send network with this field.
         repository_id:
           default: null
           title: Repository Id
@@ -42346,6 +42498,11 @@ components:
           format: uuid
           type: string
           nullable: true
+        provider_network_version:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Copy the selected provider's current approved network policy into this profile. Do not send network or retain_network with this field.
         repository_id:
           default: null
           title: Repository Id
@@ -42405,7 +42562,7 @@ components:
       type: object
       description:
         Use retain_network only with the current provider and without an explicit network. Choose
-        an explicit network when changing a restricted configuration.
+        an explicit network or a provider_network_version snapshot when changing a restricted configuration.
     AgentSettingsRevisionRequestRequest:
       additionalProperties: false
       properties:
@@ -42963,6 +43120,7 @@ components:
         config_version:
           type: integer
           minimum: 1
+          description: Safe provider configuration version visible to authorized users.
         metadata_revision:
           type: integer
           minimum: 1
@@ -43000,6 +43158,7 @@ components:
         - capabilities
         - disabled_at
         - allowed_actions
+        - config_version
     AgentSettingsRepository:
       type: object
       additionalProperties: false

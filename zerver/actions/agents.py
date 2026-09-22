@@ -461,7 +461,10 @@ def update_provider(
     expected_metadata_revision: int,
     **values: object,
 ) -> agents.AgentProvider:
+    runner = agents.AgentRunner.objects.select_for_update().get(id=provider.runner_id)
     provider = agents.AgentProvider.objects.select_for_update().get(id=provider.id)
+    if provider.runner_id != runner.id:
+        raise ValueError("Runner binding changed.")
     if (
         not owner.is_active
         or provider.realm_id != owner.realm_id
@@ -471,7 +474,7 @@ def update_provider(
         raise ValueError("Provider configuration is stale.")
     if provider.metadata_revision != expected_metadata_revision:
         raise ValueError("Provider metadata is stale.")
-    if provider.runner.owner_id != owner.id or provider.runner.revoked_at is not None:
+    if runner.owner_id != owner.id or runner.revoked_at is not None:
         raise ValueError("Runner is unavailable.")
     credential = values.pop("credential_replacement", None)
     local_ref = values.pop("local_credential_ref", None)
@@ -617,12 +620,23 @@ def update_profile(
     retain_network: bool,
     hard_cost_cap: bool,
     budget: dict[str, object],
+    provider_network_version: int | None = None,
 ) -> agents.AgentProfile:
+    # Setup validation takes this same runner lock before profile and provider rows.
+    runner = agents.AgentRunner.objects.select_for_update().get(id=profile.runner_id)
+    if provider is not None:
+        provider = agents.AgentProvider.objects.select_for_update().get(id=provider.id)
+    if provider_network_version is not None and (
+        provider is None or provider.config_version != provider_network_version
+    ):
+        raise ValueError("Provider configuration is stale.")
     profile = (
         agents.AgentProfile.objects.select_for_update()
         .select_related("bot_user")
         .get(id=profile.id)
     )
+    if profile.runner_id != runner.id:
+        raise ValueError("Runner binding changed.")
     check_agent_access(owner, profile, None, None, "profile.manage")
     if (
         profile.metadata_revision != expected_metadata_revision
@@ -630,7 +644,6 @@ def update_profile(
         or profile.desired_state == "archived"
     ):
         raise ValueError("Profile configuration is stale.")
-    runner = profile.runner
     require_agent_resource_access(owner, runner, target_kind="runner", action="runner.use")
     if provider is not None:
         require_agent_resource_access(
@@ -663,7 +676,11 @@ def update_profile(
     if sandbox is None:
         raise ValueError("Sandbox is unavailable.")
     default_network = protocol.serialize_payload(protocol.NetworkPolicy())
-    if retain_network:
+    if provider_network_version is not None:
+        if network is not None or retain_network:
+            raise ValueError("Profile network choice is invalid.")
+        network_data = provider.network_policy
+    elif retain_network:
         if network is not None or profile.provider_id != (provider.id if provider else None):
             raise ValueError("Profile network cannot be retained for a new provider.")
         network_data = profile.policy["network"]
@@ -733,9 +750,9 @@ def update_profile(
     if profile.desired_state == "enabled":
         profile.desired_state = "draft"
     profile.save()
-    agents.AgentProbeGrant.objects.filter(profile=profile, revoked_at__isnull=True).update(
-        revoked_at=now()
-    )
+    agents.AgentProbeGrant.objects.filter(
+        setup_operation__profile=profile, revoked_at__isnull=True
+    ).update(revoked_at=now())
     if metadata_changed and profile.bot_user.full_name != name:
         do_change_full_name(profile.bot_user, name, acting_user=owner, notify=False)
     return profile
@@ -1140,6 +1157,7 @@ def create_profile(
     description: str = "",
     policy: dict[str, object] | None = None,
     budget: dict[str, object] | None = None,
+    provider_network_version: int | None = None,
 ) -> agents.AgentProfile:
     from zerver.lib.agent_policy import AgentAccessDenied
 
@@ -1149,6 +1167,12 @@ def create_profile(
         require_agent_resource_access(owner, runner, target_kind="runner", action="runner.use")
     except AgentAccessDenied:
         raise ValueError("Runner is unavailable.") from None
+    if provider is not None:
+        provider = agents.AgentProvider.objects.select_for_update().get(id=provider.id)
+    if provider_network_version is not None and (
+        provider is None or provider.config_version != provider_network_version
+    ):
+        raise ValueError("Provider configuration is stale.")
     if provider is not None:
         if provider.realm_id != owner.realm_id or provider.runner_id != runner.id:
             raise ValueError("Provider is unavailable.")
@@ -1182,6 +1206,8 @@ def create_profile(
     ):
         raise ValueError("Adapter is unavailable.")
     policy_data: dict[str, object] = _default_policy(owner, runner) if policy is None else policy
+    if provider_network_version is not None:
+        policy_data = {**policy_data, "network": provider.network_policy}
     budget_data: dict[str, object] = dict(_default_budget()) if budget is None else budget
     try:
         policy_data = protocol.serialize_payload(protocol.Policy.model_validate(policy_data))

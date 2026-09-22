@@ -229,6 +229,7 @@ def _provider_data(
         "max_output_tokens": provider.max_output_tokens,
         "data_scope": provider.data_scope,
         "capabilities": provider.capability_report,
+        "config_version": provider.config_version,
         "disabled_at": provider.disabled_at.isoformat() if provider.disabled_at else None,
         "allowed_actions": ["edit", "probe"]
         if owner and actor and actor.is_active and provider.disabled_at is None
@@ -237,7 +238,6 @@ def _provider_data(
     if owner:
         result.update(
             {
-                "config_version": provider.config_version,
                 "metadata_revision": provider.metadata_revision,
                 "base_url": provider.base_url,
                 "network": provider.network_policy,
@@ -811,6 +811,7 @@ def update_agent_profile(
         actions=data.actions,
         network=p.serialize_payload(data.network) if data.network is not None else None,
         retain_network=data.retain_network,
+        provider_network_version=data.provider_network_version,
         hard_cost_cap=data.hard_cost_cap,
         budget=p.serialize_payload(data.budget),
     )
@@ -888,6 +889,7 @@ def create_agent_profile(request: HttpRequest, user_profile: UserProfile) -> Htt
         repository=repository,
         policy=policy,
         budget=p.serialize_payload(data.budget),
+        provider_network_version=data.provider_network_version,
         idempotency_key=data.idempotency_key,
     )
     setup = agents.AgentSetupOperation.objects.get(

@@ -57,12 +57,21 @@ class ProfileCreate(Request):
     default_mode: Literal["answer", "code"] = "answer"
     idempotency_key: UUID
     provider_id: UUID | None = None
+    provider_network_version: p.Positive | None = None
     repository_id: UUID | None = None
     sandbox_alias: p.Text = "default"
     actions: list[p.ExecutionAction] = Field(default=["context.read"], max_length=32)
     budget: p.Budget = Field(default_factory=lambda: p.Budget(input_tokens=1024, output_tokens=512))
     network: p.NetworkPolicy = Field(default_factory=p.NetworkPolicy)
     hard_cost_cap: bool = Field(default=False, strict=True)
+
+    @model_validator(mode="after")
+    def valid_network_choice(self) -> Self:
+        if self.provider_network_version is not None and (
+            self.provider_id is None or "network" in self.model_fields_set
+        ):
+            raise ValueError("Choose a provider snapshot or an explicit network.")
+        return self
 
 
 class RevisionRequest(Request):
@@ -112,6 +121,7 @@ class ProfileUpdate(Request):
     mode: Literal["acp", "endpoint"] = "acp"
     default_mode: Literal["answer", "code"] = "answer"
     provider_id: UUID | None = None
+    provider_network_version: p.Positive | None = None
     repository_id: UUID | None = None
     sandbox_alias: p.Text = "default"
     actions: list[p.ExecutionAction] = Field(default=["context.read"], max_length=32)
@@ -122,6 +132,12 @@ class ProfileUpdate(Request):
 
     @model_validator(mode="after")
     def valid_network_choice(self) -> Self:
+        if self.provider_network_version is not None and (
+            self.provider_id is None
+            or "network" in self.model_fields_set
+            or "retain_network" in self.model_fields_set
+        ):
+            raise ValueError("Choose a provider snapshot or another network choice.")
         if self.retain_network and self.network is not None:
             raise ValueError("Choose retained or explicit network configuration.")
         return self

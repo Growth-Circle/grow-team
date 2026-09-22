@@ -982,6 +982,286 @@ class AgentAPITests(ZulipTestCase):
                 400,
             )
 
+    def test_shared_provider_network_snapshot_create_replace_and_rejections(self) -> None:
+        def post(path: str, body: dict[str, object]) -> dict[str, object]:
+            response = self.client_post(
+                "/json/agent/" + path,
+                {"payload": json.dumps({"schema_version": 1, **body})},
+            )
+            return self.assert_json_success(response)
+
+        private_host = "private-provider.example"
+        network = {"targets": [{"hostname": private_host, "port": 443}]}
+        provider_id = post(
+            "providers",
+            {
+                "runner_id": str(self.runner.id),
+                "name": "Private provider",
+                "base_url": f"https://{private_host}",
+                "model_id": "model",
+                "allowed_models": ["model"],
+                "context_window_tokens": 1000,
+                "max_output_tokens": 100,
+                "local_credential_ref": "private-alias",
+                "network": network,
+            },
+        )["provider"]["id"]
+        provider = agents.AgentProvider.objects.get(id=provider_id)
+        member = self.example_user("othello")
+        for kind, target_id, action in [
+            ("runner", str(self.runner.id), "runner.use"),
+            ("provider", provider_id, "provider.use"),
+        ]:
+            post(
+                "grants",
+                {
+                    "target_kind": kind,
+                    "target_id": target_id,
+                    "expected_revision": 1,
+                    "principal_user_id": member.id,
+                    "actions": [action],
+                },
+            )
+        self.login_user(member)
+        browser = self.assert_json_success(self.client_get("/json/agent/providers"))
+        shared = browser["providers"][0]
+        self.assertEqual(shared["config_version"], provider.config_version)
+        self.assertNotIn(private_host, json.dumps(browser))
+        self.assertNotIn("private-alias", json.dumps(browser))
+        self.assertNotIn("network", shared)
+        self.assertNotIn("metadata_revision", shared)
+        self.assertNotIn("credential", shared)
+        self.assertEqual(
+            self.assert_json_success(self.client_get(f"/json/agent/providers/{provider_id}"))[
+                "provider"
+            ],
+            shared,
+        )
+        request = {
+            **self.profile_payload(),
+            "provider_id": provider_id,
+            "provider_network_version": shared["config_version"],
+        }
+
+        def counts() -> tuple[int, int, int, int, int]:
+            return (
+                agents.AgentProfile.objects.count(),
+                agents.AgentSetupOperation.objects.count(),
+                agents.AgentProbeGrant.objects.count(),
+                agents.AgentOutbox.objects.count(),
+                UserProfile.objects.filter(is_bot=True).count(),
+            )
+
+        before = counts()
+        for rejected in [
+            {**request, "provider_network_version": 0},
+            {**request, "provider_network_version": 2},
+            {**request, "network": network},
+            {**request, "retain_network": False},
+            {**request, "provider_id": None},
+        ]:
+            response = self.client_post(
+                "/json/agent/profiles", {"payload": json.dumps({"schema_version": 1, **rejected})}
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(counts(), before)
+        created = post("profiles", request)
+        self.assertNotIn(private_host, json.dumps(created))
+        self.assertNotIn("private-alias", json.dumps(created))
+        profile = agents.AgentProfile.objects.get(id=created["profile"]["id"])
+        self.assertNotIn(
+            private_host,
+            json.dumps(
+                self.assert_json_success(self.client_get(f"/json/agent/profiles/{profile.id}"))
+            ),
+        )
+        self.assertEqual(profile.policy["network"], provider.network_policy)
+        setup = agents.AgentSetupOperation.objects.get(id=created["setup_id"])
+        self.assertEqual(setup.descriptor["policy"]["network"], provider.network_policy)
+        after = counts()
+        self.assertEqual(post("profiles", request)["profile"]["id"], str(profile.id))
+        self.assertEqual(counts(), after)
+        recovered = self.assert_json_success(
+            self.client_get(
+                "/json/agent/profiles/recover", {"idempotency_key": request["idempotency_key"]}
+            )
+        )
+        self.assertEqual(recovered["profile"]["id"], str(profile.id))
+        self.assertNotIn(private_host, json.dumps(recovered))
+        self.assertEqual(counts(), after)
+
+        plain = post("profiles", self.profile_payload())
+        replacement = agents.AgentProfile.objects.get(id=plain["profile"]["id"])
+        prior_grant = agents.AgentProbeGrant.objects.get(setup_operation__profile=replacement)
+        agents.AgentProfile.objects.filter(id=replacement.id).update(readiness_state="ready")
+        edit = self.profile_edit_body(replacement)
+        edit["provider_id"] = provider_id
+        edit["provider_network_version"] = provider.config_version
+        del edit["network"]
+        before_replace = counts()
+        for rejected in [
+            {**edit, "provider_network_version": 2},
+            {**edit, "network": network},
+            {**edit, "retain_network": False},
+        ]:
+            response = self.client_patch(
+                f"/json/agent/profiles/{replacement.id}", {"payload": json.dumps(rejected)}
+            )
+            self.assertEqual(response.status_code, 400)
+            replacement.refresh_from_db()
+            self.assertIsNone(replacement.provider_id)
+            self.assertEqual(replacement.revision, 1)
+            self.assertEqual(counts(), before_replace)
+        updated = self.assert_json_success(
+            self.client_patch(
+                f"/json/agent/profiles/{replacement.id}",
+                {"payload": json.dumps(edit)},
+            )
+        )
+        self.assertNotIn(private_host, json.dumps(updated))
+        replacement.refresh_from_db()
+        self.assertEqual(replacement.policy["network"], provider.network_policy)
+        self.assertEqual(replacement.provider_id, provider.id)
+        self.assertEqual(replacement.readiness_state, "unchecked")
+        prior_grant.refresh_from_db()
+        self.assertIsNotNone(prior_grant.revoked_at)
+        replacement_setup = post(
+            f"profiles/{replacement.id}/readiness",
+            {"expected_revision": replacement.revision, "retry_key": str(uuid4())},
+        )
+        self.assertEqual(
+            agents.AgentSetupOperation.objects.get(id=replacement_setup["setup_id"]).descriptor[
+                "policy"
+            ]["network"],
+            provider.network_policy,
+        )
+
+        self.login_user(self.owner)
+        provider_edit = {
+            "schema_version": 1,
+            "expected_config_version": provider.config_version,
+            "expected_metadata_revision": provider.metadata_revision,
+            "name": provider.name,
+            "base_url": provider.base_url,
+            "model_id": provider.model_id,
+            "allowed_models": provider.allowed_models,
+            "context_window_tokens": provider.context_window_tokens,
+            "max_output_tokens": provider.max_output_tokens + 1,
+            "api_mode": provider.api_mode,
+            "network": provider.network_policy,
+            "data_scope": provider.data_scope,
+        }
+        self.assert_json_success(
+            self.client_patch(
+                f"/json/agent/providers/{provider.id}",
+                {"payload": json.dumps(provider_edit)},
+            )
+        )
+        provider.refresh_from_db()
+        self.assertEqual(provider.config_version, 2)
+        self.login_user(member)
+        stale = {**request, "idempotency_key": str(uuid4())}
+        unchanged = counts()
+        self.assertEqual(
+            self.client_post(
+                "/json/agent/profiles",
+                {"payload": json.dumps({"schema_version": 1, **stale})},
+            ).status_code,
+            400,
+        )
+        self.assertEqual(counts(), unchanged)
+
+        foreign_owner = self.lear_user("king")
+        foreign_runner = agents.AgentRunner.objects.create(
+            realm=foreign_owner.realm,
+            owner=foreign_owner,
+            name="Other realm runner",
+            fingerprint="b" * 64,
+            catalog_report=self.runner.catalog_report,
+        )
+        foreign_provider = agents.AgentProvider.objects.create(
+            realm=foreign_owner.realm,
+            owner=foreign_owner,
+            runner=foreign_runner,
+            name="Other realm provider",
+            base_url="https://elsewhere.example",
+            model_id="model",
+            allowed_models=["model"],
+            context_window_tokens=1000,
+            max_output_tokens=100,
+            local_credential_ref="foreign-alias",
+            data_scope=["synthetic"],
+            network_policy=provider.network_policy,
+            capability_report={"config_version": 1},
+        )
+        cross_realm = {
+            **request,
+            "idempotency_key": str(uuid4()),
+            "provider_id": str(foreign_provider.id),
+        }
+        self.assertEqual(
+            self.client_post(
+                "/json/agent/profiles",
+                {"payload": json.dumps({"schema_version": 1, **cross_realm})},
+            ).status_code,
+            400,
+        )
+        self.assertEqual(counts(), unchanged)
+        stale_edit = {**self.profile_edit_body(replacement), "provider_network_version": 1}
+        del stale_edit["network"]
+        retained_policy = replacement.policy
+        self.assertEqual(
+            self.client_patch(
+                f"/json/agent/profiles/{replacement.id}",
+                {"payload": json.dumps(stale_edit)},
+            ).status_code,
+            400,
+        )
+        replacement.refresh_from_db()
+        self.assertEqual(replacement.revision, 2)
+        self.assertEqual(replacement.policy, retained_policy)
+        self.assertEqual(counts(), unchanged)
+
+        agents.AgentGrant.objects.filter(provider=provider, principal_user=member).update(
+            revoked_at=now()
+        )
+        revoked = {**request, "idempotency_key": str(uuid4()), "provider_network_version": 2}
+        self.assertEqual(
+            self.client_post(
+                "/json/agent/profiles",
+                {"payload": json.dumps({"schema_version": 1, **revoked})},
+            ).status_code,
+            400,
+        )
+        self.assertEqual(counts(), unchanged)
+
+        ungranted = self.example_user("iago")
+        self.login_user(self.owner)
+        post(
+            "grants",
+            {
+                "target_kind": "runner",
+                "target_id": str(self.runner.id),
+                "expected_revision": 1,
+                "principal_user_id": ungranted.id,
+                "actions": ["runner.use"],
+            },
+        )
+        self.login_user(ungranted)
+        missing_grant = {
+            **request,
+            "idempotency_key": str(uuid4()),
+            "provider_network_version": 2,
+        }
+        self.assertEqual(
+            self.client_post(
+                "/json/agent/profiles",
+                {"payload": json.dumps({"schema_version": 1, **missing_grant})},
+            ).status_code,
+            400,
+        )
+        self.assertEqual(counts(), unchanged)
+
     def test_setup_recovery_uses_owner_and_existing_retry_key(self) -> None:
         retry_key = str(uuid4())
         created = self.post_agent(
@@ -1876,6 +2156,249 @@ from zerver.lib.test_classes import ZulipTransactionTestCase
 
 
 class AgentConcurrencyTests(ZulipTransactionTestCase):
+    def test_configuration_edits_serialize_with_setup_claim_and_result(self) -> None:
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Event
+
+        from django.db import connection, connections
+
+        from zerver.actions import agents as actions
+        from zerver.lib.agent_protocol import CapabilityReport
+        from zerver.lib.agent_requests import SetupResult
+        from zerver.models import Client as APIClient
+        from zerver.models import RealmAuditLog, UserGroup, UserProfile
+
+        owner = self.example_user("hamlet")
+        initial_clients = set(APIClient.objects.values_list("id", flat=True))
+        initial_users = set(UserProfile.objects.values_list("id", flat=True))
+        initial_groups = set(UserGroup.objects.values_list("id", flat=True))
+        initial_audits = set(RealmAuditLog.objects.values_list("id", flat=True))
+        settings_record, settings_created = agents.AgentRealmSettings.objects.get_or_create(
+            realm=owner.realm, defaults={"enabled": True}
+        )
+        original_enabled = settings_record.enabled
+        settings_record.enabled = True
+        settings_record.save(update_fields=["enabled"])
+        runner = agents.AgentRunner.objects.create(
+            realm=owner.realm,
+            owner=owner,
+            name="lock-order-runner",
+            fingerprint="y" * 64,
+            catalog_report={
+                "revision": 1,
+                "adapters": [
+                    {
+                        "id": "acp",
+                        "version": "1",
+                        "auth_state": "ready",
+                        "capabilities": {"config_version": 1},
+                    }
+                ],
+                "sandboxes": [
+                    {
+                        "alias": "default",
+                        "image_digest": "sha256:" + "a" * 64,
+                        "toolchain_digest": "b" * 64,
+                        "catalog_revision": 1,
+                        "cpu_millicores": 100,
+                        "memory_bytes": 67108864,
+                        "pids_limit": 16,
+                        "temporary_bytes": 1048576,
+                    }
+                ],
+            },
+        )
+        runner.catalog_revision = 1
+        runner.save(update_fields=["catalog_revision"])
+        try:
+            provider = actions.register_provider(
+                owner,
+                runner,
+                name="lock-order-provider",
+                base_url="https://example.com",
+                model_id="model",
+                allowed_models=["model"],
+                context_window_tokens=1000,
+                max_output_tokens=100,
+                local_credential_ref="local",
+            )
+            profile = actions.create_profile(
+                owner,
+                name="Lock order profile",
+                runner=runner,
+                adapter_id="acp",
+                adapter_version="1",
+                mode="endpoint",
+                provider=provider,
+                idempotency_key=uuid4(),
+            )
+            for edit_kind in ("profile", "provider"):
+                for setup_action in ("claim", "result"):
+                    profile.refresh_from_db()
+                    provider.refresh_from_db()
+                    setup = actions.retry_profile_setup(
+                        owner, profile, expected_revision=profile.revision, retry_key=uuid4()
+                    )
+                    self.assertEqual(setup.profile_id, profile.id)
+                    self.assertEqual(setup.provider_id, provider.id)
+                    claim_key = uuid4()
+                    if setup_action == "result":
+                        setup = actions.claim_setup(runner, setup.id, claim_key)
+                    result = SetupResult(
+                        schema_version=1,
+                        setup_id=setup.id,
+                        claim_key=claim_key,
+                        lease_epoch=max(1, setup.lease_epoch),
+                        descriptor_digest=setup.descriptor_digest,
+                        configuration_digest=setup.configuration_digest,
+                        state="needs_action",
+                        capabilities=CapabilityReport(
+                            config_version=setup.provider_config_version or setup.profile_revision
+                        ),
+                    )
+                    before_profile_revision = profile.revision
+                    before_provider_version = provider.config_version
+                    first_locked = Event()
+                    second_attempting = Event()
+
+                    def operation(
+                        first: bool,
+                        *,
+                        first_locked: Event = first_locked,
+                        second_attempting: Event = second_attempting,
+                        edit_kind: str = edit_kind,
+                        setup_action: str = setup_action,
+                        setup: agents.AgentSetupOperation = setup,
+                        result: SetupResult = result,
+                        claim_key: UUID = claim_key,
+                        before_profile_revision: int = before_profile_revision,
+                        before_provider_version: int = before_provider_version,
+                    ) -> tuple[str, list[str]]:
+                        lock_rows: list[str] = []
+
+                        def trace(
+                            execute: object, sql: str, params: object, many: bool, context: object
+                        ) -> object:
+                            if "FOR UPDATE" in sql:
+                                for table in (
+                                    "zerver_agentrunner",
+                                    "zerver_agentprovider",
+                                    "zerver_agentprofile",
+                                    "zerver_agentsetupoperation",
+                                ):
+                                    if f'FROM "{table}"' in sql:
+                                        lock_rows.append(table)
+                                        if table == "zerver_agentrunner":
+                                            if first:
+                                                answer = execute(sql, params, many, context)  # type: ignore[operator]
+                                                first_locked.set()
+                                                if not second_attempting.wait(5):
+                                                    raise AssertionError(
+                                                        "Second connection did not attempt runner lock"
+                                                    )
+                                                return answer
+                                            second_attempting.set()
+                                        break
+                            return execute(sql, params, many, context)  # type: ignore[operator]
+
+                        try:
+                            with connection.cursor() as cursor:
+                                cursor.execute("SET statement_timeout = '4000ms'")
+                            with connection.execute_wrapper(trace):
+                                if first and edit_kind == "profile":
+                                    actions.update_profile(
+                                        owner,
+                                        profile,
+                                        expected_metadata_revision=profile.metadata_revision,
+                                        expected_revision=before_profile_revision,
+                                        name=profile.name,
+                                        description=profile.description,
+                                        provider=provider,
+                                        repository=None,
+                                        adapter_id=profile.adapter_id,
+                                        adapter_version=profile.adapter_version,
+                                        mode=profile.mode,
+                                        default_mode=profile.default_mode,
+                                        sandbox_alias=profile.policy["sandbox"]["alias"],
+                                        actions=profile.policy["actions"],
+                                        network=profile.policy["network"],
+                                        retain_network=False,
+                                        hard_cost_cap=not profile.policy["hard_cost_cap"],
+                                        budget=profile.budget,
+                                    )
+                                elif first:
+                                    actions.update_provider(
+                                        owner,
+                                        provider,
+                                        expected_config_version=before_provider_version,
+                                        expected_metadata_revision=provider.metadata_revision,
+                                        name=provider.name,
+                                        base_url=provider.base_url,
+                                        model_id=provider.model_id,
+                                        allowed_models=provider.allowed_models,
+                                        context_window_tokens=provider.context_window_tokens,
+                                        max_output_tokens=provider.max_output_tokens + 1,
+                                        api_mode=provider.api_mode,
+                                        network_policy=provider.network_policy,
+                                        data_scope=provider.data_scope,
+                                    )
+                                elif setup_action == "claim":
+                                    try:
+                                        actions.claim_setup(runner, setup.id, claim_key)
+                                    except ValueError as error:
+                                        if str(error) != "Probe authority is unavailable.":
+                                            raise
+                                        return "stale", lock_rows
+                                else:
+                                    try:
+                                        actions.record_setup_result(runner, result)
+                                    except ValueError as error:
+                                        if str(error) != "Probe authority is unavailable.":
+                                            raise
+                                        return "stale", lock_rows
+                            return "success", lock_rows
+                        finally:
+                            connections.close_all()
+
+                    with ThreadPoolExecutor(max_workers=2) as pool:
+                        edit = pool.submit(operation, True)
+                        self.assertTrue(first_locked.wait(5))
+                        setup_operation = pool.submit(operation, False)
+                        self.assertTrue(second_attempting.wait(5))
+                        edit_status, edit_locks = edit.result(timeout=10)
+                        setup_status, setup_locks = setup_operation.result(timeout=10)
+                    self.assertEqual(edit_status, "success")
+                    self.assertEqual(setup_status, "stale")
+                    self.assertEqual(edit_locks[0], "zerver_agentrunner")
+                    self.assertEqual(setup_locks[0], "zerver_agentrunner")
+                    profile.refresh_from_db()
+                    provider.refresh_from_db()
+                    if edit_kind == "profile":
+                        self.assertEqual(profile.revision, before_profile_revision + 1)
+                    else:
+                        self.assertEqual(provider.config_version, before_provider_version + 1)
+                    self.assertEqual(profile.readiness_state, "unchecked")
+                    self.assertFalse(
+                        agents.AgentProbeGrant.objects.filter(
+                            setup_operation=setup, revoked_at__isnull=True
+                        ).exists()
+                    )
+        finally:
+            agents.AgentProbeGrant.objects.filter(runner=runner).delete()
+            agents.AgentSetupOperation.objects.filter(runner=runner).delete()
+            agents.AgentProfile.objects.filter(runner=runner).delete()
+            agents.AgentProvider.objects.filter(runner=runner).delete()
+            runner.delete()
+            if settings_created:
+                settings_record.delete()
+            else:
+                settings_record.enabled = original_enabled
+                settings_record.save(update_fields=["enabled"])
+            RealmAuditLog.objects.exclude(id__in=initial_audits).delete()
+            UserProfile.objects.exclude(id__in=initial_users).delete()
+            UserGroup.objects.exclude(id__in=initial_groups).delete()
+            APIClient.objects.exclude(id__in=initial_clients).delete()
+
     def test_concurrent_identical_and_conflicting_payloads_share_one_identity(self) -> None:
         from concurrent.futures import ThreadPoolExecutor
         from threading import Barrier
