@@ -8,6 +8,24 @@
         </button>
     </div>
     <div class="task-board-header-actions">
+        <label class="task-board-filter-label" for="task-board-filter">{{t "Filter"}}</label>
+        <select class="task-board-filter" id="task-board-filter">
+            {{#each filters}}
+            <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+        </select>
+        {{#if members}}
+        <span class="task-board-members" aria-label="{{t 'People responsible for cards on this board'}}">
+            {{#each members}}
+            <span class="task-board-card-avatar" title="{{this.full_name}}">
+                <img class="task-board-card-avatar-image" src="{{this.avatar_url}}" alt="{{this.full_name}}" />
+            </span>
+            {{/each}}
+            {{#if extra_member_count}}
+            <span class="task-board-card-avatar task-board-card-avatar-empty">+{{extra_member_count}}</span>
+            {{/if}}
+        </span>
+        {{/if}}
         <button type="button" class="task-board-new-card action-button action-button-solid-brand">
             <i class="zulip-icon zulip-icon-plus" aria-hidden="true"></i>
             <span class="action-button-label">{{t "New task"}}</span>

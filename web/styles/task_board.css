@@ -45,6 +45,34 @@
     gap: 8px;
 }
 
+.task-board-filter-label {
+    margin: 0;
+    color: var(--color-text-item);
+    font-size: 0.8125em;
+}
+
+.task-board-filter {
+    height: var(--height-icon-button);
+    padding: 0 6px;
+    border: 1px solid var(--color-border-sidebar);
+    border-radius: 6px;
+    background: var(--color-background-sidebar);
+    color: var(--color-text-default);
+    font-size: 0.8125em;
+}
+
+.task-board-members {
+    display: flex;
+    align-items: center;
+    margin-left: 4px;
+
+    .task-board-card-avatar {
+        margin-left: -6px;
+        border: 2px solid var(--color-background);
+        box-sizing: content-box;
+    }
+}
+
 .task-board-summary {
     flex: 1 0 100%;
     margin: 0;

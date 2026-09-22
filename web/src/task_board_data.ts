@@ -146,8 +146,49 @@ export function tasks_in_column(column_id: number): Task[] {
         .toSorted((a, b) => a.position - b.position || a.id - b.id);
 }
 
-export function visible_tasks_in_column(column_id: number): Task[] {
-    return tasks_in_column(column_id).filter((task) => !folded_task_ids.has(task.id));
+export const FILTERS = {
+    ALL: "all",
+    MINE: "mine",
+    BLOCKED: "blocked",
+} as const;
+
+export type TaskFilter = (typeof FILTERS)[keyof typeof FILTERS];
+
+let current_filter: TaskFilter = FILTERS.ALL;
+
+export function get_filter(): TaskFilter {
+    return current_filter;
+}
+
+export function set_filter(filter: TaskFilter): void {
+    current_filter = filter;
+}
+
+function passes_filter(task: Task, my_user_id: number | undefined): boolean {
+    switch (current_filter) {
+        case FILTERS.MINE:
+            return my_user_id !== undefined && task.assignee_id === my_user_id;
+        case FILTERS.BLOCKED:
+            return task.blocked;
+        default:
+            return true;
+    }
+}
+
+export function visible_tasks_in_column(column_id: number, my_user_id?: number): Task[] {
+    return tasks_in_column(column_id).filter(
+        (task) => !folded_task_ids.has(task.id) && passes_filter(task, my_user_id),
+    );
+}
+
+export function assignee_ids(): number[] {
+    const user_ids = new Set<number>();
+    for (const task of tasks.values()) {
+        if (task.assignee_id !== null) {
+            user_ids.add(task.assignee_id);
+        }
+    }
+    return [...user_ids];
 }
 
 export function folded_count_in_column(column_id: number): number {

@@ -130,6 +130,18 @@ function board_summary(): string {
     return `${task_count_label} · ${stream_names.map((name) => `#${name}`).join(", ")}`;
 }
 
+// Enough faces to show who is on the board; the rest are counted.
+const MAX_HEADER_MEMBERS = 3;
+
+function filter_options(): {value: string; label: string; selected: boolean}[] {
+    const current = task_board_data.get_filter();
+    return [
+        {value: task_board_data.FILTERS.ALL, label: $t({defaultMessage: "All cards"})},
+        {value: task_board_data.FILTERS.MINE, label: $t({defaultMessage: "My cards"})},
+        {value: task_board_data.FILTERS.BLOCKED, label: $t({defaultMessage: "Blocked cards"})},
+    ].map((option) => ({...option, selected: option.value === current}));
+}
+
 export function complete_rerender(): void {
     if (!is_visible()) {
         return;
@@ -155,16 +167,29 @@ export function complete_rerender(): void {
             folded_count,
             folded_label: $t({defaultMessage: "Show {count} older cards"}, {count: folded_count}),
             cards: task_board_data
-                .visible_tasks_in_column(column.id)
+                .visible_tasks_in_column(column.id, people.my_current_user_id())
                 .map((task) => card_context(task)),
         };
     });
+
+    const member_ids = task_board_data.assignee_ids();
+    const members = member_ids
+        .slice(0, MAX_HEADER_MEMBERS)
+        .map((user_id) => people.maybe_get_user_by_id(user_id, true))
+        .filter((person) => person !== undefined)
+        .map((person) => ({
+            full_name: person.full_name,
+            avatar_url: people.small_avatar_url_for_user_id(person.user_id),
+        }));
 
     $("#task-board-pane").html(
         render_task_board({
             board_name: board.name,
             summary: board_summary(),
             columns,
+            filters: filter_options(),
+            members,
+            extra_member_count: Math.max(0, member_ids.length - MAX_HEADER_MEMBERS),
         }),
     );
 
@@ -483,6 +508,16 @@ export function initialize(opts: {hide_other_views: () => void}): void {
     $view.on("click", ".task-board-add-card", function (this: HTMLElement, event) {
         event.preventDefault();
         launch_new_card_dialog(Number($(this).attr("data-column-id")));
+    });
+
+    $view.on("change", ".task-board-filter", () => {
+        const value = String($("#task-board-filter").val() ?? "");
+        task_board_data.set_filter(
+            value === task_board_data.FILTERS.MINE || value === task_board_data.FILTERS.BLOCKED
+                ? value
+                : task_board_data.FILTERS.ALL,
+        );
+        complete_rerender();
     });
 
     $view.on("click", ".task-board-show-folded", (event) => {
