@@ -92,6 +92,7 @@ import * as stream_topic_history from "./stream_topic_history.ts";
 import * as stream_ui_updates from "./stream_ui_updates.ts";
 import * as sub_store from "./sub_store.ts";
 import * as submessage from "./submessage.ts";
+import * as task_board_ui from "./task_board_ui.ts";
 import * as theme from "./theme.ts";
 import {group_setting_value_schema} from "./types.ts";
 import * as typing_events from "./typing_events.ts";
@@ -798,6 +799,12 @@ export function dispatch_normal_event(event) {
             }
             break;
 
+        case "task":
+            task_board_ui.handle_task_event(event);
+            break;
+        case "task_board":
+            task_board_ui.handle_task_board_event(event);
+            break;
         case "submessage": {
             // The fields in the event don't quite exactly
             // match the layout of a submessage, since there's

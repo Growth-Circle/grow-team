@@ -215,6 +215,14 @@ export function animate_unread_changes(
     }
 }
 
+export function highlight_task_board_view(): void {
+    select_top_left_corner_item(".top_left_task_board");
+
+    setTimeout(() => {
+        resize.resize_stream_filters_container();
+    }, 0);
+}
+
 export function highlight_inbox_view(): void {
     select_top_left_corner_item(".top_left_inbox");
 

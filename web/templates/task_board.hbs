@@ -1,0 +1,52 @@
+{{! The board header and its columns. The card detail panel lives in
+    task_board_card_detail.hbs and is rendered on demand. }}
+<div class="task-board-header">
+    <div class="task-board-identity">
+        <h1 class="task-board-name" tabindex="-1">{{board_name}}</h1>
+        <button type="button" class="task-board-rename action-button action-button-text-neutral action-button-small" aria-label="{{t 'Rename board'}}">
+            <i class="zulip-icon zulip-icon-edit" aria-hidden="true"></i>
+        </button>
+    </div>
+    <div class="task-board-header-actions">
+        <button type="button" class="task-board-new-card action-button action-button-solid-brand">
+            <i class="zulip-icon zulip-icon-plus" aria-hidden="true"></i>
+            <span class="action-button-label">{{t "New task"}}</span>
+        </button>
+    </div>
+    <p class="task-board-summary">{{summary}}</p>
+</div>
+<div class="task-board-columns" role="list">
+    {{#each columns}}
+    <section class="task-board-column" role="listitem" data-column-id="{{this.id}}" aria-labelledby="task-board-column-heading-{{this.id}}">
+        <header class="task-board-column-header">
+            <h2 class="task-board-column-name" id="task-board-column-heading-{{this.id}}">{{this.name}}</h2>
+            <span class="task-board-column-count{{#if this.at_work_limit}} task-board-column-count-warning{{/if}}">
+                {{#if this.work_limit}}{{this.card_count}} / {{this.work_limit}}{{else}}{{this.card_count}}{{/if}}
+            </span>
+            {{#if this.done_window_days}}
+            <span class="task-board-column-window">{{this.done_window_label}}</span>
+            {{/if}}
+        </header>
+        <div class="task-board-column-cards" data-column-id="{{this.id}}">
+            {{#each this.cards}}
+            {{> task_board_card}}
+            {{/each}}
+        </div>
+        {{#if this.folded_count}}
+        <button type="button" class="task-board-show-folded" data-column-id="{{this.id}}">
+            {{this.folded_label}}
+        </button>
+        {{/if}}
+        {{#if this.at_work_limit}}
+        <p class="task-board-work-limit-notice">
+            <i class="zulip-icon zulip-icon-info" aria-hidden="true"></i>
+            {{t "This column is at its parallel work limit. Finish a card before you pull in another one."}}
+        </p>
+        {{/if}}
+        <button type="button" class="task-board-add-card" data-column-id="{{this.id}}">
+            <i class="zulip-icon zulip-icon-plus" aria-hidden="true"></i>
+            {{t "Add card"}}
+        </button>
+    </section>
+    {{/each}}
+</div>

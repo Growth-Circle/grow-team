@@ -1,10 +1,14 @@
 import type {ProbeAuthority} from "./sandbox.js";
 import {randomUUID} from "node:crypto";
+import {setTimeout as sleep} from "node:timers/promises";
 import {Journal, type JournalLog} from "./journal.js";
-import {Transport} from "./transport.js";
+import {Transport, TransportError} from "./transport.js";
 import {OperationRecovery} from "./operation-recovery.js";
 import type {OwnerRegistry} from "./owner.js";
 import {parse, validateDescriptor, type Data} from "./protocol.js";
+
+// The server answers a busy authority check with Retry-After: 1.
+const PROBE_CONTENTION_RETRIES = 2;
 
 export interface ProcessHandle {
     attempt_id: string;
@@ -871,10 +875,30 @@ export class Coordinator {
             if (abort.signal.aborted || Date.now() >= deadline || Date.now() - checked > 3000)
                 throw new Error("Probe authority is not current");
         };
+        // The server serializes agent authority with one advisory lock and
+        // answers a busy request with a retry. A probe keeps its authority
+        // through that answer, so the check waits and asks again.
+        const authorityRequest = async (route: string, payload: Data): Promise<Data> => {
+            for (let attempt = 0; ; attempt += 1) {
+                try {
+                    return await this.transport.request(route, payload);
+                } catch (error) {
+                    if (
+                        attempt >= PROBE_CONTENTION_RETRIES ||
+                        !(error instanceof TransportError) ||
+                        error.kind !== "contention"
+                    )
+                        throw error;
+                    await sleep(Math.max(1, error.retryAfter) * 1000);
+                    if (abort.signal.aborted || Date.now() >= deadline)
+                        throw new Error("Probe authority expired");
+                }
+            }
+        };
         const validate = async () => {
             if (abort.signal.aborted || Date.now() >= deadline)
                 throw new Error("Probe authority expired");
-            const response = await this.transport.request("/runner/setup-authority", binding);
+            const response = await authorityRequest("/runner/setup-authority", binding);
             this.assertScope();
             for (const key of [
                 "setup_id",
@@ -897,7 +921,7 @@ export class Coordinator {
             validate,
             request: async (route, extra = {}) => {
                 await validate();
-                const response = await this.transport.request(route, {...extra, ...binding});
+                const response = await authorityRequest(route, {...extra, ...binding});
                 assertCurrent();
                 return response;
             },

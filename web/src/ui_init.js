@@ -151,6 +151,7 @@ import * as stream_settings_ui from "./stream_settings_ui.ts";
 import * as stream_topic_history from "./stream_topic_history.ts";
 import * as stream_topic_history_util from "./stream_topic_history_util.ts";
 import * as sub_store from "./sub_store.ts";
+import * as task_board_ui from "./task_board_ui.ts";
 import * as theme from "./theme.ts";
 import * as thumbnail from "./thumbnail.ts";
 import * as timerender from "./timerender.ts";
@@ -564,10 +565,22 @@ export async function initialize_everything(state_data) {
                 first_unread_message_id,
             });
         },
-        hide_other_views: inbox_ui.hide,
+        hide_other_views() {
+            inbox_ui.hide();
+            task_board_ui.hide();
+        },
     });
     inbox_ui.initialize({
-        hide_other_views: recent_view_ui.hide,
+        hide_other_views() {
+            recent_view_ui.hide();
+            task_board_ui.hide();
+        },
+    });
+    task_board_ui.initialize({
+        hide_other_views() {
+            recent_view_ui.hide();
+            inbox_ui.hide();
+        },
     });
     alert_words.initialize(state_data.alert_words);
     saved_snippets.initialize(state_data.saved_snippets);

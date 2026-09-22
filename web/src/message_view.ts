@@ -62,6 +62,7 @@ import {realm} from "./state_data.ts";
 import * as stream_data from "./stream_data.ts";
 import * as stream_list from "./stream_list.ts";
 import * as submessage from "./submessage.ts";
+import * as task_board_ui from "./task_board_ui.ts";
 import * as topic_generator from "./topic_generator.ts";
 import * as typing_events from "./typing_events.ts";
 import * as unread from "./unread.ts";
@@ -512,6 +513,7 @@ export let show = (raw_terms: NarrowTerm[], show_opts: ShowMessageViewOpts): voi
 
     const coming_from_recent_view = recent_view_util.is_visible();
     const coming_from_inbox = inbox_util.is_visible();
+    const coming_from_task_board = task_board_ui.is_visible();
 
     const preserve_zoomed_in_channel =
         stream_list.is_zoomed_in() &&
@@ -691,6 +693,8 @@ export let show = (raw_terms: NarrowTerm[], show_opts: ShowMessageViewOpts): voi
             recent_view_ui.hide();
         } else if (coming_from_inbox) {
             inbox_ui.hide();
+        } else if (coming_from_task_board) {
+            task_board_ui.hide();
         }
 
         blueslip.debug("Narrowed", {
