@@ -476,7 +476,7 @@ run_test("show_empty_narrow_message", ({mock_template, override, override_rewire
         $(".empty_feed_notice_main").html(),
         empty_narrow_html(
             "translated: You haven't sent yourself any notes yet!",
-            "translated: Use this space for personal notes, or to test out Zulip features.",
+            "translated: Use this space for personal notes, or to test Grow Team features.",
         ),
     );
 

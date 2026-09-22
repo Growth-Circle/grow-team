@@ -670,6 +670,27 @@ export function initialize(): void {
         }, 150),
     );
 
+    // "More formatting options" reveals the formatting controls that
+    // Tenang keeps folded away by default (everything but emoji,
+    // attachment, link, and bold). No control is removed; opening
+    // the row just makes the rest reachable again.
+    $("body").on(
+        "click",
+        ".compose-control-buttons-overflow-toggle",
+        function (this: HTMLElement, e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const is_expanded = $("#compose-control-buttons-overflow")
+                .toggleClass("expanded")
+                .hasClass("expanded");
+            $(this).attr("aria-expanded", is_expanded ? "true" : "false");
+            compose_ui.maybe_show_scrolling_formatting_buttons(
+                "#message-formatting-controls-container",
+            );
+        },
+    );
+
     $("#compose-channel-recipient").on("click", "#recipient_box_clear_topic_button", () => {
         const $input = $("input#stream_message_recipient_topic");
         // This should work similar to just manually deleting the

@@ -66,6 +66,41 @@
         text-overflow: ellipsis;
     }
 
+    /* Channel / topic breadcrumb pieces, appended after the channel name
+       inside `.message-header-navbar-title` for a conversation view. Each
+       piece carries the mockup's 10px gap as its own left margin, and
+       resets the title's bold weight (only the channel name is bold). */
+    .message-header-topic-divider,
+    .message-header-topic-name {
+        margin-left: 0.7143em; /* 10px at 14px em */
+        font-weight: 400;
+    }
+
+    .message-header-topic-unread-count {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 0.7143em; /* 10px at 14px em */
+        padding: 0.2143em 0.7143em; /* 3px 10px at 14px em */
+        /* 13px at 14px em, matches .unread_count's own conversion. */
+        font-size: 0.9286em;
+        font-weight: 600;
+        border-radius: var(--radius-pill);
+        background-color: var(--color-background-unread-counter-normal);
+        color: var(--color-unread-counter-normal);
+        vertical-align: middle;
+
+        &.hide {
+            display: none;
+        }
+    }
+
+    /* A conversation view (a channel narrowed to one topic) shows the
+       breadcrumb and unread pill above in place of the channel's own
+       description. */
+    &.message-header-is-conversation .message-header-stream-settings-button ~ .narrow_description {
+        display: none;
+    }
+
     .message-header-archived {
         color: var(--color-text-message-header-archived);
         cursor: default;

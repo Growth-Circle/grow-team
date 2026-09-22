@@ -402,6 +402,13 @@
     grid-template-columns: minmax(0, 1fr);
 }
 
+.left-sidebar-new-conversation-button {
+    margin: var(--left-sidebar-sections-vertical-gutter) var(--left-sidebar-right-margin);
+    /* 40px at 14px/1em; taller than the standard control-md
+       height so this primary action stays prominent. */
+    min-height: 2.8571em;
+}
+
 #left-sidebar-search {
     display: grid;
     grid-template-areas: "filter-container add-channel channel-folders-option";
@@ -463,11 +470,9 @@
     cursor: pointer;
     background-color: var(--color-background);
     position: sticky;
-    /* height of DM header + 1px divider line and its top/bottom padding */
-    top: calc(
-        var(--line-height-sidebar-row-prominent) + 1px + 2 *
-            var(--left-sidebar-direct-messages-bottom-divider-padding)
-    );
+    /* Channels come first in the scroll container now, so no
+       header sits above this one to offset it from. */
+    top: 0;
     /* Must be more than .sidebar-topic-check and less than #left-sidebar-search
        and #direct-messages-section-header */
     z-index: 2;
@@ -2026,6 +2031,19 @@ li.active-sub-filter {
     align-self: baseline;
 }
 
+/* A topic's unread count reads as a small dot, not a number; the
+   exact count stays in the text for assistive technology. The
+   "N more topics" summary row keeps its real count, since it
+   totals multiple topics rather than marking a single one. */
+li.topic-list-item:not(.show-more-topics) .unread_count {
+    width: 0.5714em; /* 8px at 14px/1em */
+    height: 0.5714em;
+    padding: 0;
+    color: transparent;
+    background-color: var(--color-background-unread-counter-dot);
+    box-shadow: none;
+}
+
 #more-topics-modal .topic-box {
     grid-template:
         "starting-offset starting-anchor-element icon-content-gap row-content controls markers-and-unreads ending-anchor-element ending-offset"
@@ -2422,10 +2440,6 @@ li.topic-list-item {
 
     .direct-message-section-bottom-divider-container {
         display: none;
-    }
-
-    .stream-list-subsection-header {
-        top: 0;
     }
 }
 
