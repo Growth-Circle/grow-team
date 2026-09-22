@@ -47,9 +47,17 @@ class EmailBackendTest(unittest.TestCase):
     @patch("cloudflare_email_backend.requests.post")
     def test_provider_failure_is_not_reported_as_sent(self, post):
         post.return_value.status_code = 502
-        with self.assertRaises(OSError):
+        post.return_value.json.return_value = {"success": False, "error": "E_DAILY_LIMIT_EXCEEDED"}
+        with self.assertRaisesRegex(OSError, r"HTTP 502 \(E_DAILY_LIMIT_EXCEEDED\)"):
             EmailBackend().send_messages([self.message()])
         self.assertEqual(EmailBackend(fail_silently=True).send_messages([self.message()]), 0)
+
+    @patch("cloudflare_email_backend.requests.post")
+    def test_unconfirmed_delivery_is_not_reported_as_sent(self, post):
+        post.return_value.status_code = 200
+        post.return_value.json.return_value = {}
+        with self.assertRaisesRegex(OSError, r"HTTP 200 \(no detail\)"):
+            EmailBackend().send_messages([self.message()])
 
     @patch("cloudflare_email_backend.requests.post")
     def test_empty_message_list_sends_nothing(self, post):

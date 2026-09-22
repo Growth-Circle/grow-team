@@ -37,14 +37,15 @@ class EmailBackend(BaseEmailBackend):
                         timeout=30,
                         allow_redirects=False,
                     )
-                    if response.status_code != 200:
-                        raise OSError(f"Email relay returned HTTP {response.status_code}.")
                     try:
-                        accepted = response.json().get("success") is True
+                        body = response.json()
                     except (ValueError, AttributeError):
-                        accepted = False
-                    if not accepted:
-                        raise OSError("Email relay did not confirm acceptance.")
+                        body = {}
+                    if response.status_code != 200 or body.get("success") is not True:
+                        raise OSError(
+                            f"Email relay returned HTTP {response.status_code} "
+                            f"({body.get('error', 'no detail')})."
+                        )
             except OSError:
                 if not self.fail_silently:
                     raise

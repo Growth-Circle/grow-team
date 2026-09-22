@@ -33,8 +33,9 @@ export function createHandler(EmailMessage) {
       await env.EMAIL.send(new EmailMessage(payload.from, payload.to, payload.raw));
       return Response.json({ success: true });
     } catch (error) {
-      console.error("Email delivery failed", error.code || "E_DELIVERY_FAILED");
-      return Response.json({ success: false }, { status: 502 });
+      const code = error.code || "E_DELIVERY_FAILED";
+      console.error("Email delivery failed", code, error.message);
+      return Response.json({ success: false, error: code }, { status: 502 });
     }
   };
 }

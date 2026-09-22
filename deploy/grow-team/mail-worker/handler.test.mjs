@@ -57,5 +57,13 @@ test("rejects an oversized MIME message", async () => {
 test("reports provider failure without exposing message content", async () => {
   const response = await handler(request(), environment(async () => { throw new Error("private message body"); }));
   assert.equal(response.status, 502);
-  assert.equal((await response.text()).includes("private message"), false);
+  assert.deepEqual(await response.json(), { success: false, error: "E_DELIVERY_FAILED" });
+});
+
+test("returns the provider error code so the caller can log the cause", async () => {
+  const response = await handler(request(), environment(async () => {
+    throw Object.assign(new Error("private message body"), { code: "E_DAILY_LIMIT_EXCEEDED" });
+  }));
+  assert.equal(response.status, 502);
+  assert.deepEqual(await response.json(), { success: false, error: "E_DAILY_LIMIT_EXCEEDED" });
 });
