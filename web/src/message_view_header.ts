@@ -3,7 +3,6 @@ import _ from "lodash";
 import assert from "minimalistic-assert";
 
 import render_message_view_header from "../templates/message_view_header.hbs";
-import render_message_view_header_conversation_actions from "../templates/message_view_header_conversation_actions.hbs";
 
 import type {Filter} from "./filter.ts";
 import * as hash_util from "./hash_util.ts";
@@ -178,19 +177,6 @@ function get_message_view_header_context(filter: Filter | undefined): MessageVie
     return context;
 }
 
-// Renders the conversation header's "Follow" and topic-actions
-// controls. These sit outside message_view_header.hbs because that
-// template is also used for views that are not a single conversation.
-function render_conversation_actions(stream_id: number, topic_name: string): string {
-    return render_message_view_header_conversation_actions({
-        stream_id,
-        topic_name,
-        topic_url: new URL(
-            stream_topic_history.channel_topic_permalink_hash(stream_id, topic_name),
-            realm.realm_url,
-        ).href,
-    });
-}
 
 export function colorize_message_view_header(): void {
     const current_sub = narrow_state.stream_sub();
@@ -222,21 +208,6 @@ function append_and_display_title_area(context: MessageViewHeaderContext): void 
     $message_view_header_elem.toggleClass("message-header-is-conversation", is_conversation);
     if (context.stream_settings_link) {
         colorize_message_view_header();
-    }
-    if (
-        is_conversation &&
-        context.stream !== undefined &&
-        context.topic_name !== undefined &&
-        !context.stream.is_archived &&
-        !context.is_spectator &&
-        stream_data.is_subscribed(context.stream.stream_id)
-    ) {
-        // Only offer these for a conversation the viewer can actually
-        // follow or act on; see the popover wiring note on
-        // render_conversation_actions above.
-        $message_view_header_elem.append(
-            $(render_conversation_actions(context.stream.stream_id, context.topic_name)),
-        );
     }
     $message_view_header_elem.removeClass("notdisplayed");
     const $content = $message_view_header_elem.find("span.rendered_markdown");

@@ -109,54 +109,6 @@
         }
     }
 
-    /* Conversation-header actions (mockup 10a): a bordered "Follow"
-       button and an icon-only topic-actions button, pushed to the end
-       of the row. Both are appended by message_view_header.ts (not
-       this template) and reuse the shared action-button / icon-button
-       components, wired to the trigger classes the app's existing
-       topic popovers already listen for (see user_topic_popover.ts
-       and topic_popover.ts), so they open real, working menus. */
-    .message-header-follow-button,
-    .message-header-topic-menu {
-        flex: none;
-        align-self: center;
-    }
-
-    .message-header-follow-button {
-        /* Consumes the row's free space, so this button and the topic
-           menu after it sit at the end of the row (frame 10a has no
-           channel description next to them in a conversation view;
-           see the display: none rule below). */
-        margin-left: auto;
-    }
-
-    .message-header-topic-menu {
-        margin-left: 0.7143em; /* 10px at 14px em, gap after the Follow button */
-    }
-
-    .message-header-action-button {
-        min-height: var(--height-icon-button); /* 32px, matches mockup 10a */
-        background-color: transparent;
-        border: 1px solid var(--color-outline-input);
-
-        &:hover,
-        &:focus-visible {
-            background-color: var(
-                --color-background-neutral-subtle-action-button-hover
-            );
-        }
-
-        &:active {
-            background-color: var(
-                --color-background-neutral-subtle-action-button-active
-            );
-        }
-    }
-
-    .message-header-topic-menu-button .zulip-icon {
-        font-size: 1.2em; /* 18px at 15px em, matches mockup 10a */
-    }
-
     /* A conversation view (a channel narrowed to one topic) shows the
        breadcrumb and unread pill above in place of the channel's own
        description. */
