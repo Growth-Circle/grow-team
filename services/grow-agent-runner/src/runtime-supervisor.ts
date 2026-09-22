@@ -41,6 +41,7 @@ interface Active {
     task: Promise<void>;
     inputCursor: number;
     inputs: InputQueue;
+    scopeStopConfirmed: boolean;
 }
 export class RuntimeSupervisor implements Supervisor {
     private active = new Map<string, Active>();
@@ -122,7 +123,7 @@ export class RuntimeSupervisor implements Supervisor {
         scope: string,
         kind: "attempt" | "probe",
         runtime?: Runtime,
-    ): Promise<void> {
+    ): Promise<{confirmed: true; runtimeCloseFailed: boolean}> {
         let closeError: unknown;
         try {
             await runtime?.close();
@@ -142,7 +143,7 @@ export class RuntimeSupervisor implements Supervisor {
             });
             throw new Error("Containment stop is unconfirmed");
         }
-        if (closeError) throw new Error("Runtime close failed; scope stop confirmed");
+        return {confirmed: true, runtimeCloseFailed: closeError !== undefined};
     }
     async stop(handle: ProcessHandle): Promise<{confirmed: boolean}> {
         const item = this.active.get(handle.attempt_id);
@@ -188,14 +189,28 @@ export class RuntimeSupervisor implements Supervisor {
             ),
             task: Promise.resolve(),
             inputCursor: descriptor.checkpoint?.input_cursor ?? 0,
+            scopeStopConfirmed: false,
         };
         this.active.set(descriptor.attempt_id, active);
         // The model loop stays outside the Coordinator lane and control polling.
         active.task = this.execute(active, channel).catch(async () => {
             active.abort.abort();
-            try {
-                await this.closeScope(active.d.attempt_id, "attempt");
-            } catch {
+            if (!active.scopeStopConfirmed)
+                try {
+                    const closure = await this.closeScope(active.d.attempt_id, "attempt");
+                    active.scopeStopConfirmed = closure.confirmed;
+                } catch {
+                    // A failed containment check remains unknown. The coordinator retains
+                    // execution ownership until its normal stop path completes.
+                    await channel.event("attempt.interrupted", {
+                        process_state: "unknown",
+                        adapter_session_ref: null,
+                        stop_confirmed: false,
+                        summary: "",
+                    });
+                    return;
+                }
+            if (!active.scopeStopConfirmed) {
                 // A failed containment check remains unknown. The coordinator retains
                 // execution ownership until its normal stop path completes.
                 await channel.event("attempt.interrupted", {
@@ -558,7 +573,10 @@ export class RuntimeSupervisor implements Supervisor {
             }
         } finally {
             clearTimeout(timer);
-            await this.closeScope(d.attempt_id, "attempt", active.runtime);
+            const closure = await this.closeScope(d.attempt_id, "attempt", active.runtime);
+            active.scopeStopConfirmed = closure.confirmed;
+            if (closure.runtimeCloseFailed)
+                throw new Error("Runtime close failed; scope stop confirmed");
         }
     }
     async applyInput(

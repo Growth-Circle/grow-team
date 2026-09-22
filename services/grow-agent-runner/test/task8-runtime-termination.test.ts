@@ -50,7 +50,8 @@ test("confirmed Task8 extension failure retires the coordinator and reports a st
         startSession: ContainedEndpointRuntime.prototype.startSession,
         close: ContainedEndpointRuntime.prototype.close,
     };
-    let stops = 0;
+    let stops = 0,
+        activeHeartbeats = 0;
     ContainedEndpointRuntime.prototype.startSession = async () => {};
     ContainedEndpointRuntime.prototype.close = async () => {};
     const runtime = new (RuntimeSupervisor as any)(
@@ -67,6 +68,7 @@ test("confirmed Task8 extension failure retires the coordinator and reports a st
             inspect: async () => [],
             stopScope: async () => {
                 stops++;
+                if (stops > 1) throw new Error("second scope stop must not run");
                 return {confirmed: true};
             },
         },
@@ -95,6 +97,10 @@ test("confirmed Task8 extension failure retires the coordinator and reports a st
                 };
             if (route === "/runner/authority") return body;
             if (route === "/runner/inputs") return {inputs: []};
+            if (route === "/runner/heartbeat") {
+                if (body?.leases?.length) activeHeartbeats++;
+                return {leases: []};
+            }
             throw new Error(`Unexpected request ${route}`);
         },
         mutate: async (kind: string, _id: string, route: string, body: any) => {
@@ -131,8 +137,9 @@ test("confirmed Task8 extension failure retires the coordinator and reports a st
         await coordinator.claim();
         await (runtime as any).active.get(d.attempt_id).task;
         await new Promise<void>((resolve) => setImmediate(resolve));
-        assert(stops >= 1);
+        assert.equal(stops, 1);
         assert.equal((coordinator as any).active, null);
+        assert.equal(activeHeartbeats, 0);
         assert.equal(stopsReported.length, 1);
         assert.equal(stopsReported[0].type, "attempt.stopped");
         assert.equal(stopsReported[0].payload.stop_confirmed, true);

@@ -312,7 +312,7 @@ function signal(value: unknown): Data {
 }
 
 const protectedPattern =
-    /-----BEGIN(?: [A-Z0-9]+)? PRIVATE KEY-----|\b(?:authorization\s*:\s*(?:basic|bearer)|bearer\s+)[a-z0-9._~+\/-]+=*|\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret)\s*[:=]\s*\S+|\bAKIA[0-9A-Z]{16}\b/i;
+    /-----BEGIN(?: [A-Z0-9]+)? PRIVATE KEY-----|\bauthorization\s*:\s*(?:basic|bearer|token)\s+\S+|\b(?:bearer|token)\s+\S+|\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|credential|password|secret)\s*[:=]\s*\S+|\bAKIA[0-9A-Z]{16}\b/i;
 const forbiddenProvenance =
     /\b(?:recall(?:ed)?|transcript|prompt|chain.of.thought|reasoning|model[ _-]?output)\b/i;
 

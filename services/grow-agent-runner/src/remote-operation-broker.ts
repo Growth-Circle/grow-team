@@ -1,7 +1,7 @@
 import {execFileSync} from "node:child_process";
 import {randomUUID} from "node:crypto";
 import {setTimeout as sleep} from "node:timers/promises";
-import {canonical, type Data} from "./protocol.js";
+import {type Data} from "./protocol.js";
 import type {JournalLog} from "./journal.js";
 import type {AttemptChannel} from "./supervisor.js";
 
@@ -457,6 +457,43 @@ export class RemoteOperationBroker {
         await channel.operations.remoteReceipt(channel.lease(), receipt);
         channel.operations.finishEffect(receipt.operation_id, receipt);
     }
+    private observedReceipt(
+        operation: Data,
+        args: Data,
+        pullRequest: {id: string; url: string} | null,
+    ): Data {
+        const action = this.action(operation);
+        if (typeof operation.operation_id !== "string" || !operation.operation_id)
+            throw new Error("Remote operation identity is invalid");
+        if (
+            typeof args.remote !== "string" ||
+            typeof args.commit !== "string" ||
+            typeof (action === "git.push" ? args.branch : args.head) !== "string"
+        )
+            throw new Error("Remote operation receipt identity is invalid");
+        return {
+            remote: args.remote,
+            branch: action === "git.push" ? args.branch : args.head,
+            commit: args.commit,
+            operation_id: operation.operation_id,
+            pull_request_id: pullRequest?.id ?? null,
+            pull_request_url: pullRequest?.url ?? null,
+        };
+    }
+    private reconciledReceipt(retained: Data | undefined, observed: Data): Data {
+        if (!retained) return {...observed, observed_at: new Date().toISOString()};
+        const fields = [
+            "remote",
+            "branch",
+            "commit",
+            "operation_id",
+            "pull_request_id",
+            "pull_request_url",
+        ];
+        if (fields.some((field) => retained[field] !== observed[field]))
+            throw new Error("Retained remote receipt differs from remote observation");
+        return retained;
+    }
     async publish(
         descriptor: Data,
         broker: CandidateBroker,
@@ -580,30 +617,18 @@ export class RemoteOperationBroker {
                     credential: config.git_credential,
                 });
                 if (head === args.commit)
-                    receipt = retained ?? {
-                        remote: args.remote,
-                        branch: args.branch,
-                        commit: args.commit,
-                        operation_id: operation.operation_id,
-                        pull_request_id: null,
-                        pull_request_url: null,
-                        observed_at: new Date().toISOString(),
-                    };
+                    receipt = this.reconciledReceipt(
+                        retained,
+                        this.observedReceipt(operation, args, null),
+                    );
             } else if (config.github) {
                 const found = await new GitHubDraftProvider(config.github).find(args.remote, args);
                 if (found)
-                    receipt = retained ?? {
-                        remote: args.remote,
-                        branch: args.head,
-                        commit: args.commit,
-                        operation_id: operation.operation_id,
-                        pull_request_id: found.id,
-                        pull_request_url: found.url,
-                        observed_at: new Date().toISOString(),
-                    };
+                    receipt = this.reconciledReceipt(
+                        retained,
+                        this.observedReceipt(operation, args, found),
+                    );
             }
-            if (receipt && retained && canonical(receipt) !== canonical(retained))
-                throw new Error("Retained remote receipt differs from remote observation");
             const authority = this.journal.get(`authority:${operation.operation_id}`);
             const attemptId = authority?.request.lease?.attempt_id;
             if (receipt && typeof attemptId === "string")

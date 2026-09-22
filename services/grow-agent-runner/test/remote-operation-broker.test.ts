@@ -652,3 +652,90 @@ test("restart recovery observes the remote branch before it submits the retained
     assert.equal(receipts[0].receipt.commit, "c".repeat(40));
     assert.deepEqual(receipts[0].receipt, retained);
 });
+
+test("restart recovery rejects a pull request that differs from the retained receipt", async () => {
+    const journal = new Journal(mkdtempSync(join(tmpdir(), "grow-pr-recovery-"))).partition(
+        "runner:fixture",
+    );
+    const operation = {
+        operation_id: "op-pr-1",
+        operation_hash: "h",
+        arguments: {
+            action: "git.draft_pr",
+            remote: "https://github.example/org/repo.git",
+            base: "main",
+            head: "grow-agent/job/attempt",
+            commit: "c".repeat(40),
+            title: "Approved draft",
+            body: "Approved body",
+            draft: true,
+        },
+    };
+    journal.prepare("authority", "authority:op-pr-1", "local", {
+        lease: {attempt_id: "attempt-pr-1"},
+        operation,
+    });
+    journal.prepare("effect", "effect:op-pr-1", "local", {operation});
+    journal.uncertain("effect:op-pr-1");
+    const retained = {
+        remote: "https://github.example/org/repo.git",
+        branch: "grow-agent/job/attempt",
+        commit: "c".repeat(40),
+        operation_id: "op-pr-1",
+        pull_request_id: "42",
+        pull_request_url: "https://github.example/org/repo/pull/42",
+        observed_at: "2026-09-22T00:00:00.000Z",
+    };
+    journal.prepare("remote_receipt", "remote:op-pr-1", "/runner/operations/reconcile", {
+        receipt: retained,
+    });
+    journal.uncertain("remote:op-pr-1");
+    const server = createServer((_request, response) => {
+        response.writeHead(200, {"Content-Type": "application/json"}).end(
+            JSON.stringify([
+                {
+                    id: 43,
+                    html_url: "https://github.example/org/repo/pull/43",
+                    title: "Approved draft",
+                    body: "Approved body",
+                    draft: true,
+                    base: {ref: "main"},
+                    head: {ref: "grow-agent/job/attempt", sha: "c".repeat(40)},
+                },
+            ]),
+        );
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const receipts: any[] = [];
+    try {
+        const publisher = new RemoteOperationBroker(
+            () => null,
+            {head: async () => null} as any,
+            journal,
+            () => ({
+                remote: "https://github.example/org/repo.git",
+                git_credential: null,
+                github: {
+                    api_base: `http://127.0.0.1:${(server.address() as any).port}`,
+                    credential: "fixture-token",
+                },
+            }),
+        );
+        await assert.rejects(
+            () =>
+                publisher.recover(() => ({
+                    remoteReceipt: async (receipt) => {
+                        receipts.push(receipt);
+                        return {};
+                    },
+                })),
+            /Retained remote receipt differs from remote observation/,
+        );
+        assert.deepEqual(receipts, []);
+        assert.equal(journal.get("effect:op-pr-1")?.state, "uncertain");
+    } finally {
+        await new Promise<void>((resolve, reject) =>
+            server.close((error) => (error ? reject(error) : resolve())),
+        );
+    }
+});

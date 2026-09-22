@@ -422,3 +422,57 @@ test("memory CLI rejects protected or changed signals before a Titen request", a
         else process.env.GROW_AGENT_STATE = oldState;
     }
 });
+
+test("memory signals reject supported credential forms without a Titen request", async () => {
+    const root = mkdtempSync(join(tmpdir(), "grow-memory-credential-"));
+    const store = new PrivateStore(root);
+    const evidencePath = join(root, "evidence");
+    writeFileSync(evidencePath, "verified owner receipt", {mode: 0o600});
+    const evidenceSha = createHash("sha256").update("verified owner receipt").digest("hex");
+    let calls = 0;
+    const server = createServer((_request, response) => {
+        calls++;
+        response.writeHead(500).end();
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+        const writer = new OwnerMemorySignals(
+            store,
+            () => ({
+                endpoint: `http://127.0.0.1:${(server.address() as any).port}/mcp`,
+                token: null,
+                subject_id: "person:approved",
+            }),
+            () => [],
+        );
+        for (const [index, content] of [
+            "token=unconfigured-fixture-value",
+            "credential=unconfigured-fixture-value",
+            "Authorization: Token unconfigured-fixture-value",
+            "Authorization: Basic unconfigured-fixture-value",
+            "Authorization: Bearer unconfigured-fixture-value",
+        ].entries())
+            await assert.rejects(
+                () =>
+                    writer.record({
+                        audience: {realm_id: 9, requester_user_id: 12},
+                        project_reference: "growth-circle/grow-team",
+                        kind: "tool_result",
+                        content,
+                        source_type: "tool_result",
+                        source_ref: "owner-evidence",
+                        source_id: `fixture-${index}`,
+                        evidence_path: evidencePath,
+                        evidence_sha256: evidenceSha,
+                        idempotency_key: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+                        claims: [{kind: "decision", statement: "Verified fixture result."}],
+                    }),
+                /Protected content/,
+            );
+        assert.equal(calls, 0);
+    } finally {
+        await new Promise<void>((resolve, reject) =>
+            server.close((error) => (error ? reject(error) : resolve())),
+        );
+    }
+});
