@@ -183,6 +183,11 @@
            the next one. */
         margin-bottom: 1em;
 
+        /* The card shape is drawn by the header's top corners and the
+           last row's bottom corners. The shadow lifts the whole group
+           off the feed background, so it reads as one card. */
+        box-shadow: var(--box-shadow-raised-card);
+
         .message_row:last-of-type {
             border-radius: var(--last-message-row-border-radius);
             border-bottom: 1px solid var(--color-message-list-border);

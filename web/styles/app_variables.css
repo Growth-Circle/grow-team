@@ -225,8 +225,8 @@
     /*
     This is the header, aka the navbar.
     */
-    --header-height: 2.5em; /* 40px at 16px em */
-    --header-line-height: 40px;
+    --header-height: 3.5em; /* 56px at 16px em */
+    --header-line-height: 56px;
     /*
     At 600px, the header starts taking up more than 5%
     of the screen. We make it shorter to leave more space
@@ -492,6 +492,8 @@
     --box-shadow-overlay: none;
 
     /* Shared sidebar typography and effects values. */
+    /* 12px at the 14px app em, per the section headings in the design. */
+    --font-size-sidebar-heading: 0.8571em;
     --font-weight-sidebar-heading: 700;
     --font-weight-sidebar-action-heading: 370;
     --font-variant-sidebar-action-heading: all-small-caps;
