@@ -49,6 +49,20 @@ class AgentConnectionTests(ZulipTestCase):
         with self.assertRaises(ValueError):
             exchange_pairing(pairing, "polling-secretxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 
+    def test_runner_metadata_and_team_default_do_not_change_execution_revision(self) -> None:
+        settings = agents.AgentRealmSettings.objects.get(realm=self.owner.realm)
+        runner = agents.AgentRunner.objects.create(
+            realm=self.owner.realm,
+            owner=self.owner,
+            name="Laptop",
+            fingerprint="m" * 64,
+        )
+        self.assertEqual(runner.host_kind, "unknown")
+        self.assertEqual(runner.metadata_revision, 1)
+        self.assertIsNone(settings.default_profile_id)
+        self.assertEqual(settings.default_selection_revision, 1)
+        self.assertEqual(settings.revision, 1)
+
     def test_expired_and_failed_pairing_are_rejected(self) -> None:
         pairing = start_pairing(
             "Laptop",
@@ -211,7 +225,8 @@ class AgentConnectionTests(ZulipTestCase):
         self.assertIsNotNone(profile.readiness_configuration)
         configuration = profile.readiness_configuration
         assert configuration is not None
-        self.assertEqual(profile.desired_state, "enabled")
+        self.assertEqual(profile.desired_state, "draft")
+        self.assertIsNone(profile.enabled_revision)
         self.assertEqual(profile.readiness_configuration_digest, setup.configuration_digest)
         self.assertNotIn("runner_supplied", configuration)
         self.assertEqual(

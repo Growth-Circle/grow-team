@@ -10,6 +10,7 @@ from zerver.lib.message import access_message
 from zerver.lib.streams import access_stream_by_id
 from zerver.lib.user_groups import get_recursive_group_members
 from zerver.models import Message, Recipient, UserProfile, agents
+from zerver.models.groups import NamedUserGroup
 
 
 class AgentAccessDenied(JsonableError):  # noqa: N818
@@ -25,11 +26,23 @@ def _same_realm(actor: UserProfile, *objects: object | None) -> bool:
 
 
 def _principal_matches(actor: UserProfile, grant: agents.AgentGrant) -> bool:
-    if grant.principal_user_id == actor.id:
+    if grant.principal_user_id == actor.id and actor.is_active:
         return True
     if grant.principal_group_id is None:
         return False
-    return get_recursive_group_members(grant.principal_group_id).filter(id=actor.id).exists()
+    named = NamedUserGroup.objects.filter(id=grant.principal_group_id).first()
+    if named is not None and named.deactivated:
+        return False
+    return (
+        get_recursive_group_members(grant.principal_group_id)
+        .filter(id=actor.id, is_active=True)
+        .exists()
+    )
+
+
+def _active_owner(resource: object) -> bool:
+    owner_id = getattr(resource, "owner_id", None)
+    return owner_id is not None and UserProfile.objects.filter(id=owner_id, is_active=True).exists()
 
 
 def scope_matches(
@@ -83,13 +96,18 @@ def _grant_matches(
     repository: agents.AgentRepository | None = None,
     source_message: Message | None = None,
     destination: protocol.ConversationScope | None = None,
+    require_active_authority: bool = False,
 ) -> bool:
     filters = Q(realm_id=actor.realm_id, target_kind=target_kind, revoked_at__isnull=True)
     filters &= Q(expires_at__isnull=True) | Q(expires_at__gt=now())
     filters &= Q(**{f"{target_kind}_id": target_id})
     grants = agents.AgentGrant.objects.filter(filters)
     for grant in grants:
-        if action not in grant.actions or not _principal_matches(actor, grant):
+        if (
+            (require_active_authority and not _active_owner(grant))
+            or action not in grant.actions
+            or not _principal_matches(actor, grant)
+        ):
             continue
         if (
             grant.target_kind == "profile"
@@ -114,7 +132,10 @@ def _owner_or_grant(
     repository: agents.AgentRepository | None = None,
     source_message: Message | None = None,
     destination: protocol.ConversationScope | None = None,
+    require_active_authority: bool = False,
 ) -> bool:
+    if require_active_authority and not _active_owner(resource):
+        return False
     return getattr(resource, "owner_id", None) == actor.id or _grant_matches(
         actor,
         target_kind=target_kind,
@@ -123,6 +144,7 @@ def _owner_or_grant(
         repository=repository,
         source_message=source_message,
         destination=destination,
+        require_active_authority=require_active_authority,
     )
 
 
@@ -138,7 +160,13 @@ def require_agent_resource_access(
     if (
         not actor.is_active
         or resource.realm_id != actor.realm_id
-        or not _owner_or_grant(actor, resource, target_kind=target_kind, action=action)
+        or not _owner_or_grant(
+            actor,
+            resource,
+            target_kind=target_kind,
+            action=action,
+            require_active_authority=True,
+        )
     ):
         _deny()
     if isinstance(resource, agents.AgentRunner) and resource.revoked_at is not None:
@@ -227,7 +255,7 @@ def _intersect_scopes(
 
 def _visibility_scopes(
     actor: UserProfile,
-    profile: agents.AgentProfile,
+    profile: agents.AgentProfile | None,
     resource: (
         agents.AgentRunner | agents.AgentProvider | agents.AgentRepository | agents.AgentProfile
     ),
@@ -236,6 +264,8 @@ def _visibility_scopes(
 ) -> list[protocol.ConversationScope | None]:
     if resource.realm_id != actor.realm_id:
         return []
+    if not _active_owner(resource):
+        return []
     if resource.owner_id == actor.id:
         return [None]
     scopes: list[protocol.ConversationScope | None] = []
@@ -243,15 +273,22 @@ def _visibility_scopes(
         realm=actor.realm, target_kind=kind, revoked_at__isnull=True, **{f"{kind}_id": resource.id}
     ).filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now()))
     for grant in grants:
-        if not actions.intersection(grant.actions) or not _principal_matches(actor, grant):
+        if (
+            not _active_owner(grant)
+            or not actions.intersection(grant.actions)
+            or not _principal_matches(actor, grant)
+        ):
             continue
         if (
             kind == "profile"
             and grant.repository_id is not None
+            and profile is not None
             and grant.repository_id != profile.default_repository_id
         ):
             continue
-        readable, scope = _readable_scope(actor, profile.bot_user, grant.scope)
+        readable, scope = _readable_scope(
+            actor, profile.bot_user if profile else actor, grant.scope
+        )
         if readable:
             scopes.append(scope)
     return scopes
@@ -263,6 +300,8 @@ def accessible_profiles(actor: UserProfile) -> QuerySet[agents.AgentProfile]:
     Availability does not remove authorized history. Execution checks remain stricter.
     Owners retain their profile history after runner grants or availability change.
     """
+    if not actor.is_active:
+        return agents.AgentProfile.objects.none()
     visible = []
     for profile in agents.AgentProfile.objects.filter(realm=actor.realm).select_related(
         "runner", "provider", "default_repository", "bot_user"
@@ -362,6 +401,7 @@ def check_agent_access(
         repository=repository,
         source_message=source_message,
         destination=destination,
+        require_active_authority=True,
     ):
         _deny()
     if not _owner_or_grant(
@@ -371,6 +411,7 @@ def check_agent_access(
         action="runner.use",
         source_message=source_message,
         destination=destination,
+        require_active_authority=True,
     ):
         _deny()
     if provider is not None and not _owner_or_grant(
@@ -380,6 +421,7 @@ def check_agent_access(
         action="provider.use",
         source_message=source_message,
         destination=destination,
+        require_active_authority=True,
     ):
         _deny()
     if repository is not None and not _owner_or_grant(
@@ -393,5 +435,6 @@ def check_agent_access(
         ),
         source_message=source_message,
         destination=destination,
+        require_active_authority=True,
     ):
         _deny()

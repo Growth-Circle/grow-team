@@ -471,6 +471,7 @@ export const realm_schema = z.object({
         nextcloud_talk: z.optional(z.object({name: z.string(), id: z.number()})),
         webex: z.optional(z.object({name: z.string(), id: z.number()})),
     }),
+    realm_agent_enabled: z.boolean(),
     realm_avatar_changes_disabled: z.boolean(),
     realm_bot_domain: z.string(),
     realm_can_access_all_users_group: z.number(),

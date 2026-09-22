@@ -2,11 +2,19 @@
 
 from uuid import UUID
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest, HttpResponse
+from django.utils.timezone import now
 
 from zerver.actions import agent_approvals, agent_jobs
 from zerver.lib import agent_job_requests as r
-from zerver.lib.agent_context import agent_transaction, ensure_budget, require_job_access
+from zerver.lib import agent_protocol as p
+from zerver.lib.agent_context import (
+    agent_transaction,
+    ensure_budget,
+    require_audience,
+    require_job_access,
+)
 from zerver.lib.agent_policy import AgentAccessDenied
 from zerver.lib.agent_results import download_artifact
 from zerver.lib.exceptions import JsonableError
@@ -62,6 +70,103 @@ def window(request: HttpRequest) -> tuple[int, int]:
     if offset < 0 or not 1 <= limit <= 100:
         raise ValueError("Invalid pagination.")
     return offset, limit
+
+
+def evidence_window(request: HttpRequest, name: str) -> tuple[int, int]:
+    offset = int(request.GET.get(f"{name}_offset", "0"))
+    limit = int(request.GET.get(f"{name}_limit", "100"))
+    if offset < 0 or not 1 <= limit <= 100:
+        raise ValueError("Invalid evidence pagination.")
+    return offset, limit
+
+
+def required_check_data(
+    job: agents.AgentJob, attempts: list[agents.AgentAttempt]
+) -> list[dict[str, object]]:
+    current = next((item for item in reversed(attempts) if item.active), None)
+    if current is None:
+        current = attempts[-1] if attempts else None
+    if current is None:
+        return []
+    descriptor = p.AttemptDescriptor.model_validate(current.descriptor)
+    if descriptor.repository is None:
+        return []
+    result = []
+    for check in descriptor.repository.required_checks:
+        verification = None
+        if current.tree_hash:
+            verification = (
+                agents.AgentVerification.objects.filter(
+                    attempt=current, check_id=check.id, tree_hash=current.tree_hash
+                )
+                .order_by("-finished_at")
+                .first()
+            )
+        if verification is None:
+            outcome = "missing" if not current.tree_hash else "stale"
+            result.append({"check_id": check.id, "outcome": outcome})
+            continue
+        outcome = (
+            "passing" if verification.exit_code == 0 and not verification.timed_out else "failed"
+        )
+        result.append(
+            {
+                "check_id": check.id,
+                "attempt_id": str(current.id),
+                "tree_hash": current.tree_hash,
+                "command": verification.command,
+                "cwd": verification.cwd,
+                "outcome": outcome,
+                "started_at": verification.started_at.isoformat(),
+                "finished_at": verification.finished_at.isoformat(),
+                "output_artifact_id": str(verification.output_artifact_id),
+            }
+        )
+    return result
+
+
+def operation_data(actor: UserProfile, operation: agents.AgentOperation) -> dict[str, object]:
+    result = agent_approvals.proposal_data(operation)
+    approval = (
+        agents.AgentApproval.objects.filter(operation=operation).order_by("-created_at").first()
+    )
+    result["attempt_id"] = str(operation.attempt_id)
+    result["action"] = operation.tool_class
+    if approval is None:
+        return result
+    attempt = operation.attempt
+    job = approval.job
+    can_decide = (
+        approval.decision == "pending"
+        and approval.expires_at > now()
+        and operation.status == "proposed"
+        and attempt.active
+        and attempt.process_state in {"starting", "active"}
+        and job.status in agent_jobs.EXECUTING
+        and attempt.lease_expires_at is not None
+        and attempt.lease_expires_at > now()
+        and (now() - attempt.created_at).total_seconds()
+        <= attempt.descriptor["budget"]["active_seconds"]
+        and attempt.audience_binding == job.conversation.audience_binding
+        and attempt.tree_hash == approval.tree_hash
+        and job.profile.policy_version == approval.policy_version
+        and operation.scope_binding.get("attempt_id") == str(attempt.id)
+        and operation.scope_binding.get("lease_epoch") == attempt.lease_epoch
+        and operation.scope_binding.get("policy_version") == approval.policy_version
+        and operation.scope_binding.get("tree_hash") == (attempt.tree_hash or None)
+        and operation.argument_digest == approval.operation_hash
+    )
+    if can_decide:
+        try:
+            require_audience(job)
+            agent_jobs.check_attempt_access(actor, job, attempt, operation.tool_class)
+        except (JsonableError, ObjectDoesNotExist, ValueError):
+            can_decide = False
+    result["approval_decision"] = approval.decision
+    result["can_decide"] = can_decide
+    if not can_decide:
+        result["nonce"] = None
+    return result
 
 
 @safe_agent_endpoint
@@ -182,6 +287,7 @@ def get_job(request: HttpRequest, user_profile: UserProfile, job_id: UUID) -> Ht
     with agent_transaction():
         job = agents.AgentJob.objects.get(id=job_id, realm=user_profile.realm)
         require_job_access(user_profile, job)
+        attempt_models = list(agents.AgentAttempt.objects.filter(job=job).order_by("number"))
         attempts = [
             {
                 "id": str(item.id),
@@ -194,13 +300,21 @@ def get_job(request: HttpRequest, user_profile: UserProfile, job_id: UUID) -> Ht
                 "input_cursor": item.input_cursor,
                 "event_cursor": item.event_cursor,
             }
-            for item in agents.AgentAttempt.objects.filter(job=job).order_by("number")
+            for item in attempt_models
         ]
+        operation_offset, operation_limit = evidence_window(request, "operation")
+        artifact_offset, artifact_limit = evidence_window(request, "artifact")
+        operation_rows = agents.AgentOperation.objects.filter(attempt__job=job).order_by(
+            "created_at"
+        )
+        artifact_rows = agents.AgentArtifact.objects.filter(
+            attempt__job=job, unavailable_at__isnull=True
+        ).order_by("created_at")
+        operation_count = operation_rows.count()
+        artifact_count = artifact_rows.count()
         operations = [
-            agent_approvals.proposal_data(item)
-            for item in agents.AgentOperation.objects.filter(attempt__job=job).order_by(
-                "created_at"
-            )[:100]
+            operation_data(user_profile, item)
+            for item in operation_rows[operation_offset : operation_offset + operation_limit]
         ]
         artifacts = [
             {
@@ -211,9 +325,7 @@ def get_job(request: HttpRequest, user_profile: UserProfile, job_id: UUID) -> Ht
                 "checksum": item.checksum,
                 "media_type": item.media_type,
             }
-            for item in agents.AgentArtifact.objects.filter(
-                attempt__job=job, unavailable_at__isnull=True
-            )[:100]
+            for item in artifact_rows[artifact_offset : artifact_offset + artifact_limit]
         ]
         return _success(
             request,
@@ -222,6 +334,17 @@ def get_job(request: HttpRequest, user_profile: UserProfile, job_id: UUID) -> Ht
                 "attempts": attempts,
                 "operations": operations,
                 "artifacts": artifacts,
+                "required_checks": required_check_data(job, attempt_models),
+                "operations_cursor": {
+                    "offset": operation_offset,
+                    "next_offset": operation_offset + len(operations),
+                    "truncated": operation_offset + len(operations) < operation_count,
+                },
+                "artifacts_cursor": {
+                    "offset": artifact_offset,
+                    "next_offset": artifact_offset + len(artifacts),
+                    "truncated": artifact_offset + len(artifacts) < artifact_count,
+                },
             },
         )
 

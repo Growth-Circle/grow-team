@@ -86,6 +86,14 @@ class AgentRealmSettings(AgentRecord):
     enabled = models.BooleanField(default=False)
     retention_cleanup_enabled = models.BooleanField(default=False)
     revision = models.PositiveIntegerField(default=1)
+    default_profile = models.ForeignKey(
+        "AgentProfile", on_delete=models.PROTECT, null=True, related_name="default_for_realms"
+    )
+    default_selection_revision = models.PositiveIntegerField(default=1)
+    default_selected_by = models.ForeignKey(
+        "zerver.UserProfile", on_delete=models.PROTECT, null=True, related_name="agent_defaults_selected"
+    )
+    default_selected_at = models.DateTimeField(null=True)
     active_job_limit = models.PositiveIntegerField(default=2)
     queued_job_limit = models.PositiveIntegerField(default=100)
     profile_queue_limit = models.PositiveIntegerField(default=20)
@@ -98,6 +106,12 @@ class AgentRealmSettings(AgentRecord):
 class AgentRunner(AgentRecord):
     owner = models.ForeignKey("zerver.UserProfile", on_delete=models.PROTECT)
     name = models.CharField(max_length=200)
+    host_kind = models.CharField(
+        max_length=20,
+        choices=[("workstation", "workstation"), ("server", "server"), ("unknown", "unknown")],
+        default="unknown",
+    )
+    metadata_revision = models.PositiveIntegerField(default=1)
     fingerprint = models.CharField(max_length=128)
     version = models.CharField(max_length=100, default="")
     platform = models.CharField(max_length=100, default="")
@@ -113,7 +127,13 @@ class AgentRunner(AgentRecord):
     protocol_fields = {"catalog_report": protocol.RunnerCatalog}
 
     class Meta:
-        constraints = [state_constraint("status", protocol.RunnerState, "agent_runner_state_valid")]
+        constraints = [
+            state_constraint("status", protocol.RunnerState, "agent_runner_state_valid"),
+            models.CheckConstraint(
+                condition=Q(host_kind__in=["workstation", "server", "unknown"]),
+                name="agent_runner_host_kind_valid",
+            ),
+        ]
         indexes = [models.Index(fields=["realm", "owner", "status"])]
 
 
@@ -196,6 +216,7 @@ class AgentProvider(AgentRecord):
     secret = models.ForeignKey(AgentSecret, on_delete=models.PROTECT, null=True)
     local_credential_ref = models.CharField(max_length=200, default="")
     config_version = models.PositiveIntegerField(default=1)
+    metadata_revision = models.PositiveIntegerField(default=1)
     context_window_tokens = models.PositiveIntegerField()
     max_output_tokens = models.PositiveIntegerField()
     data_scope = models.JSONField(default=list)
@@ -257,6 +278,7 @@ class AgentProfile(AgentRecord):
     adapter_version = models.CharField(max_length=100)
     provider = models.ForeignKey(AgentProvider, on_delete=models.PROTECT, null=True)
     revision = models.PositiveIntegerField(default=1)
+    metadata_revision = models.PositiveIntegerField(default=1)
     policy_version = models.PositiveIntegerField(default=1)
     desired_state = models.CharField(
         max_length=20, choices=choices(protocol.ProfileState), default="draft"

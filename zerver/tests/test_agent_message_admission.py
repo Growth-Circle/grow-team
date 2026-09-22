@@ -6,7 +6,7 @@ from uuid import uuid4
 from django.db import transaction
 from typing_extensions import override
 
-from zerver.actions.agents import create_profile, record_readiness
+from zerver.actions.agents import create_profile, enable_profile, record_readiness
 from zerver.lib.markdown import render_message_markdown
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.models import Message, agents
@@ -73,6 +73,7 @@ class AgentMessageAdmissionTests(ZulipTestCase):
                 "capabilities": {"chat_ready": True, "config_version": 1},
             },
         )
+        self.profile = enable_profile(self.owner, self.profile, expected_revision=1)
 
     def test_personal_agent_mention_creates_one_durable_job(self) -> None:
         self.send_personal_message(
@@ -381,6 +382,7 @@ class AgentMessageAdmissionTests(ZulipTestCase):
                     },
                 },
             )
+            enable_profile(self.owner, profile, expected_revision=profile.revision)
 
         ready(incomplete, False)
         self.send_personal_message(self.owner, incomplete.bot_user, "Fix this")
@@ -544,6 +546,7 @@ class AgentMessageAdmissionTests(ZulipTestCase):
                 "capabilities": {"chat_ready": True, "config_version": 1},
             },
         )
+        enable_profile(self.owner, second, expected_revision=1)
         self.subscribe(second.bot_user, "Denmark")
         message_id = self.send_stream_message(
             self.owner,
@@ -692,6 +695,7 @@ class AgentMessageAdmissionTests(ZulipTestCase):
                 },
             },
         )
+        enable_profile(self.owner, self.profile, expected_revision=2)
         body = {
             "schema_version": 1,
             "expected_version": draft.version,

@@ -48,6 +48,28 @@ A lost rotation response leaves `rotation_uncertain`. The runner does not replay
 Use `connect ORIGIN --repair` for an explicit new authorization. Revoke the reported orphan through its owner interface.
 An uncertain pairing start also requires this explicit action. No runner exists before exchange.
 
+## Set the owner-declared runner metadata
+
+Use the paired device credential to read the current name, category, and metadata revision:
+
+```sh
+node dist/cli.js metadata
+```
+
+Set the name and category with the revision from that read:
+
+```sh
+node dist/cli.js metadata set "Build server" server 1
+```
+
+The categories are `workstation`, `server`, and `unknown`. The CLI does not infer a category.
+Quote a name that has spaces. A stale revision fails; read metadata again before any new decision.
+If an update response is lost, the CLI reads current metadata and reports the observed value.
+It does not apply another update with a newer revision. The owner decides whether to change a conflicting value.
+The device route is `GET` or `POST /api/v1/agent/runner/metadata` with the current bearer credential.
+The POST body contains only `schema_version`, `name`, `host_kind`, and `expected_metadata_revision`.
+The response contains only the safe metadata fields and protocol envelope.
+
 ## Owner configuration
 
 Register a local workspace with an explicit CLI command:

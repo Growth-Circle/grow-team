@@ -74,6 +74,7 @@ class AuditLogEventType(IntEnum):
     # and imported the data as the given realm.
     REALM_IMPORTED = 229
     REALM_EXPORT_DELETED = 230
+    AGENT_TEAM_DEFAULT_CHANGED = 231
 
     SUBSCRIPTION_CREATED = 301
     SUBSCRIPTION_ACTIVATED = 302
