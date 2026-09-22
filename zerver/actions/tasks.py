@@ -192,9 +192,7 @@ def do_update_task(
             {"assignee_id": task.assignee_id},
         )
     else:
-        record_history(
-            task, user_profile, TaskHistory.EDITED, {"fields": sorted(changes.keys())}
-        )
+        record_history(task, user_profile, TaskHistory.EDITED, {"fields": sorted(changes.keys())})
 
     send_task_event(task.realm, task, "update")
     return task

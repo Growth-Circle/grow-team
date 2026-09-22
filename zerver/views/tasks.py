@@ -125,9 +125,7 @@ def create_task(
 
     assignee = None
     if assignee_id is not None:
-        assignee = access_user_by_id(
-            user_profile, assignee_id, allow_bots=True, for_admin=False
-        )
+        assignee = access_user_by_id(user_profile, assignee_id, allow_bots=True, for_admin=False)
 
     task = do_create_task(
         user_profile=user_profile,

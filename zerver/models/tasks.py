@@ -133,7 +133,9 @@ class Task(models.Model):
             "origin_message_id": self.origin_message_id,
             "creator_id": self.creator_id,
             "assignee_id": self.assignee_id,
-            "agent_profile_id": None if self.agent_profile_id is None else str(self.agent_profile_id),
+            "agent_profile_id": None
+            if self.agent_profile_id is None
+            else str(self.agent_profile_id),
             "agent_job_id": None if self.agent_job_id is None else str(self.agent_job_id),
             "labels": self.labels,
             "checklist": self.checklist,
