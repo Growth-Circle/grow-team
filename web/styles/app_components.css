@@ -1129,8 +1129,12 @@ div.overlay .flex.overlay-content > .overlay-container,
         & .zulip-icon {
             /* Clear inherited position. */
             position: static;
-            color: var(--color-tab-picker-icon);
+            color: light-dark(hsl(180deg 8% 40%), hsl(170deg 6% 60%));
         }
+    }
+
+    .tab-option:checked + .tab-option-content .zulip-icon {
+        color: light-dark(hsl(173deg 86% 22%), hsl(168deg 55% 72%));
     }
 
     .tab-option:not(:checked) + .tab-option-content {
@@ -1218,6 +1222,45 @@ div.overlay .flex.overlay-content > .overlay-container,
                         var(--tab-selected-tab-picker)
                 )
             );
+        }
+    }
+}
+
+/* The topic-visibility picker in the topic actions popover is a flat
+   row of even segments instead of the pill-and-slider look every
+   other .tab-picker.popover-menu-tab-group instance (for example, the
+   app-theme picker) keeps. Scoped to this one popover by id, since
+   the markup gives both pickers the same two classes. */
+#topic-actions-menu-popover .tab-picker.popover-menu-tab-group {
+    display: flex;
+    gap: var(--grid-gap-tab-picker);
+    padding: 2px 8px 8px;
+    background-color: transparent;
+
+    .slider {
+        display: none;
+    }
+
+    .tab-option-content {
+        flex: 1;
+        height: 1.875em; /* 30px at 16px/1em */
+        border-radius: 0;
+        background-color: var(--color-background-tab-picker-container);
+
+        &:first-of-type {
+            border-radius: var(--radius-md) 0 0 var(--radius-md);
+        }
+
+        &:last-of-type {
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+        }
+    }
+
+    .tab-option:checked + .tab-option-content {
+        background-color: var(--color-background-brand-solid-action-button);
+
+        .zulip-icon {
+            color: var(--color-text-brand-solid-action-button);
         }
     }
 }

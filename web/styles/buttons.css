@@ -63,7 +63,8 @@
     &:disabled {
         cursor: default;
         pointer-events: none;
-        opacity: 0.5;
+        background-color: light-dark(hsl(170deg 8% 92%), hsl(185deg 12% 18%));
+        color: light-dark(hsl(180deg 6% 58%), hsl(180deg 6% 45%));
     }
 
     .zulip-icon {
@@ -79,6 +80,23 @@
     max-width: 32ch;
     text-overflow: ellipsis;
     overflow: hidden;
+}
+
+/* Action buttons -- Size */
+.action-button-small {
+    /* 13px at 16px/1em, so the text and the height stay in proportion
+       when the user's information-density setting changes. */
+    font-size: calc((13 / 16) * var(--base-font-size-px));
+    min-height: calc((28 / 16) * var(--base-font-size-px));
+    padding: 0 calc((12 / 16) * var(--base-font-size-px));
+    border-radius: var(--radius-sm);
+}
+
+.action-button-touch {
+    /* 44px at 16px/1em. */
+    min-height: 2.75em;
+    padding: 0 1.25em;
+    border-radius: var(--radius-lg);
 }
 
 /* Action buttons -- Neutral Intent */
@@ -102,8 +120,12 @@
 
 .action-button-subtle-neutral {
     color: var(--color-text-neutral-subtle-action-button);
-    background-color: var(--color-background-neutral-subtle-action-button);
-    box-shadow: 0 0 0.5px 0.5px var(--color-inner-shadow-action-button) inset;
+    /* Reuses the tab-picker's raised-surface token: a white card in
+       light mode, a surface a step lighter than the popover in dark
+       mode. Frame 2a asks for the same white-with-border treatment
+       here, on the Cancel button. */
+    background-color: var(--color-background-tab-picker-selected-tab);
+    border: 1px solid light-dark(hsl(170deg 10% 82%), hsl(180deg 10% 26%));
 
     &:hover,
     &:focus-visible {
