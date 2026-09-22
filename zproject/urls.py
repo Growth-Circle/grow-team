@@ -253,6 +253,14 @@ from zerver.views.streams import (
     update_subscriptions_property,
 )
 from zerver.views.submessage import process_submessage
+from zerver.views.tasks import (
+    create_task,
+    delete_task,
+    get_task_board,
+    get_task_history,
+    update_task,
+    update_task_board,
+)
 from zerver.views.thumbnail import backend_serve_thumbnail, check_thumbnail_status
 from zerver.views.tusd import handle_tusd_hook
 from zerver.views.typing import send_message_edit_notification_backend, send_notification_backend
@@ -489,6 +497,11 @@ v1_api_and_json_patterns = [
         DELETE=delete_saved_snippet,
         PATCH=edit_saved_snippet,
     ),
+    # tasks -> zerver.views.tasks
+    rest_path("tasks", GET=get_task_board, POST=create_task),
+    rest_path("tasks/<int:task_id>", PATCH=update_task, DELETE=delete_task),
+    rest_path("tasks/<int:task_id>/history", GET=get_task_history),
+    rest_path("task_boards/<int:board_id>", PATCH=update_task_board),
     rest_path("reminders", GET=fetch_reminders, POST=create_reminders_message_backend),
     rest_path(
         "reminders/<int:reminder_id>",

@@ -135,6 +135,11 @@ class AuditLogEventType(IntEnum):
     CHANNEL_FOLDER_ARCHIVED = 904
     CHANNEL_FOLDER_UNARCHIVED = 905
 
+    TASK_CREATED = 950
+    TASK_MOVED = 951
+    TASK_DELETED = 952
+    TASK_BOARD_RENAMED = 953
+
     INVITATION_REVOKED = 1001
 
     # The following values are only for remote server/realm logs.

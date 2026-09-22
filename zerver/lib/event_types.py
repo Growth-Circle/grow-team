@@ -1,4 +1,4 @@
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
@@ -948,6 +948,61 @@ class EventStreamUpdate(EventStreamUpdateCore):
     rendered_description: str | None = None
     history_public_to_subscribers: bool | None = None
     is_web_public: bool | None = None
+
+
+class TaskFields(BaseModel):
+    id: int
+    display_id: str
+    board_id: int
+    column_id: int
+    title: str
+    body: str
+    position: float
+    stream_id: int | None
+    topic: str
+    origin_message_id: int | None
+    creator_id: int
+    assignee_id: int | None
+    agent_profile_id: str | None
+    agent_job_id: str | None
+    labels: list[str]
+    checklist: list[dict[str, Any]]
+    due_at: int | None
+    blocked: bool
+    completed_at: int | None
+    date_created: int
+    last_updated: int
+
+
+class EventTaskAdd(BaseEvent):
+    type: Literal["task"]
+    op: Literal["add"]
+    task: TaskFields
+
+
+class EventTaskUpdate(BaseEvent):
+    type: Literal["task"]
+    op: Literal["update"]
+    task: TaskFields
+
+
+class EventTaskRemove(BaseEvent):
+    type: Literal["task"]
+    op: Literal["remove"]
+    task_id: int
+    board_id: int
+
+
+class TaskBoardFields(BaseModel):
+    id: int
+    name: str
+    date_created: int
+
+
+class EventTaskBoardUpdate(BaseEvent):
+    type: Literal["task_board"]
+    op: Literal["update"]
+    board: TaskBoardFields
 
 
 class EventSubmessage(BaseEvent):

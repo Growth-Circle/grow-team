@@ -93,6 +93,10 @@ from zerver.models.streams import DefaultStream as DefaultStream
 from zerver.models.streams import DefaultStreamGroup as DefaultStreamGroup
 from zerver.models.streams import Stream as Stream
 from zerver.models.streams import Subscription as Subscription
+from zerver.models.tasks import Task as Task
+from zerver.models.tasks import TaskBoard as TaskBoard
+from zerver.models.tasks import TaskBoardColumn as TaskBoardColumn
+from zerver.models.tasks import TaskHistory as TaskHistory
 from zerver.models.user_activity import UserActivity as UserActivity
 from zerver.models.user_activity import UserActivityInterval as UserActivityInterval
 from zerver.models.user_topics import UserTopic as UserTopic
