@@ -82,9 +82,7 @@ function card_context(task: Task): Record<string, unknown> {
     const checklist_total = task.checklist.length;
     const checklist_done = task.checklist.filter((item) => item.done).length;
     const assignee =
-        task.assignee_id === null
-            ? undefined
-            : people.maybe_get_user_by_id(task.assignee_id, true);
+        task.assignee_id === null ? undefined : people.maybe_get_user_by_id(task.assignee_id, true);
 
     return {
         id: task.id,
@@ -151,10 +149,7 @@ export function complete_rerender(): void {
             done_window_label:
                 column.done_window_days === null
                     ? ""
-                    : $t(
-                          {defaultMessage: "{days} days"},
-                          {days: column.done_window_days},
-                      ),
+                    : $t({defaultMessage: "{days} days"}, {days: column.done_window_days}),
             card_count: task_board_data.tasks_in_column(column.id).length,
             at_work_limit: task_board_data.column_is_over_work_limit(column.id),
             folded_count,
@@ -214,9 +209,7 @@ function render_card_detail(task_id: number): void {
 
     const column = task_board_data.get_column(task.column_id);
     const assignee =
-        task.assignee_id === null
-            ? undefined
-            : people.maybe_get_user_by_id(task.assignee_id, true);
+        task.assignee_id === null ? undefined : people.maybe_get_user_by_id(task.assignee_id, true);
     const history = history_by_task_id.get(task_id) ?? [];
 
     $("#task-board-detail").html(
@@ -390,9 +383,7 @@ function fetch_board(): void {
     void channel.get({
         url: "/json/tasks",
         success(raw_data) {
-            task_board_data.set_board(
-                task_board_data.task_board_response_schema.parse(raw_data),
-            );
+            task_board_data.set_board(task_board_data.task_board_response_schema.parse(raw_data));
             complete_rerender();
         },
         error(xhr) {
@@ -434,11 +425,7 @@ export function hide(): void {
     views_util.hide({$view: $("#task-board-view"), set_visible});
 }
 
-export function handle_task_event(event: {
-    op: string;
-    task?: unknown;
-    task_id?: number;
-}): void {
+export function handle_task_event(event: {op: string; task?: unknown; task_id?: number}): void {
     if (event.op === "remove") {
         assert(event.task_id !== undefined);
         task_board_data.remove_task(event.task_id);
