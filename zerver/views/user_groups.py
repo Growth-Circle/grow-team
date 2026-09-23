@@ -341,12 +341,11 @@ def notify_for_user_group_subscription_changes(
         do_send_messages(notifications)
 
 
-def add_members_to_group_backend(
-    request: HttpRequest,
+def add_members_to_group_core(
     user_profile: UserProfile,
     user_group_id: int,
     members: list[int],
-) -> HttpResponse:
+) -> NamedUserGroup:
     if len(members) == 1 and user_profile.id == members[0]:
         try:
             user_group = access_user_group_for_update(
@@ -395,15 +394,24 @@ def add_members_to_group_backend(
         user_group=user_group,
         send_subscription_message=True,
     )
-    return json_success(request)
+    return user_group
 
 
-def remove_members_from_group_backend(
+def add_members_to_group_backend(
     request: HttpRequest,
     user_profile: UserProfile,
     user_group_id: int,
     members: list[int],
 ) -> HttpResponse:
+    add_members_to_group_core(user_profile, user_group_id, members)
+    return json_success(request)
+
+
+def remove_members_from_group_core(
+    user_profile: UserProfile,
+    user_group_id: int,
+    members: list[int],
+) -> NamedUserGroup:
     user_profiles = user_ids_to_users(
         members, user_profile.realm, allow_deactivated=False, allow_bots=True
     )
@@ -447,6 +455,16 @@ def remove_members_from_group_backend(
         user_group=user_group,
         send_unsubscription_message=True,
     )
+    return user_group
+
+
+def remove_members_from_group_backend(
+    request: HttpRequest,
+    user_profile: UserProfile,
+    user_group_id: int,
+    members: list[int],
+) -> HttpResponse:
+    remove_members_from_group_core(user_profile, user_group_id, members)
     return json_success(request)
 
 
