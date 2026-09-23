@@ -3580,6 +3580,18 @@ paths:
             type: integer
             minimum: 1
             maximum: 100
+        - name: view
+          in: query
+          description:
+            Which tasks to return. "waiting" is those that wait for an approval or
+            input the reader can give. Defaults to "all".
+          schema:
+            type: string
+            enum:
+              - mine
+              - waiting
+              - running
+              - all
     post:
       operationId: create-agent-job
       tags:
@@ -42196,6 +42208,9 @@ components:
             - draft_pr
         blocked_reason:
           type: string
+        title:
+          type: string
+          description: The first 80 characters of the task's request text.
         reason_code:
           type: string
           nullable: true
@@ -42216,6 +42231,9 @@ components:
             - runner_revoked
             - null
           description: Why resume is unavailable. Null when resume_available is true.
+        needs_my_action:
+          type: boolean
+          description: The reader can give this job the approval or input it waits for.
         requirements:
           type: array
           items:
@@ -42259,12 +42277,14 @@ components:
         - phase
         - version
         - request
+        - title
         - job_kind
         - delivery_target
         - blocked_reason
         - reason_code
         - resume_available
         - resume_unavailable_reason
+        - needs_my_action
         - requirements
         - start_deadline
         - result

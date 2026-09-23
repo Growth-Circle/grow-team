@@ -147,6 +147,67 @@ class AgentAPITests(ZulipTestCase):
         ).get()
         self.assertEqual(tokens(explicit), (1000, 1000))
 
+    def test_job_list_view_filters_mine_waiting_and_running(self) -> None:
+        from zerver.actions import agent_jobs as job_actions
+        from zerver.actions.agents import enable_profile, record_readiness, share_agent_profile
+        from zerver.models import Message
+
+        self.post_agent("profiles", self.profile_payload())
+        profile = agents.AgentProfile.objects.get(runner=self.runner)
+        setup = agents.AgentSetupOperation.objects.get(profile=profile)
+        record_readiness(
+            self.runner,
+            setup,
+            {
+                "schema_version": 1,
+                "profile_id": str(profile.id),
+                "profile_revision": 1,
+                "runner_id": str(self.runner.id),
+                "descriptor_digest": setup.descriptor_digest,
+                "configuration_digest": setup.configuration_digest,
+                "state": "ready",
+                "capabilities": {"chat_ready": True, "config_version": 1},
+            },
+        )
+        profile.refresh_from_db()
+        enable_profile(self.owner, profile, expected_revision=profile.revision)
+        other = self.example_user("othello")
+        share_agent_profile(self.owner, profile, principal_user=other)
+
+        def make_job(requester: UserProfile, status: str) -> agents.AgentJob:
+            # Each job needs its own source message: create_job treats a repeat
+            # (source, profile) trigger from a different requester as a conflict.
+            source = Message.objects.get(
+                id=self.send_stream_message(requester, "Verona", f"For the list filter {status}")
+            )
+            job = job_actions.create_job(
+                requester,
+                profile=profile,
+                source=source,
+                request="Task",
+                idempotency_key=uuid4(),
+                job_kind="answer",
+                delivery_target="answer",
+            )
+            agents.AgentJob.objects.filter(id=job.id).update(status=status)
+            return job
+
+        mine_running = make_job(self.owner, "running")
+        mine_waiting = make_job(self.owner, "waiting_for_input")
+        theirs = make_job(other, "queued")
+
+        def job_ids(view: str) -> set[str]:
+            data = self.assert_json_success(self.client_get(f"/json/agent/jobs?view={view}"))
+            return {item["id"] for item in data["jobs"]}
+
+        self.assertEqual(job_ids("mine"), {str(mine_running.id), str(mine_waiting.id)})
+        self.assertEqual(job_ids("waiting"), {str(mine_waiting.id)})
+        self.assertEqual(job_ids("running"), {str(mine_running.id)})
+        self.assertEqual(
+            job_ids("all"), {str(mine_running.id), str(mine_waiting.id), str(theirs.id)}
+        )
+        self.assertEqual(self.client_get("/json/agent/jobs?view=bogus").status_code, 400)
+
     def test_runner_metadata_update_is_revision_checked(self) -> None:
         response = self.client_patch(
             f"/json/agent/runners/{self.runner.id}/metadata",

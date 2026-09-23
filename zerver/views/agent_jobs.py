@@ -22,6 +22,36 @@ from zerver.lib.message import access_message
 from zerver.models import Message, UserProfile, agents
 from zerver.views.agents import _success, payload, safe_agent_endpoint
 
+JOB_LIST_VIEWS = {"mine", "waiting", "running", "all"}
+JOB_LIST_WAITING_STATUSES = {"waiting_for_approval", "waiting_for_input"}
+JOB_LIST_RUNNING_STATUSES = {"running", "verifying", "cancel_requested"}
+
+
+def needs_my_action(actor: UserProfile, job: agents.AgentJob) -> bool:
+    """Whether the reader can give this job the approval or input it waits for."""
+    if job.status == "waiting_for_input":
+        try:
+            agent_jobs.require_control(actor, job)
+        except AgentAccessDenied:
+            return False
+        return True
+    if job.status != "waiting_for_approval":
+        return False
+    approval = (
+        agents.AgentApproval.objects.filter(job=job, decision="pending", expires_at__gt=now())
+        .select_related("operation", "attempt")
+        .order_by("-created_at")
+        .first()
+    )
+    if approval is None:
+        return False
+    try:
+        require_job_access(actor, job)
+        agent_jobs.check_attempt_access(actor, job, approval.attempt, approval.operation.tool_class)
+    except (JsonableError, ObjectDoesNotExist, ValueError):
+        return False
+    return True
+
 
 def job_data(actor: UserProfile, job: agents.AgentJob) -> dict[str, object]:
     actions = []
@@ -56,10 +86,12 @@ def job_data(actor: UserProfile, job: agents.AgentJob) -> dict[str, object]:
         "phase": job.phase,
         "version": job.version,
         "request": job.request,
+        "title": job.request[:80],
         "job_kind": job.job_kind,
         "delivery_target": job.delivery_target,
         "blocked_reason": job.blocked_reason,
         "reason_code": agent_jobs.job_reason_code(job),
+        "needs_my_action": needs_my_action(actor, job),
         "resume_available": resume_available,
         "resume_unavailable_reason": resume_unavailable_reason,
         "requirements": (
@@ -283,15 +315,25 @@ def send_intent(request: HttpRequest, user_profile: UserProfile, client_key: UUI
 @safe_agent_endpoint
 def list_jobs(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
     offset, limit = window(request)
+    view = request.GET.get("view", "all")
+    if view not in JOB_LIST_VIEWS:
+        raise ValueError("Invalid task view.")
     with agent_transaction():
+        candidates = agents.AgentJob.objects.filter(realm=user_profile.realm)
+        if view == "mine":
+            candidates = candidates.filter(requester=user_profile)
+        elif view == "waiting":
+            candidates = candidates.filter(status__in=JOB_LIST_WAITING_STATUSES)
+        elif view == "running":
+            candidates = candidates.filter(status__in=JOB_LIST_RUNNING_STATUSES)
         visible = []
-        for job in agents.AgentJob.objects.filter(realm=user_profile.realm).order_by(
-            "-created_at", "id"
-        ):
+        for job in candidates.order_by("-created_at", "id")[:100]:
             ensure_budget()
             try:
                 require_job_access(user_profile, job)
             except JsonableError:
+                continue
+            if view == "waiting" and not needs_my_action(user_profile, job):
                 continue
             visible.append(job)
         return _success(
