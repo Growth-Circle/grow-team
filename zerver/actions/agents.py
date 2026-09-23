@@ -1687,6 +1687,228 @@ def create_agent_grant(
     return grant
 
 
+CODE_JOB_ACTIONS: list[str] = ["repository.read", "repository.edit", "checks.run"]
+
+AgentShareTarget = (
+    agents.AgentRunner | agents.AgentProvider | agents.AgentRepository | agents.AgentProfile
+)
+
+
+def _share_targets(profile: agents.AgentProfile) -> list[tuple[str, AgentShareTarget]]:
+    """List the resources a profile share grants, in a fixed, greppable order."""
+    targets: list[tuple[str, AgentShareTarget]] = [("profile", profile), ("runner", profile.runner)]
+    if profile.provider is not None:
+        targets.append(("provider", profile.provider))
+    if profile.default_repository is not None:
+        targets.append(("repository", profile.default_repository))
+    return targets
+
+
+def _share_min_actions(target_kind: str, profile: agents.AgentProfile) -> list[str]:
+    """Baseline actions a share grant needs so admission passes for this profile."""
+    if target_kind == "profile":
+        actions = ["profile.use", "context.read"]
+        if profile.default_mode == "manage":
+            # Contract 3.1: a non-owner commander needs team.manage on top
+            # of the normal admission grants, or sharing looks complete
+            # while every team.manage action still gets command_not_allowed.
+            actions.append("team.manage")
+        if profile.default_repository_id is not None:
+            # check_agent_access checks the profile grant and the repository grant
+            # for the same repository action, so both grants need it.
+            actions += CODE_JOB_ACTIONS
+        return actions
+    if target_kind == "repository":
+        return list(CODE_JOB_ACTIONS)
+    return [f"{target_kind}.use"]
+
+
+def _share_action_combinations(target_kind: str, profile: agents.AgentProfile) -> list[set[str]]:
+    """Every exact action set a share_agent_profile call could give this target."""
+    base = set(_share_min_actions(target_kind, profile))
+    if target_kind != "profile":
+        return [base]
+    return [
+        base,
+        base | {"job.control"},
+        base | {"job.review"},
+        base | {"job.control", "job.review"},
+    ]
+
+
+def _share_grant_filters(
+    owner: UserProfile,
+    *,
+    principal_user: UserProfile | None,
+    principal_group_id: int | None,
+    target_kind: str,
+    target: AgentShareTarget,
+) -> dict[str, object]:
+    filters: dict[str, object] = {
+        "realm": owner.realm,
+        "owner": owner,
+        "principal_user": principal_user,
+        "principal_group_id": principal_group_id,
+        "target_kind": target_kind,
+        "revoked_at__isnull": True,
+        "scope__isnull": True,
+        f"{target_kind}_id": target.id,
+    }
+    if target_kind == "profile":
+        # Keep the shared grant unscoped so it covers the profile with any repository.
+        filters["repository"] = None
+    return filters
+
+
+def _validate_share_request(
+    owner: UserProfile,
+    profile: agents.AgentProfile,
+    *,
+    principal_user: UserProfile | None,
+    principal_group_id: int | None,
+) -> agents.AgentProfile:
+    if (principal_user is None) == (principal_group_id is None):
+        raise ValueError("Choose exactly one share principal.")
+    # A plain select_for_update(), not select_related(): locking a row across a
+    # LEFT OUTER JOIN (provider and default_repository are nullable) is not
+    # supported by Postgres. Related rows load lazily, unlocked, on first access.
+    profile = agents.AgentProfile.objects.select_for_update().get(id=profile.id)
+    if profile.realm_id != owner.realm_id or profile.owner_id != owner.id:
+        raise ValueError("Agent profile is unavailable.")
+    if principal_user is not None and principal_user.realm_id != owner.realm_id:
+        raise ValueError("Share principal is unavailable.")
+    if (
+        principal_group_id is not None
+        and not UserGroup.objects.filter(id=principal_group_id, realm=owner.realm).exists()
+    ):
+        raise ValueError("Share principal is unavailable.")
+    return profile
+
+
+@transaction.atomic
+def share_agent_profile(
+    owner: UserProfile,
+    profile: agents.AgentProfile,
+    *,
+    principal_user: UserProfile | None = None,
+    principal_group_id: int | None = None,
+    allow_job_control: bool = False,
+    allow_job_review: bool = False,
+) -> tuple[list[agents.AgentGrant], list[dict[str, str]]]:
+    """Grant a principal the profile, runner, provider, and repository access
+    an owner would otherwise create one resource at a time."""
+    profile = _validate_share_request(
+        owner, profile, principal_user=principal_user, principal_group_id=principal_group_id
+    )
+    grants = []
+    skipped = []
+    for target_kind, target in _share_targets(profile):
+        actions_wanted = _share_min_actions(target_kind, profile)
+        if target_kind == "profile":
+            if allow_job_control:
+                actions_wanted = [*actions_wanted, "job.control"]
+            if allow_job_review:
+                actions_wanted = [*actions_wanted, "job.review"]
+        existing = agents.AgentGrant.objects.filter(
+            **_share_grant_filters(
+                owner,
+                principal_user=principal_user,
+                principal_group_id=principal_group_id,
+                target_kind=target_kind,
+                target=target,
+            )
+        )
+        reused = next(
+            (grant for grant in existing if set(grant.actions) == set(actions_wanted)), None
+        )
+        if reused is not None:
+            grants.append(reused)
+            continue
+        try:
+            grants.append(
+                create_agent_grant(
+                    owner,
+                    principal_user=principal_user,
+                    principal_group_id=principal_group_id,
+                    target_kind=target_kind,
+                    target=target,
+                    actions=actions_wanted,
+                )
+            )
+        except ValueError:
+            skipped.append({"target_kind": target_kind, "reason": "not_owner"})
+    return grants, skipped
+
+
+@transaction.atomic
+def unshare_agent_profile(
+    owner: UserProfile,
+    profile: agents.AgentProfile,
+    *,
+    principal_user: UserProfile | None = None,
+    principal_group_id: int | None = None,
+) -> list[agents.AgentGrant]:
+    """Revoke exactly the grants a matching share_agent_profile call would create."""
+    profile = _validate_share_request(
+        owner, profile, principal_user=principal_user, principal_group_id=principal_group_id
+    )
+    revoked = []
+    for target_kind, target in _share_targets(profile):
+        combinations = _share_action_combinations(target_kind, profile)
+        grants = agents.AgentGrant.objects.select_for_update().filter(
+            **_share_grant_filters(
+                owner,
+                principal_user=principal_user,
+                principal_group_id=principal_group_id,
+                target_kind=target_kind,
+                target=target,
+            )
+        )
+        for grant in grants:
+            if set(grant.actions) not in combinations:
+                continue
+            grant.revoked_at = now()
+            grant.policy_version += 1
+            grant.save(update_fields=["revoked_at", "policy_version", "updated_at"])
+            revoked.append(grant)
+    return revoked
+
+
+def shared_agent_principals(profile: agents.AgentProfile) -> list[dict[str, object]]:
+    """List each principal an owner shared this profile with, and whether every
+    share_agent_profile grant is still active for them."""
+    profile = agents.AgentProfile.objects.select_related(
+        "runner", "provider", "default_repository"
+    ).get(id=profile.id)
+    targets = _share_targets(profile)
+    covered: dict[tuple[str, int], set[str]] = {}
+    for target_kind, target in targets:
+        min_actions = set(_share_min_actions(target_kind, profile))
+        grants = agents.AgentGrant.objects.filter(
+            realm=profile.realm,
+            owner=profile.owner,
+            target_kind=target_kind,
+            revoked_at__isnull=True,
+            scope__isnull=True,
+            **({"repository": None} if target_kind == "profile" else {}),
+            **{f"{target_kind}_id": target.id},
+        )
+        for grant in grants:
+            if not min_actions <= set(grant.actions):
+                continue
+            key = (
+                ("user", grant.principal_user_id)
+                if grant.principal_user_id is not None
+                else ("group", grant.principal_group_id)
+            )
+            covered.setdefault(key, set()).add(target_kind)
+    required_kinds = {kind for kind, _ in targets}
+    return [
+        {"principal_kind": kind, "principal_id": principal_id, "complete": required_kinds <= have}
+        for (kind, principal_id), have in sorted(covered.items())
+    ]
+
+
 def authenticate_runner_stop_token(
     token: str, *, job_id: uuid.UUID, attempt_id: uuid.UUID, lease_epoch: int, job_version: int
 ) -> agents.AgentAttempt:

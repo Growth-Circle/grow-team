@@ -193,6 +193,11 @@ def _profile_data(
             "repository": repository_visible,
         },
         "configuration": configuration,
+        "shared_with": (
+            actions.shared_agent_principals(profile)
+            if actor is not None and actor.id == profile.owner_id
+            else []
+        ),
     }
 
 
@@ -1152,5 +1157,58 @@ def attach_agent_profile_stream(
     stream = Stream.objects.get(id=data.stream_id, realm=user_profile.realm)
     actions.attach_profile_to_stream(
         user_profile, profile, stream, expected_revision=data.expected_revision
+    )
+    return _success(request)
+
+
+def _share_principal(user_profile: UserProfile, data: r.ProfilePrincipal) -> UserProfile | None:
+    if data.principal_user_id is None:
+        return None
+    return UserProfile.objects.get(id=data.principal_user_id, realm=user_profile.realm)
+
+
+@safe_agent_endpoint
+@transaction.atomic
+def share_agent_profile_view(
+    request: HttpRequest, user_profile: UserProfile, profile_id: UUID
+) -> HttpResponse:
+    data = payload(request, r.ProfileShare)
+    profile = agents.AgentProfile.objects.get(id=profile_id, realm=user_profile.realm)
+    grants, skipped = actions.share_agent_profile(
+        user_profile,
+        profile,
+        principal_user=_share_principal(user_profile, data),
+        principal_group_id=data.principal_group_id,
+        allow_job_control=data.allow_job_control,
+        allow_job_review=data.allow_job_review,
+    )
+    return _success(
+        request,
+        {
+            "grants": [
+                {
+                    "id": str(grant.id),
+                    "target_kind": grant.target_kind,
+                    "revision": grant.policy_version,
+                }
+                for grant in grants
+            ],
+            "skipped": skipped,
+        },
+    )
+
+
+@safe_agent_endpoint
+@transaction.atomic
+def unshare_agent_profile_view(
+    request: HttpRequest, user_profile: UserProfile, profile_id: UUID
+) -> HttpResponse:
+    data = payload(request, r.ProfileUnshare)
+    profile = agents.AgentProfile.objects.get(id=profile_id, realm=user_profile.realm)
+    actions.unshare_agent_profile(
+        user_profile,
+        profile,
+        principal_user=_share_principal(user_profile, data),
+        principal_group_id=data.principal_group_id,
     )
     return _success(request)

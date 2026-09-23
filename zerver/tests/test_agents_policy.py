@@ -41,6 +41,105 @@ class AgentPolicyTests(ZulipTestCase):
         fields[target_kind] = getattr(self, target_kind)
         agents.AgentGrant.objects.create(**fields)
 
+    def test_share_lets_a_user_pass_admission_for_answer_mode(self) -> None:
+        from zerver.actions.agents import share_agent_profile
+
+        self.profile.policy = {"actions": ["context.read"]}
+        self.profile.save(update_fields=["policy"])
+        grants, skipped = share_agent_profile(self.owner, self.profile, principal_user=self.member)
+        self.assertEqual(skipped, [])
+        self.assertEqual({grant.target_kind for grant in grants}, {"profile", "runner"})
+        check_agent_access(self.member, self.profile, None, None, "profile.use")
+        check_agent_access(self.member, self.profile, None, None, "context.read")
+
+    def test_share_lets_a_system_group_pass_admission(self) -> None:
+        from zerver.actions.agents import share_agent_profile
+        from zerver.models.groups import NamedUserGroup, SystemGroups
+
+        members_group = NamedUserGroup.objects.get(
+            realm_for_sharding=self.realm, name=SystemGroups.MEMBERS, is_system_group=True
+        )
+        share_agent_profile(self.owner, self.profile, principal_group_id=members_group.id)
+        check_agent_access(self.member, self.profile, None, None, "profile.use")
+
+    def test_share_on_a_code_profile_unlocks_repository_actions(self) -> None:
+        from zerver.actions.agents import share_agent_profile
+
+        repository = agents.AgentRepository.objects.create(
+            realm=self.realm,
+            owner=self.owner,
+            runner=self.runner,
+            workspace_alias="work",
+            allowed_refs=["main"],
+            required_checks=[{"id": "test", "argv": ["true"], "cwd": "."}],
+        )
+        self.profile.default_repository = repository
+        self.profile.default_mode = "code"
+        self.profile.policy = {"actions": ["context.read", "repository.read", "repository.edit"]}
+        self.profile.save(update_fields=["default_repository", "default_mode", "policy"])
+        share_agent_profile(self.owner, self.profile, principal_user=self.member)
+        for action in ["profile.use", "context.read", "repository.read", "repository.edit"]:
+            check_agent_access(self.member, self.profile, repository, None, action)
+
+    def test_share_repeat_creates_no_duplicate_grant(self) -> None:
+        from zerver.actions.agents import share_agent_profile
+
+        shared = agents.AgentGrant.objects.filter(owner=self.owner, principal_user=self.member)
+        share_agent_profile(self.owner, self.profile, principal_user=self.member)
+        before = shared.count()
+        share_agent_profile(self.owner, self.profile, principal_user=self.member)
+        self.assertEqual(shared.count(), before)
+
+    def test_share_requires_profile_ownership(self) -> None:
+        from zerver.actions.agents import share_agent_profile
+
+        with self.assertRaises(ValueError):
+            share_agent_profile(self.member, self.profile, principal_user=self.owner)
+
+    def test_share_skips_a_resource_the_owner_does_not_own(self) -> None:
+        from zerver.actions.agents import share_agent_profile
+
+        self.runner.owner = self.example_user("iago")
+        self.runner.save(update_fields=["owner"])
+        grants, skipped = share_agent_profile(self.owner, self.profile, principal_user=self.member)
+        self.assertEqual(skipped, [{"target_kind": "runner", "reason": "not_owner"}])
+        self.assertEqual({grant.target_kind for grant in grants}, {"profile"})
+
+    def test_unshare_revokes_exactly_the_shared_grants(self) -> None:
+        from zerver.actions.agents import share_agent_profile, unshare_agent_profile
+
+        self.grant(target_kind="profile", action="job.control")
+        share_agent_profile(self.owner, self.profile, principal_user=self.member)
+        unshare_agent_profile(self.owner, self.profile, principal_user=self.member)
+        with self.assertRaises(AgentAccessDenied):
+            check_agent_access(self.member, self.profile, None, None, "profile.use")
+        self.assertTrue(
+            agents.AgentGrant.objects.filter(
+                owner=self.owner,
+                principal_user=self.member,
+                target_kind="profile",
+                actions=["job.control"],
+                revoked_at__isnull=True,
+            ).exists()
+        )
+
+    def test_shared_with_reports_completeness(self) -> None:
+        from zerver.actions.agents import share_agent_profile, shared_agent_principals
+
+        self.assertEqual(shared_agent_principals(self.profile), [])
+        share_agent_profile(self.owner, self.profile, principal_user=self.member)
+        self.assertEqual(
+            shared_agent_principals(self.profile),
+            [{"principal_kind": "user", "principal_id": self.member.id, "complete": True}],
+        )
+        agents.AgentGrant.objects.filter(
+            owner=self.owner, principal_user=self.member, target_kind="runner"
+        ).update(revoked_at=now())
+        self.assertEqual(
+            shared_agent_principals(self.profile),
+            [{"principal_kind": "user", "principal_id": self.member.id, "complete": False}],
+        )
+
     def test_shared_member_requires_each_resource_grant(self) -> None:
         self.grant(target_kind="profile", action="profile.use")
         with self.assertRaises(AgentAccessDenied):
@@ -256,3 +355,16 @@ class AgentPolicyTests(ZulipTestCase):
         )
         with self.assertRaises(AgentAccessDenied):
             check_agent_access(self.member, self.profile, None, None, "profile.use")
+
+    def test_share_adds_team_manage_for_a_manage_profile(self) -> None:
+        """Contract 3.1: sharing a manage-mode profile must grant team.manage
+        on top of the normal admission actions, or the share looks complete
+        while every command from the shared principal still gets denied."""
+        from zerver.actions.agents import share_agent_profile
+
+        self.profile.default_mode = "manage"
+        self.profile.save(update_fields=["default_mode"])
+        grants, skipped = share_agent_profile(self.owner, self.profile, principal_user=self.member)
+        self.assertEqual(skipped, [])
+        profile_grant = next(grant for grant in grants if grant.target_kind == "profile")
+        self.assertIn("team.manage", profile_grant.actions)

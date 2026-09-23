@@ -181,6 +181,26 @@ class ChannelRequest(RevisionRequest):
     stream_id: p.Positive
 
 
+class ProfilePrincipal(Request):
+    principal_user_id: p.Positive | None = None
+    principal_group_id: p.Positive | None = None
+
+    @model_validator(mode="after")
+    def exactly_one_principal(self) -> Self:
+        if (self.principal_user_id is None) == (self.principal_group_id is None):
+            raise ValueError("Choose exactly one share principal.")
+        return self
+
+
+class ProfileShare(ProfilePrincipal):
+    allow_job_control: bool = Field(default=False, strict=True)
+    allow_job_review: bool = Field(default=False, strict=True)
+
+
+class ProfileUnshare(ProfilePrincipal):
+    pass
+
+
 class GrantCreate(Request):
     target_kind: Literal["runner", "provider", "repository", "profile"]
     target_id: UUID

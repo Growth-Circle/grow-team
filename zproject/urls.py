@@ -59,6 +59,8 @@ from zerver.views.agents import (
     retry_profile_setup,
     revoke_agent_grant,
     revoke_agent_runner,
+    share_agent_profile_view,
+    unshare_agent_profile_view,
     update_agent_profile,
     update_agent_provider,
     update_agent_runner_metadata,
@@ -408,6 +410,8 @@ v1_api_and_json_patterns = [
     rest_path("agent/channels/<int:stream_id>/attachments", GET=list_channel_agent_attachments),
     rest_path("agent/grants/<uuid:grant_id>/revoke", POST=revoke_agent_grant),
     rest_path("agent/profiles/<uuid:profile_id>/attach-channel", POST=attach_agent_profile_stream),
+    rest_path("agent/profiles/<uuid:profile_id>/share", POST=share_agent_profile_view),
+    rest_path("agent/profiles/<uuid:profile_id>/unshare", POST=unshare_agent_profile_view),
     # realm-level calls
     rest_path("realm", PATCH=update_realm),
     rest_path("realm/user_settings_defaults", PATCH=update_realm_user_settings_defaults),

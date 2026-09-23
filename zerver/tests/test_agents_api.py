@@ -1480,6 +1480,46 @@ class AgentAPITests(ZulipTestCase):
         detail = self.assert_json_success(self.client_get(f"/json/agent/profiles/{profile.id}"))
         self.assertEqual(detail["profile"]["allowed_actions"], [])
 
+    def test_share_and_unshare_endpoints_round_trip(self) -> None:
+        self.post_agent("profiles", self.profile_payload())
+        profile = agents.AgentProfile.objects.get(runner=self.runner)
+        member = self.example_user("othello")
+        result = self.post_agent(f"profiles/{profile.id}/share", {"principal_user_id": member.id})
+        self.assertEqual(result["skipped"], [])
+        shared_kinds = {grant["target_kind"] for grant in result["grants"]}
+        self.assertEqual(shared_kinds, {"profile", "runner"})
+        detail = self.assert_json_success(self.client_get(f"/json/agent/profiles/{profile.id}"))
+        self.assertEqual(
+            detail["profile"]["shared_with"],
+            [{"principal_kind": "user", "principal_id": member.id, "complete": True}],
+        )
+        # A repeat share creates no duplicate grant.
+        shared = agents.AgentGrant.objects.filter(owner=self.owner, principal_user=member)
+        before = shared.count()
+        self.post_agent(f"profiles/{profile.id}/share", {"principal_user_id": member.id})
+        self.assertEqual(shared.count(), before)
+        self.post_agent(f"profiles/{profile.id}/unshare", {"principal_user_id": member.id})
+        self.assertFalse(shared.filter(revoked_at__isnull=True).exists())
+        detail = self.assert_json_success(self.client_get(f"/json/agent/profiles/{profile.id}"))
+        self.assertEqual(detail["profile"]["shared_with"], [])
+
+    def test_share_requires_profile_ownership_over_http(self) -> None:
+        member = self.example_user("othello")
+        profile = agents.AgentProfile.objects.create(
+            realm=self.owner.realm,
+            owner=member,
+            runner=self.runner,
+            bot_user=self.example_user("default_bot"),
+            name="profile",
+            adapter_id="acp",
+            adapter_version="1",
+        )
+        response = self.client_post(
+            f"/json/agent/profiles/{profile.id}/share",
+            {"payload": json.dumps({"schema_version": 1, "principal_user_id": self.owner.id})},
+        )
+        self.assert_json_error(response, "Agent request rejected.")
+
     def test_job_check_summary_uses_frozen_attempt_descriptor(self) -> None:
         from zerver.actions import agent_jobs
         from zerver.actions.agents import enable_profile, record_readiness
