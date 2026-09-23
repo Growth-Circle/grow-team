@@ -51,3 +51,22 @@ Both routes reject redirects and enforce response bounds. The runner checks conn
 Checkpoint payloads include source attempt, input cursor, next step, context IDs, and verified server artifact IDs.
 An uncertain upload cannot create a local substitute for a server receipt.
 Operation proposals and consumption use the current serialized job version and the returned `operation_hash`.
+
+## Team tools (manage jobs)
+
+A manage job has no repository and no workspace. Its policy stays read-only (`context.read` only);
+the `team.manage` authority that reaches the 11 catalog tools is a grant the server checks at propose
+and execute, not an entry in the attempt policy. `services/grow-agent-runner/src/team-tools.ts` builds
+the tool catalog straight from `protocol/protocol-v1.schema.json`'s own input records, so the fields a
+model sees can never drift from the server's definition.
+
+| Route                                        | Request                                                                    | Response and retry contract                                                                                |
+| --------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `POST /api/v1/agent/runner/operations/execute` | Existing `Consume` shape: lease fields, `operation_id`, `expected_version`, `operation_hash`, optional `nonce` | `{"operation": {..., "status": "succeeded" \| "failed", "server_receipt": {...}}}`. HTTP 409 with code `outcome_unknown` when a prior call's Zulip effect may have already run; the runner never retries that call. |
+
+The server alone performs the Zulip action, as the commander (`job.requester`), never the runner and
+never the profile owner's authority. The runner only forwards the model's arguments and relays the
+returned `server_receipt` (`tool`, `outcome`, `summary`, `objects`, `error`) back to the model as the
+tool's output text. A rejected, expired, or cancelled approval is not a runner failure: it becomes that
+same receipt shape with `outcome: "failed"`, so the model can tell the commander what happened instead
+of the attempt ending.

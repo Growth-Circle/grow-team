@@ -172,6 +172,15 @@ A lost consume response never creates execution permission. Query server operati
 A restarted effect cannot run again from its original consume receipt.
 Remote effects require server receipt reconciliation before reporting success.
 
+A manage job's team tools use a different, shorter path: `propose`, then `execute`.
+The server, not the runner, performs the Zulip action and holds the only authority for its outcome.
+`OperationBoundary.execute` sends the same identity as `consume` to `POST /runner/operations/execute`
+and returns the operation with its `server_receipt`. It never calls `beginEffect` or `finishEffect`,
+and the runner never reports `tool.started` or `tool.finished` for a team tool.
+A lost execute response reports HTTP 409 with code `outcome_unknown`. The runner never retries it.
+It returns the contract sentence to the model instead: check the channel before you try the step again.
+`services/grow-agent-runner/src/team-tools.ts` holds the closed catalog, argument validation, and this executor.
+
 The trusted host uses `Coordinator.operationRecovery(attemptId)` after stop or restart.
 It exposes only `list`, `remoteReceipt`, and `localReceipt`. It does not expose execution methods to retired channels.
 The interface binds requests to the original journaled runner, job, attempt, epoch, and attempted consume identity.
