@@ -276,9 +276,13 @@ class AgentMessageAdmissionTests(ZulipTestCase):
             profile_queue_limit=1
         )
         self.send_personal_message(self.owner, self.profile.bot_user, "First")
-        self.send_personal_message(self.owner, self.profile.bot_user, "Full queue")
+        full_queue_id = self.send_personal_message(self.owner, self.profile.bot_user, "Full queue")
         self.assertEqual(agents.AgentJob.objects.count(), 1)
         self.assertEqual(agents.AgentDispatchReceipt.objects.filter(decision="rejected").count(), 2)
+        self.assertEqual(
+            agents.AgentDispatchReceipt.objects.get(source_message_id=full_queue_id).reason,
+            "queue_full",
+        )
 
     def test_receipts_require_current_resource_access_and_sender_identity(self) -> None:
         message_id = self.send_personal_message(self.owner, self.profile.bot_user, "Private task")
@@ -562,6 +566,8 @@ class AgentMessageAdmissionTests(ZulipTestCase):
         self.assertEqual(agents.AgentJob.objects.count(), 2)
 
     def test_queued_reasons_distinguish_offline_busy_and_unknown(self) -> None:
+        from django.utils.timezone import now
+
         from zerver.actions import agent_jobs
 
         agents.AgentRunner.objects.filter(id=self.runner.id).update(status="offline")
@@ -571,7 +577,11 @@ class AgentMessageAdmissionTests(ZulipTestCase):
         assert receipt.job is not None
         self.assertEqual(receipt.job.status, "queued")
         self.assertFalse(agents.AgentAttempt.objects.exists())
-        agents.AgentRunner.objects.filter(id=self.runner.id).update(status="online")
+        # A fresh heartbeat, not just the status field: the server treats a stale
+        # heartbeat as unknown even when status still says "online".
+        agents.AgentRunner.objects.filter(id=self.runner.id).update(
+            status="online", last_heartbeat_at=now()
+        )
         agent_jobs.claim_work(self.runner, claim_key=uuid4())
         second = self.send_personal_message(self.owner, self.profile.bot_user, "Busy queue")
         self.assertEqual(
@@ -584,6 +594,14 @@ class AgentMessageAdmissionTests(ZulipTestCase):
             "runner_unknown",
         )
         self.assertEqual(agents.AgentJob.objects.filter(status="queued").count(), 2)
+
+    def test_not_shared_reason_when_sender_has_no_grant(self) -> None:
+        member = self.example_user("othello")
+        message_id = self.send_personal_message(member, self.profile.bot_user, "Unshared mention")
+        receipt = agents.AgentDispatchReceipt.objects.get(source_message_id=message_id)
+        self.assertEqual(receipt.decision, "rejected")
+        self.assertEqual(receipt.reason, "not_shared")
+        self.assertIsNone(receipt.job)
 
     def test_enabled_runtime_repair_admits_blocked_without_wake(self) -> None:
         from zerver.actions import agent_jobs

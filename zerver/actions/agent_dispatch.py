@@ -6,6 +6,7 @@ from zerver.actions import agent_jobs
 from zerver.lib import agent_protocol as p
 from zerver.lib.agent_context import AgentBusy, agent_transaction
 from zerver.lib.agent_policy import AgentAccessDenied, check_agent_access
+from zerver.lib.agent_presence import observed_runner_status
 from zerver.lib.exceptions import JsonableError
 from zerver.models import Message, Recipient, UserProfile, agents
 from zerver.models.recipients import get_direct_message_group_user_ids
@@ -178,21 +179,29 @@ def admit_message(
                     decision, reason = "accepted", ""
             except AgentBusy:
                 raise
+            except AgentAccessDenied:
+                # The bot exists and was mentioned, but the sender may not use it.
+                # An administrator agent names its own gate; any other agent was
+                # not shared with the sender.
+                reason = "command_not_allowed" if profile.default_mode == "manage" else "not_shared"
+                receipts.append(
+                    _receipt(message, profile, message.sender, trigger_kind, "rejected", reason)
+                )
+                continue
             except (JsonableError, ValueError, agents.AgentRealmSettings.DoesNotExist) as error:
                 reason = (
-                    "command_not_allowed"
-                    if profile.default_mode == "manage" and isinstance(error, AgentAccessDenied)
-                    else "Admission denied."
+                    "queue_full" if str(error) == "Agent queue is full." else "Admission denied."
                 )
                 receipts.append(
                     _receipt(message, profile, message.sender, trigger_kind, "rejected", reason)
                 )
                 continue
             if decision == "accepted":
+                observed_status = observed_runner_status(profile.runner)
                 if job.blocked_reason:
                     reason = job.blocked_reason
-                elif profile.runner.status in {"offline", "unknown"}:
-                    reason = f"runner_{profile.runner.status}"
+                elif observed_status in {"offline", "unknown"}:
+                    reason = f"runner_{observed_status}"
                 elif (
                     agents.AgentAttempt.objects.filter(runner=profile.runner, active=True).count()
                     >= profile.runner.capacity

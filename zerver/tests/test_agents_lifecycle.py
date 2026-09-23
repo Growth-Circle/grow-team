@@ -451,12 +451,270 @@ class AgentLifecycleTests(ZulipTestCase):
         message = Message.objects.get(sender=self.profile.bot_user)
         self.assertEqual(
             message.content,
-            "The runner did not confirm that the task stopped."
+            "The server lost contact with the runner before the task stopped."
             f" {self.owner.realm.url}/#agent-jobs/{job.id}",
         )
+        from zerver.views.agent_jobs import job_data
+
+        self.assertEqual(job_data(self.owner, job)["reason_code"], "lease_lost")
         # A later reconcile pass must not add a second notice for the same job.
         reconcile_agents()
         self.assertEqual(Message.objects.filter(sender=self.profile.bot_user).count(), 1)
+
+    def test_stop_before_start_gets_reason_start_failed(self) -> None:
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib import agent_protocol as p
+        from zerver.views.agent_jobs import job_data
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+        self.assertIsNone(attempt.started_at)
+        actions.record_event(
+            self.runner,
+            p.RunnerEvent.model_validate(
+                {
+                    "schema_version": 1,
+                    "job_id": str(job.id),
+                    "attempt_id": str(attempt.id),
+                    "lease_epoch": 1,
+                    "sequence": 1,
+                    "event_id": str(uuid4()),
+                    "occurred_at": now().isoformat(),
+                    "type": "attempt.stopped",
+                    "payload": {"process_state": "stopped", "stop_confirmed": True},
+                }
+            ),
+        )
+        job.refresh_from_db()
+        self.assertEqual(job.status, "interrupted")
+        detail = job_data(self.owner, job)
+        self.assertEqual(detail["reason_code"], "start_failed")
+        self.assertTrue(detail["resume_available"])
+        self.assertIsNone(detail["resume_unavailable_reason"])
+        self.assertIn("resume", detail["allowed_actions"])
+
+    def test_resume_unavailable_while_attempt_active_or_runner_down(self) -> None:
+        from datetime import timedelta
+
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.views.agent_jobs import job_data
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+        agents.AgentJob.objects.filter(id=job.id).update(
+            status="interrupted", blocked_reason="stop_unconfirmed"
+        )
+
+        def detail() -> dict[str, object]:
+            return job_data(self.owner, agents.AgentJob.objects.get(id=job.id))
+
+        self.assertFalse(detail()["resume_available"])
+        self.assertEqual(detail()["resume_unavailable_reason"], "attempt_active")
+        self.assertNotIn("resume", detail()["allowed_actions"])
+        agents.AgentAttempt.objects.filter(id=attempt.id).update(active=False, ended_at=now())
+        self.assertTrue(detail()["resume_available"])
+        self.assertIsNone(detail()["resume_unavailable_reason"])
+        self.assertIn("resume", detail()["allowed_actions"])
+        agents.AgentRunner.objects.filter(id=self.runner.id).update(status="offline")
+        self.assertFalse(detail()["resume_available"])
+        self.assertEqual(detail()["resume_unavailable_reason"], "runner_offline")
+        agents.AgentRunner.objects.filter(id=self.runner.id).update(
+            status="unknown", revoked_at=now() - timedelta(seconds=1)
+        )
+        self.assertEqual(detail()["resume_unavailable_reason"], "runner_revoked")
+
+    def test_empty_result_summary_gets_reason_result_invalid_and_survives_a_later_stop(
+        self,
+    ) -> None:
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib import agent_protocol as p
+        from zerver.views.agent_jobs import job_data
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+        sequence = 0
+
+        def event(kind: str, payload: dict[str, object]) -> None:
+            nonlocal sequence
+            sequence += 1
+            actions.record_event(
+                self.runner,
+                p.RunnerEvent.model_validate(
+                    {
+                        "schema_version": 1,
+                        "job_id": str(job.id),
+                        "attempt_id": str(attempt.id),
+                        "lease_epoch": 1,
+                        "sequence": sequence,
+                        "event_id": str(uuid4()),
+                        "occurred_at": now().isoformat(),
+                        "type": kind,
+                        "payload": payload,
+                    }
+                ),
+            )
+
+        event("attempt.started", {"process_state": "active"})
+        event("result.prepared", {"artifact_ids": [str(uuid4())], "summary": "   "})
+        job.refresh_from_db()
+        self.assertEqual(job.status, "interrupted")
+        self.assertEqual(job_data(self.owner, job)["reason_code"], "result_invalid")
+        # A later attempt.stopped must not clobber the more specific reason.
+        event("attempt.stopped", {"process_state": "stopped", "stop_confirmed": True})
+        job.refresh_from_db()
+        self.assertEqual(job.status, "interrupted")
+        self.assertEqual(job_data(self.owner, job)["reason_code"], "result_invalid")
+
+    def test_interrupted_over_its_time_budget_gets_reason_budget_exhausted(self) -> None:
+        from datetime import timedelta
+
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.views.agent_jobs import job_data
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+        agents.AgentAttempt.objects.filter(id=attempt.id).update(
+            created_at=now() - timedelta(hours=2),
+            stopped_at=now(),
+            ended_at=now(),
+            active=False,
+        )
+        agents.AgentJob.objects.filter(id=job.id).update(
+            status="interrupted", blocked_reason="runtime_stopped"
+        )
+        job.refresh_from_db()
+        self.assertEqual(job_data(self.owner, job)["reason_code"], "budget_exhausted")
+
+    def test_publication_blocked_by_a_failed_check_gets_reason_verification_failed(self) -> None:
+        from copy import deepcopy
+
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.actions.agents import register_repository
+        from zerver.views.agent_jobs import job_data
+
+        repository = register_repository(
+            self.owner,
+            self.runner,
+            workspace_alias="verifycode",
+            canonical_origin="https://example.com/team/repo",
+            allowed_refs=["main"],
+            required_checks=[{"id": "required", "argv": ["true"]}],
+        )
+        policy = deepcopy(self.profile.policy)
+        policy["actions"] = ["context.read", "repository.read", "repository.edit", "checks.run"]
+        profile = create_profile(
+            self.owner,
+            name="VerifyCode",
+            runner=self.runner,
+            adapter_id="acp",
+            adapter_version="1",
+            repository=repository,
+            policy=policy,
+            default_mode="code",
+            idempotency_key=uuid4(),
+        )
+        setup = agents.AgentSetupOperation.objects.get(profile=profile)
+        record_readiness(
+            self.runner,
+            setup,
+            {
+                "schema_version": 1,
+                "profile_id": str(profile.id),
+                "profile_revision": 1,
+                "runner_id": str(self.runner.id),
+                "descriptor_digest": setup.descriptor_digest,
+                "configuration_digest": setup.configuration_digest,
+                "state": "ready",
+                "capabilities": {
+                    "chat_ready": True,
+                    "code_ready": True,
+                    "tool_calling": "passed",
+                    "sandbox": "passed",
+                    "config_version": 1,
+                },
+            },
+        )
+        profile.refresh_from_db()
+        enable_profile(self.owner, profile, expected_revision=profile.revision)
+        message = Message.objects.get(
+            id=self.send_group_direct_message(
+                self.owner, [profile.bot_user, self.example_user("iago")], "Code task"
+            )
+        )
+        job = actions.create_job(
+            self.owner,
+            profile=profile,
+            source=message,
+            request="Run a script",
+            idempotency_key=uuid4(),
+            job_kind="code",
+            delivery_target="patch",
+            repository=repository,
+            base_ref="main",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+        # No AgentVerification row exists for the required check: publish_result's
+        # own verify_result loop would raise "Required checks do not prove the
+        # final tree." here, distinct from any other publish-time rejection.
+        agents.AgentAttempt.objects.filter(id=attempt.id).update(
+            tree_hash="b" * 40,
+            process_state="stopped",
+            active=False,
+            stopped_at=now(),
+            ended_at=now(),
+        )
+        agents.AgentJob.objects.filter(id=job.id).update(
+            status="verifying", blocked_reason="publication_blocked"
+        )
+        job.refresh_from_db()
+        self.assertEqual(job_data(self.owner, job)["reason_code"], "verification_failed")
 
     def test_waiting_for_approval_posts_one_bot_notice_and_ignores_replay(self) -> None:
         import hashlib

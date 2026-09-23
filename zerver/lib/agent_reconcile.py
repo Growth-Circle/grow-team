@@ -50,11 +50,13 @@ def reconcile_agents(
             agents.AgentInput.objects.filter(
                 delivered_attempt=attempt, delivery_state="delivered"
             ).update(delivery_state="delivery_uncertain")
-            transition(job, "interrupted", reason="stop_unconfirmed")
+            # The server gave up waiting for this lease; distinct from the runner
+            # itself reporting attempt.interrupted (agent_jobs.record_event).
+            transition(job, "interrupted", reason="lease_lost")
             audit(
                 job,
                 "attempt.interrupted",
-                {"status": "interrupted", "reason": "stop_unconfirmed"},
+                {"status": "interrupted", "reason": "lease_lost"},
                 attempt=attempt,
             )
             counts["interrupted"] += 1

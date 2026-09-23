@@ -25,13 +25,18 @@ from zerver.views.agents import _success, payload, safe_agent_endpoint
 
 def job_data(actor: UserProfile, job: agents.AgentJob) -> dict[str, object]:
     actions = []
+    resumable_status = job.status in {"cancelled", "failed", "interrupted", "blocked"}
+    resume_eligible, resume_unavailable_reason = (
+        agent_jobs.resume_eligibility(job) if resumable_status else (False, None)
+    )
+    resume_available = resumable_status and resume_eligible
     try:
         agent_jobs.require_control(actor, job)
         if job.status not in {"completed", "cancelled"}:
             actions.append("cancel")
         if job.status == "draft":
             actions.append("configure")
-        if job.status in {"cancelled", "failed", "interrupted", "blocked"}:
+        if resume_available:
             actions.append("resume")
         if job.status not in agent_jobs.TERMINAL | {"cancel_requested"} and (
             job.status == "queued"
@@ -54,6 +59,9 @@ def job_data(actor: UserProfile, job: agents.AgentJob) -> dict[str, object]:
         "job_kind": job.job_kind,
         "delivery_target": job.delivery_target,
         "blocked_reason": job.blocked_reason,
+        "reason_code": agent_jobs.job_reason_code(job),
+        "resume_available": resume_available,
+        "resume_unavailable_reason": resume_unavailable_reason,
         "requirements": (
             [{"code": "profile_needs_action", "surface": "adapter", "action": "probe_again"}]
             if job.blocked_reason == "profile_needs_action"

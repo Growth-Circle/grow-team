@@ -42196,6 +42196,26 @@ components:
             - draft_pr
         blocked_reason:
           type: string
+        reason_code:
+          type: string
+          nullable: true
+          description:
+            A stable code for why a blocked, interrupted, failed, or blocked-verifying
+            job stopped, such as queue_full, start_failed, stop_unconfirmed,
+            result_invalid, verification_failed, budget_exhausted, or lease_lost.
+            Null when the status carries no such reason.
+        resume_available:
+          type: boolean
+          description: The Resume action shows only when this is true.
+        resume_unavailable_reason:
+          type: string
+          nullable: true
+          enum:
+            - attempt_active
+            - runner_offline
+            - runner_revoked
+            - null
+          description: Why resume is unavailable. Null when resume_available is true.
         requirements:
           type: array
           items:
@@ -42242,6 +42262,9 @@ components:
         - job_kind
         - delivery_target
         - blocked_reason
+        - reason_code
+        - resume_available
+        - resume_unavailable_reason
         - requirements
         - start_deadline
         - result

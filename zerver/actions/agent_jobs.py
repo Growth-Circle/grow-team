@@ -26,6 +26,7 @@ from zerver.lib.agent_policy import (
     check_agent_access,
     require_manage_command,
 )
+from zerver.lib.agent_presence import observed_runner_status
 from zerver.models import Message, UserProfile, agents
 
 TERMINAL = {"completed", "cancelled", "failed", "interrupted", "blocked"}
@@ -102,6 +103,12 @@ def _end_reason_sentence(reason: str) -> str:
         return _("The runner did not confirm that the task stopped.")
     if reason == "runtime_stopped":
         return _("The task stopped before it finished.")
+    if reason == "lease_lost":
+        return _("The server lost contact with the runner before the task stopped.")
+    if reason == "start_failed":
+        return _("The runner could not start this task.")
+    if reason == "result_invalid":
+        return _("The agent ended the task without a usable result.")
     return _("The task ended without a result.")
 
 
@@ -886,6 +893,58 @@ def add_input(
         return item
 
 
+def resume_eligibility(job: agents.AgentJob) -> tuple[bool, str | None]:
+    """Whether resume_job would currently accept this job, and the code if not."""
+    if agents.AgentAttempt.objects.filter(job=job, active=True).exists():
+        return False, "attempt_active"
+    observed = observed_runner_status(job.runner)
+    if observed == "revoked":
+        return False, "runner_revoked"
+    if observed == "offline":
+        return False, "runner_offline"
+    return True, None
+
+
+def job_reason_code(job: agents.AgentJob) -> str | None:
+    """A stable code for why a blocked, interrupted, failed, or blocked-verifying
+    job stopped, refining job.blocked_reason with attempt evidence it omits."""
+    if job.status not in {"blocked", "interrupted", "failed", "verifying"}:
+        return None
+    reason = job.blocked_reason
+    if not reason:
+        return None
+    attempt = agents.AgentAttempt.objects.filter(job=job).order_by("-number").first()
+    if attempt is None:
+        return reason
+    if reason == "publication_blocked" and job.job_kind == "code":
+        repository_config = attempt.descriptor.get("repository") or {}
+        for check in repository_config.get("required_checks", []):
+            # A light, read-only echo of verify_result's own check loop: enough to
+            # tell "a required check failed" from other publish-time rejections,
+            # not a second copy of that function's full acceptance authority.
+            verification = (
+                agents.AgentVerification.objects.filter(
+                    attempt=attempt, check_id=check["id"], tree_hash=attempt.tree_hash
+                )
+                .order_by("-finished_at")
+                .first()
+            )
+            if verification is None or verification.exit_code != 0 or verification.timed_out:
+                return "verification_failed"
+        return reason
+    budget_seconds = attempt.descriptor.get("budget", {}).get("active_seconds")
+    ended_at = attempt.stopped_at or attempt.ended_at
+    if (
+        budget_seconds
+        and ended_at is not None
+        and (ended_at - attempt.created_at).total_seconds() > budget_seconds
+    ):
+        return "budget_exhausted"
+    if reason == "runtime_stopped" and attempt.started_at is None:
+        return "start_failed"
+    return reason
+
+
 def resume_job(
     actor: UserProfile, job_id: UUID, expected_version: int, checkpoint_id: UUID | None = None
 ) -> agents.AgentJob:
@@ -1058,9 +1117,18 @@ def record_event(
                     or runner.revoked_at is not None
                     or agents.AgentOutbox.objects.filter(delivery_key=f"stop:{attempt.id}").exists()
                 ):
-                    transition(job, job.stop_target)
-                elif job.status != "verifying":
-                    transition(job, "interrupted", reason="runtime_stopped")
+                    # The prior transition call already set blocked_reason for this
+                    # target; carry it through instead of defaulting back to "".
+                    transition(job, job.stop_target, reason=job.blocked_reason)
+                elif job.status not in TERMINAL and job.status != "verifying":
+                    # A ResultPayload just above, or an earlier reconcile pass, may
+                    # already have moved this job to its final state (for example
+                    # result_invalid): do not clobber that with a generic reason.
+                    transition(
+                        job,
+                        "interrupted",
+                        reason="start_failed" if attempt.started_at is None else "runtime_stopped",
+                    )
         elif isinstance(event.payload, p.InputPayload):
             item = agents.AgentInput.objects.select_for_update().get(
                 id=event.payload.input_id,
@@ -1175,39 +1243,44 @@ def record_event(
             notify_conversation(job, f"status:input:{event.event_id}", sentence)
         elif isinstance(event.payload, p.ResultPayload):
             result = event.payload
-            if attempt.process_state != "active" or not result.summary.strip():
+            if attempt.process_state != "active":
                 raise ValueError("Result is incomplete.")
-            artifacts = agents.AgentArtifact.objects.filter(
-                id__in=result.artifact_ids,
-                attempt=attempt,
-                realm=job.realm,
-                unavailable_at__isnull=True,
-            )
-            if artifacts.count() != len(set(result.artifact_ids)):
-                raise ValueError("Result artifacts are unavailable.")
-            if agents.AgentOperation.objects.filter(
-                attempt=attempt, status__in=["started", "outcome_unknown"]
-            ).exists():
-                raise ValueError("Operation outcomes are unresolved.")
-            if job.job_kind == "code" and (
-                not result.tree_hash or attempt.workspace_prepared_at is None
-            ):
-                raise ValueError("Final workspace evidence is required.")
-            attempt.tree_hash = result.tree_hash or ""
-            job.result_proposal = payload
-            job.save(update_fields=["result_proposal"])
-            job.phase = "review"
-            job.save(update_fields=["phase"])
-            transition(job, "verifying")
-            agents.AgentOutbox.objects.get_or_create(
-                delivery_key=f"result:{job.id}",
-                defaults={
-                    "realm": job.realm,
-                    "job": job,
-                    "event_type": "result.publish",
-                    "payload_ref": attempt.id,
-                },
-            )
+            if not result.summary.strip():
+                # The turn ended with nothing usable to show: a distinct, resumable
+                # outcome from a runtime crash mid-turn (elif attempt.stopped below).
+                transition(job, "interrupted", reason="result_invalid")
+            else:
+                artifacts = agents.AgentArtifact.objects.filter(
+                    id__in=result.artifact_ids,
+                    attempt=attempt,
+                    realm=job.realm,
+                    unavailable_at__isnull=True,
+                )
+                if artifacts.count() != len(set(result.artifact_ids)):
+                    raise ValueError("Result artifacts are unavailable.")
+                if agents.AgentOperation.objects.filter(
+                    attempt=attempt, status__in=["started", "outcome_unknown"]
+                ).exists():
+                    raise ValueError("Operation outcomes are unresolved.")
+                if job.job_kind == "code" and (
+                    not result.tree_hash or attempt.workspace_prepared_at is None
+                ):
+                    raise ValueError("Final workspace evidence is required.")
+                attempt.tree_hash = result.tree_hash or ""
+                job.result_proposal = payload
+                job.save(update_fields=["result_proposal"])
+                job.phase = "review"
+                job.save(update_fields=["phase"])
+                transition(job, "verifying")
+                agents.AgentOutbox.objects.get_or_create(
+                    delivery_key=f"result:{job.id}",
+                    defaults={
+                        "realm": job.realm,
+                        "job": job,
+                        "event_type": "result.publish",
+                        "payload_ref": attempt.id,
+                    },
+                )
         attempt.event_cursor = event.sequence
         attempt.save()
         receipt = audit(job, event.type, payload, attempt=attempt, authority="runner", event=event)
