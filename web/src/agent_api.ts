@@ -78,6 +78,17 @@ const profile_schema = z.object({
     enabled_revision: z.nullable(z.number()),
     readiness_revision: z.nullable(z.number()),
     allowed_actions: z.array(z.string()),
+    // Optional until the team-backend release lane ships it: an older
+    // response simply omits it, and the owner-only share panel hides itself.
+    shared_with: z.optional(
+        z.array(
+            z.object({
+                principal_kind: z.enum(["user", "group"]),
+                principal_id: z.number(),
+                complete: z.boolean(),
+            }),
+        ),
+    ),
     owner: identity,
     runner: z.nullable(runner_schema),
     provider: z.nullable(provider_schema),
@@ -173,6 +184,11 @@ const job_schema = z.object({
     job_kind: z.string(),
     delivery_target: z.string(),
     blocked_reason: z.nullable(z.string()),
+    // Optional until the team-backend release lane ships them: an older
+    // response omits these, and the panel falls back to its status text.
+    reason_code: z.optional(z.nullable(z.string())),
+    resume_available: z.optional(z.boolean()),
+    resume_unavailable_reason: z.optional(z.nullable(z.string())),
     result: z.unknown(),
     allowed_actions: z.array(z.string()),
 });
@@ -360,6 +376,34 @@ export async function profile_action(
 ) {
     return mutate("post", `/json/agent/profiles/${id}/${action}`, payload, z.object({...version}));
 }
+export async function share_profile(
+    id: string,
+    payload: {
+        principal_user_id?: number;
+        principal_group_id?: number;
+        allow_job_control?: boolean;
+        allow_job_review?: boolean;
+    },
+) {
+    return mutate(
+        "post",
+        `/json/agent/profiles/${id}/share`,
+        payload,
+        z.object({
+            ...version,
+            grants: z.array(
+                z.object({id: z.string(), target_kind: z.string(), revision: z.number()}),
+            ),
+            skipped: z.array(z.object({target_kind: z.string(), reason: z.string()})),
+        }),
+    );
+}
+export async function unshare_profile(
+    id: string,
+    payload: {principal_user_id?: number; principal_group_id?: number},
+) {
+    return mutate("post", `/json/agent/profiles/${id}/unshare`, payload, z.object({...version}));
+}
 export async function attach_channel(id: string, stream_id: number, expected_revision: number) {
     return mutate(
         "post",
@@ -538,6 +582,11 @@ const selection_schema = z.object({
         eligible: z.boolean(),
         queue_permitted: z.boolean(),
         reason: z.string(),
+        // Optional until the team-backend release lane ships it: an older
+        // response omits it, and Coding stays disabled with no repository.
+        repository: z.optional(
+            z.nullable(z.object({id: z.string(), alias: z.string(), base_ref: z.string()})),
+        ),
     }),
 });
 export async function resolve_selection(args: {

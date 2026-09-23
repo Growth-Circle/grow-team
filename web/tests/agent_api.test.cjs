@@ -159,6 +159,53 @@ run_test("selection sends versioned form payload and preserves explicit identity
     });
 });
 
+run_test("a Coding selection carries the resolved repository and base ref", async () => {
+    next_response = {
+        schema_version: 1,
+        selection: {
+            selection_source: "explicit",
+            profile_id: "chosen",
+            profile_revision: 3,
+            selection_revision: null,
+            selection_state: "explicit",
+            eligible: true,
+            queue_permitted: true,
+            reason: "available",
+            repository: {id: "repo-1", alias: "app", base_ref: "main"},
+        },
+    };
+    const result = await api.resolve_selection({
+        source_message_id: 41,
+        job_kind: "code",
+        explicit_profile_id: "chosen",
+        selection_state: "explicit",
+    });
+    assert.deepEqual(result.repository, {id: "repo-1", alias: "app", base_ref: "main"});
+});
+
+run_test("sharing a profile sends exactly one principal and both toggles", async () => {
+    next_response = {
+        schema_version: 1,
+        grants: [],
+        skipped: [{target_kind: "runner", reason: "not_owner"}],
+    };
+    const result = await api.share_profile("profile", {
+        principal_user_id: 7,
+        allow_job_control: true,
+        allow_job_review: false,
+    });
+    assert.deepEqual(JSON.parse(last_call.data.payload), {
+        schema_version: 1,
+        principal_user_id: 7,
+        allow_job_control: true,
+        allow_job_review: false,
+    });
+    assert.deepEqual(result.skipped, [{target_kind: "runner", reason: "not_owner"}]);
+    next_response = {schema_version: 1};
+    await api.unshare_profile("profile", {principal_group_id: 3});
+    assert.equal(last_call.url, "/json/agent/profiles/profile/unshare");
+});
+
 run_test("job evidence requires attempt identity", async () => {
     next_response = {
         schema_version: 1,
