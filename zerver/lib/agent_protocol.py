@@ -1289,7 +1289,7 @@ def validate_attempt_configuration(value: AttemptDescriptor) -> None:
         if getattr(effective, name) != getattr(tested, name):
             raise ValueError("Attempt runtime differs from its tested configuration")
     if effective.workspace_binding != tested.workspace_binding and not (
-        value.job_kind == "answer" and effective.workspace_binding is None
+        value.job_kind in ("answer", "manage") and effective.workspace_binding is None
     ):
         raise ValueError("Attempt repository differs from its tested configuration")
     if not set(effective.actions) <= set(tested.actions):

@@ -593,7 +593,14 @@ def claim_work(runner: agents.AgentRunner, *, claim_key: UUID) -> dict[str, Any]
                 source_checkpoint=checkpoint,
                 input_cursor=checkpoint.input_cursor if checkpoint is not None else 0,
             )
-            descriptor = build_descriptor(job, attempt)
+            try:
+                descriptor = build_descriptor(job, attempt)
+            except ValueError:
+                # One job's stale or inconsistent configuration (for example a
+                # manage profile whose workspace binding does not match its
+                # attempt) must not stop every other candidate on this runner
+                # from claiming work.
+                continue
             attempt.descriptor = descriptor
             attempt.configuration_digest = descriptor["configuration_digest"]
             attempt.descriptor_digest = descriptor["descriptor_digest"]

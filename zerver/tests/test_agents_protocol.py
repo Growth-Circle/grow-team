@@ -307,6 +307,18 @@ class AgentProtocolTest(TestCase):
             with self.subTest(change=change), self.assertRaises(ValidationError):
                 protocol.parse_payload("attempt_descriptor", data)
 
+    def test_manage_job_can_narrow_tested_workspace_binding(self) -> None:
+        """A manage-mode profile may keep a repository binding (the form
+        allows it, and manage readiness does not need code_ready), but a
+        manage job's own attempt never has a workspace (contract 2.5: "no
+        repository and no workspace"). That must not count as differing from
+        its tested configuration, the same as the existing "answer" case."""
+        protocol = self.protocol()
+        data = self.descriptor()
+        data.update(job_kind="manage", delivery_target="answer", repository=None)
+        data["policy"]["actions"] = ["context.read"]
+        protocol.parse_payload("attempt_descriptor", data)
+
     def test_effective_lease_preserves_finite_cost_ceiling(self) -> None:
         protocol = self.protocol()
         data = self.descriptor()
