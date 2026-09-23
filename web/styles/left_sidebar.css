@@ -423,15 +423,17 @@
     width: calc(100% - 2 * var(--left-sidebar-right-margin));
 }
 
-/* Work group rows (left_sidebar.hbs): Task board, My tasks, and
-   Awaiting my review have no destination yet (see the template
-   comment above them), so they render inert instead of clickable. */
+/* Work group rows (left_sidebar.hbs): My tasks and Awaiting my
+   review have no destination yet (see the template comment above
+   them), so they render inert instead of clickable. Left at full
+   opacity to match the rest of the group instead of a dimmed,
+   patchy look; the "Coming soon" tooltip carries that signal
+   instead. */
 .top_left_row.disabled-for-now {
     cursor: default;
 
     .left-sidebar-navigation-label-container {
         cursor: default;
-        opacity: 0.55;
 
         &:hover {
             background: none;
@@ -787,7 +789,8 @@
 }
 
 #toggle-direct-messages-section-icon,
-#toggle-top-left-navigation-area-icon {
+#toggle-top-left-navigation-area-icon,
+#toggle-work-section-icon {
     color: var(--color-text-sidebar-heading);
     opacity: var(--opacity-sidebar-heading-icon);
 
