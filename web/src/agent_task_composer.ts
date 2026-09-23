@@ -70,10 +70,46 @@ function render_choice(): void {
         $("#agent-task-kind").val(item.default_mode === "code" ? "code" : "answer");
     }
 }
+// Reads a 4xx rejection's server message from a jQuery ajax failure, with no
+// type assertion: each step narrows the unknown value through `in` checks.
+// Returns undefined for anything else, since that outcome is genuinely
+// unknown and must not be retried with a new idempotency key.
+function definite_rejection_message(error: unknown): string | undefined {
+    if (typeof error !== "object" || error === null || !("status" in error)) {
+        return undefined;
+    }
+    const {status} = error;
+    if (typeof status !== "number" || status < 400 || status >= 500) {
+        return undefined;
+    }
+    if (!("responseJSON" in error) || typeof error.responseJSON !== "object") {
+        return undefined;
+    }
+    const response = error.responseJSON;
+    return response !== null && "msg" in response && typeof response.msg === "string"
+        ? response.msg
+        : undefined;
+}
+// Coding needs a repository. Disable that option, with its reason, whenever
+// the resolved agent has none, and move a current Coding choice back to
+// Answer so the person is not left on a choice that cannot submit.
+function apply_repository_gate(repository: unknown): void {
+    const unavailable = !repository;
+    // Read the current choice before disabling the option: disabling the
+    // selected option can itself clear the select's value as a side effect.
+    const was_code = selected_kind() === "code";
+    $("#agent-task-kind option[value='code']").prop("disabled", unavailable);
+    if (unavailable && was_code) {
+        $("#agent-task-kind").val("answer");
+        notice($t({defaultMessage: "This agent has no repository set up."}));
+    }
+}
 function context(): number | undefined {
     const message = source_id === undefined ? undefined : message_store.get(source_id);
     if (!message || message.locally_echoed) {
-        notice($t({defaultMessage: "Choose a message that finished sending, then create the task."}));
+        notice(
+            $t({defaultMessage: "Choose a message that finished sending, then create the task."}),
+        );
         return undefined;
     }
     return message.id;
@@ -105,7 +141,11 @@ async function resolve(
             selection_state = "explicit";
         }
         render_choice();
+        // Show the general selection reason first: apply_repository_gate
+        // overrides it only when it actually reverts a Coding choice, and
+        // that message must be the one the person reads last.
         notice(agent_selection_label(result.reason));
+        apply_repository_gate(result.repository);
         return result;
     } catch {
         if (current(token) && revision === form_revision) {
@@ -213,7 +253,8 @@ async function submit(): Promise<void> {
     if (id === undefined || !request || !selected_id) {
         notice(
             $t({
-                defaultMessage: "Select a conversation message and an agent, then enter a task request.",
+                defaultMessage:
+                    "Select a conversation message and an agent, then enter a task request.",
             }),
         );
         return;
@@ -242,6 +283,10 @@ async function submit(): Promise<void> {
         );
         return;
     }
+    if (job_kind === "code" && !resolved.repository) {
+        notice($t({defaultMessage: "This agent has no repository set up."}));
+        return;
+    }
     key ||= new_client_key();
     const intent_key = key;
     $("#agent-task-form button[type='submit']").prop("disabled", true);
@@ -252,7 +297,13 @@ async function submit(): Promise<void> {
             request,
             idempotency_key: intent_key,
             job_kind,
-            delivery_target: "answer",
+            ...(job_kind === "code" && resolved.repository
+                ? {
+                      delivery_target: "patch",
+                      repository_id: resolved.repository.id,
+                      base_ref: resolved.repository.base_ref,
+                  }
+                : {delivery_target: "answer"}),
         });
         if (current(token) && revision === form_revision && key === intent_key) {
             notice(
@@ -276,13 +327,23 @@ async function submit(): Promise<void> {
                 .text($t({defaultMessage: "Open task"}))
                 .appendTo($status);
         }
-    } catch {
+    } catch (error) {
         if (current(token) && revision === form_revision && key === intent_key) {
+            // A 4xx response means the server rejected the request before it
+            // did anything, so its reason is safe to show and act on right
+            // away. Any other failure leaves the outcome unknown, so the
+            // idempotency key must be reused rather than retried blindly.
+            const server_message = definite_rejection_message(error);
             notice(
-                $t({
-                    defaultMessage:
-                        "Task status is unknown. Send the same request again. It will not create a second task.",
-                }),
+                server_message !== undefined
+                    ? $t(
+                          {defaultMessage: "Task was not created: {detail}"},
+                          {detail: server_message},
+                      )
+                    : $t({
+                          defaultMessage:
+                              "Task status is unknown. Send the same request again. It will not create a second task.",
+                      }),
             );
         }
     } finally {
@@ -367,7 +428,20 @@ export function open_for_message(id: number, profile_id = ""): void {
             .text($t({defaultMessage: "Choose an agent"}))
             .appendTo($select);
         for (const item of profiles) {
-            $(document.createElement("option")).val(item.id).text(item.name).appendTo($select);
+            // Two agents can share a name; the owner and device tell them apart.
+            $(document.createElement("option"))
+                .val(item.id)
+                .text(
+                    $t(
+                        {defaultMessage: "{name} · {owner} · {runner}"},
+                        {
+                            name: item.name,
+                            owner: item.owner.name,
+                            runner: item.runner?.name ?? $t({defaultMessage: "No device"}),
+                        },
+                    ),
+                )
+                .appendTo($select);
         }
         render_choice();
         void resolve(token, form_revision);
