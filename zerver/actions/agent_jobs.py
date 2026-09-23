@@ -121,6 +121,15 @@ def _notify_job_ended(job: agents.AgentJob, reason: str) -> None:
 
 def require_control(actor: UserProfile, job: agents.AgentJob) -> None:
     require_job_access(actor, job)
+    if job.job_kind == "manage":
+        # A team.manage job accepts steering input and resume from the
+        # commander only (contract: "Only the commander... can approve or
+        # reject a team.manage approval"); a shared job.control grant lets a
+        # non-owner steer or resume a normal job, but here that would run
+        # team tools with the requester's authority on the grantee's behalf.
+        if actor.id != job.requester_id:
+            raise AgentAccessDenied("Agent access denied.")
+        return
     if actor.id != job.requester_id and not _owner_or_grant(
         actor,
         job.profile,

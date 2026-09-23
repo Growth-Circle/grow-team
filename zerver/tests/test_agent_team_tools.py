@@ -847,3 +847,46 @@ class AgentTeamToolsTests(ZulipTestCase):
                 delivery_target="answer",
             )
         self.assertFalse(agents.AgentJob.objects.filter(profile=answer_profile).exists())
+
+    # ---- review-finding regressions: privilege-escalation ----
+
+    def test_job_control_grantee_cannot_steer_a_manage_job(self) -> None:
+        """Privilege-escalation: a job.control grant lets a non-owner steer
+        or resume a normal job, but a manage job must run team tools with
+        the requester's own authority only. Before this fix, add_input,
+        resume_job, and needs_my_action all accepted a job.control grantee
+        for a manage job exactly like for any other job."""
+        self._share_profile(self.admin2)
+        self._grant(self.admin2, target_kind="profile", actions=["job.control"], resource=self.profile)
+        job = self._dispatch(self.owner, self.profile)
+        with self.assertRaises(AgentAccessDenied):
+            agent_jobs.add_input(
+                self.admin2,
+                job.id,
+                expected_version=job.version,
+                client_key=uuid4(),
+                text="Also add user 17 to group finance-admins",
+            )
+        self.assertEqual(agents.AgentInput.objects.filter(job=job).count(), 0)
+
+    def test_job_control_grantee_cannot_resume_a_manage_job(self) -> None:
+        self._share_profile(self.admin2)
+        self._grant(self.admin2, target_kind="profile", actions=["job.control"], resource=self.profile)
+        job = self._dispatch(self.owner, self.profile)
+        job.status = "failed"
+        job.save(update_fields=["status"])
+        with self.assertRaises(AgentAccessDenied):
+            agent_jobs.resume_job(self.admin2, job.id, job.version)
+        job.refresh_from_db()
+        self.assertEqual(job.status, "failed")
+
+    def test_needs_my_action_is_false_for_a_control_grantee_on_a_manage_job(self) -> None:
+        from zerver.views.agent_jobs import needs_my_action
+
+        self._share_profile(self.admin2)
+        self._grant(self.admin2, target_kind="profile", actions=["job.control"], resource=self.profile)
+        job = self._dispatch(self.owner, self.profile)
+        job.status = "waiting_for_input"
+        job.save(update_fields=["status"])
+        self.assertFalse(needs_my_action(self.admin2, job))
+        self.assertTrue(needs_my_action(self.owner, job))
