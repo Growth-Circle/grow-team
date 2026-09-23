@@ -96,6 +96,8 @@ async function main() {
         update_team_default: async () => ({}),
         create_profile: async () => ({}),
         update_profile: async () => ({}),
+        share_profile: async () => ({grants: [], skipped: []}),
+        unshare_profile: async () => ({}),
         attach_channel: async () => ({}),
         create_repository: async () => ({}),
         profile_network_choice: () => ({network: {targets: []}}),
@@ -116,69 +118,92 @@ async function main() {
         get_provider: async (id) => ({provider: provider(id)}),
         recover_profile: async () => ({profile: profile("recovered")}),
     };
-    const out = {};
-    const source = fs.readFileSync(path.join(__dirname, "../src/settings_agents.ts"), "utf8");
-    vm.runInNewContext(
+    const transpile = (source) =>
         ts.transpileModule(source, {
             compilerOptions: {
                 module: ts.ModuleKind.CommonJS,
                 esModuleInterop: true,
                 target: ts.ScriptTarget.ES2022,
             },
-        }).outputText,
+        }).outputText;
+    // These fixed strings carry no interpolation values in this harness's
+    // paths, so returning the default message matches the real $t().
+    const i18n = {$t: (descriptor) => descriptor.defaultMessage};
+    const ui_state = {};
+    vm.runInNewContext(
+        transpile(fs.readFileSync(path.join(__dirname, "../src/agent_ui_state.ts"), "utf8")),
         {
-            exports: out,
+            exports: ui_state,
+            crypto: require("node:crypto").webcrypto,
             require(name) {
-                if (name === "jquery") {
-                    return $;
-                }
-                if (name === "./agent_api.ts") {
-                    return api;
-                }
-                if (name === "./agent_ui_state.ts") {
-                    return {
-                        new_client_key() {
-                            key_id += 1;
-                            return `key-${key_id}`;
-                        },
-                    };
-                }
-                if (name === "./state_data.ts") {
-                    return {current_user: {user_id: 1}};
-                }
-                if (name === "./people.ts") {
-                    return {
-                        maybe_get_user_by_id: () => ({full_name: "Owner"}),
-                        get_realm_active_human_users: () => [],
-                    };
-                }
-                if (name === "./user_groups.ts") {
-                    return {get_realm_user_groups: () => []};
-                }
-                if (name === "./stream_data.ts") {
-                    return {
-                        get_unsorted_subs_with_content_access: () => [
-                            {stream_id: 42, name: "Denmark"},
-                        ],
-                        get_sub_by_id: () => ({name: "Denmark"}),
-                    };
+                if (name === "./i18n.ts") {
+                    return i18n;
                 }
                 throw new Error(name);
             },
-            window: dom.window,
-            document: dom.window.document,
-            sessionStorage: dom.window.sessionStorage,
-            setTimeout(fn) {
-                timer_id += 1;
-                timers.set(timer_id, fn);
-                return timer_id;
-            },
-            clearTimeout(id) {
-                timers.delete(id);
-            },
-            console,
         },
     );
+    const out = {};
+    const source = fs.readFileSync(path.join(__dirname, "../src/settings_agents.ts"), "utf8");
+    vm.runInNewContext(transpile(source), {
+        exports: out,
+        require(name) {
+            if (name === "jquery") {
+                return $;
+            }
+            if (name === "./agent_api.ts") {
+                return api;
+            }
+            if (name === "./agent_ui_state.ts") {
+                return {
+                    ...ui_state,
+                    new_client_key() {
+                        key_id += 1;
+                        return `key-${key_id}`;
+                    },
+                };
+            }
+            if (name === "./i18n.ts") {
+                return i18n;
+            }
+            if (name === "./state_data.ts") {
+                return {current_user: {user_id: 1}};
+            }
+            if (name === "./people.ts") {
+                return {
+                    maybe_get_user_by_id: (id) =>
+                        id === 7
+                            ? {full_name: "Colleague"}
+                            : id === 1
+                              ? {full_name: "Owner"}
+                              : undefined,
+                    get_realm_active_human_users: () => [{user_id: 7, full_name: "Colleague"}],
+                };
+            }
+            if (name === "./user_groups.ts") {
+                return {get_realm_user_groups: () => []};
+            }
+            if (name === "./stream_data.ts") {
+                return {
+                    get_unsorted_subs_with_content_access: () => [{stream_id: 42, name: "Denmark"}],
+                    get_sub_by_id: () => ({name: "Denmark"}),
+                };
+            }
+            throw new Error(name);
+        },
+        window: dom.window,
+        document: dom.window.document,
+        sessionStorage: dom.window.sessionStorage,
+        setTimeout(fn) {
+            timer_id += 1;
+            timers.set(timer_id, fn);
+            return timer_id;
+        },
+        clearTimeout(id) {
+            timers.delete(id);
+        },
+        console,
+    });
     $("#agent-settings")[0].getClientRects = () => [{}];
     const flush = async () => {
         for (let i = 0; i < 20; i += 1) {
@@ -487,6 +512,74 @@ async function main() {
         assert.ok($("#agent-grant-actions option[value='repository.edit']").length);
         click("grant-open-runner", "ra");
         assert.deepEqual($("#agent-grant-actions").val(), ["runner.use"]);
+
+        await fresh();
+        $("#agent-new-profile").trigger("click");
+        await flush();
+        // No model connection yet: the fixed default budget applies.
+        assert.equal($("#agent-profile-input-tokens").val(), "400000");
+        assert.equal($("#agent-profile-output-tokens").val(), "16000");
+        $("#agent-profile-provider").val("a").trigger("change");
+        await flush();
+        // Provider "a" has an 8192-token context window, below the input
+        // floor, so the derived default is the 200000 floor itself.
+        assert.equal($("#agent-profile-input-tokens").val(), "200000");
+        $("#agent-profile-input-tokens").val("999").trigger("input");
+        $("#agent-profile-provider").val("b").trigger("change");
+        await flush();
+        // The person's own edit survives a later model connection change.
+        assert.equal($("#agent-profile-input-tokens").val(), "999");
+
+        await fresh();
+        api.get_profile = async (id) => ({
+            profile: {
+                ...profile(id),
+                shared_with: [{principal_kind: "user", principal_id: 7, complete: true}],
+            },
+            setup: null,
+            attachments: [],
+        });
+        click("profile-detail", "a");
+        await flush();
+        assert.match($("#agent-profile-shared-with").text(), /Colleague/);
+        let shared_payload;
+        api.share_profile = async (_id, payload) => {
+            shared_payload = payload;
+            return {grants: [], skipped: []};
+        };
+        $("#agent-share-principal").val("7");
+        $("#agent-share-control").prop("checked", true);
+        $("#agent-share-form").trigger("submit");
+        await flush();
+        // The captured payload is a vm sandbox object; clone it so deepEqual
+        // compares plain values, not cross-realm prototypes.
+        assert.deepEqual(structuredClone(shared_payload), {
+            principal_user_id: 7,
+            allow_job_control: true,
+            allow_job_review: false,
+        });
+        assert.match($("#agent-settings-status").text(), /Sharing saved/);
+        let unshared_payload;
+        api.unshare_profile = async (_id, payload) => {
+            unshared_payload = payload;
+            return {};
+        };
+        $("[data-agent-share-kind='user']").trigger("click");
+        await flush();
+        assert.deepEqual(structuredClone(unshared_payload), {principal_user_id: 7});
+
+        await fresh("default");
+        api.get_team_default = async () => ({
+            default: {
+                profile: {...profile("a"), desired_state: "archived"},
+                selection_revision: default_server_revision,
+                has_default: true,
+                allowed_actions: ["clear", "set"],
+            },
+        });
+        $("[data-agent-tab='default']").trigger("click");
+        await flush();
+        assert.match($("#agent-team-default").text(), /archived and cannot run tasks/);
     } finally {
         out.reset();
         dom.window.close();

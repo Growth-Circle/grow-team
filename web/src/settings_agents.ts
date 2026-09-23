@@ -2,7 +2,8 @@
 import $ from "jquery";
 
 import * as api from "./agent_api.ts";
-import {new_client_key} from "./agent_ui_state.ts";
+import {derived_budget_defaults, new_client_key} from "./agent_ui_state.ts";
+import {$t} from "./i18n.ts";
 import * as people from "./people.ts";
 import {current_user} from "./state_data.ts";
 import * as stream_data from "./stream_data.ts";
@@ -26,6 +27,9 @@ type GrantKind = "profile" | "runner" | "provider" | "repository";
 let grant_target: {kind: GrantKind; id: string; revision: number; label: string} | undefined;
 let default_draft_revision = 0;
 let default_dirty = false;
+// True once the person edits a budget field by hand, so a later model
+// connection change stops overwriting their edit.
+let budget_dirty = false;
 let default_expected_revision: number | undefined;
 let directory_revision = 0;
 let directory_request = 0;
@@ -154,6 +158,47 @@ function grant_scope_label(scope: unknown, restricted: boolean): string {
         return `Direct message with ${row["participant_user_ids"].map((id: unknown) => (typeof id === "number" ? (people.maybe_get_user_by_id(id)?.full_name ?? "Restricted user") : "Restricted user")).join(", ")}`;
     }
     return "Restricted conversation";
+}
+function shared_with_label(entry: {
+    principal_kind: "user" | "group";
+    principal_id: number;
+}): string {
+    if (entry.principal_kind === "group") {
+        return (
+            user_groups.get_realm_user_groups().find((item) => item.id === entry.principal_id)
+                ?.name ?? $t({defaultMessage: "Restricted group"})
+        );
+    }
+    return (
+        people.maybe_get_user_by_id(entry.principal_id)?.full_name ??
+        $t({defaultMessage: "Restricted user"})
+    );
+}
+function render_shared_with(box: JQuery, profile: api.AgentProfile): void {
+    box.empty();
+    const shared_with = profile.shared_with ?? [];
+    if (shared_with.length === 0) {
+        $("<p class='agent-empty'>")
+            .text($t({defaultMessage: "Not shared with anyone yet."}))
+            .appendTo(box);
+        return;
+    }
+    for (const entry of shared_with) {
+        const row = $("<div class='agent-card'>").appendTo(box);
+        line(row, $t({defaultMessage: "Shared with"}), shared_with_label(entry));
+        line(
+            row,
+            $t({defaultMessage: "Access"}),
+            entry.complete
+                ? $t({defaultMessage: "Ready"})
+                : $t({defaultMessage: "Waiting on another resource owner"}),
+        );
+        $("<button type='button' class='action-button action-button-subtle-neutral'>")
+            .text($t({defaultMessage: "Stop sharing"}))
+            .attr("data-agent-share-kind", entry.principal_kind)
+            .attr("data-agent-share-id", String(entry.principal_id))
+            .appendTo(row);
+    }
 }
 function render_grants(box: JQuery, result: Awaited<ReturnType<typeof api.list_grants>>): void {
     box.empty();
@@ -433,6 +478,17 @@ function runner_label(runner: api.AgentRunner | null): string {
     }
     return `${runner.name} · ${runner.host_kind} · ${runner.observed_presence}`;
 }
+// Fills the token budget fields from the selected model connection, unless
+// the person already edited them by hand in this form.
+function fill_budget_defaults(): void {
+    if (budget_dirty) {
+        return;
+    }
+    const provider = providers.find((item) => item.id === value("#agent-profile-provider"));
+    const defaults = derived_budget_defaults(provider);
+    $("#agent-profile-input-tokens").val(defaults.input_tokens);
+    $("#agent-profile-output-tokens").val(defaults.output_tokens);
+}
 function provider_location(profile: api.AgentProfile): string {
     const provider = profile.provider;
     if (!provider) {
@@ -642,6 +698,7 @@ function open_profile(
     profile_submitted = false;
     selected_profile = profile;
     step = 0;
+    budget_dirty = false;
     $("#agent-profile-form").trigger("reset").prop("hidden", false);
     $("#agent-profile-form-title").text(profile ? `Edit ${profile.name}` : "Create agent profile");
     $("#agent-profile-result").text("");
@@ -701,6 +758,7 @@ function open_profile(
     } else {
         profile_key = new_client_key();
         sessionStorage.setItem(pending_key(), profile_key);
+        fill_budget_defaults();
     }
     update_step();
     $("#agent-profile-name").trigger("focus");
@@ -981,6 +1039,51 @@ function render_profile_detail(
             .text("Attach to channel")
             .appendTo(channel);
         button(controls, "Manage profile grants", "grant-open-profile", profile.id);
+    }
+    if (profile.allowed_actions.includes("edit")) {
+        $("<h5>")
+            .text($t({defaultMessage: "Share with team"}))
+            .appendTo(detail);
+        $("<p class='agent-note'>")
+            .text(
+                $t({
+                    defaultMessage:
+                        "Tasks from people you share with run on your device and use your model connection.",
+                }),
+            )
+            .appendTo(detail);
+        render_shared_with($("<div id='agent-profile-shared-with'>").appendTo(detail), profile);
+        const share_form = $("<form id='agent-share-form' class='agent-inline-form'>").appendTo(
+            detail,
+        );
+        $("<label for='agent-share-principal-kind' class='settings-field-label'>")
+            .text($t({defaultMessage: "Share with"}))
+            .appendTo(share_form);
+        const share_kind = $(
+            "<select id='agent-share-principal-kind' class='settings_select bootstrap-focus-style'>",
+        ).appendTo(share_form);
+        option(share_kind, "user", $t({defaultMessage: "Person"}));
+        option(share_kind, "group", $t({defaultMessage: "Group"}));
+        const share_principal = $(
+            "<select id='agent-share-principal' required class='settings_select bootstrap-focus-style'>",
+        ).appendTo(share_form);
+        for (const user of people.get_realm_active_human_users()) {
+            option(share_principal, String(user.user_id), user.full_name);
+        }
+        const control_label = $("<label class='checkbox-label'>").appendTo(share_form);
+        $("<input type='checkbox' id='agent-share-control'>").appendTo(control_label);
+        $("<span>")
+            .text($t({defaultMessage: "Let them stop and resume tasks"}))
+            .appendTo(control_label);
+        const review_label = $("<label class='checkbox-label'>").appendTo(share_form);
+        $("<input type='checkbox' id='agent-share-review'>").appendTo(review_label);
+        $("<span>")
+            .text($t({defaultMessage: "Let them review results"}))
+            .appendTo(review_label);
+        $("<button type='submit' class='action-button action-button-solid-brand'>")
+            .text($t({defaultMessage: "Share"}))
+            .appendTo(share_form);
+        $("<p id='agent-share-result' role='status'>").appendTo(share_form);
     }
     $("<h5>").text("Grants").appendTo(detail);
     $("<div id='agent-profile-grants'>").appendTo(detail);
@@ -1505,6 +1608,18 @@ async function load_default(): Promise<void> {
         const data = setting.default;
         const status = $("#agent-team-default").empty();
         if (data.profile) {
+            if (data.profile.desired_state === "archived") {
+                // Enable rejects an archived profile, so the admin needs a
+                // replacement, not an instruction to turn this one back on.
+                line(
+                    status,
+                    "Selection",
+                    $t({
+                        defaultMessage:
+                            "The saved default agent is archived and cannot run tasks. Choose a replacement below.",
+                    }),
+                );
+            }
             line(status, "Selected profile", `${data.profile.name} · ${data.profile.owner.name}`);
             line(status, "Runner presence", data.profile.runner?.observed_presence ?? "unknown");
             line(
@@ -1771,6 +1886,13 @@ function bind_handlers(): void {
     });
     root.on("change", "#agent-profile-runner", () => {
         update_runtime_choices();
+        fill_budget_defaults();
+    });
+    root.on("change", "#agent-profile-provider", () => {
+        fill_budget_defaults();
+    });
+    root.on("input change", "#agent-profile-input-tokens, #agent-profile-output-tokens", () => {
+        budget_dirty = true;
     });
     root.on("submit", "#agent-profile-form", (event) => {
         event.preventDefault();
@@ -1838,6 +1960,84 @@ function bind_handlers(): void {
             .catch(() => {
                 if (owns_editor(token, editor, "profile-detail", profile.id)) {
                     announce("Channel attachment failed. The saved profile remains available.");
+                }
+            });
+    });
+    root.on("change", "#agent-share-principal-kind", () => {
+        const select = $("#agent-share-principal").empty();
+        if (value("#agent-share-principal-kind") === "group") {
+            for (const group of user_groups.get_realm_user_groups()) {
+                option(select, String(group.id), group.name);
+            }
+        } else {
+            for (const user of people.get_realm_active_human_users()) {
+                option(select, String(user.user_id), user.full_name);
+            }
+        }
+    });
+    root.on("submit", "#agent-share-form", (event) => {
+        event.preventDefault();
+        const profile = selected_profile;
+        if (!profile) {
+            return;
+        }
+        const token = visit;
+        const editor = form_visit;
+        const principal_id = number("#agent-share-principal");
+        if (!principal_id) {
+            $("#agent-share-result").text(
+                $t({defaultMessage: "Choose a person or a group to share with."}),
+            );
+            return;
+        }
+        const payload = {
+            ...(value("#agent-share-principal-kind") === "group"
+                ? {principal_group_id: principal_id}
+                : {principal_user_id: principal_id}),
+            allow_job_control: Boolean($("#agent-share-control").prop("checked")),
+            allow_job_review: Boolean($("#agent-share-review").prop("checked")),
+        };
+        void api
+            .share_profile(profile.id, payload)
+            .then(() => {
+                if (!owns_editor(token, editor, "profile-detail", profile.id)) {
+                    return;
+                }
+                announce($t({defaultMessage: "Sharing saved."}));
+                void open_profile_detail(profile.id);
+            })
+            .catch(() => {
+                if (owns_editor(token, editor, "profile-detail", profile.id)) {
+                    $("#agent-share-result").text(
+                        $t({
+                            defaultMessage: "Sharing was not saved. Check the audience and retry.",
+                        }),
+                    );
+                }
+            });
+    });
+    root.on("click", "[data-agent-share-kind]", function () {
+        const profile = selected_profile;
+        const kind = $(this).attr("data-agent-share-kind");
+        const id = Number($(this).attr("data-agent-share-id"));
+        if (!profile || !kind || !id) {
+            return;
+        }
+        const token = visit;
+        const editor = form_visit;
+        const payload = kind === "group" ? {principal_group_id: id} : {principal_user_id: id};
+        void api
+            .unshare_profile(profile.id, payload)
+            .then(() => {
+                if (owns_editor(token, editor, "profile-detail", profile.id)) {
+                    void open_profile_detail(profile.id);
+                }
+            })
+            .catch(() => {
+                if (owns_editor(token, editor, "profile-detail", profile.id)) {
+                    announce(
+                        $t({defaultMessage: "Stop sharing failed. The share remains active."}),
+                    );
                 }
             });
     });
