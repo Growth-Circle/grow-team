@@ -1,5 +1,6 @@
 import $ from "jquery";
 import assert from "minimalistic-assert";
+import * as z from "zod/mini";
 
 import render_task_board from "../templates/task_board.hbs";
 import render_task_board_card_detail from "../templates/task_board_card_detail.hbs";
@@ -138,6 +139,10 @@ function filter_options(): {value: string; label: string; selected: boolean}[] {
     return [
         {value: task_board_data.FILTERS.ALL, label: $t({defaultMessage: "All cards"})},
         {value: task_board_data.FILTERS.MINE, label: $t({defaultMessage: "My cards"})},
+        {
+            value: task_board_data.FILTERS.REVIEW,
+            label: $t({defaultMessage: "Awaiting my review"}),
+        },
         {value: task_board_data.FILTERS.BLOCKED, label: $t({defaultMessage: "Blocked cards"})},
     ].map((option) => ({...option, selected: option.value === current}));
 }
@@ -421,16 +426,17 @@ function fetch_board(): void {
     });
 }
 
-export function show(): void {
+export function show(filter: task_board_data.TaskFilter = task_board_data.FILTERS.ALL): void {
     assert(hide_other_views_callback !== undefined);
     hide_other_views_callback();
+    task_board_data.set_filter(filter);
 
     const was_already_visible = is_visible();
     views_util.show({
         highlight_view_in_left_sidebar() {
-            views_util.handle_message_view_deactivated(
-                left_sidebar_navigation_area.highlight_task_board_view,
-            );
+            views_util.handle_message_view_deactivated(() => {
+                left_sidebar_navigation_area.highlight_task_board_view(filter);
+            });
         },
         $view: $("#task-board-view"),
         update_compose: compose_closed_ui.update_buttons,
@@ -462,6 +468,7 @@ export function handle_task_event(event: {op: string; task?: unknown; task_id?: 
         task_board_data.add_or_update_task(task);
     }
     complete_rerender();
+    schedule_work_counts_fetch();
 }
 
 export function handle_task_board_event(event: {board: unknown}): void {
@@ -469,8 +476,51 @@ export function handle_task_board_event(event: {board: unknown}): void {
     complete_rerender();
 }
 
+function render_count($count: JQuery, count: number, text: string): void {
+    $count.toggleClass("hide", count === 0).text(count === 0 ? "" : text);
+}
+
+export function render_work_counts(counts: task_board_data.WorkCounts): void {
+    render_count(
+        $(".top_left_task_board .unread_count"),
+        counts.task_board,
+        String(counts.task_board),
+    );
+    render_count($(".top_left_my_tasks .unread_count"), counts.my_tasks, String(counts.my_tasks));
+    render_count(
+        $(".top_left_awaiting_review .unread_count"),
+        counts.awaiting_my_review,
+        String(counts.awaiting_my_review),
+    );
+    render_count(
+        $(".top_left_agent_tasks .unread_count"),
+        counts.agent_running,
+        $t({defaultMessage: "{count} running"}, {count: counts.agent_running}),
+    );
+}
+
+function fetch_work_counts(): void {
+    void channel.get({
+        url: "/json/tasks/counts",
+        success(raw_data) {
+            const data = z.object({counts: task_board_data.work_counts_schema}).parse(raw_data);
+            render_work_counts(data.counts);
+        },
+    });
+}
+
+// Several card events can arrive in one burst, for example when someone
+// drags a card; one fetch after the burst is enough.
+let work_counts_timer: ReturnType<typeof setTimeout> | undefined;
+
+function schedule_work_counts_fetch(): void {
+    clearTimeout(work_counts_timer);
+    work_counts_timer = setTimeout(fetch_work_counts, 500);
+}
+
 export function initialize(opts: {hide_other_views: () => void}): void {
     hide_other_views_callback = opts.hide_other_views;
+    fetch_work_counts();
 
     const $view = $("#task-board-view");
 
@@ -512,11 +562,7 @@ export function initialize(opts: {hide_other_views: () => void}): void {
 
     $view.on("change", ".task-board-filter", () => {
         const value = String($("#task-board-filter").val() ?? "");
-        task_board_data.set_filter(
-            value === task_board_data.FILTERS.MINE || value === task_board_data.FILTERS.BLOCKED
-                ? value
-                : task_board_data.FILTERS.ALL,
-        );
+        task_board_data.set_filter(task_board_data.parse_filter(value));
         complete_rerender();
     });
 

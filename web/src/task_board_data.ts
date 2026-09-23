@@ -16,6 +16,7 @@ export const task_board_column_schema = z.object({
     order: z.number(),
     work_limit: z.nullable(z.number()),
     done_window_days: z.nullable(z.number()),
+    is_review: z.boolean(),
 });
 
 export const task_checklist_item_schema = z.object({
@@ -36,6 +37,7 @@ export const task_schema = z.object({
     origin_message_id: z.nullable(z.number()),
     creator_id: z.number(),
     assignee_id: z.nullable(z.number()),
+    reviewer_id: z.nullable(z.number()),
     agent_profile_id: z.nullable(z.string()),
     agent_job_id: z.nullable(z.string()),
     labels: z.array(z.string()),
@@ -59,6 +61,15 @@ export const task_history_entry_schema = z.object({
 export const task_history_response_schema = z.object({
     history: z.array(task_history_entry_schema),
 });
+
+export const work_counts_schema = z.object({
+    task_board: z.number(),
+    my_tasks: z.number(),
+    awaiting_my_review: z.number(),
+    agent_running: z.number(),
+});
+
+export type WorkCounts = z.infer<typeof work_counts_schema>;
 
 export const task_board_response_schema = z.object({
     board: task_board_schema,
@@ -149,12 +160,22 @@ export function tasks_in_column(column_id: number): Task[] {
 export const FILTERS = {
     ALL: "all",
     MINE: "mine",
+    REVIEW: "review",
     BLOCKED: "blocked",
 } as const;
 
 export type TaskFilter = (typeof FILTERS)[keyof typeof FILTERS];
 
 let current_filter: TaskFilter = FILTERS.ALL;
+
+export function parse_filter(value: string | undefined): TaskFilter {
+    for (const filter of Object.values(FILTERS)) {
+        if (filter === value) {
+            return filter;
+        }
+    }
+    return FILTERS.ALL;
+}
 
 export function get_filter(): TaskFilter {
     return current_filter;
@@ -168,6 +189,12 @@ function passes_filter(task: Task, my_user_id: number | undefined): boolean {
     switch (current_filter) {
         case FILTERS.MINE:
             return my_user_id !== undefined && task.assignee_id === my_user_id;
+        case FILTERS.REVIEW:
+            return (
+                my_user_id !== undefined &&
+                task.reviewer_id === my_user_id &&
+                get_column(task.column_id)?.is_review === true
+            );
         case FILTERS.BLOCKED:
             return task.blocked;
         default:

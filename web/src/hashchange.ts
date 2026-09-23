@@ -31,6 +31,7 @@ import * as sidebar_ui from "./sidebar_ui.ts";
 import * as spectators from "./spectators.ts";
 import {current_user} from "./state_data.ts";
 import * as stream_settings_ui from "./stream_settings_ui.ts";
+import * as task_board_data from "./task_board_data.ts";
 import * as task_board_ui from "./task_board_ui.ts";
 import * as ui_report from "./ui_report.ts";
 import * as user_group_edit from "./user_group_edit.ts";
@@ -232,7 +233,9 @@ function do_hashchange_normal(from_reload: boolean, restore_selected_id: boolean
             inbox_ui.show();
             break;
         case "#tasks":
-            task_board_ui.show();
+            // #tasks/mine and #tasks/review open the board already filtered;
+            // the Work rows in the left sidebar link to them.
+            task_board_ui.show(task_board_data.parse_filter(hash[1]));
             break;
         case "#all_messages":
             // "#all_messages" was renamed to "#feed" in 2024. Unlike
