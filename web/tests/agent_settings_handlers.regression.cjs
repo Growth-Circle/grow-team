@@ -28,6 +28,9 @@ async function main() {
     global.window = dom.window;
     global.document = dom.window.document;
     const $ = require("jquery");
+    // Mutated later to exercise the Team management option for an
+    // administrator, after the non-administrator scenarios below.
+    const current_user = {user_id: 1, is_admin: false, is_owner: false};
     const timers = new Map();
     let timer_id = 0;
     let key_id = 0;
@@ -167,7 +170,7 @@ async function main() {
                 return i18n;
             }
             if (name === "./state_data.ts") {
-                return {current_user: {user_id: 1}};
+                return {current_user};
             }
             if (name === "./people.ts") {
                 return {
@@ -285,6 +288,10 @@ async function main() {
         api.create_profile = () => first.promise;
         $("#agent-new-profile").trigger("click");
         await flush();
+        // A non-administrator sees the Team management option, but cannot
+        // choose it.
+        assert.equal($("#agent-profile-default-mode-manage").prop("disabled"), true);
+        assert.equal($("#agent-profile-manage-note").prop("hidden"), false);
         $("#agent-profile-name").val("First").trigger("input");
         $("#agent-profile-form").trigger("submit");
         await flush();
@@ -510,6 +517,8 @@ async function main() {
         click("grant-open-profile", "a");
         assert.deepEqual($("#agent-grant-actions").val(), ["profile.use", "context.read"]);
         assert.ok($("#agent-grant-actions option[value='repository.edit']").length);
+        // A profile grant can carry team.manage for a non-owner commander.
+        assert.ok($("#agent-grant-actions option[value='team.manage']").length);
         click("grant-open-runner", "ra");
         assert.deepEqual($("#agent-grant-actions").val(), ["runner.use"]);
 
@@ -580,6 +589,16 @@ async function main() {
         $("[data-agent-tab='default']").trigger("click");
         await flush();
         assert.match($("#agent-team-default").text(), /archived and cannot run tasks/);
+
+        // An administrator sees the Team management option enabled, with
+        // the reason note hidden.
+        current_user.is_admin = true;
+        $("[data-agent-tab='directory']").trigger("click");
+        await flush();
+        $("#agent-new-profile").trigger("click");
+        await flush();
+        assert.equal($("#agent-profile-default-mode-manage").prop("disabled"), false);
+        assert.equal($("#agent-profile-manage-note").prop("hidden"), true);
     } finally {
         out.reset();
         dom.window.close();

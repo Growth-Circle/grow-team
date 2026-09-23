@@ -100,6 +100,11 @@ run_test("a rejected receipt for a shared agent shows its server reason", () => 
         names,
     );
     assert.match(queue_full.outcome, /too many tasks that wait/);
+    const [command_not_allowed] = send.receipt_rows(
+        [{profile_id: "a", decision: "rejected", reason: "command_not_allowed", job_id: null}],
+        names,
+    );
+    assert.match(command_not_allowed.outcome, /Ask an organization administrator for access/);
     const [unknown_reason] = send.receipt_rows(
         [{profile_id: "a", decision: "rejected", reason: "runner_busy", job_id: null}],
         names,

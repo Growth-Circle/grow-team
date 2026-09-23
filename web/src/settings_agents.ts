@@ -125,6 +125,7 @@ const grant_actions: Record<GrantKind, {id: string; label: string}[]> = {
         {id: "context.read", label: $t({defaultMessage: "Read the conversation"})},
         ...repository_grant_actions,
         {id: "profile.manage", label: $t({defaultMessage: "Manage profile"})},
+        {id: "team.manage", label: $t({defaultMessage: "Give team management tasks"})},
     ],
     runner: [{id: "runner.use", label: $t({defaultMessage: "Use device"})}],
     provider: [{id: "provider.use", label: $t({defaultMessage: "Use model connection"})}],
@@ -139,7 +140,10 @@ function grant_principal_label(principal: unknown): string {
         return $t({defaultMessage: "You (other audience details are private)"});
     }
     if (row["kind"] === "user" && typeof row["user_id"] === "number") {
-        return people.maybe_get_user_by_id(row["user_id"])?.full_name ?? $t({defaultMessage: "Restricted user"});
+        return (
+            people.maybe_get_user_by_id(row["user_id"])?.full_name ??
+            $t({defaultMessage: "Restricted user"})
+        );
     }
     if (row["kind"] === "group" && typeof row["group_id"] === "number") {
         return (
@@ -158,7 +162,9 @@ function grant_scope_label(scope: unknown, restricted: boolean): string {
     }
     const row = scope as Record<string, unknown>;
     if (row["kind"] === "stream" && typeof row["stream_id"] === "number") {
-        const name = stream_data.get_sub_by_id(row["stream_id"])?.name ?? $t({defaultMessage: "Restricted channel"});
+        const name =
+            stream_data.get_sub_by_id(row["stream_id"])?.name ??
+            $t({defaultMessage: "Restricted channel"});
         return `${name}${typeof row["topic"] === "string" && row["topic"] ? ` · ${row["topic"]}` : ""}`;
     }
     if (row["kind"] === "direct" && Array.isArray(row["participant_user_ids"])) {
@@ -219,26 +225,40 @@ function render_grants(box: JQuery, result: Awaited<ReturnType<typeof api.list_g
     box.empty();
     line(box, $t({defaultMessage: "Recorded grants"}), result.count);
     if (result.count > result.grants.length) {
-        line(box, $t({defaultMessage: "History"}), $t({defaultMessage: "Only the first 50 authorized grants are shown."}));
+        line(
+            box,
+            $t({defaultMessage: "History"}),
+            $t({defaultMessage: "Only the first 50 authorized grants are shown."}),
+        );
     }
     for (const grant of result.grants) {
         const row = $("<div class='agent-card'>").appendTo(box);
         line(row, $t({defaultMessage: "Principal"}), grant_principal_label(grant.principal));
         line(row, $t({defaultMessage: "Actions"}), grant.actions.join(", "));
-        line(row, $t({defaultMessage: "Conversation"}), grant_scope_label(grant.scope, grant.scope_restricted));
+        line(
+            row,
+            $t({defaultMessage: "Conversation"}),
+            grant_scope_label(grant.scope, grant.scope_restricted),
+        );
         if (grant.repository_restricted) {
             const name = repositories.find(
                 (item) => item.id === grant.repository_id,
             )?.workspace_alias;
-            line(row, $t({defaultMessage: "Repository restriction"}), name ?? $t({defaultMessage: "Restricted repository"}));
+            line(
+                row,
+                $t({defaultMessage: "Repository restriction"}),
+                name ?? $t({defaultMessage: "Restricted repository"}),
+            );
         }
-        line(row, $t({defaultMessage: "Expiry"}), grant.expires_at ?? $t({defaultMessage: "No expiry"}));
+        line(
+            row,
+            $t({defaultMessage: "Expiry"}),
+            grant.expires_at ?? $t({defaultMessage: "No expiry"}),
+        );
         line(
             row,
             $t({defaultMessage: "Status"}),
-            grant.revoked
-                ? $t({defaultMessage: "Revoked"})
-                : $t({defaultMessage: "Active"}),
+            grant.revoked ? $t({defaultMessage: "Revoked"}) : $t({defaultMessage: "Active"}),
         );
         if (
             box.attr("id") === "agent-resource-grants" &&
@@ -290,10 +310,15 @@ function open_grant_editor(kind: GrantKind, id: string, revision: number, label:
     const editor = begin_editor("grant", `${kind}:${id}`);
     grant_target = {kind, id, revision, label};
     const box = $("#agent-grant-editor").empty().prop("hidden", false);
-    $("<h4>").text($t({defaultMessage: "Share {label}"}, {label})).appendTo(box);
+    $("<h4>")
+        .text($t({defaultMessage: "Share {label}"}, {label}))
+        .appendTo(box);
     $("<p>")
         .text(
-            $t({defaultMessage: "Each resource owner grants only their own resource. A grant does not give access to other dependencies."}),
+            $t({
+                defaultMessage:
+                    "Each resource owner grants only their own resource. A grant does not give access to other dependencies.",
+            }),
         )
         .appendTo(box);
     const form = $("<form id='agent-resource-grant-form' class='agent-inline-form'>").appendTo(box);
@@ -545,7 +570,9 @@ function render_profiles(count: number): void {
     $("#agent-directory-prev").prop("disabled", profile_offset === 0);
     $("#agent-directory-next").prop("disabled", profile_offset + profiles.length >= count);
     if (profiles.length === 0) {
-        $("<p>").text($t({defaultMessage: "No profiles match these filters."})).appendTo(list);
+        $("<p>")
+            .text($t({defaultMessage: "No profiles match these filters."}))
+            .appendTo(list);
     }
     for (const profile of profiles) {
         const card = $("<article class='agent-card'>").appendTo(list);
@@ -553,8 +580,16 @@ function render_profiles(count: number): void {
         line(card, $t({defaultMessage: "Owner"}), profile.owner.name);
         line(card, $t({defaultMessage: "Profile state"}), profile.desired_state);
         line(card, $t({defaultMessage: "Readiness"}), profile.readiness_state);
-        line(card, $t({defaultMessage: "Runner presence"}), profile.runner?.observed_presence ?? $t({defaultMessage: "unknown"}));
-        line(card, $t({defaultMessage: "Declared device category"}), profile.runner?.host_kind ?? $t({defaultMessage: "unknown"}));
+        line(
+            card,
+            $t({defaultMessage: "Runner presence"}),
+            profile.runner?.observed_presence ?? $t({defaultMessage: "unknown"}),
+        );
+        line(
+            card,
+            $t({defaultMessage: "Declared device category"}),
+            profile.runner?.host_kind ?? $t({defaultMessage: "unknown"}),
+        );
         line(card, $t({defaultMessage: "Tool runner"}), runner_label(profile.runner));
         line(card, $t({defaultMessage: "Model location"}), provider_location(profile));
         line(
@@ -566,7 +601,11 @@ function render_profiles(count: number): void {
         );
         const controls = $("<div class='agent-actions'>").appendTo(card);
         button(controls, $t({defaultMessage: "Details"}), "profile-detail", profile.id);
-        if (profile.access.complete && profile.desired_state === "enabled") {
+        if (
+            profile.access.complete &&
+            profile.desired_state === "enabled" &&
+            profile.command_allowed !== false
+        ) {
             button(controls, $t({defaultMessage: "Create task"}), "create-task", profile.id);
         }
         if (profile.allowed_actions.includes("edit")) {
@@ -653,7 +692,10 @@ function update_runtime_choices(clear = true): void {
         $("#agent-profile-mode").val("acp");
     }
     $("#agent-profile-network-note").text(
-        $t({defaultMessage: "A shared connection copies its owner's approved network policy into this profile when saved. Later connection changes do not change this saved policy. Localhost refers to the selected runner."}),
+        $t({
+            defaultMessage:
+                "A shared connection copies its owner's approved network policy into this profile when saved. Later connection changes do not change this saved policy. Localhost refers to the selected runner.",
+        }),
     );
 }
 function update_step(): void {
@@ -696,7 +738,11 @@ function update_step(): void {
                 ? `${provider.name} · ${provider.model_id} · owner ${people.maybe_get_user_by_id(provider.owner_id)?.full_name ?? $t({defaultMessage: "Authorized owner"})}`
                 : $t({defaultMessage: "No model connection"}),
         );
-        line(box, $t({defaultMessage: "Data sent to model"}), provider?.data_scope.join(", ") ?? $t({defaultMessage: "No model data scope"}));
+        line(
+            box,
+            $t({defaultMessage: "Data sent to model"}),
+            provider?.data_scope.join(", ") ?? $t({defaultMessage: "No model data scope"}),
+        );
         line(
             box,
             $t({defaultMessage: "Repository"}),
@@ -753,7 +799,10 @@ function update_step(): void {
                 report["chat_ready"] !== true ||
                 (value("#agent-profile-default-mode") === "code" && report["code_ready"] !== true)
                 ? $t({defaultMessage: "Save a draft, then run a probe before enable."})
-                : $t({defaultMessage: "A new profile revision still needs its own probe before enable."}),
+                : $t({
+                      defaultMessage:
+                          "A new profile revision still needs its own probe before enable.",
+                  }),
         );
     }
 }
@@ -778,6 +827,11 @@ function open_profile(
             : $t({defaultMessage: "Create agent profile"}),
     );
     $("#agent-profile-result").text("");
+    // Only a realm administrator or owner may save a Team management
+    // profile; the option stays visible for everyone but disabled.
+    const can_manage_team = current_user.is_admin || current_user.is_owner;
+    $("#agent-profile-default-mode-manage").prop("disabled", !can_manage_team);
+    $("#agent-profile-manage-note").prop("hidden", can_manage_team);
     const runner_select = $("#agent-profile-runner").empty();
     for (const runner of runners) {
         option(runner_select, runner.id, runner_label(runner));
@@ -892,7 +946,9 @@ async function save_profile(): Promise<void> {
     const request_target = request_profile?.id ?? "";
     const payload = profile_payload();
     if (!payload["name"] || !payload["adapter_id"] || !payload["sandbox_alias"]) {
-        $("#agent-profile-result").text($t({defaultMessage: "Complete the identity, adapter, and sandbox fields."}));
+        $("#agent-profile-result").text(
+            $t({defaultMessage: "Complete the identity, adapter, and sandbox fields."}),
+        );
         return;
     }
     const is_edit = Boolean(request_profile);
@@ -931,10 +987,14 @@ async function save_profile(): Promise<void> {
             editor_target = profile.id;
         }
         if (draft_revision !== form_revision) {
-            $("#agent-profile-result").text($t({defaultMessage: "Draft saved. Your newer edits remain in the form."}));
+            $("#agent-profile-result").text(
+                $t({defaultMessage: "Draft saved. Your newer edits remain in the form."}),
+            );
             return;
         }
-        $("#agent-profile-result").text($t({defaultMessage: "Draft saved. Run a probe, then enable it explicitly."}));
+        $("#agent-profile-result").text(
+            $t({defaultMessage: "Draft saved. Run a probe, then enable it explicitly."}),
+        );
         if (!is_edit) {
             hide_editors();
         }
@@ -956,7 +1016,10 @@ async function save_profile(): Promise<void> {
                 selected_profile = recovered.profile;
                 editor_target = recovered.profile.id;
                 $("#agent-profile-result").text(
-                    $t({defaultMessage: "The server saved this profile. Its identity was recovered. Your current form edits remain."}),
+                    $t({
+                        defaultMessage:
+                            "The server saved this profile. Its identity was recovered. Your current form edits remain.",
+                    }),
                 );
                 return;
             } catch {
@@ -965,7 +1028,10 @@ async function save_profile(): Promise<void> {
         }
         if (owns_editor(token, form_token, "profile", request_target)) {
             $("#agent-profile-result").text(
-                $t({defaultMessage: "Save status is unknown. Review the draft and retry with the same identity."}),
+                $t({
+                    defaultMessage:
+                        "Save status is unknown. Review the draft and retry with the same identity.",
+                }),
             );
         }
     }
@@ -989,7 +1055,12 @@ async function load_choices(editor?: number, kind = "profile", target = ""): Pro
         repositories = repository_data.repositories;
     } catch {
         if (current(token) && (editor === undefined || owns_editor(token, editor, kind, target))) {
-            announce($t({defaultMessage: "Some resource choices are unavailable. Retry before saving a profile."}));
+            announce(
+                $t({
+                    defaultMessage:
+                        "Some resource choices are unavailable. Retry before saving a profile.",
+                }),
+            );
         }
     }
 }
@@ -1016,7 +1087,11 @@ function render_profile_detail(
     );
     line(detail, $t({defaultMessage: "Runner"}), runner_label(profile.runner));
     line(detail, $t({defaultMessage: "Model"}), provider_location(profile));
-    line(detail, $t({defaultMessage: "Repository"}), profile.repository?.workspace_alias ?? $t({defaultMessage: "None"}));
+    line(
+        detail,
+        $t({defaultMessage: "Repository"}),
+        profile.repository?.workspace_alias ?? $t({defaultMessage: "None"}),
+    );
     if (setup) {
         line(
             detail,
@@ -1026,12 +1101,18 @@ function render_profile_detail(
                 {phase: setup.phase, revision: setup.profile_revision},
             ),
         );
-        line(detail, $t({defaultMessage: "Provider test revision"}), setup.provider_config_version ?? $t({defaultMessage: "None"}));
+        line(
+            detail,
+            $t({defaultMessage: "Provider test revision"}),
+            setup.provider_config_version ?? $t({defaultMessage: "None"}),
+        );
         if (setup.profile_revision !== profile.revision) {
             line(
                 detail,
                 $t({defaultMessage: "Probe evidence"}),
-                $t({defaultMessage: "This setup tested an older profile revision. Run a new probe."}),
+                $t({
+                    defaultMessage: "This setup tested an older profile revision. Run a new probe.",
+                }),
             );
         }
         for (const requirement of setup.requirements) {
@@ -1045,19 +1126,32 @@ function render_profile_detail(
                 connect_runner: [$t({defaultMessage: "Open devices"}), "repair-devices"],
                 register_workspace: [$t({defaultMessage: "Open repositories"}), "repair-devices"],
                 install_adapter: [$t({defaultMessage: "Open devices"}), "repair-devices"],
-                login_vendor: [$t({defaultMessage: "Open model connections"}), "repair-connections"],
-                edit_provider: [$t({defaultMessage: "Open model connections"}), "repair-connections"],
+                login_vendor: [
+                    $t({defaultMessage: "Open model connections"}),
+                    "repair-connections",
+                ],
+                edit_provider: [
+                    $t({defaultMessage: "Open model connections"}),
+                    "repair-connections",
+                ],
                 probe_again: [$t({defaultMessage: "Run another probe"}), "profile-probe"],
                 request_grant: [$t({defaultMessage: "Review resource grants"}), "repair-grants"],
                 configure_sandbox: [$t({defaultMessage: "Edit profile runtime"}), "profile-edit"],
-                view_diagnostic: [$t({defaultMessage: "Ask the resource owner for diagnostics"}), "repair-devices"],
+                view_diagnostic: [
+                    $t({defaultMessage: "Ask the resource owner for diagnostics"}),
+                    "repair-devices",
+                ],
             }[requirement.action];
             if (repair) {
                 button(row, repair[0]!, repair[1]!, profile.id);
             }
         }
     } else {
-        line(detail, $t({defaultMessage: "Setup"}), $t({defaultMessage: "No setup result yet. Save, probe, then enable explicitly."}));
+        line(
+            detail,
+            $t({defaultMessage: "Setup"}),
+            $t({defaultMessage: "No setup result yet. Save, probe, then enable explicitly."}),
+        );
     }
     for (const [name, accessible] of [
         [$t({defaultMessage: "Combined"}), profile.access.complete],
@@ -1077,14 +1171,25 @@ function render_profile_detail(
         line(
             detail,
             $t({defaultMessage: "Next step"}),
-            $t({defaultMessage: "Ask each listed resource owner for the missing grant. Your profile grant alone is insufficient."}),
+            $t({
+                defaultMessage:
+                    "Ask each listed resource owner for the missing grant. Your profile grant alone is insufficient.",
+            }),
         );
     }
     if (profile.desired_state === "draft" && profile.readiness_state === "ready") {
-        line(detail, $t({defaultMessage: "Activation"}), $t({defaultMessage: "Ready draft. Explicit enable is required."}));
+        line(
+            detail,
+            $t({defaultMessage: "Activation"}),
+            $t({defaultMessage: "Ready draft. Explicit enable is required."}),
+        );
     }
     if (profile.runner?.observed_presence === "offline" && profile.desired_state === "enabled") {
-        line(detail, $t({defaultMessage: "Queue"}), $t({defaultMessage: "Offline runner. New work can remain queued if authorized."}));
+        line(
+            detail,
+            $t({defaultMessage: "Queue"}),
+            $t({defaultMessage: "Offline runner. New work can remain queued if authorized."}),
+        );
     }
     line(
         detail,
@@ -1100,7 +1205,11 @@ function render_profile_detail(
             : $t({defaultMessage: "None visible"}),
     );
     const controls = $("<div class='agent-actions'>").appendTo(detail);
-    if (profile.access.complete && profile.desired_state === "enabled") {
+    if (
+        profile.access.complete &&
+        profile.desired_state === "enabled" &&
+        profile.command_allowed !== false
+    ) {
         button(controls, $t({defaultMessage: "Create task"}), "create-task", profile.id);
     }
     for (const action of ["edit", "probe", "enable", "pause", "archive"] as const) {
@@ -1133,7 +1242,12 @@ function render_profile_detail(
         $("<button type='submit' class='action-button action-button-solid-brand'>")
             .text($t({defaultMessage: "Attach to channel"}))
             .appendTo(channel);
-        button(controls, $t({defaultMessage: "Manage profile grants"}), "grant-open-profile", profile.id);
+        button(
+            controls,
+            $t({defaultMessage: "Manage profile grants"}),
+            "grant-open-profile",
+            profile.id,
+        );
     }
     if (profile.allowed_actions.includes("edit")) {
         $("<h5>")
@@ -1180,7 +1294,9 @@ function render_profile_detail(
             .appendTo(share_form);
         $("<p id='agent-share-result' role='status'>").appendTo(share_form);
     }
-    $("<h5>").text($t({defaultMessage: "Grants"})).appendTo(detail);
+    $("<h5>")
+        .text($t({defaultMessage: "Grants"}))
+        .appendTo(detail);
     $("<div id='agent-profile-grants'>").appendTo(detail);
     $(
         "<button type='button' id='agent-detail-close' class='action-button action-button-subtle-neutral'>",
@@ -1254,7 +1370,9 @@ function render_runners(count: number): void {
     $("#agent-device-count").text($t({defaultMessage: "{count} authorized devices"}, {count}));
     $("#agent-device-more").prop("hidden", runner_offset + runners.length >= count);
     if (runners.length === 0) {
-        $("<p>").text($t({defaultMessage: "No devices are visible to you."})).appendTo(list);
+        $("<p>")
+            .text($t({defaultMessage: "No devices are visible to you."}))
+            .appendTo(list);
     }
     for (const runner of runners) {
         const card = $("<article class='agent-card'>").appendTo(list);
@@ -1280,7 +1398,12 @@ function render_runners(count: number): void {
         );
         if (runner.allowed_actions.includes("edit")) {
             button(card, $t({defaultMessage: "Edit metadata"}), "runner-edit", runner.id);
-            button(card, $t({defaultMessage: "Manage device grants"}), "grant-open-runner", runner.id);
+            button(
+                card,
+                $t({defaultMessage: "Manage device grants"}),
+                "grant-open-runner",
+                runner.id,
+            );
         }
         if (runner.allowed_actions.includes("edit")) {
             button(card, $t({defaultMessage: "Register repository"}), "repository-new", runner.id);
@@ -1316,7 +1439,12 @@ async function load_runners(): Promise<void> {
                     $t({defaultMessage: "Authorized device"}),
             );
             if (repository.allowed_actions.includes("manage") && repository.policy_version) {
-                button(card, $t({defaultMessage: "Manage repository grants"}), "grant-open-repository", repository.id);
+                button(
+                    card,
+                    $t({defaultMessage: "Manage repository grants"}),
+                    "grant-open-repository",
+                    repository.id,
+                );
             }
         }
     } catch {
@@ -1387,7 +1515,11 @@ async function save_repository(): Promise<void> {
         }
         if (submitted_draft === draft_revision) {
             hide_editors();
-            announce($t({defaultMessage: "Repository registered. Add explicit grants before shared use."}));
+            announce(
+                $t({
+                    defaultMessage: "Repository registered. Add explicit grants before shared use.",
+                }),
+            );
         } else {
             $("#agent-repository-result").text(
                 $t({defaultMessage: "Repository registered. Your newer changes remain unsaved."}),
@@ -1397,7 +1529,10 @@ async function save_repository(): Promise<void> {
     } catch {
         if (owns_editor(token, editor, "repository", runner.id)) {
             $("#agent-repository-result").text(
-                $t({defaultMessage: "Repository registration failed. Check the device catalog and origin."}),
+                $t({
+                    defaultMessage:
+                        "Repository registration failed. Check the device catalog and origin.",
+                }),
             );
         }
     }
@@ -1417,11 +1552,15 @@ async function approve_pairing(): Promise<void> {
             return;
         }
         $("#agent-pairing-form").trigger("reset");
-        announce($t({defaultMessage: "Pairing approved. The device may report its catalog shortly."}));
+        announce(
+            $t({defaultMessage: "Pairing approved. The device may report its catalog shortly."}),
+        );
         await load_runners();
     } catch {
         if (owns_editor(token, editor, "pairing")) {
-            announce($t({defaultMessage: "Pairing approval failed. Check the code and pairing state."}));
+            announce(
+                $t({defaultMessage: "Pairing approval failed. Check the code and pairing state."}),
+            );
         }
     }
 }
@@ -1429,7 +1568,9 @@ function render_providers(count: number): void {
     const list = $("#agent-provider-list").empty();
     $("#agent-provider-more").prop("hidden", provider_offset + providers.length >= count);
     if (providers.length === 0) {
-        $("<p>").text($t({defaultMessage: "No model connections are visible to you."})).appendTo(list);
+        $("<p>")
+            .text($t({defaultMessage: "No model connections are visible to you."}))
+            .appendTo(list);
     }
     for (const provider of providers) {
         const card = $("<article class='agent-card'>").appendTo(list);
@@ -1438,9 +1579,14 @@ function render_providers(count: number): void {
         line(
             card,
             $t({defaultMessage: "Runner"}),
-            runners.find((item) => item.id === provider.runner_id)?.name ?? $t({defaultMessage: "Unknown"}),
+            runners.find((item) => item.id === provider.runner_id)?.name ??
+                $t({defaultMessage: "Unknown"}),
         );
-        line(card, $t({defaultMessage: "Endpoint location"}), provider.base_url ?? $t({defaultMessage: "Private to owner"}));
+        line(
+            card,
+            $t({defaultMessage: "Endpoint location"}),
+            provider.base_url ?? $t({defaultMessage: "Private to owner"}),
+        );
         line(card, $t({defaultMessage: "Data scope"}), provider.data_scope.join(", "));
         const capabilities = provider.capabilities;
         if (capabilities && typeof capabilities === "object") {
@@ -1451,7 +1597,12 @@ function render_providers(count: number): void {
         }
         if (provider.allowed_actions.includes("edit")) {
             button(card, $t({defaultMessage: "Edit"}), "provider-edit", provider.id);
-            button(card, $t({defaultMessage: "Manage connection grants"}), "grant-open-provider", provider.id);
+            button(
+                card,
+                $t({defaultMessage: "Manage connection grants"}),
+                "grant-open-provider",
+                provider.id,
+            );
         }
         if (provider.allowed_actions.includes("probe")) {
             button(card, $t({defaultMessage: "Probe"}), "provider-probe", provider.id);
@@ -1561,9 +1712,15 @@ async function load_provider_impact(id: string, editor: number): Promise<void> {
             }
         }
         const box = $("#agent-provider-impact").empty();
-        $("<h5>").text($t({defaultMessage: "Profiles affected by execution changes"})).appendTo(box);
+        $("<h5>")
+            .text($t({defaultMessage: "Profiles affected by execution changes"}))
+            .appendTo(box);
         if (affected.length === 0) {
-            line(box, $t({defaultMessage: "Visible profiles"}), $t({defaultMessage: "None in the checked authorized pages"}));
+            line(
+                box,
+                $t({defaultMessage: "Visible profiles"}),
+                $t({defaultMessage: "None in the checked authorized pages"}),
+            );
         }
         for (const profile of affected) {
             line(
@@ -1576,13 +1733,24 @@ async function load_provider_impact(id: string, editor: number): Promise<void> {
             );
         }
         if (incomplete) {
-            line(box, $t({defaultMessage: "Limit"}), $t({defaultMessage: "Only the first 500 authorized profiles were checked."}));
+            line(
+                box,
+                $t({defaultMessage: "Limit"}),
+                $t({defaultMessage: "Only the first 500 authorized profiles were checked."}),
+            );
         }
-        line(box, $t({defaultMessage: "Active attempts"}), $t({defaultMessage: "Existing attempt snapshots keep their saved configuration."}));
+        line(
+            box,
+            $t({defaultMessage: "Active attempts"}),
+            $t({defaultMessage: "Existing attempt snapshots keep their saved configuration."}),
+        );
     } catch {
         if (owns_editor(token, editor, "provider", id)) {
             $("#agent-provider-impact").text(
-                $t({defaultMessage: "Affected profile list is unavailable. Review it before an execution change."}),
+                $t({
+                    defaultMessage:
+                        "Affected profile list is unavailable. Review it before an execution change.",
+                }),
             );
         }
     }
@@ -1594,7 +1762,9 @@ async function save_provider(): Promise<void> {
     const provider = selected_provider;
     const credential = value("#agent-provider-credential");
     if (credential.includes("••") || credential === "********") {
-        $("#agent-provider-result").text($t({defaultMessage: "Enter a new credential, not a masked value."}));
+        $("#agent-provider-result").text(
+            $t({defaultMessage: "Enter a new credential, not a masked value."}),
+        );
         return;
     }
     const local = value("#agent-provider-local-ref");
@@ -1696,7 +1866,10 @@ async function save_provider(): Promise<void> {
     } catch {
         if (owns_editor(token, editor, "provider", provider?.id ?? "")) {
             $("#agent-provider-result").text(
-                $t({defaultMessage: "Connection save failed. Check the fields and current revision."}),
+                $t({
+                    defaultMessage:
+                        "Connection save failed. Check the fields and current revision.",
+                }),
             );
         }
     }
@@ -1728,12 +1901,23 @@ async function load_default(): Promise<void> {
                     }),
                 );
             }
-            line(status, $t({defaultMessage: "Selected profile"}), `${data.profile.name} · ${data.profile.owner.name}`);
-            line(status, $t({defaultMessage: "Runner presence"}), data.profile.runner?.observed_presence ?? $t({defaultMessage: "unknown"}));
+            line(
+                status,
+                $t({defaultMessage: "Selected profile"}),
+                `${data.profile.name} · ${data.profile.owner.name}`,
+            );
+            line(
+                status,
+                $t({defaultMessage: "Runner presence"}),
+                data.profile.runner?.observed_presence ?? $t({defaultMessage: "unknown"}),
+            );
             line(
                 status,
                 $t({defaultMessage: "Audience"}),
-                $t({defaultMessage: "Recorded grants below show only identities you may view. Each member still needs all resource grants."}),
+                $t({
+                    defaultMessage:
+                        "Recorded grants below show only identities you may view. Each member still needs all resource grants.",
+                }),
             );
             if (data.profile.runner?.observed_presence === "offline") {
                 line(
@@ -1759,7 +1943,10 @@ async function load_default(): Promise<void> {
             line(
                 status,
                 $t({defaultMessage: "Conflict"}),
-                $t({defaultMessage: "The saved selection changed. Keep your choice and refresh before saving."}),
+                $t({
+                    defaultMessage:
+                        "The saved selection changed. Keep your choice and refresh before saving.",
+                }),
             );
         }
         const chosen = default_dirty ? value("#agent-default-choice") : (data.profile?.id ?? "");
@@ -1781,7 +1968,10 @@ async function load_default(): Promise<void> {
             option(
                 select,
                 chosen,
-                $t({defaultMessage: "Your unsaved selection is no longer in the visible candidate list"}),
+                $t({
+                    defaultMessage:
+                        "Your unsaved selection is no longer in the visible candidate list",
+                }),
             );
         }
         select.val(chosen);
@@ -1799,13 +1989,19 @@ async function load_default(): Promise<void> {
                 }
             } catch {
                 if (current(token) && request === default_request) {
-                    line(status, $t({defaultMessage: "Audience"}), $t({defaultMessage: "Grant details are unavailable or restricted."}));
+                    line(
+                        status,
+                        $t({defaultMessage: "Audience"}),
+                        $t({defaultMessage: "Grant details are unavailable or restricted."}),
+                    );
                 }
             }
         }
     } catch {
         if (current(token) && request === default_request) {
-            $("#agent-team-default").text($t({defaultMessage: "Team default status is unknown. Retry this panel."}));
+            $("#agent-team-default").text(
+                $t({defaultMessage: "Team default status is unknown. Retry this panel."}),
+            );
             $("#agent-default-form").prop("hidden", true);
         }
     }
@@ -1826,13 +2022,20 @@ async function save_default(profile_id: string | null): Promise<void> {
             default_dirty = false;
             announce($t({defaultMessage: "Team default saved. Resource access is unchanged."}));
         } else {
-            announce($t({defaultMessage: "Earlier default saved. Your newer selection remains unsaved."}));
+            announce(
+                $t({
+                    defaultMessage: "Earlier default saved. Your newer selection remains unsaved.",
+                }),
+            );
         }
         await load_default();
     } catch {
         if (current(token) && draft === default_draft_revision) {
             announce(
-                $t({defaultMessage: "Team default changed or is unavailable. Your selection remains. Refresh before trying again."}),
+                $t({
+                    defaultMessage:
+                        "Team default changed or is unavailable. Your selection remains. Refresh before trying again.",
+                }),
             );
         }
     }
@@ -1904,7 +2107,12 @@ async function recover_pending_creation(key: string, token: number): Promise<voi
         void load_profiles();
     } catch {
         if (current(token) && editor_kind === "") {
-            announce($t({defaultMessage: "An uncertain profile save can be retried with its original identity."}));
+            announce(
+                $t({
+                    defaultMessage:
+                        "An uncertain profile save can be retried with its original identity.",
+                }),
+            );
         }
     }
 }
@@ -2068,12 +2276,22 @@ function bind_handlers(): void {
                 if (!owns_editor(token, editor, "profile-detail", profile.id)) {
                     return;
                 }
-                announce($t({defaultMessage: "Channel attachment saved. Profile configuration remains saved."}));
+                announce(
+                    $t({
+                        defaultMessage:
+                            "Channel attachment saved. Profile configuration remains saved.",
+                    }),
+                );
                 void open_profile_detail(profile.id);
             })
             .catch(() => {
                 if (owns_editor(token, editor, "profile-detail", profile.id)) {
-                    announce($t({defaultMessage: "Channel attachment failed. The saved profile remains available."}));
+                    announce(
+                        $t({
+                            defaultMessage:
+                                "Channel attachment failed. The saved profile remains available.",
+                        }),
+                    );
                 }
             });
     });
@@ -2207,7 +2425,10 @@ function bind_handlers(): void {
             (scope_kind === "stream" && !number("#agent-grant-channel"))
         ) {
             $("#agent-grant-result").text(
-                $t({defaultMessage: "Select an audience, actions, and a valid conversation restriction."}),
+                $t({
+                    defaultMessage:
+                        "Select an audience, actions, and a valid conversation restriction.",
+                }),
             );
             return;
         }
@@ -2242,7 +2463,10 @@ function bind_handlers(): void {
             .catch(() => {
                 if (owns_editor(token, editor, "grant", `${target.kind}:${target.id}`)) {
                     $("#agent-grant-result").text(
-                        $t({defaultMessage: "Grant was not created. Check the target revision and audience."}),
+                        $t({
+                            defaultMessage:
+                                "Grant was not created. Check the target revision and audience.",
+                        }),
                     );
                 }
             });
@@ -2273,7 +2497,9 @@ function bind_handlers(): void {
             if (profile?.allowed_actions.includes("edit")) {
                 open_grant_editor("profile", id, profile.revision, profile.name);
             } else {
-                announce($t({defaultMessage: "Ask the resource owner to grant the missing access."}));
+                announce(
+                    $t({defaultMessage: "Ask the resource owner to grant the missing access."}),
+                );
             }
             return;
         }
@@ -2312,7 +2538,12 @@ function bind_handlers(): void {
             if (create_task_handler) {
                 create_task_handler({profile_id: id});
             } else {
-                announce($t({defaultMessage: "Task form is unavailable. Open a conversation and try again."}));
+                announce(
+                    $t({
+                        defaultMessage:
+                            "Task form is unavailable. Open a conversation and try again.",
+                    }),
+                );
             }
         }
         if (action.startsWith("grant-open-")) {
@@ -2424,7 +2655,12 @@ function bind_handlers(): void {
                 })
                 .then(() => {
                     if (current(token)) {
-                        announce($t({defaultMessage: "Connection probe started. Refresh to see its capability report."}));
+                        announce(
+                            $t({
+                                defaultMessage:
+                                    "Connection probe started. Refresh to see its capability report.",
+                            }),
+                        );
                     }
                 })
                 .catch(failed(token, $t({defaultMessage: "Connection probe failed to start."})));
@@ -2458,7 +2694,9 @@ function bind_handlers(): void {
                     })
                     .catch(() => {
                         if (owns_editor(token, editor, "grant", `${target.kind}:${target.id}`)) {
-                            $("#agent-grant-result").text($t({defaultMessage: "Grant revocation failed."}));
+                            $("#agent-grant-result").text(
+                                $t({defaultMessage: "Grant revocation failed."}),
+                            );
                         }
                     });
             });

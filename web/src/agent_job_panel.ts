@@ -202,12 +202,18 @@ function render(data: api.AgentJobDetail): void {
     const attempt = selected_attempt(data);
     const attempt_id = attempt?.id;
     render_header(job);
-    $("#agent-job-answer-note").prop("hidden", job.job_kind === "code");
+    // Only an answer-mode job gets this note; a manage job answers by
+    // taking team actions, not by refusing to write code.
+    $("#agent-job-answer-note").prop("hidden", job.job_kind !== "answer");
     const summary = $("#agent-job-summary").empty();
     fact(
         summary,
         $t({defaultMessage: "Task type"}),
-        job.job_kind === "code" ? $t({defaultMessage: "Coding"}) : $t({defaultMessage: "Answer"}),
+        job.job_kind === "code"
+            ? $t({defaultMessage: "Coding"})
+            : job.job_kind === "manage"
+              ? $t({defaultMessage: "Team management"})
+              : $t({defaultMessage: "Answer"}),
     );
     fact(
         summary,
@@ -300,17 +306,28 @@ function render(data: api.AgentJobDetail): void {
     for (const item of current_operations) {
         const decidable =
             item.can_decide && item.approval_id && item.nonce && item.approval_version !== null;
+        // A team.manage step never shows its hash or its action ID; the
+        // server writes a summary in the reader's own words instead.
+        const is_manage_step = item.action === "team.manage";
         const box = $("<div class='agent-job-operation'>")
             .toggleClass("needs-decision", Boolean(decidable))
             .appendTo(operations);
-        $("<p class='agent-job-operation-title'>").text(item.action).appendTo(box);
-        textline(box, $t({defaultMessage: "State"}), item.status);
-        textline(box, $t({defaultMessage: "Operation hash"}), item.operation_hash.slice(0, 12));
-        textline(
-            box,
-            $t({defaultMessage: "Approval"}),
-            item.approval_decision ?? $t({defaultMessage: "None"}),
-        );
+        $("<p class='agent-job-operation-title'>")
+            .text(
+                is_manage_step
+                    ? (item.summary ?? $t({defaultMessage: "Team management step"}))
+                    : item.action,
+            )
+            .appendTo(box);
+        if (!is_manage_step) {
+            textline(box, $t({defaultMessage: "State"}), item.status);
+            textline(box, $t({defaultMessage: "Operation hash"}), item.operation_hash.slice(0, 12));
+            textline(
+                box,
+                $t({defaultMessage: "Approval"}),
+                item.approval_decision ?? $t({defaultMessage: "None"}),
+            );
+        }
         if (decidable) {
             const payload = JSON.stringify({
                 approval_id: item.approval_id,
@@ -325,6 +342,27 @@ function render(data: api.AgentJobDetail): void {
                 .text(
                     $t({
                         defaultMessage: "The approval covers this operation only and works once.",
+                    }),
+                )
+                .appendTo(box);
+        } else if (is_manage_step && item.approval_id && item.approval_decision === "pending") {
+            const requester = people.maybe_get_user_by_id(job.requester_id, true)?.full_name;
+            $("<p class='agent-job-note'>")
+                .text(
+                    requester
+                        ? $t({defaultMessage: "Waiting for {name} to approve."}, {name: requester})
+                        : $t({defaultMessage: "Waiting for the requester to approve."}),
+                )
+                .appendTo(box);
+        } else if (is_manage_step && item.status === "started") {
+            // The runner never retries an execute call after a crash, so a
+            // step that stayed "started" with no receipt is genuinely
+            // unclear, not merely slow.
+            $("<p class='agent-job-note'>")
+                .text(
+                    $t({
+                        defaultMessage:
+                            "This step may have finished. Check the channel before you try again.",
                     }),
                 )
                 .appendTo(box);
@@ -879,7 +917,7 @@ function bind(): void {
         }
     });
 }
-export function change_target(id: string): void {
+export let change_target = (id: string): void => {
     if (!valid_job_id(id)) {
         return;
     }
@@ -907,8 +945,8 @@ export function change_target(id: string): void {
     void fetch_detail(id, token);
     schedule(id, token);
     $("#agent-job-heading").trigger("focus");
-}
-export function open(id: string): void {
+};
+export let open = (id: string): void => {
     if (!valid_job_id(id)) {
         return;
     }
@@ -925,4 +963,11 @@ export function open(id: string): void {
         },
     });
     change_target(id);
+};
+
+export function rewire_change_target(value: typeof change_target): void {
+    change_target = value;
+}
+export function rewire_open(value: typeof open): void {
+    open = value;
 }

@@ -2586,6 +2586,12 @@ label.preferences-radio-choice-label {
         margin-block: 0.25rem;
     }
 
+    .agent-field-note {
+        margin-block: 0.25rem;
+        font-size: 0.87em;
+        color: var(--color-text-item);
+    }
+
     /* The shared settings sections put each label above its control,
        so the agent forms use one column too. */
     .agent-inline-form,

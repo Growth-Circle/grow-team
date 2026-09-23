@@ -99,6 +99,9 @@ const profile_schema = z.object({
         provider: z.boolean(),
         repository: z.boolean(),
     }),
+    // Optional until the admin release lane ships it: an older response
+    // omits it, and every profile stays commandable as before.
+    command_allowed: z.optional(z.boolean()),
     configuration: z.nullable(
         z.object({
             policy: z.object({
@@ -217,6 +220,9 @@ const operation_schema = z.object({
     nonce: z.nullable(z.string()),
     can_decide: z.optional(z.boolean()),
     approval_decision: z.optional(z.string()),
+    // Server text for a team.manage operation; other action kinds leave
+    // this unset and keep their existing state and hash display.
+    summary: z.optional(z.string()),
 });
 const artifact_schema = z.object({
     id: z.string(),

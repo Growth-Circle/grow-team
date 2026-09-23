@@ -14,6 +14,18 @@ const ts = require("typescript");
 // the same stand-in helper the sibling regression file registers.
 handlebars.registerHelper("t", (item) => item);
 
+// A stand-in for the real $t(): it substitutes each {placeholder} with
+// its value, so a rendered sentence can be matched in full.
+function format_t(descriptor, values) {
+    let text = descriptor.defaultMessage;
+    if (values) {
+        for (const [key, value] of Object.entries(values)) {
+            text = text.replaceAll(`{${key}}`, String(value));
+        }
+    }
+    return text;
+}
+
 async function main() {
     const dom = new JSDOM("<body></body>", {url: "https://realm.test"});
     global.window = dom.window;
@@ -98,9 +110,7 @@ async function main() {
             crypto: require("node:crypto").webcrypto,
             require(name) {
                 if (name === "./i18n.ts") {
-                    // These fixed strings carry no interpolation values, so
-                    // returning the default message matches the real $t().
-                    return {$t: (descriptor) => descriptor.defaultMessage};
+                    return {$t: format_t};
                 }
                 throw new Error(name);
             },
@@ -134,9 +144,7 @@ async function main() {
                     return {exit_overlay() {}};
                 }
                 if (name === "./i18n.ts") {
-                    // These fixed strings carry no interpolation values, so
-                    // returning the default message matches the real $t().
-                    return {$t: (descriptor) => descriptor.defaultMessage};
+                    return {$t: format_t};
                 }
                 if (name.endsWith(".hbs")) {
                     return () =>
@@ -231,9 +239,7 @@ function build_input_retention_harness(api) {
             crypto: require("node:crypto").webcrypto,
             require(name) {
                 if (name === "./i18n.ts") {
-                    // These fixed strings carry no interpolation values, so
-                    // returning the default message matches the real $t().
-                    return {$t: (descriptor) => descriptor.defaultMessage};
+                    return {$t: format_t};
                 }
                 throw new Error(name);
             },
@@ -267,9 +273,7 @@ function build_input_retention_harness(api) {
                     return {exit_overlay() {}};
                 }
                 if (name === "./i18n.ts") {
-                    // These fixed strings carry no interpolation values, so
-                    // returning the default message matches the real $t().
-                    return {$t: (descriptor) => descriptor.defaultMessage};
+                    return {$t: format_t};
                 }
                 if (name.endsWith(".hbs")) {
                     return () =>
@@ -461,10 +465,111 @@ async function shows_reason_sentence_and_gates_resume() {
     }
 }
 
+async function shows_team_manage_operation_card() {
+    const decidable_id = "44444444-4444-4444-8444-444444444444";
+    const waiting_id = "55555555-5555-4555-8555-555555555555";
+    const uncertain_id = "66666666-6666-4666-8666-666666666666";
+    const summary = "Create private channel launch-q4 and subscribe Budi.";
+    const operation = (overrides) => ({
+        operation_id: "operation-1",
+        operation_hash: "0123456789abcdef",
+        version: 1,
+        status: "proposed",
+        attempt_id: "attempt-1",
+        action: "team.manage",
+        approval_id: "approval-1",
+        approval_version: 1,
+        nonce: "nonce-1",
+        can_decide: false,
+        approval_decision: "pending",
+        summary,
+        ...overrides,
+    });
+    const detail = (id, op) => ({
+        job: {
+            id,
+            version: 1,
+            status: "waiting_for_approval",
+            phase: "editing",
+            job_kind: "manage",
+            request: "Set up the launch channel",
+            requester_id: 9,
+            allowed_actions: [],
+        },
+        attempts: [{id: "attempt-1", number: 1, active: true, process_state: "active"}],
+        required_checks: [],
+        operations: [op],
+        artifacts: [],
+        operations_cursor: {offset: 0, next_offset: 0, truncated: false},
+        artifacts_cursor: {offset: 0, next_offset: 0, truncated: false},
+    });
+    const api = {
+        async get_job(id) {
+            if (id === decidable_id) {
+                return detail(id, operation({can_decide: true}));
+            }
+            if (id === waiting_id) {
+                return detail(id, operation({can_decide: false}));
+            }
+            return detail(
+                id,
+                operation({
+                    status: "started",
+                    approval_id: null,
+                    approval_decision: undefined,
+                    summary: undefined,
+                }),
+            );
+        },
+        get_job_events: async () => ({events: []}),
+        get_job_inputs: async () => ({inputs: [], count: 0}),
+        decide_approval: async () => ({}),
+        job_action: async () => ({}),
+    };
+    const {dom, $, out, flush} = build_input_retention_harness(api);
+    try {
+        out.open(decidable_id);
+        await flush();
+        // A manage job answers by taking team actions, so it never shows
+        // the "this agent only answers" note, and its task type reads
+        // "Team management" rather than falling back to "Answer".
+        assert.equal($("#agent-job-answer-note").prop("hidden"), true);
+        assert.match($("#agent-job-summary").text(), /Team management/);
+        const card_text = $("#agent-job-operations").text();
+        assert.ok(card_text.includes(summary));
+        // The card never shows the raw action ID or the operation hash.
+        assert.ok(!card_text.includes("team.manage"));
+        assert.ok(!card_text.includes("0123456789abcdef"));
+        assert.equal($("[data-job-action='approve']").length, 1);
+        assert.equal($("[data-job-action='reject']").length, 1);
+
+        out.change_target(waiting_id);
+        await flush();
+        assert.equal($("[data-job-action='approve']").length, 0);
+        assert.match($("#agent-job-operations").text(), /Waiting for Requester to approve\./);
+
+        out.change_target(uncertain_id);
+        await flush();
+        assert.equal($("[data-job-action='approve']").length, 0);
+        assert.match(
+            $("#agent-job-operations").text(),
+            /This step may have finished\. Check the channel before you try again\./,
+        );
+        // A step with no summary falls back to a plain label, never the
+        // internal action ID.
+        assert.match($("#agent-job-operations").text(), /Team management step/);
+    } finally {
+        dom.window.close();
+        delete global.window;
+        delete global.document;
+    }
+}
+
 void main()
     .then(() => retains_unresolved_input_across_visit())
     .then(() => accepted_input_does_not_return_on_next_visit())
     .then(() => shows_reason_sentence_and_gates_resume())
+    .then(() => shows_team_manage_operation_card())
     .then(() => process.stdout.write("Agent job delegated-handler regressions passed.\n"))
     .catch((error) => {
         console.error(error);

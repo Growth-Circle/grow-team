@@ -189,7 +189,15 @@
                     class="settings_select bootstrap-focus-style"
                 ><option value="answer">{{t "Answer"}}</option><option
                         value="code"
-                    >{{t "Coding"}}</option></select>
+                    >{{t "Coding"}}</option><option
+                        value="manage"
+                        id="agent-profile-default-mode-manage"
+                    >{{t "Team management"}}</option></select>
+                <p
+                    id="agent-profile-manage-note"
+                    class="agent-field-note"
+                    hidden
+                >{{t "Only organization administrators can turn on team management."}}</p>
                 <label
                     class="settings-field-label"
                     for="agent-profile-repository"
