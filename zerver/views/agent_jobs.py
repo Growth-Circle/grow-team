@@ -132,6 +132,17 @@ def operation_data(actor: UserProfile, operation: agents.AgentOperation) -> dict
     )
     result["attempt_id"] = str(operation.attempt_id)
     result["action"] = operation.tool_class
+    if operation.tool_class == "team.manage":
+        from zerver.actions.agent_team_tools import describe_team_tool_input
+        from zerver.lib.agent_protocol import TeamArguments
+
+        result["summary"] = (
+            operation.server_receipt["summary"]
+            if operation.server_receipt
+            else describe_team_tool_input(
+                actor, TeamArguments.model_validate(operation.arguments).input
+            )
+        )
     if approval is None:
         return result
     attempt = operation.attempt
@@ -156,6 +167,8 @@ def operation_data(actor: UserProfile, operation: agents.AgentOperation) -> dict
         and operation.scope_binding.get("tree_hash") == (attempt.tree_hash or None)
         and operation.argument_digest == approval.operation_hash
     )
+    if can_decide and operation.tool_class == "team.manage" and actor.id != job.requester_id:
+        can_decide = False
     if can_decide:
         try:
             require_audience(job)

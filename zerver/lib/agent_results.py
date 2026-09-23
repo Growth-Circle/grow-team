@@ -14,6 +14,8 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Sum
 from django.utils.timezone import now
+from django.utils.translation import gettext as _
+from django.utils.translation import override as override_language
 
 from zerver.actions.agent_jobs import audit, check_attempt_access, locked_attempt, transition
 from zerver.lib import agent_protocol as p
@@ -354,6 +356,17 @@ def _publish_result(job_id: UUID) -> dict[str, object]:
         check_attempt_access(job.requester, job, attempt, "profile.use")
         verify_result(job, attempt, artifacts)
         reject_secrets(job, proposal.summary.encode())
+        content = proposal.summary
+        if job.job_kind == "manage":
+            # Contract 2.6 item 7: end the reply with the server-written list of
+            # executed steps, so it never claims a step that did not happen.
+            from zerver.actions.agent_team_tools import team_manage_result_lines
+
+            steps = team_manage_result_lines(job)
+            if steps:
+                with override_language(job.realm.default_language):
+                    header = _("Steps taken:")
+                content = f"{content}\n\n{header}\n" + "\n".join(steps)
         anchor = Message.objects.get(id=audience.anchor_message_id)
         addressee = (
             Addressee.for_stream_id(audience.stream_id, anchor.topic_name())
@@ -364,7 +377,7 @@ def _publish_result(job_id: UUID) -> dict[str, object]:
             job.profile.bot_user,
             client,
             addressee,
-            proposal.summary,
+            content,
             realm=job.realm,
             no_previews=True,
         )

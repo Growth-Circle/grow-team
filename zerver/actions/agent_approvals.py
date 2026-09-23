@@ -17,9 +17,21 @@ from zerver.actions.agent_jobs import (
 )
 from zerver.lib import agent_protocol as p
 from zerver.lib.agent_context import agent_transaction, require_audience, require_job_access
+from zerver.lib.agent_policy import AgentAccessDenied
 from zerver.models import UserProfile, agents
 
-APPROVAL_ACTIONS = {"git.push", "git.draft_pr", "dependencies.install", "shell.run"}
+APPROVAL_ACTIONS = {"git.push", "git.draft_pr", "dependencies.install", "shell.run", "team.manage"}
+
+# Proposals for these arguments carry no repository or tree hash to validate.
+NO_WORKSPACE_ARGUMENTS = (p.ContextReadArguments, p.TeamArguments)
+
+
+class OutcomeUnknownError(ValueError):
+    """A team.manage operation was consumed but has no execution receipt yet.
+
+    This means a crash happened between phases 1 and 2 of contract 2.6 item
+    3. The runner must not retry; the commander checks the channel instead.
+    """
 
 
 def proposal_data(operation: agents.AgentOperation) -> dict[str, object]:
@@ -37,6 +49,7 @@ def proposal_data(operation: agents.AgentOperation) -> dict[str, object]:
         "approval_version": approval.version if approval else None,
         "nonce": str(approval.nonce) if approval else None,
         "expires_at": approval.expires_at.isoformat() if approval else None,
+        "server_receipt": operation.server_receipt,
     }
 
 
@@ -57,11 +70,15 @@ def propose_operation(
         job, attempt = locked_attempt(runner, job_id, attempt_id, epoch)
         action = parsed.action
         descriptor = p.AttemptDescriptor.model_validate(attempt.descriptor)
-        if action not in descriptor.tested_configuration.actions or (
+        if isinstance(parsed, p.TeamArguments):
+            if job.job_kind != "manage" or tree_hash is not None:
+                raise ValueError("Operation exceeds the tested authority.")
+            check_attempt_access(job.requester, job, attempt, "team.manage")
+        elif action not in descriptor.tested_configuration.actions or (
             job.job_kind == "answer" and action not in {"context.read", "repository.read"}
         ):
             raise ValueError("Operation exceeds the tested authority.")
-        if not isinstance(parsed, p.ContextReadArguments) and (
+        if not isinstance(parsed, NO_WORKSPACE_ARGUMENTS) and (
             parsed.repository_id != job.repository_id
             or attempt.workspace_prepared_at is None
             or tree_hash != attempt.tree_hash
@@ -133,9 +150,14 @@ def propose_operation(
             if prior.attempt_id != attempt.id or prior.argument_digest != operation_hash:
                 raise ValueError("Operation idempotency conflict.")
             return prior
-        requires_approval = (
-            action in {"git.push", "git.draft_pr"} or action not in descriptor.policy.actions
-        )
+        if isinstance(parsed, p.TeamArguments):
+            from zerver.actions.agent_team_tools import team_tool_needs_confirmation
+
+            requires_approval = team_tool_needs_confirmation(job, parsed.input)
+        else:
+            requires_approval = (
+                action in {"git.push", "git.draft_pr"} or action not in descriptor.policy.actions
+            )
         if requires_approval and action not in APPROVAL_ACTIONS:
             raise ValueError("Operation requires a new scoped task.")
         if not requires_approval:
@@ -196,6 +218,8 @@ def decide_approval(
         operation = agents.AgentOperation.objects.select_for_update().get(id=lookup.operation_id)
         approval = agents.AgentApproval.objects.select_for_update().get(id=approval_id)
         require_job_access(actor, job)
+        if operation.tool_class == "team.manage" and actor.id != job.requester_id:
+            raise AgentAccessDenied("Agent access denied.")
         check_attempt_access(actor, job, attempt, operation.tool_class)
         if (
             approval.operation_hash != operation_hash
@@ -419,3 +443,74 @@ def reconcile_local_operation(
         attempt.tree_hash = receipt.tree_hash or ""
         attempt.save(update_fields=["tree_hash"])
         return operation
+
+
+def execute_operation(
+    runner: agents.AgentRunner,
+    job_id: UUID,
+    attempt_id: UUID,
+    epoch: int,
+    *,
+    job_version: int,
+    operation_id: UUID,
+    expected_version: int,
+    operation_hash: str,
+    nonce: UUID | None = None,
+) -> dict[str, object]:
+    """Contract 2.6 item 3: three phases for a team.manage operation.
+
+    Phase 1 (consume) and phase 3 (receipt and event) run in agent_transaction.
+    Phase 2, the actual Zulip action, runs as the commander outside it, so the
+    lock that agent_transaction holds on chat tables stays short.
+    """
+    from zerver.actions.agent_team_tools import execute_team_tool
+
+    with agent_transaction():
+        job, attempt = locked_attempt(
+            runner, job_id, attempt_id, epoch, expected_version=job_version
+        )
+        operation = agents.AgentOperation.objects.select_for_update().get(
+            operation_id=operation_id, attempt=attempt, realm=job.realm
+        )
+        if operation.tool_class != "team.manage":
+            raise ValueError("Operation does not support execution.")
+        if operation.server_receipt is not None:
+            return proposal_data(operation)
+        if operation.status == "started":
+            raise OutcomeUnknownError
+        commander = job.requester
+        profile = agents.AgentProfile.objects.get(id=job.profile_id, realm=job.realm)
+        tool_input = p.TeamArguments.model_validate(operation.arguments).input
+        consume_operation(
+            runner,
+            job_id,
+            attempt_id,
+            epoch,
+            operation_id=operation_id,
+            expected_version=expected_version,
+            operation_hash=operation_hash,
+            nonce=nonce,
+        )
+
+    receipt = execute_team_tool(commander, profile, tool_input)
+
+    with agent_transaction():
+        job, attempt = locked_attempt(runner, job_id, attempt_id, epoch, execution=False)
+        operation = agents.AgentOperation.objects.select_for_update().get(
+            operation_id=operation_id, attempt=attempt, realm=job.realm
+        )
+        if operation.server_receipt is not None:
+            return proposal_data(operation)
+        operation.server_receipt = receipt
+        operation.status = receipt["outcome"]
+        operation.finished_at = now()
+        operation.version += 1
+        operation.clean()
+        operation.save(update_fields=["server_receipt", "status", "finished_at", "version"])
+        audit(
+            job,
+            "team.executed",
+            {**receipt, "operation_id": str(operation.operation_id)},
+            attempt=attempt,
+        )
+        return proposal_data(operation)

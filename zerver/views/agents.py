@@ -12,6 +12,7 @@ from django.http import HttpRequest, HttpResponse
 from django.utils.timezone import now
 
 from zerver.actions import agents as actions
+from zerver.actions.agent_approvals import OutcomeUnknownError
 from zerver.lib import agent_protocol as p
 from zerver.lib import agent_requests as r
 from zerver.lib.agent_context import AgentBusy, log_agent_busy
@@ -59,6 +60,13 @@ def safe_agent_endpoint(view: Callable[P, HttpResponse]) -> Callable[P, HttpResp
             assert isinstance(request, HttpRequest)
             log_agent_busy(request, response)
             return response
+        except OutcomeUnknownError:
+            return json_response(
+                "error",
+                "This step may have finished. Check the channel before you try again.",
+                {"schema_version": 1, "code": "outcome_unknown"},
+                status=409,
+            )
         except (ValueError, ValidationError, ObjectDoesNotExist, JsonableError, OSError):
             return json_response(
                 "error", "Agent request rejected.", {"schema_version": 1}, status=400
@@ -110,6 +118,12 @@ def _profile_data(
         profile.default_repository, "repository", "repository.read"
     )
     can_edit = "edit" in allowed_actions
+    command_allowed = True
+    if profile.default_mode == "manage" and actor is not None:
+        try:
+            check_agent_access(actor, profile, None, None, "team.manage")
+        except JsonableError:
+            command_allowed = False
     complete = (
         True
         if actor is None
@@ -153,6 +167,7 @@ def _profile_data(
         "metadata_revision": profile.metadata_revision,
         "bot_user_id": profile.bot_user_id,
         "default_mode": profile.default_mode,
+        "command_allowed": command_allowed,
         "capabilities": profile.capability_report,
         "owner_id": profile.owner_id,
         "mode": profile.mode,
