@@ -188,6 +188,16 @@
             "title": "Tool Calling",
             "type": "string"
           },
+          "team_tools": {
+            "default": "unknown",
+            "enum": [
+              "passed",
+              "unsupported",
+              "unknown"
+            ],
+            "title": "Team Tools",
+            "type": "string"
+          },
           "streaming": {
             "default": "unknown",
             "enum": [
@@ -629,6 +639,16 @@
               "unknown"
             ],
             "title": "Tool Calling",
+            "type": "string"
+          },
+          "team_tools": {
+            "default": "unknown",
+            "enum": [
+              "passed",
+              "unsupported",
+              "unknown"
+            ],
+            "title": "Team Tools",
             "type": "string"
           },
           "streaming": {
@@ -1186,6 +1206,16 @@
               "unknown"
             ],
             "title": "Tool Calling",
+            "type": "string"
+          },
+          "team_tools": {
+            "default": "unknown",
+            "enum": [
+              "passed",
+              "unsupported",
+              "unknown"
+            ],
+            "title": "Team Tools",
             "type": "string"
           },
           "streaming": {
@@ -2133,6 +2163,16 @@
               "unknown"
             ],
             "title": "Tool Calling",
+            "type": "string"
+          },
+          "team_tools": {
+            "default": "unknown",
+            "enum": [
+              "passed",
+              "unsupported",
+              "unknown"
+            ],
+            "title": "Team Tools",
             "type": "string"
           },
           "streaming": {
@@ -3589,6 +3629,16 @@
               "unknown"
             ],
             "title": "Tool Calling",
+            "type": "string"
+          },
+          "team_tools": {
+            "default": "unknown",
+            "enum": [
+              "passed",
+              "unsupported",
+              "unknown"
+            ],
+            "title": "Team Tools",
             "type": "string"
           },
           "streaming": {
@@ -5832,6 +5882,16 @@
             "title": "Tool Calling",
             "type": "string"
           },
+          "team_tools": {
+            "default": "unknown",
+            "enum": [
+              "passed",
+              "unsupported",
+              "unknown"
+            ],
+            "title": "Team Tools",
+            "type": "string"
+          },
           "streaming": {
             "default": "unknown",
             "enum": [
@@ -6512,6 +6572,16 @@
               "unknown"
             ],
             "title": "Tool Calling",
+            "type": "string"
+          },
+          "team_tools": {
+            "default": "unknown",
+            "enum": [
+              "passed",
+              "unsupported",
+              "unknown"
+            ],
+            "title": "Team Tools",
             "type": "string"
           },
           "streaming": {

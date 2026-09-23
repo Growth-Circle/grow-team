@@ -18,7 +18,12 @@ from zerver.lib.agent_context import (
     require_job_access,
     scope_for_message,
 )
-from zerver.lib.agent_policy import AgentAccessDenied, _owner_or_grant, check_agent_access
+from zerver.lib.agent_policy import (
+    AgentAccessDenied,
+    _owner_or_grant,
+    check_agent_access,
+    require_manage_command,
+)
 from zerver.models import Message, UserProfile, agents
 
 TERMINAL = {"completed", "cancelled", "failed", "interrupted", "blocked"}
@@ -140,13 +145,14 @@ def create_job(
 ) -> agents.AgentJob:
     if not request or len(request) > 20000:
         raise ValueError("Invalid request.")
-    if (job_kind == "answer") != (delivery_target == "answer") or job_kind not in {
-        "answer",
-        "code",
-    }:
+    if job_kind not in {"answer", "code", "manage"} or (job_kind in ("answer", "manage")) != (
+        delivery_target == "answer"
+    ):
         raise ValueError("Invalid delivery target.")
     if delivery_target not in {"answer", "patch", "draft_pr"}:
         raise ValueError("Invalid delivery target.")
+    if job_kind == "manage" and repository is not None:
+        raise ValueError("Manage tasks cannot use a repository.")
     ids = sorted({source.id, *(context_message_ids or [])})
     attachment_ids = sorted(set(context_attachment_ids or []))
     if len(attachment_ids) > 20:
@@ -223,6 +229,8 @@ def create_job(
         ):
             raise ValueError("Coding readiness and required checks are required.")
         check_agent_access(actor, profile, repository, source, "profile.use")
+        if job_kind == "manage":
+            check_agent_access(actor, profile, repository, source, "team.manage")
         if (
             not draft
             and not blocked_reason
@@ -284,6 +292,11 @@ def create_job(
                 if action == "context.read"
                 or (repository is not None and action == "repository.read")
             ]
+        elif job_kind == "manage":
+            # team.manage authority comes from the profile grant, checked above and
+            # again at every attempt access; it never enters this ExecutionAction
+            # ceiling, which a manage job narrows to context.read only.
+            ceiling = [action for action in ceiling if action == "context.read"]
         policy["actions"] = current_actions(job, ceiling)
         if "context.read" not in policy["actions"] or (
             job_kind == "code"
@@ -593,10 +606,14 @@ def check_attempt_access(
 ) -> None:
     actor = UserProfile.objects.get(id=actor.id, realm_id=job.realm_id, is_active=True)
     profile = agents.AgentProfile.objects.get(id=job.profile_id, realm_id=job.realm_id)
+    require_manage_command(actor, profile, action)
     descriptor = p.AttemptDescriptor.model_validate(attempt.descriptor)
     if profile.desired_state == "archived" or profile.policy_version != descriptor.policy.version:
         raise AgentAccessDenied("Agent access denied.")
-    if action != "profile.use" and action not in descriptor.tested_configuration.actions:
+    if (
+        action not in ("profile.use", "team.manage")
+        and action not in descriptor.tested_configuration.actions
+    ):
         raise AgentAccessDenied("Agent access denied.")
     from zerver.lib.message import access_message
 

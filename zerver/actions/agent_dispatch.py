@@ -86,6 +86,8 @@ def preflight_profile(
     required = ["profile.use", "context.read"]
     if effective_kind == "code" and complete:
         required += ["repository.read", "repository.edit", "checks.run"]
+    elif effective_kind == "manage":
+        required += ["team.manage"]
     for action in required:
         check_agent_access(actor, profile, repository, source, action, destination=destination)
     if (effective_kind != "code" or complete) and (
@@ -168,7 +170,7 @@ def admit_message(
                         source=message,
                         request=message.content,
                         idempotency_key=key,
-                        job_kind="answer",
+                        job_kind="manage" if profile.default_mode == "manage" else "answer",
                         delivery_target="answer",
                         trigger_kind=trigger_kind,
                         allow_blocked=True,
@@ -176,16 +178,14 @@ def admit_message(
                     decision, reason = "accepted", ""
             except AgentBusy:
                 raise
-            except (JsonableError, ValueError, agents.AgentRealmSettings.DoesNotExist):
+            except (JsonableError, ValueError, agents.AgentRealmSettings.DoesNotExist) as error:
+                reason = (
+                    "command_not_allowed"
+                    if profile.default_mode == "manage" and isinstance(error, AgentAccessDenied)
+                    else "Admission denied."
+                )
                 receipts.append(
-                    _receipt(
-                        message,
-                        profile,
-                        message.sender,
-                        trigger_kind,
-                        "rejected",
-                        "Admission denied.",
-                    )
+                    _receipt(message, profile, message.sender, trigger_kind, "rejected", reason)
                 )
                 continue
             if decision == "accepted":

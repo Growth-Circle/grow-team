@@ -340,6 +340,32 @@ def accessible_profiles(actor: UserProfile) -> QuerySet[agents.AgentProfile]:
     return agents.AgentProfile.objects.filter(realm=actor.realm, id__in=visible)
 
 
+def require_manage_command(
+    actor: UserProfile, profile: agents.AgentProfile, action: str | None = None
+) -> None:
+    """Enforce the administrator-agent command gate (contract 2.2, rules 1-2).
+
+    Call this for every use of a manage-mode profile except profile.manage,
+    which only edits the profile's own settings and grants no command power.
+    Callers re-run this check on every runner request, so a revoked grant or
+    a demoted owner stops an active job at its next request.
+
+    The "team.manage" action is valid only on a manage-mode profile: an
+    answer or code profile's own owner could otherwise request job_kind
+    "manage" or propose a team.manage operation and skip this gate entirely,
+    since the checks below only fire once default_mode is already "manage".
+    """
+    if action == "team.manage" and profile.default_mode != "manage":
+        _deny()
+    if profile.default_mode != "manage":
+        return
+    owner = UserProfile.objects.filter(id=profile.owner_id, realm_id=profile.realm_id).first()
+    if owner is None or not owner.is_active or not owner.is_realm_admin:
+        _deny()
+    if not actor.has_permission("can_command_administrator_agents_group"):
+        _deny()
+
+
 def check_agent_access(
     actor: UserProfile,
     profile: agents.AgentProfile,
@@ -358,6 +384,7 @@ def check_agent_access(
     if not actor.is_active:
         _deny()
     if action != "profile.manage":
+        require_manage_command(actor, profile, action)
         if (
             profile.runner.revoked_at is not None
             or profile.desired_state == "archived"
@@ -371,7 +398,9 @@ def check_agent_access(
             or (repository is not None and repository.disabled_at is not None)
         ):
             _deny()
-        if action != "profile.use" and action not in profile.policy.get("actions", []):
+        if action not in ("profile.use", "team.manage") and action not in profile.policy.get(
+            "actions", []
+        ):
             _deny()
     if (provider is not None and provider.runner_id != profile.runner_id) or (
         repository is not None and repository.runner_id != profile.runner_id

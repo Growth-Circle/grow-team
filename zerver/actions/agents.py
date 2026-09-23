@@ -232,6 +232,8 @@ def update_team_default(
         profile = agents.AgentProfile.objects.select_for_update().get(
             id=profile.id, realm=actor.realm
         )
+        if profile.default_mode == "manage":
+            raise ValueError("Team default is unavailable.")
         if not UserProfile.objects.filter(
             id=profile.bot_user_id, realm=actor.realm, is_active=True
         ).exists():
@@ -664,8 +666,9 @@ def update_profile(
         raise ValueError("Adapter is unavailable.")
     if (
         mode not in {"acp", "endpoint"}
-        or default_mode not in {"answer", "code"}
+        or default_mode not in {"answer", "code", "manage"}
         or (mode == "endpoint" and provider is None)
+        or (default_mode == "manage" and not owner.is_realm_admin)
     ):
         raise ValueError("Profile configuration is invalid.")
     if catalog.revision != runner.catalog_revision or any(
@@ -1193,8 +1196,9 @@ def create_profile(
             raise ValueError("Repository is unavailable.") from None
     if (
         mode not in {"acp", "endpoint"}
-        or default_mode not in {"answer", "code"}
+        or default_mode not in {"answer", "code", "manage"}
         or (mode == "endpoint" and provider is None)
+        or (default_mode == "manage" and not owner.is_realm_admin)
     ):
         raise ValueError("Invalid profile configuration.")
     try:
@@ -1413,6 +1417,15 @@ def record_setup_result(
                 profile.default_mode != "code"
                 or profile.default_repository_id is None
                 or result.capabilities.code_ready
+            )
+            # Contract 2.6 item 6: a manage profile needs both tool calling and the
+            # team tool catalog measured passed, so an old runner cannot run it.
+            and (
+                profile.default_mode != "manage"
+                or (
+                    result.capabilities.tool_calling == "passed"
+                    and result.capabilities.team_tools == "passed"
+                )
             )
         )
         profile.readiness_state = "ready" if ready else "needs_action"

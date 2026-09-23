@@ -120,6 +120,7 @@ class CapabilityReport(Record):
     chat_ready: StrictBool = False
     code_ready: StrictBool = False
     tool_calling: CapabilityResult = "unknown"
+    team_tools: CapabilityResult = "unknown"
     streaming: CapabilityResult = "unknown"
     usage: CapabilityResult = "unknown"
     native_resume: CapabilityResult = "unknown"
