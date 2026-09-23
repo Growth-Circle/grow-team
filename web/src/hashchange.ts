@@ -4,6 +4,7 @@ import * as z from "zod/mini";
 import * as about_zulip from "./about_zulip.ts";
 import * as admin from "./admin.ts";
 import * as agent_job_panel from "./agent_job_panel.ts";
+import * as agent_task_list from "./agent_task_list.ts";
 import * as blueslip from "./blueslip.ts";
 import * as browser_history from "./browser_history.ts";
 import * as drafts_overlay_ui from "./drafts_overlay_ui.ts";
@@ -329,6 +330,19 @@ function do_hashchange_overlay(old_hash: string | undefined): void {
     }
 
     if (base === "agent-jobs") {
+        if (!section) {
+            // #agent-jobs with no ID opens the task list. If an old
+            // section existed, the hash would not have changed, so any
+            // overlay open here is the job detail drawer.
+            if (coming_from_overlay && old_base === base) {
+                overlays.close_for_hash_change();
+            }
+            if (!coming_from_overlay) {
+                browser_history.set_hash_before_overlay(old_hash);
+            }
+            agent_task_list.open();
+            return;
+        }
         if (!agent_job_panel.valid_job_id(section)) {
             ui_report.error(
                 $t_html({defaultMessage: "Invalid agent job URL"}),
@@ -341,9 +355,17 @@ function do_hashchange_overlay(old_hash: string | undefined): void {
             }
             return;
         }
-        if (coming_from_overlay && old_base === base) {
+        const old_section = hash_parser.get_hash_section(old_hash);
+        if (coming_from_overlay && old_base === base && old_section) {
+            // The old section was another job, so the detail drawer is
+            // already open; switch its target instead of reopening it.
             agent_job_panel.change_target(section);
             return;
+        }
+        if (coming_from_overlay && old_base === base) {
+            // The old section was empty, so the task list is open instead
+            // of the detail drawer.
+            overlays.close_for_hash_change();
         }
         if (base !== old_base) {
             overlays.close_for_hash_change();

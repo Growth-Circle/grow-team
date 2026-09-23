@@ -9,6 +9,7 @@ for (const script of [
     "agent_settings_handlers.regression.cjs",
     "agent_job_handlers.regression.cjs",
     "agent_task_composer.regression.cjs",
+    "agent_task_list.regression.cjs",
 ]) {
     run_test(`real delegated handlers: ${script}`, () => {
         execFileSync(process.execPath, [path.join(__dirname, script)], {

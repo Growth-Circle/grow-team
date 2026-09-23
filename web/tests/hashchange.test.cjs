@@ -34,6 +34,8 @@ const ui_util = mock_esm("../src/ui_util");
 const ui_report = mock_esm("../src/ui_report");
 set_global("favicon", {});
 
+const agent_job_panel = zrequire("agent_job_panel");
+const agent_task_list = zrequire("agent_task_list");
 const browser_history = zrequire("browser_history");
 const people = zrequire("people");
 const hash_util = zrequire("hash_util");
@@ -462,4 +464,67 @@ run_test("fail_incorrectly_cased_URL", ({override, override_rewire}) => {
         [message_viewport, "stop_auto_scrolling"],
         [ui_report, "error"],
     ]);
+});
+
+run_test("agent_jobs_task_list_routing", ({override, override_rewire}) => {
+    browser_history.clear_for_testing();
+    override(popovers, "hide_all", noop);
+    test_helper({override, override_rewire, change_tab: false});
+
+    // zjquery's trigger() builds a FakeEvent from whatever object it is
+    // given, so a plain "hashchange" string never carries an oldURL and
+    // initialize()'s handler reads e.originalEvent as undefined. Passing
+    // originalEvent.oldURL here instead gives do_hashchange_overlay the
+    // same real old_hash a browser would, so a same-base transition is
+    // correctly seen as coming from the overlay that's already open.
+    let previous_hash = "#";
+    function go(new_hash) {
+        const old_url = `http://zulip.zulipdev.com/${previous_hash}`;
+        window.location.hash = new_hash;
+        $window_stub.trigger({type: "hashchange", originalEvent: {oldURL: old_url}});
+        previous_hash = new_hash;
+    }
+
+    const job_a = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const job_b = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    let list_opens = 0;
+    const opened_ids = [];
+    const changed_ids = [];
+    override_rewire(agent_task_list, "open", () => {
+        list_opens += 1;
+    });
+    override_rewire(agent_job_panel, "open", (id) => {
+        opened_ids.push(id);
+    });
+    override_rewire(agent_job_panel, "change_target", (id) => {
+        changed_ids.push(id);
+    });
+
+    // The bare hash opens the task list, so the "Agent tasks" sidebar
+    // link and a bookmark to #agent-jobs both work.
+    go("#agent-jobs");
+    assert.equal(list_opens, 1);
+    assert.deepEqual(opened_ids, []);
+    assert.deepEqual(changed_ids, []);
+
+    // A row link to a specific job closes the list and opens the drawer.
+    go(`#agent-jobs/${job_a}`);
+    assert.deepEqual(opened_ids, [job_a]);
+    assert.deepEqual(changed_ids, []);
+
+    // A second job link while the drawer is open switches its target
+    // instead of reopening the overlay.
+    go(`#agent-jobs/${job_b}`);
+    assert.deepEqual(opened_ids, [job_a]);
+    assert.deepEqual(changed_ids, [job_b]);
+
+    // Going back to the bare hash re-opens the task list.
+    go("#agent-jobs");
+    assert.equal(list_opens, 2);
+
+    // An invalid job ID never reaches either module.
+    go("#agent-jobs/not-a-uuid");
+    assert.equal(list_opens, 2);
+    assert.deepEqual(opened_ids, [job_a]);
+    assert.deepEqual(changed_ids, [job_b]);
 });

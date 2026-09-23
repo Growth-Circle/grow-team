@@ -189,6 +189,11 @@ const job_schema = z.object({
     reason_code: z.optional(z.nullable(z.string())),
     resume_available: z.optional(z.boolean()),
     resume_unavailable_reason: z.optional(z.nullable(z.string())),
+    // Optional until the team-backend release lane ships them: the task
+    // list falls back to the first 80 characters of the request, and
+    // treats a missing flag as "does not need my action".
+    title: z.optional(z.string()),
+    needs_my_action: z.optional(z.boolean()),
     result: z.unknown(),
     allowed_actions: z.array(z.string()),
 });
@@ -648,9 +653,10 @@ const job_detail_schema = z.object({
     operations_cursor: cursor_schema,
     artifacts_cursor: cursor_schema,
 });
-export async function list_jobs(offset = 0) {
+export type AgentJobView = "mine" | "waiting" | "running" | "all";
+export async function list_jobs(offset = 0, view?: AgentJobView) {
     return get(
-        `/json/agent/jobs?offset=${offset}&limit=50`,
+        `/json/agent/jobs?offset=${offset}&limit=50${view ? `&view=${view}` : ""}`,
         z.object({...version, count: z.number(), jobs: z.array(job_schema)}),
     );
 }

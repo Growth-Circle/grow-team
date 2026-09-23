@@ -1,0 +1,59 @@
+<div
+    id="agent-job-list-overlay"
+    class="overlay"
+    data-overlay="agent-jobs-list"
+    aria-hidden="true"
+>
+    <div class="flex overlay-content"><aside
+            class="overlay-container agent-job-container"
+            role="dialog"
+            aria-labelledby="agent-job-list-heading"
+        >
+            <header class="agent-job-header">
+                <div class="agent-job-title"><h1
+                        id="agent-job-list-heading"
+                        tabindex="-1"
+                    >{{t "Agent tasks" }}</h1></div>
+                <button
+                    type="button"
+                    class="exit agent-job-close"
+                    aria-label="{{t 'Close agent tasks' }}"
+                ><i class="zulip-icon zulip-icon-close" aria-hidden="true"></i></button>
+            </header>
+            <div class="agent-job-body">
+                <nav
+                    id="agent-job-list-tabs"
+                    class="agent-settings-tabs tab-switcher allow-overflow"
+                    aria-label="{{t 'Task filter' }}"
+                >
+                    <button
+                        type="button"
+                        class="ind-tab first selected"
+                        data-agent-job-view="mine"
+                    >{{t "Mine" }}</button>
+                    <button
+                        type="button"
+                        class="ind-tab middle"
+                        data-agent-job-view="waiting"
+                    >{{t "Waiting for me" }}</button>
+                    <button
+                        type="button"
+                        class="ind-tab last"
+                        data-agent-job-view="running"
+                    >{{t "Running" }}</button>
+                </nav>
+                <p
+                    id="agent-job-list-status"
+                    class="agent-job-status"
+                    role="status"
+                    aria-live="polite"
+                ></p>
+                <p
+                    id="agent-job-list-empty"
+                    class="agent-job-empty"
+                    hidden
+                >{{t "No tasks match this filter." }}</p>
+                <div id="agent-job-list-rows" class="agent-job-rows"></div>
+            </div>
+        </aside></div>
+</div>

@@ -2534,7 +2534,8 @@ label.preferences-radio-choice-label {
 }
 
 #agent-settings,
-#agent-job-overlay {
+#agent-job-overlay,
+#agent-job-list-overlay {
     [hidden] {
         display: none !important;
     }
@@ -2646,8 +2647,10 @@ label.preferences-radio-choice-label {
 
 /* The task panel is a drawer on the right edge, as in mockup 4b. Sizes
    come from the mockup at the 15px base size, expressed in em so that
-   they follow the member's font size setting. */
-#agent-job-overlay {
+   they follow the member's font size setting. The task list shares this
+   shape and its container, row, and card classes. */
+#agent-job-overlay,
+#agent-job-list-overlay {
     --agent-job-surface: light-dark(hsl(0deg 0% 100%), hsl(185deg 13% 13%));
     --agent-job-border: light-dark(hsl(170deg 10% 88%), hsl(180deg 10% 20%));
     --agent-job-divider: light-dark(hsl(170deg 10% 91%), hsl(180deg 10% 18%));
@@ -2869,6 +2872,25 @@ label.preferences-radio-choice-label {
 
         &.pending {
             color: var(--color-text-item);
+        }
+    }
+
+    /* A task list row is a link, so it needs its own reset; the drawer
+       rows above stay plain text on a div. */
+    a.agent-job-row {
+        padding: 0.4em 0;
+        color: inherit;
+        text-decoration: none;
+        border-bottom: 1px solid var(--agent-job-divider);
+
+        &:hover,
+        &:focus-visible {
+            color: var(--agent-job-brand);
+        }
+
+        &.needs-action .agent-job-row-meta {
+            font-weight: 600;
+            color: var(--agent-job-attention-text);
         }
     }
 
