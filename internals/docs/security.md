@@ -33,6 +33,19 @@ Kontrak yang diterima mengharuskan enable eksplisit sesudah probe pada revision 
 
 Operasi lokal dan remote memakai proposal, consumption, evidence, dan reconciliation. Push dan draft PR adalah effect terpisah. Approval read, edit, atau check tidak memberi authority push atau PR.
 
+## Kontrak agent administrator (rilis 23)
+
+[Spec agent administrator](spec/2026-09-23-agent-administrator.md) menambah alat tim yang server jalankan di Zulip. Kontrak authority-nya:
+
+- Pemberi perintah harus ada di setting realm `can_command_administrator_agents_group`. Default setting adalah `role:administrators`.
+- Pemilik profil `manage` harus administrator realm.
+- Pemberi perintah yang bukan pemilik memerlukan grant profil dengan `team.manage`, serta grant runner dan provider.
+- Server menjalankan setiap alat dengan `acting_user` = pemberi perintah. Server memakai pemeriksaan izin Zulip yang sama dengan view normal. Bot tidak menambah izin.
+- Server memutuskan konfirmasi saat propose. Hanya pemberi perintah yang dapat menyetujui.
+- Isi pesan dan repository tidak menambah izin. Katalog alat tertutup.
+
+Kontrak ini belum menjadi bukti. Baris AD pada [bukti penerimaan](agent-acceptance.md) belum diuji.
+
 ## Gate keamanan dan rilis
 
 - UI browser, provider nyata, dua mode runtime, dan smoke pilot belum disertifikasi.
