@@ -220,10 +220,40 @@ const check_schema = z.object({
     cwd: z.optional(z.string()),
     output_artifact_id: z.optional(z.string()),
 });
+// One server lock serializes agent authority, and a busy server answers with
+// 503 and Retry-After. A read has no effect, so it waits for its turn.
+const busy_read_retries = 4;
+type FailedResponse = {status: number; getResponseHeader: (name: string) => string | null};
+function is_failed_response(error: unknown): error is FailedResponse {
+    return (
+        typeof error === "object" &&
+        error !== null &&
+        "status" in error &&
+        "getResponseHeader" in error &&
+        typeof error.getResponseHeader === "function"
+    );
+}
+function busy_retry_delay_ms(error: unknown): number | undefined {
+    if (!is_failed_response(error) || error.status !== 503) {
+        return undefined;
+    }
+    const seconds = Number(error.getResponseHeader("Retry-After"));
+    return (Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds, 5) : 1) * 1000;
+}
 // Zulip's JSON success envelope places payload fields at the top level.
 async function get<T extends z.ZodMiniType>(url: string, schema: T): Promise<z.infer<T>> {
-    const result: unknown = await channel.get({url});
-    return schema.parse(result);
+    for (let attempt = 0; ; attempt += 1) {
+        try {
+            const result: unknown = await channel.get({url});
+            return schema.parse(result);
+        } catch (error) {
+            const delay = busy_retry_delay_ms(error);
+            if (delay === undefined || attempt >= busy_read_retries) {
+                throw error;
+            }
+            await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+    }
 }
 async function mutate<T extends z.ZodMiniType>(
     method: "post" | "patch",

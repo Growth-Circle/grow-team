@@ -2,14 +2,20 @@
 
 const assert = require("node:assert/strict");
 
-const {mock_esm, zrequire} = require("./lib/namespace.cjs");
+const {clock, mock_esm, zrequire} = require("./lib/namespace.cjs");
 const {run_test} = require("./lib/test.cjs");
 
 let next_response;
 let last_call;
+let get_calls = 0;
+let get_failures = [];
 mock_esm("../src/channel", {
     get(options) {
         last_call = {method: "GET", ...options};
+        get_calls += 1;
+        if (get_failures.length > 0) {
+            return Promise.reject(get_failures.shift());
+        }
         return Promise.resolve(next_response);
     },
     post(options) {
@@ -227,4 +233,23 @@ run_test("lost acknowledgement resolves the original send key and tombstone", as
     assert.equal(last_call.url, "/json/agent/send-intents/stable-key");
     next_response.deleted = true;
     assert.equal((await api.recover_send_intent("stable-key")).deleted, true);
+});
+
+run_test("a busy server answer to a read waits and asks again", async () => {
+    const busy = {status: 503, getResponseHeader: () => "0.001"};
+    get_calls = 0;
+    get_failures = [busy, busy];
+    next_response = {schema_version: 1, count: 0, inputs: []};
+    const request = api.get_job_inputs("job");
+    // The test harness installs fake timers, so the retry wait needs the clock.
+    await clock.runAllAsync();
+    const result = await request;
+    assert.equal(result.count, 0);
+    assert.equal(get_calls, 3);
+
+    get_calls = 0;
+    get_failures = [{status: 400, getResponseHeader: () => null}];
+    await assert.rejects(api.get_job_inputs("job"));
+    assert.equal(get_calls, 1);
+    get_failures = [];
 });
