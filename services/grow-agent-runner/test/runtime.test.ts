@@ -7,12 +7,31 @@ import {randomUUID} from "node:crypto";
 import {decode, encode} from "../dist/codecs.js";
 import {addressClass, approveAddress} from "../dist/model-broker.js";
 import {SecretFilter} from "../dist/redaction.js";
-import {RuntimeTools, EndpointRuntime} from "../dist/runtime.js";
+import {RuntimeTools, EndpointRuntime, toolCatalog} from "../dist/runtime.js";
 import {Journal} from "../dist/journal.js";
 import {ArtifactStore} from "../dist/tool-broker.js";
 import {permissionDecision} from "../dist/acp-runtime.js";
 const sse = (frames: any[]) =>
     Buffer.from(frames.map((f) => `data: ${JSON.stringify(f)}\n\n`).join(""));
+test("adding the manage job kind leaves the code and answer repository catalogs unchanged", () => {
+    const repository = {id: "r1"};
+    const code = {
+        job_kind: "code",
+        repository,
+        policy: {actions: ["repository.read", "repository.edit", "shell.run"]},
+    };
+    assert.deepEqual(
+        toolCatalog(code).map((t) => t.name),
+        ["grow_read", "grow_search", "grow_edit", "grow_shell"],
+    );
+    assert.deepEqual(
+        toolCatalog({...code, job_kind: "answer"}).map((t) => t.name),
+        ["grow_read", "grow_search"],
+    );
+    // A manage job has no repository (contract 2.5), so this repository-bound catalog
+    // stays empty for it; team tools come from team-tools.ts's own catalog instead.
+    assert.deepEqual(toolCatalog({...code, job_kind: "manage", repository: null}), []);
+});
 test("Chat tool arguments assemble across stream frames and retain IDs", () => {
     const turn = decode(
         "chat_completions",
