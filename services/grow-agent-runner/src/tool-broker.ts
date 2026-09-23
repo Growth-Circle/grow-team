@@ -57,6 +57,52 @@ export function validateTool(value: unknown): ToolRequest {
     }
     return structuredClone(t) as ToolRequest;
 }
+// The commander alone decides a team.manage approval (contract 2.4). A rejection,
+// expiry, or cancellation is a normal outcome for that caller, not a broker fault,
+// so it carries the decision instead of only a message.
+export class ApprovalRejected extends Error {
+    constructor(readonly decision: string) {
+        super("Operation approval rejected");
+    }
+}
+// Shared by ToolBroker (git and shell operations) and the team-tool executor
+// (services/grow-agent-runner/src/team-tools.ts). Polls reconcile and controls until
+// the commander decides, then returns the current proposal. Behavior for an existing
+// caller does not change: only the rejection path now carries a typed decision.
+export async function waitForApproval(
+    channel: AttemptChannel,
+    current: () => Data,
+    signal: AbortSignal,
+    id: string,
+    proposal: Data,
+    attemptId: string,
+    leaseEpoch: number,
+): Promise<Data> {
+    while (proposal.status === "proposed") {
+        current();
+        await sleep(500, undefined, {signal});
+        const response = await channel.operations.reconcile(current());
+        const updated = response.operations.find((op: Data) => op.operation_id === id);
+        if (!updated || updated.operation_hash !== proposal.operation_hash)
+            throw new Error("Approval identity changed");
+        proposal = updated;
+        // An approved proposal remains proposed. Consume uses its current nonce and version.
+        if (!channel.request) throw new Error("Approval control channel unavailable");
+        const controls = await channel.request("/runner/controls");
+        const control = controls.controls.find(
+            (c: Data) => c.attempt_id === attemptId && c.lease_epoch === leaseEpoch,
+        );
+        const approval = control?.approvals.find(
+            (a: Data) =>
+                a.operation_id === id && a.id === proposal.approval_id && a.nonce === proposal.nonce,
+        );
+        if (approval?.decision === "approved") break;
+        if (approval && approval.decision !== "pending") throw new ApprovalRejected(approval.decision);
+    }
+    if (!["authorized", "proposed"].includes(proposal.status))
+        throw new Error("Operation is not authorized");
+    return proposal;
+}
 export interface Artifact {
     record: Data;
     path: string;
@@ -184,33 +230,15 @@ export class ToolBroker {
         let proposal = await this.channel.operations.propose(this.current(), id, args, {
             tree_hash: tree,
         });
-        while (proposal.status === "proposed") {
-            this.current();
-            await sleep(500, undefined, {signal: this.guard.signal});
-            const response = await this.channel.operations.reconcile(this.current());
-            const updated = response.operations.find((op: Data) => op.operation_id === id);
-            if (!updated || updated.operation_hash !== proposal.operation_hash)
-                throw new Error("Approval identity changed");
-            proposal = updated;
-            // An approved proposal remains proposed. Consume uses its current nonce and version.
-            if (!this.channel.request) throw new Error("Approval control channel unavailable");
-            const controls = await this.channel.request("/runner/controls");
-            const control = controls.controls.find(
-                (c: Data) =>
-                    c.attempt_id === this.d.attempt_id && c.lease_epoch === this.d.lease_epoch,
-            );
-            const approval = control?.approvals.find(
-                (a: Data) =>
-                    a.operation_id === id &&
-                    a.id === proposal.approval_id &&
-                    a.nonce === proposal.nonce,
-            );
-            if (approval?.decision === "approved") break;
-            if (approval && approval.decision !== "pending")
-                throw new Error("Operation approval rejected");
-        }
-        if (!["authorized", "proposed"].includes(proposal.status))
-            throw new Error("Operation is not authorized");
+        proposal = await waitForApproval(
+            this.channel,
+            () => this.current(),
+            this.guard.signal,
+            id,
+            proposal,
+            this.d.attempt_id,
+            this.d.lease_epoch,
+        );
         const operation = await this.channel.operations.consume(this.current(), proposal);
         this.current();
         this.channel.operations.beginEffect(id);
