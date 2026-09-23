@@ -26,7 +26,7 @@ const compose_banner = mock_esm("../src/compose_banner", {
     WARNING: "warning",
     SUCCESS: "success",
     CLASSNAMES: {agent_task_receipt_banner: "agent_task_receipt_banner"},
-    clear_agent_task_receipt_banner: () => {},
+    clear_agent_task_receipt_banner() {},
     append_compose_banner_to_banner_list: () => true,
 });
 const {set_current_user} = zrequire("state_data");
@@ -91,6 +91,25 @@ run_test("each receipt names its agent and links its accepted job", () => {
     assert.equal(rows[1].name, "translated: An agent that is not shared with you");
     assert.match(rows[1].outcome, /Ask its owner to share it with you/);
     assert.equal(rows[1].job_url, undefined);
+});
+
+run_test("a rejected receipt for a shared agent shows its server reason", () => {
+    const names = new Map([["a", "Helper"]]);
+    const [queue_full] = send.receipt_rows(
+        [{profile_id: "a", decision: "rejected", reason: "queue_full", job_id: null}],
+        names,
+    );
+    assert.match(queue_full.outcome, /too many tasks that wait/);
+    const [unknown_reason] = send.receipt_rows(
+        [{profile_id: "a", decision: "rejected", reason: "runner_busy", job_id: null}],
+        names,
+    );
+    assert.match(unknown_reason.outcome, /started no task/);
+    const [no_reason] = send.receipt_rows(
+        [{profile_id: "a", decision: "rejected", job_id: null}],
+        names,
+    );
+    assert.match(no_reason.outcome, /started no task/);
 });
 
 run_test("an unavailable profile list does not claim the agent is not shared", () => {

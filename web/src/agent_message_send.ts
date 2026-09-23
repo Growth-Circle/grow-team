@@ -5,6 +5,7 @@ import render_agent_dispatch_receipt_banner from "../templates/compose_banner/ag
 
 import * as api from "./agent_api.ts";
 import {job_hash, valid_job_id} from "./agent_job_panel.ts";
+import {dispatch_receipt_reason_label} from "./agent_ui_state.ts";
 import * as compose_banner from "./compose_banner.ts";
 import * as dialog_widget from "./dialog_widget.ts";
 import {$t} from "./i18n.ts";
@@ -109,7 +110,7 @@ async function profile_names(): Promise<Map<string, string> | undefined> {
 export type ReceiptRow = {name: string; outcome: string; job_url?: string | undefined};
 
 export function receipt_rows(
-    receipts: {profile_id: string; decision: string; job_id: string | null}[],
+    receipts: {profile_id: string; decision: string; reason?: string; job_id: string | null}[],
     names: Map<string, string> | undefined,
 ): ReceiptRow[] {
     return receipts.map((receipt) => {
@@ -131,9 +132,12 @@ export function receipt_rows(
                 });
                 break;
             case "rejected":
+                // A missing name already means "not shared with you"; that
+                // sentence outranks a server reason meant for other cases.
                 outcome = not_shared
                     ? $t({defaultMessage: "Ask its owner to share it with you."})
-                    : $t({defaultMessage: "This agent started no task."});
+                    : (dispatch_receipt_reason_label(receipt.reason ?? "") ??
+                      $t({defaultMessage: "This agent started no task."}));
                 break;
             default:
                 outcome = $t({defaultMessage: "The task status for this agent is unknown."});
