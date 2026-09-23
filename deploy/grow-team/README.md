@@ -240,6 +240,29 @@ User sistem `grow-team-tunnel` harus tersedia sebelum menjalankan koneksi SSH Wu
 Simpan alamat, port, dan user Wulan di `/etc/grow-team/wulan-tunnel.env`.
 Simpan key dan known-hosts di path `LoadCredential` dalam unit.
 
+## Agent
+
+Runner agent berjalan di `server-gteam` sebagai user `hermesadmin`, di luar engine Docker Grow Team.
+Runner memakai rootless Docker pada `unix:///run/user/1000/docker.sock` dan layanan `systemctl --user grow-agent`.
+Runner terhubung ke `http://127.0.0.1:18300`, karena server tidak dapat mencapai domain publiknya sendiri.
+Model connection memakai terowongan Wulan pada `127.0.0.1:20129`.
+
+Hasil job agent disimpan di `/data/agent-artifacts` pada volume `zulip`.
+Setting `SETTING_AGENT_ARTIFACT_ROOT` menunjuk ke direktori itu.
+Kunci timer rekonsiliasi disimpan di `/data/grow-team-agent-private`.
+Buat kedua direktori itu sekali pada volume `zulip`:
+
+```bash
+sudo /opt/grow-team/deploy/compose.sh exec -T --user root zulip \
+  install -d -o zulip -g zulip -m 0700 /data/agent-artifacts /data/grow-team-agent-private
+```
+
+Tanpa `/data/agent-artifacts`, server menolak hasil job dan job berakhir `interrupted`.
+
+`grow-team-agent-reconcile.timer` mengirim hasil job ke percakapan setiap 15 detik.
+Pasang `reconcile-agents.sh` di `/opt/grow-team/deploy` dan kedua unit dari `systemd/` di `/etc/systemd/system`.
+Tanpa timer ini, job selesai tetapi jawabannya tertahan pada status `verifying`.
+
 ## Email Cloudflare
 
 Worker: `grow-team-email`, akun Prazze.

@@ -37,6 +37,7 @@ services:
       TRUST_GATEWAY_IP: "True"
       ZULIP_AUTH_BACKENDS: EmailAuthBackend
       LINK_SETTINGS_TO_DATA: "True"
+      SETTING_AGENT_ARTIFACT_ROOT: /data/agent-artifacts
     env_file:
       - /etc/grow-team/zulip-settings.env
     volumes:
