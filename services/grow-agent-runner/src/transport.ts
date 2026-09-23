@@ -31,6 +31,7 @@ const routes = new Set([
     "/runner/context",
     "/runner/operations/propose",
     "/runner/operations/consume",
+    "/runner/operations/execute",
     "/runner/operations",
     "/runner/operations/reconcile",
     "/runner/operations/reconcile-local",
@@ -129,6 +130,12 @@ export class Transport {
                         ? data.code
                         : "credential_invalid",
                 );
+            // A team-tool execute can finish its server-side effect and still lose the
+            // reply (contract 2.6.4). That outcome is never safe to retry, unlike an
+            // ordinary lease or version conflict, so it carries its own policy code
+            // instead of the generic contention kind.
+            if (response.status === 409 && data.code === "outcome_unknown")
+                throw new TransportError("policy", "outcome_unknown");
             if ([409, 429, 503].includes(response.status))
                 throw new TransportError(
                     "contention",
@@ -228,9 +235,9 @@ export class Transport {
         const log = this.journal.partition(scope);
         const id = entry.id.startsWith(`${scope}/`) ? entry.id.slice(scope.length + 1) : entry.id;
         if (entry.state === "done") return entry.response!;
-        if (entry.kind === "consume" && entry.state === "uncertain")
+        if ((entry.kind === "consume" || entry.kind === "execute") && entry.state === "uncertain")
             throw new Error(
-                "Operation consume is uncertain; reconcile authority before any effect",
+                "Operation consume or execute is uncertain; reconcile authority before any effect",
             );
         log.uncertain(id);
         const response = await this.request(entry.route, entry.request);

@@ -72,6 +72,51 @@ test("uncertain consume never becomes execution permission", async () => {
     j.close();
     await s.close();
 });
+test("uncertain execute never becomes a retried team-tool effect", async () => {
+    let calls = 0;
+    const s = await server((req: any, res: any) => {
+        calls++;
+        req.socket.destroy();
+    });
+    const j = new Journal(root()),
+        t = new Transport(s.origin, j, () => "access");
+    await assert.rejects(() =>
+        t.mutate("execute", "op1", "/runner/operations/execute", {operation_id: "op1"}),
+    );
+    await assert.rejects(
+        () => t.mutate("execute", "op1", "/runner/operations/execute", {operation_id: "op1"}),
+        /uncertain/,
+    );
+    assert.equal(calls, 1);
+    j.close();
+    await s.close();
+});
+test("a team-tool execute reaches the control plane like any other operation route", async () => {
+    const s = await server((req: any, res: any) => ok(res, {operation: {status: "succeeded"}}));
+    const j = new Journal(root()),
+        t = new Transport(s.origin, j, () => "access");
+    const response = await t.request("/runner/operations/execute", {operation_id: "op1"});
+    assert.equal(response.operation.status, "succeeded");
+    j.close();
+    await s.close();
+});
+test("an outcome_unknown execute reply is never retried, unlike an ordinary conflict", async () => {
+    let calls = 0;
+    const s = await server((req: any, res: any) => {
+        calls++;
+        res.writeHead(409, {"content-type": "application/json"});
+        res.end(JSON.stringify({schema_version: 1, result: "error", code: "outcome_unknown"}));
+    });
+    const j = new Journal(root()),
+        t = new Transport(s.origin, j, () => "access");
+    await assert.rejects(
+        () => t.request("/runner/operations/execute", {operation_id: "op1"}),
+        (e: any) => e.kind === "policy" && e.code === "outcome_unknown",
+    );
+    assert.equal(calls, 1, "an uncertain outcome must not be retried automatically");
+    j.close();
+    await s.close();
+});
 test("redirects, policy failure and credential rejection remain distinct", async () => {
     let mode = "redirect";
     const s = await server((req: any, res: any) => {

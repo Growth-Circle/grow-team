@@ -111,6 +111,45 @@ test("operation receipt and effect fence survive restart", async () => {
     assert.throws(() => b.beginEffect("op"), /uncertain|started/);
     j.close();
 });
+test("execute sends the consume-shaped identity to the new route and returns its operation", async () => {
+    const requests: any[] = [];
+    const transport: any = {
+        mutate: async (_kind: string, id: string, route: string, request: any) => {
+            requests.push({id, route, request});
+            return {
+                operation: {
+                    operation_id: request.operation_id,
+                    status: "succeeded",
+                    server_receipt: {tool: "team.find", outcome: "succeeded", summary: "", objects: {}, error: null},
+                },
+            };
+        },
+    };
+    const b = new OperationBoundary(new Journal(root()), transport, () => ({
+        job_id: "j",
+        attempt_id: "a",
+        lease_epoch: 1,
+        job_version: 3,
+    }));
+    const operation = await b.execute(
+        {job_id: "j", attempt_id: "a", lease_epoch: 1, job_version: 3},
+        {operation_id: "op1", operation_hash: "h1", version: 1, nonce: "n1"},
+    );
+    assert.equal(requests[0].route, "/runner/operations/execute");
+    assert.equal(requests[0].id, "execute:op1");
+    assert.deepEqual(requests[0].request, {
+        job_id: "j",
+        attempt_id: "a",
+        lease_epoch: 1,
+        job_version: 3,
+        operation_id: "op1",
+        expected_version: 1,
+        operation_hash: "h1",
+        nonce: "n1",
+    });
+    assert.equal(operation.status, "succeeded");
+    assert.equal(operation.server_receipt.tool, "team.find");
+});
 test("input effect is fenced before application and never replayed after uncertainty", async () => {
     const j = new Journal(root()),
         d = descriptor();

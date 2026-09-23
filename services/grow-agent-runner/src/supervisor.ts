@@ -117,6 +117,24 @@ export class OperationBoundary {
         });
         return result.operation;
     }
+    // A team tool has no local effect for beginEffect/finishEffect to guard. The server
+    // runs the Zulip action itself and returns its outcome in one call (contract 2.6.3),
+    // so this sends the same identity that consume would and never retries the reply.
+    async execute(lease: Data, proposal: Data): Promise<Data> {
+        this.assertLease(lease);
+        const id = proposal.operation_id;
+        const result = await this.lane(() =>
+            this.transport.mutate("execute", `execute:${id}`, "/runner/operations/execute", {
+                ...this.currentLease(),
+                operation_id: id,
+                expected_version: proposal.version,
+                operation_hash: proposal.operation_hash,
+                ...(proposal.nonce ? {nonce: proposal.nonce} : {}),
+            }),
+        );
+        this.assertLease(lease);
+        return result.operation;
+    }
     beginEffect(operationId: string): Data {
         const lease = this.currentLease();
         const authority = this.journal.get(`authority:${operationId}`);
