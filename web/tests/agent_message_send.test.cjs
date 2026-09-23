@@ -88,9 +88,18 @@ run_test("each receipt names its agent and links its accepted job", () => {
     assert.equal(rows[0].name, "Helper");
     assert.match(rows[0].outcome, /started a task/);
     assert.equal(rows[0].job_url, `#agent-jobs/${accepted_job_id}`);
-    assert.equal(rows[1].name, "translated: An agent you cannot view");
-    assert.match(rows[1].outcome, /started no task/);
+    assert.equal(rows[1].name, "translated: An agent that is not shared with you");
+    assert.match(rows[1].outcome, /Ask its owner to share it with you/);
     assert.equal(rows[1].job_url, undefined);
+});
+
+run_test("an unavailable profile list does not claim the agent is not shared", () => {
+    const [row] = send.receipt_rows(
+        [{profile_id: "b", decision: "rejected", job_id: null}],
+        undefined,
+    );
+    assert.equal(row.name, "translated: An agent");
+    assert.match(row.outcome, /started no task/);
 });
 
 run_test(
@@ -137,7 +146,7 @@ run_test(
         assert.deepEqual(hrefs, [`href="#agent-jobs/${accepted_job_id}"`]);
         const visible_text = captured_html.replaceAll(/<[^>]+>/g, " ");
         assert.match(visible_text, /started a task/);
-        assert.match(visible_text, /started no task/);
+        assert.match(visible_text, /Ask its owner to share it with you/);
     },
 );
 

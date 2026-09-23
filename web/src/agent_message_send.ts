@@ -96,13 +96,13 @@ export async function prepare(snapshot: MessageSnapshot): Promise<PreparedTarget
     };
 }
 
-// Best-effort display names for a dispatch receipt list.
-// A profile the viewer cannot see is fine. receipt_rows then shows generic text.
-async function profile_names(): Promise<Map<string, string>> {
+// Best-effort display names for a dispatch receipt list, or undefined
+// when the list is unavailable.
+async function profile_names(): Promise<Map<string, string> | undefined> {
     try {
         return new Map((await list_all_profiles()).map((profile) => [profile.id, profile.name]));
     } catch {
-        return new Map();
+        return undefined;
     }
 }
 
@@ -110,11 +110,16 @@ export type ReceiptRow = {name: string; outcome: string; job_url?: string | unde
 
 export function receipt_rows(
     receipts: {profile_id: string; decision: string; job_id: string | null}[],
-    names: Map<string, string>,
+    names: Map<string, string> | undefined,
 ): ReceiptRow[] {
     return receipts.map((receipt) => {
+        // The profile list holds every agent that is shared with the viewer.
+        const not_shared = names !== undefined && !names.has(receipt.profile_id);
         const name =
-            names.get(receipt.profile_id) ?? $t({defaultMessage: "An agent you cannot view"});
+            names?.get(receipt.profile_id) ??
+            (not_shared
+                ? $t({defaultMessage: "An agent that is not shared with you"})
+                : $t({defaultMessage: "An agent"}));
         let outcome;
         switch (receipt.decision) {
             case "accepted":
@@ -126,7 +131,9 @@ export function receipt_rows(
                 });
                 break;
             case "rejected":
-                outcome = $t({defaultMessage: "This agent started no task."});
+                outcome = not_shared
+                    ? $t({defaultMessage: "Ask its owner to share it with you."})
+                    : $t({defaultMessage: "This agent started no task."});
                 break;
             default:
                 outcome = $t({defaultMessage: "The task status for this agent is unknown."});
