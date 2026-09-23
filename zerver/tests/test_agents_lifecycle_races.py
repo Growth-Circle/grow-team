@@ -120,6 +120,11 @@ class AgentLifecycleRaceTests(ZulipTransactionTestCase):
             delivery_target="answer",
         )
 
+    def result_message_count(self) -> int:
+        return Message.objects.filter(
+            sender=self.profile.bot_user, content__contains="One result"
+        ).count()
+
     def race(self, first: Callable[[], object], second: Callable[[], object]) -> list[object]:
         barrier = Barrier(2)
 
@@ -285,7 +290,18 @@ class AgentLifecycleRaceTests(ZulipTransactionTestCase):
             media_type="text/plain",
         )
         event(2, "result.prepared", {"artifact_ids": [str(artifact.id)], "summary": "One result"})
-        event(3, "attempt.stopped", {"process_state": "stopped", "stop_confirmed": True})
+        # A real "attempt.stopped" event now also publishes the result right away
+        # for a verifying job (see record_event). These races target publish_result
+        # itself, so stop the attempt directly and leave the job unpublished.
+        attempt.refresh_from_db()
+        attempt.process_state = "stopped"
+        attempt.stopped_at = now()
+        attempt.ended_at = now()
+        attempt.active = False
+        attempt.event_cursor = 3
+        attempt.save(
+            update_fields=["process_state", "stopped_at", "ended_at", "active", "event_cursor"]
+        )
         job.refresh_from_db()
         attempt.refresh_from_db()
         return job, attempt
@@ -296,9 +312,7 @@ class AgentLifecycleRaceTests(ZulipTransactionTestCase):
         job, _ = self.prepare_answer()
         results = self.race(lambda: publish_result(job.id), lambda: publish_result(job.id))
         self.assertEqual(results[0], results[1])
-        self.assertEqual(
-            Message.objects.filter(sender=self.profile.bot_user, content="One result").count(), 1
-        )
+        self.assertEqual(self.result_message_count(), 1)
 
     def test_cancel_and_publication_have_one_terminal_winner(self) -> None:
         from zerver.lib.agent_results import publish_result
@@ -326,10 +340,7 @@ class AgentLifecycleRaceTests(ZulipTransactionTestCase):
         job.refresh_from_db()
         self.assertIn(job.status, {"completed", "cancelled"})
         self.assertIn("denied", results)
-        self.assertEqual(
-            Message.objects.filter(sender=self.profile.bot_user, content="One result").count(),
-            int(job.status == "completed"),
-        )
+        self.assertEqual(self.result_message_count(), int(job.status == "completed"))
 
     def test_publication_rolls_back_message_when_receipt_write_fails(self) -> None:
         from unittest.mock import patch
@@ -344,9 +355,7 @@ class AgentLifecycleRaceTests(ZulipTransactionTestCase):
             self.assertRaises(RuntimeError),
         ):
             publish_result(job.id)
-        self.assertEqual(
-            Message.objects.filter(sender=self.profile.bot_user, content="One result").count(), 0
-        )
+        self.assertEqual(self.result_message_count(), 0)
         job.refresh_from_db()
         self.assertIsNone(job.result_receipt)
         receipt = publish_result(job.id)
@@ -382,10 +391,7 @@ class AgentLifecycleRaceTests(ZulipTransactionTestCase):
         job.refresh_from_db()
         self.assertEqual(bool(job.result_receipt), "published" in values)
         if job.result_receipt is None:
-            self.assertEqual(
-                Message.objects.filter(sender=self.profile.bot_user, content="One result").count(),
-                0,
-            )
+            self.assertEqual(self.result_message_count(), 0)
         # Restore only this fixture's privacy change; test cleanup restores cached fields.
         Stream.objects.filter(id=self.stream.id).update(**self.stream_before)
         from zerver.models import RealmAuditLog
@@ -612,10 +618,7 @@ class AgentLifecycleRaceTests(ZulipTransactionTestCase):
         values = self.race(writer, publish)
         job.refresh_from_db()
         self.assertEqual(bool(job.result_receipt), "published" in values)
-        self.assertEqual(
-            Message.objects.filter(sender=self.profile.bot_user, content="One result").count(),
-            int(job.result_receipt is not None),
-        )
+        self.assertEqual(self.result_message_count(), int(job.result_receipt is not None))
 
     def test_actual_role_writer_and_publication(self) -> None:
         from zerver.actions.users import do_change_user_role
@@ -764,15 +767,11 @@ class AgentLifecycleRaceTests(ZulipTransactionTestCase):
             pending.result(timeout=5)
         job.refresh_from_db()
         self.assertIsNone(job.result_receipt)
-        self.assertEqual(
-            Message.objects.filter(sender=self.profile.bot_user, content="One result").count(), 0
-        )
+        self.assertEqual(self.result_message_count(), 0)
         # Current audience may now be narrower; retry must recheck it instead of duplicating a send.
         with suppress(ValueError):
             publish_result(job.id)
-        self.assertLessEqual(
-            Message.objects.filter(sender=self.profile.bot_user, content="One result").count(), 1
-        )
+        self.assertLessEqual(self.result_message_count(), 1)
 
     def test_private_to_public_expansion_and_publication(self) -> None:
         from zerver.actions.streams import do_change_stream_permission

@@ -8,6 +8,8 @@ from uuid import UUID, uuid4
 
 from django.db.models import Max
 from django.utils.timezone import now
+from django.utils.translation import gettext as _
+from django.utils.translation import override as override_language
 
 from zerver.actions.agents import current_execution_configuration, provider_config, validate_runtime
 from zerver.lib import agent_protocol as p
@@ -78,6 +80,36 @@ def transition(job: agents.AgentJob, status: str, *, reason: str = "") -> None:
     job.blocked_reason = reason
     job.version += 1
     job.save(update_fields=["status", "blocked_reason", "version"])
+    if status in {"failed", "interrupted"}:
+        _notify_job_ended(job, reason)
+
+
+def notify_conversation(
+    job: agents.AgentJob, marker_key: str, sentence: str, *, mention_requester: bool = True
+) -> None:
+    """Best-effort status notice. A send failure never undoes the caller's transition."""
+    import contextlib
+
+    from zerver.lib.agent_results import post_job_notice
+
+    # The state change already committed; the notice is a courtesy.
+    with contextlib.suppress(Exception):
+        post_job_notice(job, marker_key, sentence, mention_requester=mention_requester)
+
+
+def _end_reason_sentence(reason: str) -> str:
+    if reason == "stop_unconfirmed":
+        return _("The runner did not confirm that the task stopped.")
+    if reason == "runtime_stopped":
+        return _("The task stopped before it finished.")
+    return _("The task ended without a result.")
+
+
+def _notify_job_ended(job: agents.AgentJob, reason: str) -> None:
+    with override_language(job.realm.default_language):
+        sentence = _end_reason_sentence(reason)
+    marker_key = f"status:end:{job.id}:{job.version}"
+    notify_conversation(job, marker_key, sentence, mention_requester=False)
 
 
 def require_control(actor: UserProfile, job: agents.AgentJob) -> None:
@@ -1138,6 +1170,9 @@ def record_event(
             )
         elif isinstance(event.payload, p.InputRequestPayload):
             transition(job, "waiting_for_input")
+            with override_language(job.realm.default_language):
+                sentence = _("This task needs your answer.")
+            notify_conversation(job, f"status:input:{event.event_id}", sentence)
         elif isinstance(event.payload, p.ResultPayload):
             result = event.payload
             if attempt.process_state != "active" or not result.summary.strip():
@@ -1176,11 +1211,21 @@ def record_event(
         attempt.event_cursor = event.sequence
         attempt.save()
         receipt = audit(job, event.type, payload, attempt=attempt, authority="runner", event=event)
-        return {
+        result = {
             "event_sequence": receipt.sequence,
             "job_version": job.version,
             "status": job.status,
         }
+    if event.type == "attempt.stopped" and job.status == "verifying":
+        # A verifying job already staged its result and outbox row. Publish now
+        # instead of waiting for the reconcile timer, which stays as a fallback.
+        try:
+            from zerver.lib.agent_results import publish_result
+
+            publish_result(job.id)
+        except Exception:
+            pass
+    return result
 
 
 def deliver_inputs(

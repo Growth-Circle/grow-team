@@ -335,6 +335,7 @@ def _publish_result(job_id: UUID) -> dict[str, object]:
         read_artifact(artifact)
     from zerver.actions.message_send import check_message, do_send_messages
     from zerver.lib.addressee import Addressee
+    from zerver.lib.mention import silent_mention_syntax_for_user
     from zerver.models.clients import get_client
 
     client = get_client("Grow Agent")
@@ -373,6 +374,7 @@ def _publish_result(job_id: UUID) -> dict[str, object]:
             if audience.stream_id is not None
             else Addressee.for_user_ids(audience.audience_user_ids, job.realm)
         )
+        content = f"{silent_mention_syntax_for_user(job.requester)} {content} {job_task_link(job)}"
         message = check_message(
             job.profile.bot_user,
             client,
@@ -412,3 +414,55 @@ def _publish_result(job_id: UUID) -> dict[str, object]:
             authority="publisher",
         )
         return receipt
+
+
+def job_task_link(job: agents.AgentJob) -> str:
+    return f"{job.realm.url}/#agent-jobs/{job.id}"
+
+
+def post_job_notice(
+    job: agents.AgentJob, marker_key: str, sentence: str, *, mention_requester: bool = True
+) -> bool:
+    """Post one bot message in the job's conversation, at most once per marker_key.
+
+    marker_key identifies the occurrence (an approval, an input request, or a
+    job ending); a repeat call with the same key is a silent no-op.
+    """
+    _outbox, created = agents.AgentOutbox.objects.get_or_create(
+        delivery_key=marker_key,
+        defaults={
+            "realm": job.realm,
+            "job": job,
+            "event_type": "status.notice",
+            "status": "delivered",
+            "delivered_at": now(),
+        },
+    )
+    if not created:
+        return False
+    from zerver.actions.message_send import check_message, do_send_messages
+    from zerver.lib.addressee import Addressee
+    from zerver.models.clients import get_client
+
+    with agent_transaction():
+        audience = require_audience(job)
+        anchor = Message.objects.get(id=audience.anchor_message_id)
+        addressee = (
+            Addressee.for_stream_id(audience.stream_id, anchor.topic_name())
+            if audience.stream_id is not None
+            else Addressee.for_user_ids(audience.audience_user_ids, job.realm)
+        )
+        mention = (
+            f"@**{job.requester.full_name}|{job.requester.id}**" if mention_requester else None
+        )
+        content = " ".join(part for part in [mention, sentence, job_task_link(job)] if part)
+        message = check_message(
+            job.profile.bot_user,
+            get_client("Grow Agent"),
+            addressee,
+            content,
+            realm=job.realm,
+            no_previews=True,
+        )
+        do_send_messages([message])
+    return True

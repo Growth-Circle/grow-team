@@ -5,6 +5,8 @@ from urllib.parse import urlsplit
 from uuid import UUID
 
 from django.utils.timezone import now
+from django.utils.translation import gettext as _
+from django.utils.translation import override as override_language
 from pydantic import TypeAdapter
 
 from zerver.actions.agent_jobs import (
@@ -12,6 +14,7 @@ from zerver.actions.agent_jobs import (
     check_attempt_access,
     digest,
     locked_attempt,
+    notify_conversation,
     request_stop,
     transition,
 )
@@ -185,6 +188,9 @@ def propose_operation(
                 expires_at=now() + timedelta(minutes=15),
             )
             transition(job, "waiting_for_approval")
+            with override_language(job.realm.default_language):
+                sentence = _("This task needs your approval.")
+            notify_conversation(job, f"status:approval:{approval.id}", sentence)
             audit(
                 job,
                 "approval.requested",

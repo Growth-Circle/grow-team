@@ -321,7 +321,12 @@ class AgentLifecycleTests(ZulipTestCase):
                 results.publish_result(job.id)
             event(3, "attempt.stopped", {"process_state": "stopped", "stop_confirmed": True})
             job.refresh_from_db()
-            with self.assertRaisesRegex(ValueError, "Stopped execution"):
+            # The attempt stopping while the job is verifying publishes right away
+            # instead of waiting for the reconcile timer.
+            self.assertEqual(job.status, "completed")
+            self.assertIsNotNone(job.result_proposal)
+            self.assertFalse(agents.AgentInput.objects.filter(job=job).exists())
+            with self.assertRaisesRegex(ValueError, "Job cannot accept input"):
                 actions.add_input(
                     self.owner,
                     job.id,
@@ -329,21 +334,306 @@ class AgentLifecycleTests(ZulipTestCase):
                     client_key=uuid4(),
                     text="Too late for this attempt",
                 )
-            job.refresh_from_db()
-            self.assertEqual(job.status, "verifying")
-            self.assertIsNotNone(job.result_proposal)
-            self.assertFalse(agents.AgentInput.objects.filter(job=job).exists())
             first = results.publish_result(job.id)
             second = results.publish_result(job.id)
             self.assertEqual(first, second)
-            job.refresh_from_db()
-            self.assertEqual(job.status, "completed")
             self.assertEqual(job.result_message_id, first["message_id"])
             assert job.result_message_id is not None
             Message.objects.filter(id=job.result_message_id).delete()
             job.refresh_from_db()
             self.assertIsNone(job.result_message_id)
             self.assertEqual(results.publish_result(job.id), first)
+
+    def test_post_job_notice_marks_once_and_never_admits(self) -> None:
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib.agent_results import post_job_notice
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        jobs_before = agents.AgentJob.objects.count()
+        sent = post_job_notice(job, "status:test:once", "This task needs your approval.")
+        self.assertTrue(sent)
+        self.assertEqual(
+            agents.AgentOutbox.objects.filter(delivery_key="status:test:once").count(), 1
+        )
+        message = Message.objects.get(sender=self.profile.bot_user)
+        self.assertEqual(
+            message.content,
+            f"@**{self.owner.full_name}|{self.owner.id}** This task needs your approval."
+            f" {self.owner.realm.url}/#agent-jobs/{job.id}",
+        )
+        repeated = post_job_notice(job, "status:test:once", "This task needs your approval.")
+        self.assertFalse(repeated)
+        self.assertEqual(Message.objects.filter(sender=self.profile.bot_user).count(), 1)
+        # Bot messages never trigger agent admission.
+        self.assertEqual(agents.AgentJob.objects.count(), jobs_before)
+
+    def test_waiting_for_input_posts_one_bot_notice(self) -> None:
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib import agent_protocol as p
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+
+        def event(sequence: int, kind: str, payload: dict[str, object]) -> None:
+            actions.record_event(
+                self.runner,
+                p.RunnerEvent.model_validate(
+                    {
+                        "schema_version": 1,
+                        "job_id": str(job.id),
+                        "attempt_id": str(attempt.id),
+                        "lease_epoch": 1,
+                        "event_id": str(uuid4()),
+                        "sequence": sequence,
+                        "type": kind,
+                        "occurred_at": now().isoformat(),
+                        "payload": payload,
+                    }
+                ),
+            )
+
+        event(1, "attempt.started", {"process_state": "active"})
+        event(2, "input.requested", {"question": "Which environment?", "options": []})
+        job.refresh_from_db()
+        self.assertEqual(job.status, "waiting_for_input")
+        message = Message.objects.get(sender=self.profile.bot_user)
+        self.assertEqual(
+            message.content,
+            f"@**{self.owner.full_name}|{self.owner.id}** This task needs your answer."
+            f" {self.owner.realm.url}/#agent-jobs/{job.id}",
+        )
+        self.assertEqual(agents.AgentJob.objects.count(), 1)
+
+    def test_job_interrupted_posts_one_short_message(self) -> None:
+        from datetime import timedelta
+
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib.agent_reconcile import reconcile_agents
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+        agents.AgentAttempt.objects.filter(id=attempt.id).update(
+            lease_expires_at=now() - timedelta(seconds=1)
+        )
+        reconcile_agents()
+        job.refresh_from_db()
+        self.assertEqual(job.status, "interrupted")
+        message = Message.objects.get(sender=self.profile.bot_user)
+        self.assertEqual(
+            message.content,
+            "The runner did not confirm that the task stopped."
+            f" {self.owner.realm.url}/#agent-jobs/{job.id}",
+        )
+        # A later reconcile pass must not add a second notice for the same job.
+        reconcile_agents()
+        self.assertEqual(Message.objects.filter(sender=self.profile.bot_user).count(), 1)
+
+    def test_waiting_for_approval_posts_one_bot_notice_and_ignores_replay(self) -> None:
+        import hashlib
+        import tempfile
+        from copy import deepcopy
+
+        from django.test import override_settings
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.actions.agent_approvals import propose_operation
+        from zerver.actions.agents import register_repository
+        from zerver.lib import agent_protocol as p
+        from zerver.lib.agent_results import store_artifact
+
+        repository = register_repository(
+            self.owner,
+            self.runner,
+            workspace_alias="approvalcode",
+            canonical_origin="https://example.com/team/repo",
+            allowed_refs=["main"],
+            required_checks=[{"id": "required", "argv": ["true"]}],
+        )
+        policy = deepcopy(self.profile.policy)
+        # git.push always needs approval (agent_approvals.APPROVAL_ACTIONS), unlike an
+        # action such as shell.run that only needs it when absent from the policy
+        # ceiling below, which the profile owner's own job would never hit.
+        policy["actions"] = [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run",
+            "git.push",
+        ]
+        profile = create_profile(
+            self.owner,
+            name="ApprovalCode",
+            runner=self.runner,
+            adapter_id="acp",
+            adapter_version="1",
+            repository=repository,
+            policy=policy,
+            default_mode="code",
+            idempotency_key=uuid4(),
+        )
+        setup = agents.AgentSetupOperation.objects.get(profile=profile)
+        record_readiness(
+            self.runner,
+            setup,
+            {
+                "schema_version": 1,
+                "profile_id": str(profile.id),
+                "profile_revision": 1,
+                "runner_id": str(self.runner.id),
+                "descriptor_digest": setup.descriptor_digest,
+                "configuration_digest": setup.configuration_digest,
+                "state": "ready",
+                "capabilities": {
+                    "chat_ready": True,
+                    "code_ready": True,
+                    "tool_calling": "passed",
+                    "sandbox": "passed",
+                    "config_version": 1,
+                },
+            },
+        )
+        profile.refresh_from_db()
+        enable_profile(self.owner, profile, expected_revision=profile.revision)
+        message = Message.objects.get(
+            id=self.send_group_direct_message(
+                self.owner, [profile.bot_user, self.example_user("iago")], "Code task"
+            )
+        )
+        job = actions.create_job(
+            self.owner,
+            profile=profile,
+            source=message,
+            request="Run a script",
+            idempotency_key=uuid4(),
+            job_kind="code",
+            delivery_target="patch",
+            repository=repository,
+            base_ref="main",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+        sequence = 0
+
+        def event(kind: str, payload: dict[str, object]) -> None:
+            nonlocal sequence
+            sequence += 1
+            actions.record_event(
+                self.runner,
+                p.RunnerEvent.model_validate(
+                    {
+                        "schema_version": 1,
+                        "job_id": str(job.id),
+                        "attempt_id": str(attempt.id),
+                        "lease_epoch": 1,
+                        "sequence": sequence,
+                        "event_id": str(uuid4()),
+                        "occurred_at": now().isoformat(),
+                        "type": kind,
+                        "payload": payload,
+                    }
+                ),
+            )
+
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            override_settings(AGENT_ARTIFACT_ROOT=directory),
+        ):
+            event(
+                "workspace.prepared",
+                {
+                    "repository_id": str(repository.id),
+                    "workspace_reference": "fixture",
+                    "base_ref": "main",
+                    "base_commit": "a" * 40,
+                    "tree_hash": "b" * 40,
+                    "user_worktree_dirty": False,
+                },
+            )
+            event("attempt.started", {"process_state": "active"})
+            content = b"diff"
+            artifact = store_artifact(
+                self.runner,
+                job.id,
+                attempt.id,
+                1,
+                chunks=[content],
+                checksum=hashlib.sha256(content).hexdigest(),
+                kind="diff",
+                filename="diff.patch",
+                media_type="text/x-diff",
+            )
+            operation_id = uuid4()
+            operation_arguments = {
+                "action": "git.push",
+                "repository_id": str(repository.id),
+                "remote": repository.canonical_origin,
+                "branch": f"grow-agent/{job.id}/result",
+                "commit": "c" * 40,
+                "expected_remote_head": None,
+            }
+            operation = propose_operation(
+                self.runner,
+                job.id,
+                attempt.id,
+                1,
+                operation_id=operation_id,
+                arguments=operation_arguments,
+                tree_hash="b" * 40,
+                diff_artifact_id=artifact.id,
+            )
+            job.refresh_from_db()
+            self.assertEqual(job.status, "waiting_for_approval")
+            message = Message.objects.get(sender=profile.bot_user)
+            self.assertEqual(
+                message.content,
+                f"@**{self.owner.full_name}|{self.owner.id}** This task needs your approval."
+                f" {self.owner.realm.url}/#agent-jobs/{job.id}",
+            )
+            # A replayed proposal with the same operation_id returns the existing
+            # operation and must not post a second notice.
+            replay = propose_operation(
+                self.runner,
+                job.id,
+                attempt.id,
+                1,
+                operation_id=operation_id,
+                arguments=operation_arguments,
+                tree_hash="b" * 40,
+                diff_artifact_id=artifact.id,
+            )
+            self.assertEqual(replay.id, operation.id)
+            self.assertEqual(Message.objects.filter(sender=profile.bot_user).count(), 1)
 
     def test_prepared_result_poll_fences_input_then_stop_unlocks_publication(self) -> None:
         import hashlib
@@ -357,6 +647,7 @@ class AgentLifecycleTests(ZulipTestCase):
         from zerver.lib import agent_protocol as p
         from zerver.lib import agent_results as results
         from zerver.lib.agent_secrets import hash_agent_credential
+        from zerver.lib.mention import silent_mention_syntax_for_user
         from zerver.views.agent_jobs import job_data
 
         token = "synthetic-completion-token-" + "a" * 40
@@ -526,8 +817,12 @@ class AgentLifecycleTests(ZulipTestCase):
                     job.refresh_from_db()
                     self.assertEqual(job.status, "completed")
                     self.assertEqual(receipt, results.publish_result(job.id))
+                    expected_content = (
+                        f"{silent_mention_syntax_for_user(job.requester)} "
+                        f"{replacement.decode()} {results.job_task_link(job)}"
+                    )
                     self.assertEqual(
-                        Message.objects.get(id=receipt["message_id"]).content, replacement.decode()
+                        Message.objects.get(id=receipt["message_id"]).content, expected_content
                     )
 
     def test_operation_broker_rejects_answer_mutation_and_requires_typed_authority(self) -> None:
