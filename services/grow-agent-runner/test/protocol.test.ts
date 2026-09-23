@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {parse, validateDescriptor, digest} from "../dist/protocol.js";
+import {parse, validateDescriptor, digest, effectiveConfiguration} from "../dist/protocol.js";
 const fixtures = JSON.parse(
     readFileSync(
         new URL("../../../zerver/tests/fixtures/agents/protocol-v1.json", import.meta.url),
@@ -57,4 +57,21 @@ test("all canonical hashes match the Python protocol oracle", () => {
             validateDescriptor(d, d.runner_id, c.schema === "probe_descriptor");
         }
     }
+});
+test("an instructed descriptor digest matches the Python oracle", () => {
+    const vectors = JSON.parse(
+        readFileSync(new URL("../protocol/conformance-digests.json", import.meta.url), "utf8"),
+    );
+    const vector = vectors.find((v: any) => v.name === "instructed_answer_descriptor");
+    const c = fixtures.valid.find((c: any) => c.name === "instructed_answer_descriptor");
+    const parsed = parse(c.schema, c.payload);
+    assert.equal(digest(parsed), vector.payload_digest);
+    assert.equal(digest(effectiveConfiguration(parsed)), vector.configuration_digest);
+    validateDescriptor(parsed, parsed.runner_id);
+});
+test("a profile revision mismatch is rejected", () => {
+    const c = fixtures.valid.find((c: any) => c.name === "instructed_answer_descriptor");
+    const stale = structuredClone(c.payload);
+    stale.instructions.profile.revision += 1;
+    assert.throws(() => parse("attempt_descriptor", stale), /Stale instructions revision/);
 });

@@ -33,8 +33,30 @@ class AgentProtocolTest(TestCase):
             with self.subTest(case=case["name"]), self.assertRaises((ValidationError, ValueError)):
                 protocol.parse_payload(case["schema"], case["payload"])
 
+    def test_instructions_length_counts_utf16_code_units_not_code_points(self) -> None:
+        """The runner's zod schema measures a JS string (UTF-16 code units);
+        counting Python code points instead let an astral character pass the
+        server's 8000-character limit and then fail the runner's own check."""
+        protocol = self.protocol()
+        # An astral emoji is one Python code point but two UTF-16 code units.
+        at_the_limit = "\U0001f600" * 4000
+        over_the_limit = "\U0001f600" * 4001
+        self.assertEqual(len(over_the_limit), 4001)
+        protocol.InstructionText(revision=1, text=at_the_limit)
+        with self.assertRaises(ValidationError):
+            protocol.InstructionText(revision=1, text=over_the_limit)
+
     def descriptor(self) -> dict[str, Any]:
         return deepcopy(json.loads(FIXTURE_PATH.read_text())["valid"][0]["payload"])
+
+    def fixture(self, name: str) -> dict[str, Any]:
+        return deepcopy(
+            next(
+                item["payload"]
+                for item in json.loads(FIXTURE_PATH.read_text())["valid"]
+                if item["name"] == name
+            )
+        )
 
     def test_nested_authority_is_closed(self) -> None:
         protocol = self.protocol()
@@ -122,6 +144,79 @@ class AgentProtocolTest(TestCase):
         self.assertNotEqual(
             protocol.configuration_digest(attempt), protocol.configuration_digest(changed)
         )
+
+    def test_instruction_fields_are_omitted_when_absent(self) -> None:
+        """A profile without instructions must serialize exactly like release 24.
+
+        A wrong serializer here makes every existing profile's readiness stale
+        the moment this change deploys, so every non-instructed fixture's
+        round trip must stay byte for byte the same.
+        """
+        protocol = self.protocol()
+        instructed = {"instructed_answer_descriptor", "instructed_provider_probe"}
+        fixtures = json.loads(FIXTURE_PATH.read_text())
+        for case in fixtures["valid"]:
+            if case["name"] in instructed or case["schema"] not in (
+                "attempt_descriptor",
+                "probe_descriptor",
+                "configuration",
+            ):
+                continue
+            with self.subTest(case=case["name"]):
+                parsed = protocol.parse_payload(case["schema"], case["payload"])
+                serialized = protocol.serialize_payload(parsed)
+                self.assertEqual(serialized, case["payload"])
+                self.assertNotIn("instructions_digest", serialized)
+                self.assertNotIn("instructions", serialized)
+                if case["schema"] == "attempt_descriptor":
+                    self.assertNotIn("instructions_digest", serialized["tested_configuration"])
+
+    def test_attempt_instructions_bind_the_profile_digest(self) -> None:
+        protocol = self.protocol()
+        data = self.fixture("instructed_answer_descriptor")
+        attempt = protocol.parse_payload("attempt_descriptor", data)
+        expected = protocol.instructions_digest(data["instructions"]["profile"]["text"])
+        self.assertEqual(attempt.tested_configuration.instructions_digest, expected)
+        probe = protocol.parse_payload(
+            "probe_descriptor", self.fixture("instructed_provider_probe")
+        )
+        self.assertEqual(
+            protocol.configuration_digest(attempt), protocol.configuration_digest(probe)
+        )
+        data["instructions"]["profile"]["text"] = "A different instruction body entirely."
+        data["instructions"]["profile"]["revision"] = data["profile_revision"]
+        changed = protocol.parse_payload("attempt_descriptor", data)
+        self.assertNotEqual(
+            protocol.configuration_digest(attempt), protocol.configuration_digest(changed)
+        )
+
+    def test_team_instructions_do_not_change_the_configuration_digest(self) -> None:
+        protocol = self.protocol()
+        data = self.fixture("instructed_answer_descriptor")
+        attempt = protocol.parse_payload("attempt_descriptor", data)
+        data["instructions"]["team"]["text"] = "A completely different team instruction body."
+        changed_team = protocol.parse_payload("attempt_descriptor", data)
+        self.assertEqual(
+            protocol.configuration_digest(attempt), protocol.configuration_digest(changed_team)
+        )
+        first = protocol.descriptor_digest(
+            {k: v for k, v in protocol.serialize_payload(attempt).items() if k != "descriptor_digest"}
+        )
+        second = protocol.descriptor_digest(
+            {
+                k: v
+                for k, v in protocol.serialize_payload(changed_team).items()
+                if k != "descriptor_digest"
+            }
+        )
+        self.assertNotEqual(first, second)
+
+    def test_instructions_profile_revision_must_match(self) -> None:
+        protocol = self.protocol()
+        data = self.fixture("instructed_answer_descriptor")
+        data["instructions"]["profile"]["revision"] = data["profile_revision"] + 1
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("attempt_descriptor", data)
 
     def test_boolean_authority_does_not_coerce_strings(self) -> None:
         protocol = self.protocol()

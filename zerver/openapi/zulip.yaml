@@ -40131,6 +40131,12 @@ components:
           type: boolean
         budget:
           $ref: "#/components/schemas/AgentRuntimeBudget"
+        instructions_digest:
+          default: null
+          title: Instructions Digest
+          pattern: ^[0-9a-f]{64}$
+          type: string
+          nullable: true
       required:
         - runner_id
         - profile_revision
@@ -40628,6 +40634,7 @@ components:
           enum:
             - answer
             - code
+            - manage
           title: Job Kind
           type: string
         delivery_target:
@@ -40686,6 +40693,14 @@ components:
               enum:
                 - null
           default: null
+        instructions:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeAttemptInstructions"
+            - type: object
+              nullable: true
+              enum:
+                - null
+          default: null
       required:
         - job_id
         - attempt_id
@@ -40711,6 +40726,44 @@ components:
       description:
         Frozen execution configuration with selected context, input, and checkpoint data. Cross-field
         identity, digest, scope, budget, and provider constraints also apply.
+    AgentRuntimeInstructionText:
+      additionalProperties: false
+      properties:
+        revision:
+          minimum: 1
+          title: Revision
+          type: integer
+        text:
+          maxLength: 8000
+          minLength: 1
+          title: Text
+          type: string
+      required:
+        - revision
+        - text
+      title: InstructionText
+      type: object
+    AgentRuntimeAttemptInstructions:
+      additionalProperties: false
+      properties:
+        team:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeInstructionText"
+            - type: object
+              nullable: true
+              enum:
+                - null
+          default: null
+        profile:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeInstructionText"
+            - type: object
+              nullable: true
+              enum:
+                - null
+          default: null
+      title: AttemptInstructions
+      type: object
     AgentRuntimeProbeGrant:
       additionalProperties: false
       properties:
@@ -40816,6 +40869,12 @@ components:
           $ref: "#/components/schemas/AgentRuntimePolicy"
         budget:
           $ref: "#/components/schemas/AgentRuntimeBudget"
+        instructions_digest:
+          default: null
+          title: Instructions Digest
+          pattern: ^[0-9a-f]{64}$
+          type: string
+          nullable: true
       required:
         - setup_operation_id
         - profile_id
@@ -43827,6 +43886,7 @@ components:
           enum:
             - answer
             - code
+            - manage
           type: string
           nullable: true
         repository_id:

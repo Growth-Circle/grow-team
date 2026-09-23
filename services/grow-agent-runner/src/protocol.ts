@@ -30,6 +30,9 @@ export function canonical(value: unknown): string {
 export function digest(value: unknown): string {
     return createHash("sha256").update(canonical(value)).digest("hex");
 }
+function textDigest(text: string): string {
+    return createHash("sha256").update(text, "utf8").digest("hex");
+}
 const equal = (a: unknown, b: unknown) => canonical(a) === canonical(b);
 export function effectiveConfiguration(d: Data): Data {
     const provider =
@@ -64,6 +67,14 @@ export function effectiveConfiguration(d: Data): Data {
                     checks_digest: digest(r.required_checks),
                 }
               : null;
+    const instructionsDigest =
+        "workspace_binding" in d
+            ? typeof d.instructions_digest === "string"
+                ? d.instructions_digest
+                : undefined
+            : typeof d.instructions?.profile?.text === "string"
+              ? textDigest(d.instructions.profile.text)
+              : undefined;
     return {
         schema_version: 1,
         runner_id: d.runner_id,
@@ -77,6 +88,9 @@ export function effectiveConfiguration(d: Data): Data {
         network: d.policy.network,
         hard_cost_cap: d.policy.hard_cost_cap,
         budget: d.budget,
+        // Never a null/undefined key: an absent digest must match an absent
+        // key on every existing descriptor, or its digest would change.
+        ...(instructionsDigest !== undefined ? {instructions_digest: instructionsDigest} : {}),
     };
 }
 function narrow(d: Data): void {
@@ -92,6 +106,10 @@ function narrow(d: Data): void {
         "network",
     ])
         requireThat(equal(actual[k], tested[k]), `Untested ${k}`);
+    requireThat(
+        equal(actual.instructions_digest ?? null, tested.instructions_digest ?? null),
+        "Untested instructions_digest",
+    );
     requireThat(
         equal(actual.workspace_binding, tested.workspace_binding) ||
             (["answer", "manage"].includes(d.job_kind) && actual.workspace_binding === null),
@@ -269,6 +287,11 @@ function semantics(v: any): void {
                     v.provider?.capability_report.usage === "passed"),
             "Unmeasured cost cap",
         );
+        if (v.instructions?.profile)
+            requireThat(
+                v.instructions.profile.revision === v.profile_revision,
+                "Stale instructions revision",
+            );
         narrow(v);
     }
     if ("setup_operation_id" in v) {

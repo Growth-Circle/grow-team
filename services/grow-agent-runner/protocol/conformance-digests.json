@@ -92,5 +92,17 @@
   {
     "name": "operation_context.read",
     "payload_digest": "a36dccf4dd1917c2cf0bf2f6689da354de2c78a9eefe0c0331778a465e55e947"
+  },
+  {
+    "name": "instructed_answer_descriptor",
+    "payload_digest": "ea3749bddc8837ebaeb56937d8e5eaca38a0dcab7ea2efcaf59691b35dc7aac2",
+    "descriptor_digest": "5074920a9374dc3829229d61878b2dd5519ef38d53da0da66b434290243bc9ee",
+    "configuration_digest": "39f3a1b22e32af8272fc6ce7e560d6d2c77f447901939a2fee8daa17795a4c3d"
+  },
+  {
+    "name": "instructed_provider_probe",
+    "payload_digest": "3fe808bf615530d33f2e4116ae71d9568c7a301419fe169d6c85444b054f94ea",
+    "descriptor_digest": "4cbaffd8007fb775e8e735657c28c4eb2be3fe6e03d15b8453383b2b2cd14dd8",
+    "configuration_digest": "39f3a1b22e32af8272fc6ce7e560d6d2c77f447901939a2fee8daa17795a4c3d"
   }
 ]

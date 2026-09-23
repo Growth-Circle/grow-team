@@ -7,14 +7,17 @@ from urllib.parse import urlsplit
 from uuid import UUID
 
 from pydantic import (
+    AfterValidator,
     AwareDatetime,
     BaseModel,
     ConfigDict,
     Field,
+    SerializerFunctionWrapHandler,
     StrictBool,
     StrictInt,
     TypeAdapter,
     field_validator,
+    model_serializer,
     model_validator,
 )
 from typing_extensions import Self
@@ -23,10 +26,26 @@ SCHEMA_VERSION = 1
 MAX_EVENT_BYTES = 64 * 1024
 MAX_ARTIFACT_BYTES = 10 * 1024 * 1024
 MAX_JOB_ARTIFACT_BYTES = 50 * 1024 * 1024
+INSTRUCTIONS_MAX_CHARS = 8000
 
 Positive = Annotated[int, Field(strict=True, ge=1)]
 Nonnegative = Annotated[int, Field(strict=True, ge=0)]
 Text = Annotated[str, Field(min_length=1, max_length=4096)]
+
+
+def _check_instructions_length(text: str) -> str:
+    """Count UTF-16 code units, not Python code points: the runner's zod
+    schema measures a JS string, where an astral character is two units.
+    Field(max_length=...) below still bounds the common (code point) case
+    and keeps the exported JSON schema's "maxLength" unchanged."""
+    if len(text.encode("utf-16-le")) // 2 > INSTRUCTIONS_MAX_CHARS:
+        raise ValueError(f"String should have at most {INSTRUCTIONS_MAX_CHARS} characters")
+    return text
+
+
+InstructionsText = Annotated[
+    str, Field(max_length=INSTRUCTIONS_MAX_CHARS), AfterValidator(_check_instructions_length)
+]
 Digest = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 GitHash = Annotated[str, Field(pattern=r"^[0-9a-f]{40}([0-9a-f]{24})?$")]
 Action = Literal[
@@ -539,7 +558,40 @@ class EffectiveProvider(Record):
     network: NetworkPolicy
 
 
-class ExecutionConfiguration(Versioned):
+def instructions_digest(text: str) -> str | None:
+    """SHA-256 hex of the UTF-8 text, or None for empty text."""
+    return hashlib.sha256(text.encode()).hexdigest() if text else None
+
+
+class InstructionText(Record):
+    revision: Positive
+    text: Annotated[InstructionsText, Field(min_length=1)]
+
+
+class AttemptInstructions(Record):
+    team: InstructionText | None = None
+    profile: InstructionText | None = None
+
+
+class OmitNoneInstructionFields(Record):
+    """Drop the optional instruction keys from serialization when unset.
+
+    Keeps every existing descriptor, probe, configuration, and digest
+    byte-identical for a profile without instructions.
+    """
+
+    @model_serializer(mode="wrap")
+    def _omit_none_instruction_fields(
+        self, handler: SerializerFunctionWrapHandler
+    ) -> dict[str, object]:
+        data = handler(self)
+        for key in ("instructions_digest", "instructions"):
+            if data.get(key) is None:
+                data.pop(key, None)
+        return data
+
+
+class ExecutionConfiguration(OmitNoneInstructionFields, Versioned):
     runner_id: UUID
     profile_revision: Positive
     adapter: AdapterConfig
@@ -551,9 +603,10 @@ class ExecutionConfiguration(Versioned):
     network: NetworkPolicy
     hard_cost_cap: StrictBool
     budget: Budget
+    instructions_digest: Digest | None = None
 
 
-class AttemptDescriptor(LeaseIdentity, Versioned):
+class AttemptDescriptor(OmitNoneInstructionFields, LeaseIdentity, Versioned):
     audience: AudienceBinding
     tested_configuration: ExecutionConfiguration
     profile_id: UUID
@@ -573,9 +626,15 @@ class AttemptDescriptor(LeaseIdentity, Versioned):
     context_refs: list[ContextReference] = Field(default_factory=list, max_length=100)
     inputs: list[InputRecord] = Field(default_factory=list, max_length=100)
     checkpoint: Checkpoint | None = None
+    instructions: AttemptInstructions | None = None
 
     @model_validator(mode="after")
     def constrain_execution(self) -> Self:
+        if self.instructions is not None and self.instructions.profile is not None:
+            if self.instructions.profile.revision != self.profile_revision:
+                raise ValueError(
+                    "Attempt instructions revision does not match the profile revision"
+                )
         if (
             self.audience.profile_id != self.profile_id
             or (
@@ -635,7 +694,7 @@ class ProbeGrant(Record):
     actions: list[Literal["probe"]] = Field(min_length=1, max_length=1)
 
 
-class ProbeDescriptor(Versioned):
+class ProbeDescriptor(OmitNoneInstructionFields, Versioned):
     setup_operation_id: UUID
     profile_id: UUID | None
     profile_revision: Positive
@@ -648,6 +707,7 @@ class ProbeDescriptor(Versioned):
     workspace_binding: WorkspaceBinding | None = None
     policy: Policy
     budget: Budget
+    instructions_digest: Digest | None = None
 
     @model_validator(mode="after")
     def bind_probe(self) -> Self:
@@ -1243,21 +1303,28 @@ def derive_execution_configuration(
         )
     if isinstance(value, ProbeDescriptor):
         binding = value.workspace_binding
-    elif value.repository is not None:
-        binding = WorkspaceBinding(
-            canonical_origin=value.repository.canonical_origin,
-            repository_id=value.repository.id,
-            workspace_alias=value.repository.workspace_alias,
-            policy_version=value.repository.policy_version,
-            allowed_refs=value.repository.allowed_refs,
-            checks_digest=hashlib.sha256(
-                canonical_json(
-                    [serialize_payload(check) for check in value.repository.required_checks]
-                )
-            ).hexdigest(),
-        )
+        instructions_digest_value = value.instructions_digest
     else:
-        binding = None
+        if value.repository is not None:
+            binding = WorkspaceBinding(
+                canonical_origin=value.repository.canonical_origin,
+                repository_id=value.repository.id,
+                workspace_alias=value.repository.workspace_alias,
+                policy_version=value.repository.policy_version,
+                allowed_refs=value.repository.allowed_refs,
+                checks_digest=hashlib.sha256(
+                    canonical_json(
+                        [serialize_payload(check) for check in value.repository.required_checks]
+                    )
+                ).hexdigest(),
+            )
+        else:
+            binding = None
+        instructions_digest_value = (
+            instructions_digest(value.instructions.profile.text)
+            if value.instructions is not None and value.instructions.profile is not None
+            else None
+        )
     return ExecutionConfiguration(
         runner_id=value.runner_id,
         profile_revision=value.profile_revision,
@@ -1270,6 +1337,7 @@ def derive_execution_configuration(
         network=value.policy.network,
         hard_cost_cap=value.policy.hard_cost_cap,
         budget=value.budget,
+        instructions_digest=instructions_digest_value,
     )
 
 
@@ -1285,6 +1353,7 @@ def validate_attempt_configuration(value: AttemptDescriptor) -> None:
         "policy_version",
         "sandbox",
         "network",
+        "instructions_digest",
     ]:
         if getattr(effective, name) != getattr(tested, name):
             raise ValueError("Attempt runtime differs from its tested configuration")

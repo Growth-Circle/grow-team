@@ -1926,6 +1926,35 @@
         "title": "AdapterConfig",
         "type": "object"
       },
+      "AttemptInstructions": {
+        "additionalProperties": false,
+        "properties": {
+          "team": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstructionText"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstructionText"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "title": "AttemptInstructions",
+        "type": "object"
+      },
       "AudienceBinding": {
         "additionalProperties": false,
         "properties": {
@@ -2665,6 +2694,19 @@
           },
           "budget": {
             "$ref": "#/$defs/Budget"
+          },
+          "instructions_digest": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Instructions Digest"
           }
         },
         "required": [
@@ -2756,6 +2798,28 @@
           "delivery_state"
         ],
         "title": "InputRecord",
+        "type": "object"
+      },
+      "InstructionText": {
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "minimum": 1,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "text": {
+            "maxLength": 8000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision",
+          "text"
+        ],
+        "title": "InstructionText",
         "type": "object"
       },
       "NetworkPolicy": {
@@ -3453,6 +3517,17 @@
         "anyOf": [
           {
             "$ref": "#/$defs/Checkpoint"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "instructions": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/AttemptInstructions"
           },
           {
             "type": "null"
@@ -4370,6 +4445,19 @@
       },
       "budget": {
         "$ref": "#/$defs/Budget"
+      },
+      "instructions_digest": {
+        "anyOf": [
+          {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Instructions Digest"
       }
     },
     "required": [
@@ -6309,6 +6397,17 @@
               }
             ],
             "default": null
+          },
+          "instructions": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AttemptInstructions"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           }
         },
         "required": [
@@ -6333,6 +6432,35 @@
           "budget"
         ],
         "title": "AttemptDescriptor",
+        "type": "object"
+      },
+      "AttemptInstructions": {
+        "additionalProperties": false,
+        "properties": {
+          "team": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstructionText"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstructionText"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "title": "AttemptInstructions",
         "type": "object"
       },
       "AudienceBinding": {
@@ -7074,6 +7202,19 @@
           },
           "budget": {
             "$ref": "#/$defs/Budget"
+          },
+          "instructions_digest": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Instructions Digest"
           }
         },
         "required": [
@@ -7165,6 +7306,28 @@
           "delivery_state"
         ],
         "title": "InputRecord",
+        "type": "object"
+      },
+      "InstructionText": {
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "minimum": 1,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "text": {
+            "maxLength": 8000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision",
+          "text"
+        ],
+        "title": "InstructionText",
         "type": "object"
       },
       "NetworkPolicy": {
@@ -7383,6 +7546,19 @@
           },
           "budget": {
             "$ref": "#/$defs/Budget"
+          },
+          "instructions_digest": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Instructions Digest"
           }
         },
         "required": [
@@ -8950,6 +9126,19 @@
       },
       "budget": {
         "$ref": "#/$defs/Budget"
+      },
+      "instructions_digest": {
+        "anyOf": [
+          {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Instructions Digest"
       }
     },
     "required": [

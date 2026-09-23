@@ -891,6 +891,7 @@ def build_probe_descriptor(
         },
         "policy": profile.policy,
         "budget": profile.budget,
+        "instructions_digest": protocol.instructions_digest(profile.instructions),
     }
     probe = protocol.ProbeDescriptor.model_validate(descriptor)
     serialized = protocol.serialize_payload(probe)
@@ -1022,7 +1023,24 @@ def current_execution_configuration(
         network=policy.network,
         hard_cost_cap=policy.hard_cost_cap,
         budget=protocol.Budget.model_validate(profile.budget),
+        instructions_digest=protocol.instructions_digest(profile.instructions),
     )
+
+
+def descriptor_instructions(profile: agents.AgentProfile) -> dict[str, object] | None:
+    """Assemble the team and profile instructions for a new attempt descriptor."""
+    settings = agents.AgentRealmSettings.objects.get(realm_id=profile.realm_id)
+    team = (
+        {"revision": settings.team_instructions_revision, "text": settings.team_instructions}
+        if settings.team_instructions
+        else None
+    )
+    own = (
+        {"revision": profile.revision, "text": profile.instructions}
+        if profile.instructions
+        else None
+    )
+    return None if team is None and own is None else {"team": team, "profile": own}
 
 
 def _save_descriptor(setup: agents.AgentSetupOperation, descriptor: dict[str, object]) -> None:

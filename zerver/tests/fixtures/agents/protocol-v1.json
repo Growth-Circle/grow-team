@@ -1457,6 +1457,435 @@
           "00000000-0000-4000-8000-000000000019"
         ]
       }
+    },
+    {
+      "name": "instructed_answer_descriptor",
+      "schema": "attempt_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "audience": {
+          "conversation_id": "11111111-1111-4111-8111-111111111111",
+          "epoch": 1,
+          "realm_id": 1,
+          "profile_id": "00000000-0000-4000-8000-000000000002",
+          "requester_user_id": 1,
+          "bot_user_id": 2,
+          "anchor_message_id": 10,
+          "recipient_id": 1,
+          "kind": "stream",
+          "stream_id": 1,
+          "invite_only": false,
+          "is_web_public": false,
+          "history_public_to_subscribers": true,
+          "audience_user_ids": [
+            1,
+            2
+          ]
+        },
+        "tested_configuration": {
+          "schema_version": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "profile_revision": 1,
+          "adapter": {
+            "id": "grow-endpoint",
+            "version": "1.0.0",
+            "mode": "endpoint"
+          },
+          "provider": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "config_version": 1,
+            "base_url": "https://llm.example.test/v1",
+            "api_mode": "chat_completions",
+            "model_id": "fixture",
+            "allowed_models": [
+              "fixture"
+            ],
+            "credential_ref": {
+              "kind": "server",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "version": 1
+            },
+            "context_window_tokens": 8192,
+            "max_output_tokens": 1024,
+            "data_scope": [
+              "synthetic",
+              "selected_repository"
+            ],
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            }
+          },
+          "workspace_binding": {
+            "canonical_origin": "example/fixture",
+            "repository_id": "00000000-0000-4000-8000-000000000004",
+            "workspace_alias": "fixture",
+            "policy_version": 1,
+            "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+            "allowed_refs": [
+              "main"
+            ]
+          },
+          "policy_version": 1,
+          "actions": [
+            "checks.run",
+            "context.read",
+            "repository.edit",
+            "repository.read"
+          ],
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false,
+          "budget": {
+            "active_seconds": 3600,
+            "tool_rounds": 40,
+            "shell_timeout_seconds": 120,
+            "transport_retries": 2,
+            "context_recoveries": 2,
+            "input_tokens": 8192,
+            "output_tokens": 1024,
+            "tool_output_bytes": 51200,
+            "artifact_bytes": 10485760,
+            "job_artifact_bytes": 52428800,
+            "cost_limit_microunits": null
+          },
+          "instructions_digest": "af8bb95d813bfe48ee450d904ede1aa1c2900d0e191a3e6a4aec43dd9afcf9a8"
+        },
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "descriptor_digest": "5074920a9374dc3829229d61878b2dd5519ef38d53da0da66b434290243bc9ee",
+        "configuration_digest": "39f3a1b22e32af8272fc6ce7e560d6d2c77f447901939a2fee8daa17795a4c3d",
+        "lease_expires_at": "2026-09-21T12:00:00Z",
+        "job_kind": "answer",
+        "delivery_target": "answer",
+        "request": "Fix fixture",
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "team_tools": "unknown",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "repository": null,
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 100,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        },
+        "context_refs": [],
+        "inputs": [],
+        "checkpoint": null,
+        "instructions": {
+          "team": {
+            "revision": 3,
+            "text": "Reply in plain English and keep messages under 200 words."
+          },
+          "profile": {
+            "revision": 1,
+            "text": "Always mention which files you changed and why."
+          }
+        }
+      }
+    },
+    {
+      "name": "instructed_provider_probe",
+      "schema": "probe_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "setup_operation_id": "00000000-0000-4000-8000-000000000008",
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "descriptor_digest": "4cbaffd8007fb775e8e735657c28c4eb2be3fe6e03d15b8453383b2b2cd14dd8",
+        "configuration_digest": "39f3a1b22e32af8272fc6ce7e560d6d2c77f447901939a2fee8daa17795a4c3d",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "team_tools": "unknown",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "grant": {
+          "id": "00000000-0000-4000-8000-000000000011",
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "provider_id": "00000000-0000-4000-8000-000000000003",
+          "provider_config_version": 1,
+          "profile_revision": 1,
+          "expires_at": "2026-09-21T12:00:00Z",
+          "actions": [
+            "probe"
+          ]
+        },
+        "workspace_binding": {
+          "canonical_origin": "example/fixture",
+          "repository_id": "00000000-0000-4000-8000-000000000004",
+          "workspace_alias": "fixture",
+          "policy_version": 1,
+          "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+          "allowed_refs": [
+            "main"
+          ]
+        },
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 1024,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        },
+        "instructions_digest": "af8bb95d813bfe48ee450d904ede1aa1c2900d0e191a3e6a4aec43dd9afcf9a8"
+      }
     }
   ],
   "invalid": [
@@ -5271,6 +5700,549 @@
           "artifact_bytes": 10485760,
           "job_artifact_bytes": 52428800,
           "cost_limit_microunits": null
+        }
+      }
+    },
+    {
+      "name": "instructions_text_too_long",
+      "schema": "attempt_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "audience": {
+          "conversation_id": "11111111-1111-4111-8111-111111111111",
+          "epoch": 1,
+          "realm_id": 1,
+          "profile_id": "00000000-0000-4000-8000-000000000002",
+          "requester_user_id": 1,
+          "bot_user_id": 2,
+          "anchor_message_id": 10,
+          "recipient_id": 1,
+          "kind": "stream",
+          "stream_id": 1,
+          "invite_only": false,
+          "is_web_public": false,
+          "history_public_to_subscribers": true,
+          "audience_user_ids": [
+            1,
+            2
+          ]
+        },
+        "tested_configuration": {
+          "schema_version": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "profile_revision": 1,
+          "adapter": {
+            "id": "grow-endpoint",
+            "version": "1.0.0",
+            "mode": "endpoint"
+          },
+          "provider": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "config_version": 1,
+            "base_url": "https://llm.example.test/v1",
+            "api_mode": "chat_completions",
+            "model_id": "fixture",
+            "allowed_models": [
+              "fixture"
+            ],
+            "credential_ref": {
+              "kind": "server",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "version": 1
+            },
+            "context_window_tokens": 8192,
+            "max_output_tokens": 1024,
+            "data_scope": [
+              "synthetic",
+              "selected_repository"
+            ],
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            }
+          },
+          "workspace_binding": {
+            "canonical_origin": "example/fixture",
+            "repository_id": "00000000-0000-4000-8000-000000000004",
+            "workspace_alias": "fixture",
+            "policy_version": 1,
+            "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+            "allowed_refs": [
+              "main"
+            ]
+          },
+          "policy_version": 1,
+          "actions": [
+            "checks.run",
+            "context.read",
+            "repository.edit",
+            "repository.read"
+          ],
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false,
+          "budget": {
+            "active_seconds": 3600,
+            "tool_rounds": 40,
+            "shell_timeout_seconds": 120,
+            "transport_retries": 2,
+            "context_recoveries": 2,
+            "input_tokens": 8192,
+            "output_tokens": 1024,
+            "tool_output_bytes": 51200,
+            "artifact_bytes": 10485760,
+            "job_artifact_bytes": 52428800,
+            "cost_limit_microunits": null
+          }
+        },
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "lease_expires_at": "2026-09-21T12:00:00Z",
+        "job_kind": "answer",
+        "delivery_target": "answer",
+        "request": "Fix fixture",
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "team_tools": "unknown",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "repository": null,
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 100,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        },
+        "context_refs": [],
+        "inputs": [],
+        "checkpoint": null,
+        "instructions": {
+          "team": null,
+          "profile": {
+            "revision": 1,
+            "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          }
+        }
+      }
+    },
+    {
+      "name": "instructions_extra_field",
+      "schema": "attempt_descriptor",
+      "payload": {
+        "schema_version": 1,
+        "job_id": "00000000-0000-4000-8000-000000000005",
+        "attempt_id": "00000000-0000-4000-8000-000000000006",
+        "lease_epoch": 1,
+        "audience": {
+          "conversation_id": "11111111-1111-4111-8111-111111111111",
+          "epoch": 1,
+          "realm_id": 1,
+          "profile_id": "00000000-0000-4000-8000-000000000002",
+          "requester_user_id": 1,
+          "bot_user_id": 2,
+          "anchor_message_id": 10,
+          "recipient_id": 1,
+          "kind": "stream",
+          "stream_id": 1,
+          "invite_only": false,
+          "is_web_public": false,
+          "history_public_to_subscribers": true,
+          "audience_user_ids": [
+            1,
+            2
+          ]
+        },
+        "tested_configuration": {
+          "schema_version": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "profile_revision": 1,
+          "adapter": {
+            "id": "grow-endpoint",
+            "version": "1.0.0",
+            "mode": "endpoint"
+          },
+          "provider": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "config_version": 1,
+            "base_url": "https://llm.example.test/v1",
+            "api_mode": "chat_completions",
+            "model_id": "fixture",
+            "allowed_models": [
+              "fixture"
+            ],
+            "credential_ref": {
+              "kind": "server",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "version": 1
+            },
+            "context_window_tokens": 8192,
+            "max_output_tokens": 1024,
+            "data_scope": [
+              "synthetic",
+              "selected_repository"
+            ],
+            "network": {
+              "targets": [
+                {
+                  "hostname": "llm.example.test",
+                  "port": 443,
+                  "allow_private": false,
+                  "allow_http_loopback": false,
+                  "allow_http_private": false
+                }
+              ],
+              "public_https_only": true,
+              "block_metadata": true,
+              "cross_origin_authorization": false,
+              "project_network": false
+            }
+          },
+          "workspace_binding": {
+            "canonical_origin": "example/fixture",
+            "repository_id": "00000000-0000-4000-8000-000000000004",
+            "workspace_alias": "fixture",
+            "policy_version": 1,
+            "checks_digest": "fe4bf5e8f8d6cbd4c8c1b9b4c5d054b8cb0cdf7f57ed44fcc47adb295ebd861a",
+            "allowed_refs": [
+              "main"
+            ]
+          },
+          "policy_version": 1,
+          "actions": [
+            "checks.run",
+            "context.read",
+            "repository.edit",
+            "repository.read"
+          ],
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false,
+          "budget": {
+            "active_seconds": 3600,
+            "tool_rounds": 40,
+            "shell_timeout_seconds": 120,
+            "transport_retries": 2,
+            "context_recoveries": 2,
+            "input_tokens": 8192,
+            "output_tokens": 1024,
+            "tool_output_bytes": 51200,
+            "artifact_bytes": 10485760,
+            "job_artifact_bytes": 52428800,
+            "cost_limit_microunits": null
+          }
+        },
+        "profile_id": "00000000-0000-4000-8000-000000000002",
+        "profile_revision": 1,
+        "descriptor_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_digest": "f832a6c44e2716221a2bc0ffc515e4d4fc8b431d603c195ed8999cb91d919365",
+        "lease_expires_at": "2026-09-21T12:00:00Z",
+        "job_kind": "answer",
+        "delivery_target": "answer",
+        "request": "Fix fixture",
+        "runner_id": "00000000-0000-4000-8000-000000000001",
+        "adapter": {
+          "id": "grow-endpoint",
+          "version": "1.0.0",
+          "mode": "endpoint"
+        },
+        "provider": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "owner_user_id": 1,
+          "runner_id": "00000000-0000-4000-8000-000000000001",
+          "name": "Fixture",
+          "base_url": "https://llm.example.test/v1",
+          "api_mode": "chat_completions",
+          "model_id": "fixture",
+          "allowed_models": [
+            "fixture"
+          ],
+          "credential_ref": {
+            "kind": "server",
+            "id": "00000000-0000-4000-8000-000000000009",
+            "version": 1
+          },
+          "context_window_tokens": 8192,
+          "max_output_tokens": 1024,
+          "config_version": 1,
+          "data_scope": [
+            "synthetic",
+            "selected_repository"
+          ],
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "capability_report": {
+            "chat_ready": true,
+            "code_ready": true,
+            "tool_calling": "passed",
+            "team_tools": "unknown",
+            "streaming": "unknown",
+            "usage": "unknown",
+            "native_resume": "unknown",
+            "steering": "unknown",
+            "sandbox": "passed",
+            "probed_at": null,
+            "runner_version": "",
+            "adapter_version": "",
+            "config_version": 1
+          }
+        },
+        "repository": null,
+        "policy": {
+          "version": 1,
+          "actions": [
+            "context.read"
+          ],
+          "grant_ids": [],
+          "scope": {
+            "kind": "stream",
+            "stream_id": 1,
+            "topic": "Fixture",
+            "participant_user_ids": [],
+            "anchor_message_id": 10
+          },
+          "sandbox": {
+            "kind": "rootless_container",
+            "alias": "fixture",
+            "image_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "toolchain_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "catalog_revision": 1,
+            "cpu_millicores": 1000,
+            "memory_bytes": 536870912,
+            "pids_limit": 128,
+            "temporary_bytes": 67108864,
+            "network_mode": "none",
+            "read_only_root": true,
+            "drop_all_capabilities": true
+          },
+          "network": {
+            "targets": [
+              {
+                "hostname": "llm.example.test",
+                "port": 443,
+                "allow_private": false,
+                "allow_http_loopback": false,
+                "allow_http_private": false
+              }
+            ],
+            "public_https_only": true,
+            "block_metadata": true,
+            "cross_origin_authorization": false,
+            "project_network": false
+          },
+          "hard_cost_cap": false
+        },
+        "budget": {
+          "active_seconds": 3600,
+          "tool_rounds": 40,
+          "shell_timeout_seconds": 120,
+          "transport_retries": 2,
+          "context_recoveries": 2,
+          "input_tokens": 8192,
+          "output_tokens": 100,
+          "tool_output_bytes": 51200,
+          "artifact_bytes": 10485760,
+          "job_artifact_bytes": 52428800,
+          "cost_limit_microunits": null
+        },
+        "context_refs": [],
+        "inputs": [],
+        "checkpoint": null,
+        "instructions": {
+          "team": null,
+          "profile": {
+            "revision": 1,
+            "text": "Valid instructions.",
+            "note": "extra"
+          }
         }
       }
     }
