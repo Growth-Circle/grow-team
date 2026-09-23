@@ -51,4 +51,20 @@ assert {
 
 call_command("check", verbosity=0)
 engines["Jinja2"].get_template("zerver/login.html")
+
+# Loading a template does not run static(), so a path missing from the
+# collected manifest only fails when a page renders; 12.2-grow-team.18
+# shipped /login/ answering 500 that way.
+import json
+import re
+
+manifest = json.loads((root / "staticfiles.json").read_text())["paths"]
+missing = [
+    f"{template.relative_to(root)}: {match[1]}"
+    for template in sorted((root / "templates").rglob("*.html"))
+    for match in re.finditer(r"""static\(\s*['"]([^'"]+)['"]\s*\)""", template.read_text())
+    if match[1] not in manifest
+]
+if missing:
+    raise SystemExit("Static paths missing from the manifest:\n" + "\n".join(missing))
 print("Application user startup check: PASS")
