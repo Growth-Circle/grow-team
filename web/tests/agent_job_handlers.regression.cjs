@@ -210,12 +210,11 @@ async function main() {
 // that binding, so each harness must bust that cache before requiring it
 // again for a new jsdom window.
 function build_input_retention_harness(api) {
-    delete require.cache[require.resolve("jquery")];
+    Reflect.deleteProperty(require.cache, require.resolve("jquery"));
     const dom = new JSDOM("<body></body>", {url: "https://realm.test"});
     global.window = dom.window;
     global.document = dom.window.document;
     const $ = require("jquery");
-    let timer;
     const transpile = (source) =>
         ts.transpileModule(source, {
             compilerOptions: {
@@ -285,13 +284,12 @@ function build_input_retention_harness(api) {
             },
             window: dom.window,
             document: dom.window.document,
-            setTimeout(fn) {
-                timer = fn;
+            // This harness never fires the poll timer manually, unlike
+            // main()'s, so it only needs to satisfy the panel's calls.
+            setTimeout() {
                 return 1;
             },
-            clearTimeout() {
-                timer = undefined;
-            },
+            clearTimeout() {},
             console,
         },
     );
@@ -334,7 +332,7 @@ async function retains_unresolved_input_across_visit() {
         // the panel must keep treating it as unresolved.
         get_job_inputs: async () => ({inputs: [], count: 0}),
         decide_approval: async () => ({}),
-        job_action: async (_id, _action, payload) => {
+        async job_action(_id, _action, payload) {
             submitted_keys.push(payload.client_key);
             throw new Error("Input delivery is unreachable in this test.");
         },
@@ -376,7 +374,7 @@ async function accepted_input_does_not_return_on_next_visit() {
         get_job_events: async () => ({events: []}),
         get_job_inputs: async () => ({inputs: [], count: 0}),
         decide_approval: async () => ({}),
-        job_action: async (_id, _action, payload) => {
+        async job_action(_id, _action, payload) {
             submitted_keys.push(payload.client_key);
             return {};
         },
@@ -409,9 +407,64 @@ async function accepted_input_does_not_return_on_next_visit() {
     }
 }
 
+async function shows_reason_sentence_and_gates_resume() {
+    const interrupted_id = "22222222-2222-4222-8222-222222222222";
+    const resumable_id = "33333333-3333-4333-8333-333333333333";
+    const detail = (id, overrides) => ({
+        job: {
+            id,
+            version: 1,
+            status: "interrupted",
+            phase: "editing",
+            job_kind: "answer",
+            request: "Example",
+            reason_code: "stop_unconfirmed",
+            resume_available: false,
+            resume_unavailable_reason: "runner_offline",
+            allowed_actions: ["resume"],
+            ...overrides,
+        },
+        attempts: [],
+        required_checks: [],
+        operations: [],
+        artifacts: [],
+        operations_cursor: {offset: 0, next_offset: 0, truncated: false},
+        artifacts_cursor: {offset: 0, next_offset: 0, truncated: false},
+    });
+    const api = {
+        get_job: async (id) => detail(id, id === resumable_id ? {resume_available: true} : {}),
+        get_job_events: async () => ({events: []}),
+        get_job_inputs: async () => ({inputs: [], count: 0}),
+        decide_approval: async () => ({}),
+        job_action: async () => ({}),
+    };
+    const {dom, $, out, flush} = build_input_retention_harness(api);
+    try {
+        out.open(interrupted_id);
+        await flush();
+        // job_kind "answer" shows the note that this agent only answers.
+        assert.equal($("#agent-job-answer-note").prop("hidden"), false);
+        // The reason_code sentence replaces the generic interrupted text.
+        assert.match($("#agent-job-status").text(), /has not confirmed it stopped/);
+        // resume_available false hides the button and explains why.
+        assert.equal($("[data-job-action='resume']").length, 0);
+        assert.match($("#agent-job-controls").text(), /device for this task is offline/);
+
+        out.change_target(resumable_id);
+        await flush();
+        // resume_available true shows the button again for a fresh job.
+        assert.equal($("[data-job-action='resume']").length, 1);
+    } finally {
+        dom.window.close();
+        delete global.window;
+        delete global.document;
+    }
+}
+
 void main()
     .then(() => retains_unresolved_input_across_visit())
     .then(() => accepted_input_does_not_return_on_next_visit())
+    .then(() => shows_reason_sentence_and_gates_resume())
     .then(() => process.stdout.write("Agent job delegated-handler regressions passed.\n"))
     .catch((error) => {
         console.error(error);

@@ -11,9 +11,11 @@ import {
     clears_input_on_ack,
     input_delivery_label,
     input_intent_for_draft,
+    job_reason_sentence,
     job_status_label,
     merge_event_sequences,
     new_client_key,
+    resume_unavailable_sentence,
 } from "./agent_ui_state.ts";
 import type {InputIntent} from "./agent_ui_state.ts";
 import * as browser_history from "./browser_history.ts";
@@ -200,26 +202,29 @@ function render(data: api.AgentJobDetail): void {
     const attempt = selected_attempt(data);
     const attempt_id = attempt?.id;
     render_header(job);
+    $("#agent-job-answer-note").prop("hidden", job.job_kind === "code");
     const summary = $("#agent-job-summary").empty();
     fact(
         summary,
         $t({defaultMessage: "Task type"}),
         job.job_kind === "code" ? $t({defaultMessage: "Coding"}) : $t({defaultMessage: "Answer"}),
     );
-    fact(summary, $t({defaultMessage: "Phase"}), job.phase);
     fact(
         summary,
         $t({defaultMessage: "Attempt"}),
         attempt ? attempt.number : $t({defaultMessage: "Not started"}),
     );
-    if (attempt?.base_commit) {
-        fact(summary, $t({defaultMessage: "Base commit"}), attempt.base_commit.slice(0, 12));
-    }
     fact(summary, $t({defaultMessage: "Request"}), job.request, true);
-    if (job.blocked_reason) {
-        fact(summary, $t({defaultMessage: "Block"}), job.blocked_reason, true);
-    }
     const process = $("#agent-job-attempt").empty();
+    // The phase, process state, reason code, and hashes are internal detail.
+    // The status sentence above already says what happened in plain words.
+    textline(process, $t({defaultMessage: "Phase"}), job.phase);
+    if (job.blocked_reason) {
+        textline(process, $t({defaultMessage: "Block"}), job.blocked_reason);
+    }
+    if (job.reason_code) {
+        textline(process, $t({defaultMessage: "Reason code"}), job.reason_code);
+    }
     if (!attempt) {
         textline(
             process,
@@ -385,7 +390,13 @@ function render(data: api.AgentJobDetail): void {
         action(controls, $t({defaultMessage: "Request stop"}), "cancel");
     }
     if (job.allowed_actions.includes("resume")) {
-        action(controls, $t({defaultMessage: "Resume job"}), "resume", "", "subtle-brand");
+        if (job.resume_available) {
+            action(controls, $t({defaultMessage: "Resume job"}), "resume", "", "subtle-brand");
+        } else {
+            $("<p class='agent-job-note'>")
+                .text(resume_unavailable_sentence(job.resume_unavailable_reason))
+                .appendTo(controls);
+        }
     }
     const input_allowed =
         job.allowed_actions.includes("input") &&
@@ -394,10 +405,15 @@ function render(data: api.AgentJobDetail): void {
             attempt?.process_state === "active");
     $("#agent-job-input-form").prop("hidden", !input_allowed);
     const finished = ["completed", "cancelled", "failed"].includes(job.status);
+    // blocked, interrupted, and failed jobs carry a reason_code that
+    // explains what happened in more detail than the status alone.
+    const reason_sentence = ["blocked", "interrupted", "failed"].includes(job.status)
+        ? job_reason_sentence(job.reason_code)
+        : undefined;
     status(
         finished
-            ? `${agent_job_status_sentence(job.status)} ${$t({defaultMessage: "Create a new task for further work."})}`
-            : agent_job_status_sentence(job.status),
+            ? `${reason_sentence ?? agent_job_status_sentence(job.status)} ${$t({defaultMessage: "Create a new task for further work."})}`
+            : (reason_sentence ?? agent_job_status_sentence(job.status)),
     );
     $("#agent-job-status").attr("data-tone", state_tone(job.status));
     $("#agent-job-updated").text(
@@ -883,6 +899,7 @@ export function change_target(id: string): void {
         .removeAttr("title");
     $("#agent-job-subtitle, #agent-job-updated").text("");
     $("#agent-job-state").prop("hidden", true);
+    $("#agent-job-answer-note").prop("hidden", true);
     $(
         "#agent-job-summary, #agent-job-attempt, #agent-job-checks, #agent-job-operations, #agent-job-artifacts, #agent-job-inputs, #agent-job-events, #agent-job-controls",
     ).empty();

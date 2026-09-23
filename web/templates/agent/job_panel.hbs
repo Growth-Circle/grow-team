@@ -31,6 +31,11 @@
                     role="status"
                     aria-live="polite"
                 >{{t "Loading job…" }}</p>
+                <p
+                    id="agent-job-answer-note"
+                    class="agent-job-note"
+                    hidden
+                >{{t "This agent only answers. Create a Coding task to change code." }}</p>
                 <dl id="agent-job-summary" class="agent-job-facts"></dl>
                 <section
                     class="agent-job-card"
@@ -87,16 +92,15 @@
                         class="action-button action-button-text-brand agent-job-more"
                         hidden
                     >{{t "Show the next operations" }}</button></section>
-                <section
+                <details
                     class="agent-job-card"
-                    aria-labelledby="agent-job-attempt-heading"
-                ><h2
+                ><summary
                         id="agent-job-attempt-heading"
                         class="agent-job-card-title"
-                    >{{t "Attempt" }}</h2><div
+                    >{{t "Technical details" }}</summary><div
                         id="agent-job-attempt"
                         class="agent-job-rows"
-                    ></div></section>
+                    ></div></details>
                 <section
                     class="agent-job-card"
                     aria-labelledby="agent-job-inputs-heading"
