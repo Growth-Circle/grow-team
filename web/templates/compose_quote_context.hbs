@@ -1,0 +1,12 @@
+{{#each cards}}
+    <div class="compose-quote-card">
+        <button type="button" class="compose-quote-open" data-message-id="{{message_id}}" aria-label="{{open_label}}">
+            <span class="compose-quote-sender">{{sender}}</span>
+            <span class="compose-quote-text">{{preview}}</span>
+            <span class="compose-quote-label">{{t "Quote" }}</span>
+        </button>
+        <button type="button" class="compose-quote-remove" data-message-id="{{message_id}}" aria-label="{{t 'Remove quote' }}">
+            <i class="zulip-icon zulip-icon-close" aria-hidden="true"></i>
+        </button>
+    </div>
+{{/each}}

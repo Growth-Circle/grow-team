@@ -4,6 +4,7 @@ import type * as tippy from "tippy.js";
 
 import * as compose_actions from "./compose_actions.ts";
 import * as compose_paste from "./compose_paste.ts";
+import * as compose_quote_cards from "./compose_quote_cards.ts";
 import * as compose_recipient from "./compose_recipient.ts";
 import * as compose_state from "./compose_state.ts";
 import * as compose_ui from "./compose_ui.ts";
@@ -303,7 +304,11 @@ function setup_compose_to_forward_single_message(message: Message, opts: QuoteMe
     compose_recipient.toggle_compose_recipient_dropdown();
 }
 
-function setup_compose_to_quote_single_message(message_id: number, opts: QuoteMessageOpts): void {
+function setup_compose_to_quote_single_message(
+    message_id: number,
+    opts: QuoteMessageOpts,
+    use_quote_card = false,
+): void {
     const $textarea = get_textarea_to_quote(opts.forward_message);
     if ($textarea.attr("id") === "compose-textarea" && !compose_state.has_message_content()) {
         // Whether or not the compose box is open, it's empty, so
@@ -318,6 +323,10 @@ function setup_compose_to_quote_single_message(message_id: number, opts: QuoteMe
         });
     }
 
+    if (use_quote_card) {
+        $textarea.trigger("focus");
+        return;
+    }
     compose_ui.insert_syntax_and_focus(quoting_placeholder, $textarea, "block");
 }
 
@@ -553,40 +562,52 @@ export function quote_messages(opts: QuoteMessageOpts): void {
 
 function quote_single_message(opts: QuoteMessageOpts): void {
     const {message_id, message, quote_content} = get_quote_target_for_single_message(opts);
+    // A quote for the compose box becomes a card. A forward keeps the
+    // quote as text, because the member picks a new recipient for it.
+    const use_quote_card = !opts.forward_message;
 
     if (opts.forward_message) {
         setup_compose_to_forward_single_message(message, opts);
     } else {
-        setup_compose_to_quote_single_message(message_id, opts);
+        setup_compose_to_quote_single_message(message_id, opts, use_quote_card);
     }
 
-    if (message && quote_content) {
+    const deliver = (raw_markdown: string, is_update: boolean): void => {
         const content = generate_replace_content({
             quoted_message: message,
-            raw_markdown: quote_content,
+            raw_markdown,
             forward_message: opts.forward_message,
         });
-        replace_quoting_placeholder_with({
-            content,
-            should_focus_recipient: opts.forward_message === true,
-            forward_message: opts.forward_message,
-        });
-        return;
-    }
-
-    message_fetch_raw_content.get_raw_content_for_single_message({
-        message_id,
-        on_success(raw_content) {
-            const content = generate_replace_content({
-                quoted_message: message,
-                raw_markdown: raw_content,
-                forward_message: opts.forward_message,
-            });
+        if (!use_quote_card) {
             replace_quoting_placeholder_with({
                 content,
                 should_focus_recipient: opts.forward_message === true,
                 forward_message: opts.forward_message,
             });
+        } else if (is_update) {
+            compose_quote_cards.update_markdown(message_id, content);
+        } else {
+            compose_quote_cards.add(message, content, quote_content);
+        }
+    };
+
+    if (message && quote_content) {
+        deliver(quote_content, false);
+        return;
+    }
+
+    // The card appears at once with the best content already on hand;
+    // the raw markdown from the server replaces it when it arrives.
+    const fallback_markdown = (): string =>
+        message.raw_content ?? compose_paste.paste_handler_converter(message.content);
+    if (use_quote_card) {
+        deliver(fallback_markdown(), false);
+    }
+
+    message_fetch_raw_content.get_raw_content_for_single_message({
+        message_id,
+        on_success(raw_content) {
+            deliver(raw_content, use_quote_card);
         },
         // We set a timeout here to trigger usage of the fallback markdown via the
         // error callback below, which is much better UX than waiting for 10 seconds and
@@ -597,20 +618,7 @@ function quote_single_message(opts: QuoteMessageOpts): void {
             // through the `paste_handler_converter` to generate the replacement
             // markdown, in case the request timed out or failed for another reason,
             // such as the client being offline.
-            const message_html = message.content;
-            // We try to access message.raw_content one last time here, just in case
-            // it was populated during the waiting time.
-            const md = message.raw_content ?? compose_paste.paste_handler_converter(message_html);
-            const content = generate_replace_content({
-                quoted_message: message,
-                raw_markdown: md,
-                forward_message: opts.forward_message,
-            });
-            replace_quoting_placeholder_with({
-                content,
-                should_focus_recipient: opts.forward_message === true,
-                forward_message: opts.forward_message,
-            });
+            deliver(fallback_markdown(), use_quote_card);
         },
     });
 }

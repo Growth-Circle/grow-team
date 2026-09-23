@@ -2,6 +2,7 @@ import $ from "jquery";
 
 import * as agent_send_intent from "./agent_send_intent.ts";
 import * as compose_pm_pill from "./compose_pm_pill.ts";
+import * as compose_quote_cards from "./compose_quote_cards.ts";
 import * as stream_data from "./stream_data.ts";
 import * as sub_store from "./sub_store.ts";
 
@@ -183,7 +184,16 @@ export function rewire_topic(value: typeof topic): void {
 
 // We can't trim leading whitespace in `compose_textarea` because
 // of the indented syntax for multi-line code blocks.
-export const message_content = get_or_set("textarea#compose-textarea", true);
+const textarea_content = get_or_set("textarea#compose-textarea", true);
+
+// Quote cards stay outside the textarea, so the content that compose
+// sends, saves, and previews joins them with the typed text.
+export function message_content(newval?: string): string {
+    if (newval !== undefined) {
+        return textarea_content(newval);
+    }
+    return compose_quote_cards.with_quotes(textarea_content());
+}
 
 const untrimmed_message_content = get_or_set("textarea#compose-textarea", true, true);
 

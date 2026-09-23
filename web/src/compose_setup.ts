@@ -16,6 +16,8 @@ import {compose_call_session_manager} from "./compose_call_session.ts";
 import * as compose_call_ui from "./compose_call_ui.ts";
 import * as compose_fade from "./compose_fade.ts";
 import * as compose_notifications from "./compose_notifications.ts";
+import * as compose_quote_cards from "./compose_quote_cards.ts";
+import * as compose_quote_context from "./compose_quote_context.ts";
 import * as compose_recipient from "./compose_recipient.ts";
 import * as compose_send_menu_popover from "./compose_send_menu_popover.ts";
 import * as compose_state from "./compose_state.ts";
@@ -58,6 +60,7 @@ function setup_compose_actions_hooks(): void {
     compose_actions.register_compose_box_clear_hook(compose.clear_invites);
     compose_actions.register_compose_box_clear_hook(compose.clear_private_stream_alert);
     compose_actions.register_compose_box_clear_hook(compose.clear_preview_area);
+    compose_actions.register_compose_box_clear_hook(compose_quote_cards.clear);
 
     compose_actions.register_compose_cancel_hook(abort_xhr);
     compose_actions.register_compose_cancel_hook(() => {
@@ -67,6 +70,7 @@ function setup_compose_actions_hooks(): void {
 
 export function initialize(): void {
     agent_task_composer.initialize();
+    compose_quote_context.initialize();
     // Register hooks for compose_actions.
     setup_compose_actions_hooks();
 

@@ -14,6 +14,7 @@ import * as agent_send_intent from "./agent_send_intent.ts";
 import * as channel from "./channel.ts";
 import * as compose_banner from "./compose_banner.ts";
 import * as compose_notifications from "./compose_notifications.ts";
+import * as compose_quote_cards from "./compose_quote_cards.ts";
 import * as compose_state from "./compose_state.ts";
 import * as compose_ui from "./compose_ui.ts";
 import * as compose_validate from "./compose_validate.ts";
@@ -117,6 +118,7 @@ export function clear_compose_box(): void {
         compose_ui.make_compose_box_original_size();
     }
     clear_preview_area();
+    compose_quote_cards.clear();
     $("textarea#compose-textarea").val("").trigger("focus");
     compose_ui.compose_textarea_typeahead?.hide();
     compose_validate.check_overflow_text($("#send_message_form"));

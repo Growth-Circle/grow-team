@@ -24,6 +24,14 @@ mock_esm("../src/message_lists", {
     current: {},
 });
 
+mock_esm("../src/compose_paste", {
+    paste_handler_converter: () => "Converted content",
+});
+const compose_quote_cards = mock_esm("../src/compose_quote_cards", {
+    add() {},
+    update_markdown() {},
+    with_quotes: (text) => text,
+});
 const compose_ui = zrequire("compose_ui");
 const linkifiers = zrequire("linkifiers");
 const stream_data = zrequire("stream_data");
@@ -495,165 +503,94 @@ run_test("quote_message", ({override, override_rewire}) => {
         },
     );
 
-    function run_success_callback() {
-        success_function(quote_text);
-    }
+    const quote_markdown = (content) =>
+        quote_message_template({
+            channel_object: devel_stream,
+            selected_message,
+            fence: "```",
+            content,
+        });
+
+    // A quote for the compose box becomes a card. The card appears at
+    // once with the content on hand, the raw markdown from the server
+    // replaces it, and the typed text stays as it was.
+    const cards = [];
+    override(compose_quote_cards, "add", (message, markdown) => {
+        cards.push({message_id: message.id, markdown});
+    });
+    override(compose_quote_cards, "update_markdown", (message_id, markdown) => {
+        const card = cards.find((item) => item.message_id === message_id);
+        card.markdown = markdown;
+    });
 
     $("textarea#compose-textarea").attr("id", "compose-textarea");
-    override(text_field_edit, "insertTextIntoField", (elt, syntax) => {
-        assert.equal(elt, $("textarea#compose-textarea")[0]);
-        assert.equal(syntax, "\n\ntranslated: [Quoting…]\n\n");
-    });
-
-    function set_compose_content_with_caret(content) {
-        const caret_position = content.indexOf("%");
-        content = content.slice(0, caret_position) + content.slice(caret_position + 1); // remove the "%"
-        $("textarea#compose-textarea").val(content);
-        $("textarea#compose-textarea").caret(caret_position);
-        $("textarea#compose-textarea").trigger("focus");
-    }
-
-    function reset_test_state() {
-        // Reset `raw_content` property of `selected_message`.
-        delete selected_message.raw_content;
-
-        // Reset compose-box state.
-        $("textarea#compose-textarea").val("");
-        $("textarea#compose-textarea").caret(0);
-        $("textarea#compose-textarea").trigger("blur");
-    }
-
-    function override_with_quote_text(quote_text) {
-        override(text_field_edit, "replaceFieldText", (elt, old_syntax, new_syntax) => {
-            assert.equal(elt, $("textarea#compose-textarea")[0]);
-            assert.equal(old_syntax, "translated: [Quoting…]");
-            assert.equal(
-                new_syntax(),
-                quote_message_template({
-                    channel_object: devel_stream,
-                    selected_message,
-                    fence: "```",
-                    content: quote_text,
-                }),
-            );
-        });
-    }
-    function override_with_forward_text(quote_text) {
-        override(text_field_edit, "replaceFieldText", (elt, old_syntax, new_syntax) => {
-            assert.equal(elt, $("textarea#compose-textarea")[0]);
-            assert.equal(old_syntax, "translated: [Quoting…]");
-            assert.equal(
-                new_syntax(),
-                forward_channel_message_template({
-                    channel_object: devel_stream,
-                    selected_message,
-                    fence: "```",
-                    content: quote_text,
-                }),
-            );
-        });
-    }
-    let quote_text = "Testing caret position";
-    override_with_quote_text(quote_text);
-    set_compose_content_with_caret("hello %there"); // "%" is used to encode/display position of focus before change
+    $("textarea#compose-textarea").val("hello there");
+    // With the raw markdown already on hand, the card uses it and no
+    // request goes to the server.
+    selected_message.raw_content = "Content on hand";
+    success_function = undefined;
     compose_reply.quote_messages({message_id: 100});
-    run_success_callback();
+    assert.deepEqual(cards, [{message_id: 100, markdown: quote_markdown("Content on hand")}]);
+    assert.equal(success_function, undefined);
+    assert.equal($("textarea#compose-textarea").val(), "hello there");
 
-    reset_test_state();
-
-    // If the caret is initially positioned at 0, it should not
-    // add newlines before the quoted message.
-    override(text_field_edit, "insertTextIntoField", (elt, syntax) => {
-        assert.equal(elt, $("textarea#compose-textarea")[0]);
-        assert.equal(syntax, "translated: [Quoting…]\n\n");
-    });
-    set_compose_content_with_caret("%hello there");
+    // Without it, the card starts from the rendered message and the raw
+    // markdown from the server replaces that.
+    cards.length = 0;
+    delete selected_message.raw_content;
     compose_reply.quote_messages({message_id: 100});
+    assert.deepEqual(cards, [{message_id: 100, markdown: quote_markdown("Converted content")}]);
+    success_function("Content from the server");
+    assert.deepEqual(cards, [
+        {message_id: 100, markdown: quote_markdown("Content from the server")},
+    ]);
+    selected_message.raw_content = "Content on hand";
 
-    quote_text = "Testing with caret initially positioned at 0.";
-    override_with_quote_text(quote_text);
-    run_success_callback();
-
-    override_rewire(compose_reply, "respond_to_message", () => {
-        // Reset compose state to replicate the re-opening of compose-box.
-        $("textarea#compose-textarea").val("");
-        $("textarea#compose-textarea").caret(0);
-        $("textarea#compose-textarea").trigger("focus");
+    // With an empty compose box, quoting starts a reply to the quoted
+    // message, and the quote still arrives as a card.
+    cards.length = 0;
+    let responded = false;
+    override_rewire(compose_reply, "respond_to_message", (opts) => {
+        assert.equal(opts.message_id, 100);
+        assert.ok(opts.keep_composebox_empty);
+        responded = true;
     });
-
-    reset_test_state();
-
-    // If the compose-box is close, or open with no content while
-    // quoting a message, the quoted message should be placed
-    // at the beginning of compose-box.
+    $("textarea#compose-textarea").val("");
     override(message_lists.current, "selected_id", () => 100);
     override_rewire(compose_reply, "get_highlighted_message_ids", () => undefined);
     compose_reply.quote_messages({});
+    assert.ok(responded);
+    assert.equal(cards.length, 1);
+    delete selected_message.raw_content;
 
-    quote_text = "Testing with compose-box closed initially.";
-    override_with_quote_text(quote_text);
-    run_success_callback();
-
-    reset_test_state();
-
-    // If the compose-box is already open while quoting a message,
-    // but contains content like `\n\n  \n` (only whitespaces and
-    // newlines), the compose-box should re-open and thus the quoted
-    // message should start from the beginning of compose-box.
-    set_compose_content_with_caret("  \n\n \n %");
-    compose_reply.quote_messages({});
-
-    quote_text = "Testing with compose-box containing whitespaces and newlines only.";
-    override_with_quote_text(quote_text);
-    run_success_callback();
-
-    reset_test_state();
-
-    // If forwarding a message, the quoted message should be inserted into
-    // an empty compose box, even if compose box wasn't previously empty.
+    // A forward keeps the quote as text in a new message, because the
+    // member picks the recipient for it.
     let new_message = false;
     override_rewire(compose_actions, "start", (opts) => {
         assert.equal(opts.message_type, "stream");
         assert.equal(opts.content, "translated: [Quoting…]");
         new_message = true;
     });
-
-    set_compose_content_with_caret("hello %there");
+    const quote_text = "Testing a forward.";
+    override(text_field_edit, "replaceFieldText", (elt, old_syntax, new_syntax) => {
+        assert.equal(elt, $("textarea#compose-textarea")[0]);
+        assert.equal(old_syntax, "translated: [Quoting…]");
+        assert.equal(
+            new_syntax(),
+            forward_channel_message_template({
+                channel_object: devel_stream,
+                selected_message,
+                fence: "```",
+                content: quote_text,
+            }),
+        );
+    });
+    cards.length = 0;
+    $("textarea#compose-textarea").val("hello there");
     compose_reply.quote_messages({forward_message: true});
     assert.ok(new_message);
-
-    override_with_forward_text(quote_text);
-    run_success_callback();
-
-    reset_test_state();
-
-    // When there is already 1 newline before and after the caret,
-    // only 1 newline is added before and after the quoted message.
-    override(text_field_edit, "insertTextIntoField", (elt, syntax) => {
-        assert.equal(elt, $("textarea#compose-textarea")[0]);
-        assert.equal(syntax, "\ntranslated: [Quoting…]\n");
-    });
-    set_compose_content_with_caret("1st line\n%\n2nd line");
-    compose_reply.quote_messages({});
-
-    quote_text = "Testing with caret on a new line between 2 lines of text.";
-    override_with_quote_text(quote_text);
-    run_success_callback();
-
-    reset_test_state();
-
-    // When there are many (>=2) newlines before and after the caret,
-    // no newline is added before or after the quoted message.
-    override(text_field_edit, "insertTextIntoField", (elt, syntax) => {
-        assert.equal(elt, $("textarea#compose-textarea")[0]);
-        assert.equal(syntax, "translated: [Quoting…]");
-    });
-    set_compose_content_with_caret("lots of\n\n\n\n%\n\n\nnewlines");
-    compose_reply.quote_messages({});
-
-    quote_text = "Testing with caret on a new line between many empty newlines.";
-    override_with_quote_text(quote_text);
-    run_success_callback();
+    success_function(quote_text);
+    assert.equal(cards.length, 0);
 });
 
 run_test("set_compose_box_top", () => {

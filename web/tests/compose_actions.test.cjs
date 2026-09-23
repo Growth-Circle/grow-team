@@ -56,6 +56,17 @@ mock_esm("../src/compose_tooltips", {
     dismiss_intro_go_to_conversation_tooltip: noop,
 });
 const message_fetch_raw_content = mock_esm("../src/message_fetch_raw_content");
+const compose_quote_cards = mock_esm("../src/compose_quote_cards", {
+    add() {},
+    update_markdown() {},
+    with_quotes: (text) => text,
+    clear() {},
+});
+// Quote cards take their first markdown from the message on hand; the
+// converter needs a real DOM, so the tests stub it.
+mock_esm("../src/compose_paste", {
+    paste_handler_converter: () => "Converted content",
+});
 
 const compose_fade = mock_esm("../src/compose_fade", {
     clear_compose: noop,
@@ -511,6 +522,15 @@ test("quote_messages", ({disallow, override, override_rewire}) => {
 
     let expected_replacement;
     let replaced;
+    // A quote for the compose box becomes a card, so these cases check
+    // the markdown of the card instead of a replaced placeholder.
+    let card_markdown;
+    override(compose_quote_cards, "add", (_message, markdown) => {
+        card_markdown = markdown;
+    });
+    override(compose_quote_cards, "update_markdown", (_message_id, markdown) => {
+        card_markdown = markdown;
+    });
     override(compose_ui, "replace_syntax", (syntax, replacement) => {
         assert.equal(syntax, "translated: [Quoting…]");
         assert.equal(replacement, expected_replacement);
@@ -548,11 +568,6 @@ test("quote_messages", ({disallow, override, override_rewire}) => {
         success_function("Testing.");
     }
 
-    override(compose_ui, "insert_syntax_and_focus", (syntax, _$textarea, mode) => {
-        assert.equal(syntax, "translated: [Quoting…]");
-        assert.equal(mode, "block");
-    });
-
     let opts = {
         reply_type: "personal",
         message_id: 100,
@@ -576,7 +591,7 @@ test("quote_messages", ({disallow, override, override_rewire}) => {
     quote_messages(opts);
 
     run_success_callback();
-    assert.ok(replaced);
+    assert.equal(card_markdown, expected_replacement);
 
     opts = {
         reply_type: "personal",
@@ -624,7 +639,7 @@ test("quote_messages", ({disallow, override, override_rewire}) => {
 
     disallow(message_fetch_raw_content, "get_raw_content_for_single_message");
     quote_messages(opts);
-    assert.ok(replaced);
+    assert.equal(card_markdown, expected_replacement);
 
     opts = {
         reply_type: "personal",
@@ -665,7 +680,7 @@ test("quote_messages", ({disallow, override, override_rewire}) => {
     });
 
     quote_messages(opts);
-    assert.ok(replaced);
+    assert.equal(card_markdown, expected_replacement);
 
     opts = {
         reply_type: "personal",
