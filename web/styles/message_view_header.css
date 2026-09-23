@@ -1,3 +1,10 @@
+/* Frame 10a (guide section 2, Topbar): the top bar holds no view
+   title or breadcrumb. A conversation shows its channel and topic in
+   the header at the top of the feed instead (message_header.css). */
+#top_navbar #message_view_header {
+    display: none;
+}
+
 #message_view_header {
     color: var(--color-text-message-view-header);
     z-index: 2;

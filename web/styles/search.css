@@ -1,13 +1,11 @@
-/* Widen the navbar search field to the redesigned mockup's size.
-   `.top-navbar-container` (zulip.css) also reads --search-box-width to
-   reserve room for the field next to the channel/topic title, so the
-   override lives here, at the shared ancestor, to keep both in sync.
+/* Widen the navbar search field to the redesigned mockup's size,
+   at the shared ancestor of the field and .top-navbar-container.
    Height reuses --height-menu-row (34px, app_variables.css), the
    shared control-height token that already matches mockup 10a's
    search box. The two breakpoints below are unchanged from
    app_variables.css. */
 .top-navbar-container {
-    --search-box-width: 30em; /* 420px at 14px em, mockup 10a's search box */
+    --search-box-width: 26.25em; /* 420px at 16px em, mockup 10a's search box */
     --search-box-height: var(--height-menu-row); /* 34px, matches mockup 10a */
 
     @media (width < $md_min) {
@@ -17,6 +15,13 @@
     @media (height < $short_navbar_cutoff_height) {
         --search-box-height: 1.75em;
     }
+}
+
+#top_navbar .top-navbar-container {
+    /* zulip.css reserves the search box's width on the right so the
+       view title can truncate before it. The top bar has no title now
+       (message_view_header.css), so give the search box the room. */
+    margin-right: 0;
 }
 
 #searchbox {
@@ -29,7 +34,11 @@
            to 34px (mockup 10a); that leftover margin no longer
            centers a box this tall, so it now sits high in the bar. */
         top: calc((var(--header-height) - var(--search-box-height)) / 2);
-        border-radius: var(--radius-pill);
+        /* Frame 10a: the box starts at the left edge of the main
+           column, where the view title used to sit (see
+           message_view_header.css), with 8px corners. */
+        left: 0;
+        border-radius: var(--radius-md);
         position: absolute;
         overflow: hidden;
         /* We bump the z-index to keep the search box
@@ -103,9 +112,20 @@
     }
 
     .navbar-search:not(.expanded) {
-        right: 0;
+        /* This box is absolutely positioned, so a percentage width on
+           the input container inside it cannot resolve and the box
+           shrinks to its placeholder; size the box against the main
+           column instead, capped at frame 10a's 420px. */
+        width: min(100%, var(--search-box-width));
         background-color: var(--color-background-search-collapsed);
         border: 1px solid var(--color-outline-input);
+
+        @media (width < $md_min) {
+            /* Narrow screens put the left sidebar toggle at the left
+               of the main column, so keep the search icon at the right. */
+            left: auto;
+            right: 0;
+        }
 
         .search_close_button {
             display: none;
@@ -131,6 +151,8 @@
             border-radius: var(--radius-md); /* 8px, matches mockup 10a */
             color: var(--color-text-search);
             box-shadow: none;
+            /* Frame 10a: 14px placeholder. */
+            font-size: calc(var(--base-font-size-px) * 0.875);
         }
 
         &:hover {

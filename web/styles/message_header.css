@@ -193,27 +193,10 @@
     }
 }
 
-/* Scoped to .message-list (web/templates/message_list.hbs), the
-   actual ancestor of .recipient_row; an earlier .message-feed here
-   matched no element in the DOM, so this whole block never applied
-   and the topic bar sat flush against the first card below it. */
 .message-list {
     .recipient_row {
-        /* Gives the topic header some breathing room from the next
-           topic's header below. Each message now draws its own card
-           (see .messagebox in message_row.css), so this bar no longer
-           needs to draw a card shape of its own. */
-        margin-bottom: 1em;
-
         .recipient_row_date {
             cursor: pointer;
-        }
-
-        /* Gives the same 14px rhythm used between message cards
-           (see .messagebox's margin-bottom in message_row.css) to
-           the gap between the header and the first card below it. */
-        .message_header + .message_row .messagebox {
-            margin-top: 14px;
         }
     }
 
@@ -236,6 +219,91 @@
                 display: block;
             }
         }
+    }
+
+    /* Frame 10a's conversation header: a white bar across the whole
+       message column, directly under the top bar, holding the channel
+       and topic at 19px, then the Follow pill and the topic menu. */
+    .message_header_stream {
+        /* Reach the column edges past div.message-list's 18px 24px
+           padding (zulip.css). */
+        margin: 0 -24px;
+        box-shadow: none;
+
+        .message-header-contents {
+            font-size: var(--base-font-size-px);
+            justify-content: flex-start;
+            gap: 0.625em; /* 10px */
+            margin-top: 0;
+            padding: 0.875em 1.5em 0.75em; /* 14px 24px 12px */
+            /* The feed paints each bar in its channel's color, both in
+               recipient_row.hbs and again from stream_color_events.ts
+               on a color change, as an inline style; 10a draws it
+               white. */
+            background: var(--color-background-navbar) !important;
+            border-bottom: 1px solid var(--color-navbar-bottom-border);
+        }
+
+        .stream_label {
+            gap: 0.5263em; /* 10px at 19px */
+            padding: 0;
+            height: auto;
+            line-height: 1.25;
+            font-size: 1.1875em; /* 19px */
+            letter-spacing: -0.01em;
+
+            .stream-privacy {
+                width: auto;
+                height: auto;
+                font-size: 0.8947em; /* 17px at 19px */
+            }
+        }
+
+        .stream_topic_separator {
+            font-size: 0.8125em; /* 13px */
+            top: 0;
+        }
+
+        .stream_topic {
+            flex: 0 1 auto;
+            min-width: 0;
+            padding: 0;
+            line-height: 1.25;
+
+            .message_label_clickable.narrows_by_topic {
+                font-size: 1.1875em; /* 19px */
+                font-weight: 400;
+                letter-spacing: 0;
+            }
+        }
+
+        .change_visibility_policy {
+            margin-left: auto;
+        }
+
+        .recipient_bar_controls {
+            flex-grow: 0;
+            opacity: 1;
+        }
+
+        /* 10a shows only the Follow pill and the topic menu. Resolve,
+           rename, and copy link are all in that menu. The resolve pill
+           stays in the DOM, hidden, because resolving from the menu
+           shows its spinner on it (message_edit.ts). */
+        .on_hover_topic_resolve,
+        .on_hover_topic_edit,
+        .recipient-bar-copy-link-to-topic,
+        .recipient-bar-participants,
+        .recipient_row_date {
+            display: none;
+        }
+    }
+
+    /* The first bar sits flush under the top bar, over the list's
+       18px top padding and the feed's --header-padding-bottom. When
+       a bookend comes first, the bar keeps that gap instead. */
+    > .recipient_row:first-child > .message_header_stream {
+        margin-top: calc(-18px - var(--header-padding-bottom));
     }
 }
 
@@ -312,19 +380,21 @@
 .recipient-bar-control-pill {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    /* The header sits in a 15px font-size context (see
-       .message-header-contents), but --height-icon-button and the
-       padding below are calibrated to the app's 14px base. Resetting
-       font-size here keeps both the pill's own height and its
-       em-sized icon at their intended pixel values. */
-    font-size: var(--base-font-size-px);
-    height: var(--height-icon-button); /* 32px at 14px em */
-    padding: 0 0.7143em; /* 10px at 14px em */
-    border: 1px solid var(--color-message-list-border);
-    border-radius: var(--radius-pill);
-    background-color: var(--color-background-stream-message-content);
-    color: var(--color-text-default);
+    /* Frame 10a's header buttons: 32px tall, 8px corners, 14px/600
+       label, 15px icon, 7px between them, sized off the app's base
+       font so the header's own font-size does not scale them. */
+    font-size: calc(var(--base-font-size-px) * 0.875);
+    gap: 0.5em; /* 7px at 14px */
+    height: 2.2857em; /* 32px at 14px */
+    padding: 0 0.8571em; /* 12px at 14px */
+    border: 1px solid var(--color-outline-input);
+    border-radius: var(--radius-md);
+    background-color: var(--color-background-navbar);
+    color: var(--color-text-neutral-subtle-action-button);
+
+    .zulip-icon {
+        font-size: 1.0714em; /* 15px at 14px */
+    }
     font-family: inherit;
     font-weight: 600;
     white-space: nowrap;
@@ -333,11 +403,15 @@
 
     &:hover,
     &:focus-visible {
-        background-color: var(--color-background-neutral-subtle-action-button-hover);
+        background-color: var(
+            --color-background-neutral-subtle-action-button-hover
+        );
     }
 
     &:active {
-        background-color: var(--color-background-neutral-subtle-action-button-active);
+        background-color: var(
+            --color-background-neutral-subtle-action-button-active
+        );
     }
 
     &:focus {

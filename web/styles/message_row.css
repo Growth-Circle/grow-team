@@ -15,7 +15,18 @@
         "message_divider_unread_marker message_feed_divider_content"
         "message_unread_marker messagebox";
 
-    background-color: var(--color-background-stream-message-content);
+    /* Frame 10a: channel messages sit on the canvas, not on a white
+       panel. DM and mention rows keep their own tints below. */
+    background-color: transparent;
+    /* Frame 10a: 18px between one sender's messages and the next;
+       the date divider inside the row adds its own 18px below. */
+    padding-top: 1.125em;
+
+    &:not(.messagebox-includes-sender) {
+        /* A follow-up message from the same sender sits close to the
+           one above it. */
+        padding-top: var(--message-box-markdown-aligned-vertical-space);
+    }
 
     &.private-message {
         background-color: var(--color-background-private-message-content);
@@ -70,13 +81,10 @@
 .messagebox {
     grid-area: messagebox;
     overflow-wrap: break-word;
-    /* The approved design (Tenang) draws messages as a flat, flowing
-       list, not individual bordered cards: no border, radius, or
-       card background here. Padding and margin-bottom stay, both for
-       the avatar/timestamp inset the grid below still relies on and
-       for the gap between messages within the same topic group. */
-    padding: 1.2857em 1.4286em; /* 18px 20px at 14px em */
-    margin-bottom: 14px;
+    /* Frame 10a draws messages as a flat list: no border, card
+       background, or inset. The spacing between messages lives on
+       .message_row above. */
+    padding: 0;
 
     &:hover .message_controls {
         > .message_control_button {
@@ -121,13 +129,12 @@
         ensures the timestamp will always have enough space
         in the column. */
     /* 58px = 44px avatar column + 14px gap to the message column, at
-       14px/1em (mockup frame 10a). Written as a literal so this row
-       package does not need to edit the shared
-       --message-box-avatar-column-width token (46px) in
-       app_variables.css. */
+       the app's 16px/1em (frame 10a). Written as a literal so this
+       row package does not need to edit the shared
+       --message-box-avatar-column-width token in app_variables.css. */
     grid-template:
         minmax(var(--message-box-sender-line-height), auto) repeat(4, auto) /
-        4.1429em minmax(0, 1fr) max-content 8px
+        3.625em minmax(0, 1fr) max-content 8px
         minmax(var(--message-box-timestamp-column-width), max-content);
     /* Named grid areas provide flexibility for positioning grid items
        reliably, even if the row or column definitions of the grid change. */
@@ -150,9 +157,9 @@
         cursor: default;
         /* Set the controls area to 0 to give more space
            to the edit/source view area. Column 1 matches the
-           4.1429em (58px) avatar-column-plus-gap literal above. */
+           3.625em (58px) avatar-column-plus-gap literal above. */
         grid-template-columns:
-            4.1429em minmax(0, 1fr)
+            3.625em minmax(0, 1fr)
             0 8px minmax(
                 var(--message-box-timestamp-column-width),
                 max-content
@@ -473,11 +480,11 @@
                    sender-line elements on the .messagebox-content
                    grid. */
                 margin-top: var(--message-box-vertical-margin);
-                /* 38px at 14px em: rounded-square avatar size from the
+                /* 38px at 16px em: rounded-square avatar size from the
                    message-row mockup (frame 10a), replacing the old
                    36px circular control-height size. */
-                width: 2.7143em;
-                height: 2.7143em;
+                width: 2.375em;
+                height: 2.375em;
                 /* Rounded square, not a circle, per the mockup. */
                 border-radius: var(--radius-lg);
             }
@@ -495,8 +502,8 @@
            rule reach back to the avatar, which is rendered earlier in
            the same row. */
         &:has(.sender_name_text[data-is-bot="true"]) .message-avatar {
-            width: 2.7143em; /* 38px at 14px em, matches the avatar above */
-            height: 2.7143em;
+            width: 2.375em; /* 38px at 16px em, matches the avatar above */
+            height: 2.375em;
             margin-top: var(--message-box-vertical-margin);
             border-radius: var(--radius-lg);
             background-color: hsl(172deg 88% 26%);
@@ -508,9 +515,9 @@
             &::before {
                 content: "";
                 display: block;
-                width: 1.4286em; /* 20px at 14px em */
-                height: 1.4286em;
-                margin: 0.6429em auto; /* centers 20px inside the 38px box */
+                width: 1.25em; /* 20px at 16px em */
+                height: 1.25em;
+                margin: 0.5625em auto; /* centers 20px inside the 38px box */
                 background-color: hsl(0deg 0% 100%);
                 mask: url("../icons/bot.svg") center / contain no-repeat;
             }
@@ -578,7 +585,8 @@
 
             .sender_name {
                 display: inline-flex;
-                font-weight: 700;
+                /* Frame 10a: 16px/600 sender names. */
+                font-weight: 600;
                 color: var(--color-text-sender-name);
                 column-gap: 3px;
                 overflow: hidden;
@@ -842,6 +850,32 @@
            display time but still want it to occupy space. */
         width: 45px !important;
         position: unset !important;
+    }
+}
+
+/* Frame 10a: on a sender line the time follows the name 10px after
+   it, and the hover controls move to the far end of the line. Me
+   messages and edit mode keep their own grids above. */
+.messagebox-includes-sender
+    .messagebox-content:not(.is-me-message, .content_edit_mode) {
+    grid-template-columns:
+        3.625em minmax(0, max-content) max-content minmax(0, 1fr)
+        max-content;
+    grid-template-areas:
+        "avatar sender    time      .         controls"
+        "avatar message   message   message   message"
+        ".      more      more      more      more"
+        ".      reactions reactions reactions reactions"
+        ".      reminders reminders reminders reminders";
+
+    .message-time {
+        justify-self: start;
+        padding: 0 0 0 0.7692em; /* 10px at 13px */
+        font-size: 0.8125em; /* 13px */
+        font-weight: 400;
+        opacity: 1;
+        letter-spacing: 0;
+        color: light-dark(hsl(180deg 10% 40%), hsl(170deg 6% 60%));
     }
 }
 
@@ -1300,7 +1334,9 @@
     grid-template: auto / minmax(20px, 1fr) auto minmax(max-content, 1fr);
     grid-template-areas: "left_divider_content middle_divider_content right_divider_content";
     align-items: center;
-    padding: 8px 0;
+    /* Frame 10a: the date sits 18px above the message it heads; the
+       18px above it comes from .message_row's own padding. */
+    padding: 0 0 1.125em;
 
     &::before {
         grid-area: left_divider_content;
@@ -1359,7 +1395,7 @@
         letter-spacing: 0.04em;
         overflow: hidden;
         font-style: normal;
-        font-size: 0.9286em; /* 13px at 14px em */
+        font-size: 0.8125em; /* 13px at 16px em */
         font-weight: 600;
         line-height: 1.3077; /* 17px at the 13px font size above */
         text-align: center;
