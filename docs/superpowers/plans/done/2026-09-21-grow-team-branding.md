@@ -63,7 +63,7 @@ Tambahan permintaan pengguna pada sesi yang sama.
 - [x] Verifikasi SHA lokal sama dengan remote serta working tree bersih.
 
 Rilis produksi dan batas pengujian dicatat dalam
-[laporan verifikasi](../../../deploy/grow-team/BRANDING-VERIFICATION.md).
+[laporan verifikasi](../../../../deploy/grow-team/BRANDING-VERIFICATION.md).
 Push hasil rilis diverifikasi pada commit `b6c20f627773df75d51b8045447f6754a6557bc3`.
 Pembaruan checklist ini hanya mengubah dokumentasi.
 

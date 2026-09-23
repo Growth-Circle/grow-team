@@ -34,4 +34,4 @@ Commit dan push tetap termasuk cakupan yang sudah diminta pengguna.
 
 Image produksi memakai source `07987acf6103e38ba9e86c5990f40a6295afb277`.
 Hasil pengujian, perubahan data, dan pemeriksaan publik dicatat dalam
-[verifikasi bot serta Linkifiers](../../../deploy/grow-team/SYSTEM-BOT-VERIFICATION.md).
+[verifikasi bot serta Linkifiers](../../../../deploy/grow-team/SYSTEM-BOT-VERIFICATION.md).
