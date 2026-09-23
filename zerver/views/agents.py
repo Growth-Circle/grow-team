@@ -836,7 +836,8 @@ def update_agent_profile(
         retain_network=data.retain_network,
         provider_network_version=data.provider_network_version,
         hard_cost_cap=data.hard_cost_cap,
-        budget=p.serialize_payload(data.budget),
+        # Omitted budget lets the action layer derive one from the provider.
+        budget=p.serialize_payload(data.budget) if "budget" in data.model_fields_set else None,
     )
     return _success(request, {"profile": _profile_data(profile, user_profile)})
 
@@ -911,7 +912,8 @@ def create_agent_profile(request: HttpRequest, user_profile: UserProfile) -> Htt
         provider=provider,
         repository=repository,
         policy=policy,
-        budget=p.serialize_payload(data.budget),
+        # Omitted budget lets the action layer derive one from the provider.
+        budget=p.serialize_payload(data.budget) if "budget" in data.model_fields_set else None,
         provider_network_version=data.provider_network_version,
         idempotency_key=data.idempotency_key,
     )

@@ -107,6 +107,46 @@ class AgentAPITests(ZulipTestCase):
         detail = self.assert_json_success(response)
         self.assertEqual(detail["setup"]["profile_revision"], 1)
 
+    def test_profile_budget_derives_from_provider_or_floors_without_one(self) -> None:
+        def tokens(profile: agents.AgentProfile) -> tuple[int, int]:
+            return profile.budget["input_tokens"], profile.budget["output_tokens"]
+
+        self.post_agent("profiles", self.profile_payload())
+        without_provider = agents.AgentProfile.objects.get(runner=self.runner)
+        self.assertEqual(tokens(without_provider), (400000, 16000))
+        self.post_agent(
+            "providers",
+            {
+                "runner_id": str(self.runner.id),
+                "name": "Provider",
+                "base_url": "https://example.com",
+                "model_id": "model",
+                "allowed_models": ["model"],
+                "context_window_tokens": 50000,
+                "max_output_tokens": 10000,
+                "local_credential_ref": "local-secret",
+            },
+        )
+        provider = agents.AgentProvider.objects.get(runner=self.runner)
+        self.post_agent("profiles", {**self.profile_payload(), "provider_id": str(provider.id)})
+        with_provider = agents.AgentProfile.objects.get(provider=provider)
+        # input_tokens = min(max(50000 * 10, 200000), 4000000); output_tokens =
+        # min(max(10000 * 4, 16000), 256000).
+        self.assertEqual(tokens(with_provider), (500000, 40000))
+        # An explicit budget is never overridden by the provider.
+        self.post_agent(
+            "profiles",
+            {
+                **self.profile_payload(),
+                "provider_id": str(provider.id),
+                "budget": {"input_tokens": 1000, "output_tokens": 1000},
+            },
+        )
+        explicit = agents.AgentProfile.objects.exclude(
+            id__in=[without_provider.id, with_provider.id]
+        ).get()
+        self.assertEqual(tokens(explicit), (1000, 1000))
+
     def test_runner_metadata_update_is_revision_checked(self) -> None:
         response = self.client_patch(
             f"/json/agent/runners/{self.runner.id}/metadata",

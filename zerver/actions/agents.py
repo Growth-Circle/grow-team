@@ -621,7 +621,7 @@ def update_profile(
     network: dict[str, object] | None,
     retain_network: bool,
     hard_cost_cap: bool,
-    budget: dict[str, object],
+    budget: dict[str, object] | None = None,
     provider_network_version: int | None = None,
 ) -> agents.AgentProfile:
     # Setup validation takes this same runner lock before profile and provider rows.
@@ -713,7 +713,8 @@ def update_profile(
         "hard_cost_cap": hard_cost_cap,
     }
     policy_data = protocol.serialize_payload(protocol.Policy.model_validate(policy))
-    budget_data = protocol.serialize_payload(protocol.Budget.model_validate(budget))
+    budget_source = dict(_default_budget(provider)) if budget is None else budget
+    budget_data = protocol.serialize_payload(protocol.Budget.model_validate(budget_source))
     name = check_full_name(name, user_profile=None, realm=None)
     metadata_changed = profile.name != name or profile.description != description
     execution_changed = not (
@@ -826,8 +827,15 @@ def _default_policy(owner: UserProfile, runner: agents.AgentRunner) -> dict[str,
     }
 
 
-def _default_budget() -> dict[str, int]:
-    return {"input_tokens": 1024, "output_tokens": 512}
+def _default_budget(provider: agents.AgentProvider | None = None) -> dict[str, int]:
+    """The default budget for a new or reset profile (contract 3.5), scaled from
+    the selected provider's own limits. Existing profiles keep whatever they have."""
+    if provider is None:
+        return {"input_tokens": 400000, "output_tokens": 16000}
+    return {
+        "input_tokens": min(max(provider.context_window_tokens * 10, 200000), 4000000),
+        "output_tokens": min(max(provider.max_output_tokens * 4, 16000), 256000),
+    }
 
 
 def build_probe_descriptor(
@@ -1072,7 +1080,7 @@ def build_provider_probe(setup: agents.AgentSetupOperation) -> dict[str, object]
                 "actions": ["probe"],
             },
             "policy": _default_policy(setup.owner, provider.runner),
-            "budget": _default_budget(),
+            "budget": _default_budget(provider),
         }
     )
     serialized = protocol.serialize_payload(descriptor)
@@ -1212,7 +1220,7 @@ def create_profile(
     policy_data: dict[str, object] = _default_policy(owner, runner) if policy is None else policy
     if provider_network_version is not None:
         policy_data = {**policy_data, "network": provider.network_policy}
-    budget_data: dict[str, object] = dict(_default_budget()) if budget is None else budget
+    budget_data: dict[str, object] = dict(_default_budget(provider)) if budget is None else budget
     try:
         policy_data = protocol.serialize_payload(protocol.Policy.model_validate(policy_data))
         budget_data = protocol.serialize_payload(protocol.Budget.model_validate(budget_data))

@@ -61,7 +61,11 @@ class ProfileCreate(Request):
     repository_id: UUID | None = None
     sandbox_alias: p.Text = "default"
     actions: list[p.ExecutionAction] = Field(default=["context.read"], max_length=32)
-    budget: p.Budget = Field(default_factory=lambda: p.Budget(input_tokens=1024, output_tokens=512))
+    # The no-provider default from contract 3.5. A selected provider's own limits
+    # scale this further in the action layer, which sees the provider row.
+    budget: p.Budget = Field(
+        default_factory=lambda: p.Budget(input_tokens=400000, output_tokens=16000)
+    )
     network: p.NetworkPolicy = Field(default_factory=p.NetworkPolicy)
     hard_cost_cap: bool = Field(default=False, strict=True)
 
@@ -125,7 +129,9 @@ class ProfileUpdate(Request):
     repository_id: UUID | None = None
     sandbox_alias: p.Text = "default"
     actions: list[p.ExecutionAction] = Field(default=["context.read"], max_length=32)
-    budget: p.Budget = Field(default_factory=lambda: p.Budget(input_tokens=1024, output_tokens=512))
+    budget: p.Budget = Field(
+        default_factory=lambda: p.Budget(input_tokens=400000, output_tokens=16000)
+    )
     network: p.NetworkPolicy | None = None
     retain_network: bool = Field(default=False, strict=True)
     hard_cost_cap: bool = Field(default=False, strict=True)
