@@ -324,6 +324,29 @@ def consume(request: HttpRequest) -> HttpResponse:
 
 
 @endpoint("POST")
+def execute(request: HttpRequest) -> HttpResponse:
+    """Run a team.manage operation (contract 2.6 item 3).
+
+    This does not wrap the whole call in one agent_transaction: phase 2 runs
+    the Zulip action outside it, so the chat-table lock stays short.
+    """
+    data = r.Consume.model_validate_json(request.body)
+    device = runner(request)
+    result = approvals.execute_operation(
+        device,
+        data.job_id,
+        data.attempt_id,
+        data.lease_epoch,
+        job_version=data.job_version,
+        operation_id=data.operation_id,
+        expected_version=data.expected_version,
+        operation_hash=data.operation_hash,
+        nonce=data.nonce,
+    )
+    return _success(request, {"operation": result})
+
+
+@endpoint("POST")
 def reconcile_operation(request: HttpRequest) -> HttpResponse:
     data = r.Reconcile.model_validate_json(request.body)
     with agent_transaction():

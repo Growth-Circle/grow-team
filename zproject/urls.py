@@ -890,6 +890,7 @@ urls += [
     path("api/v1/agent/runner/artifacts", agent_runner_views.artifacts),
     path("api/v1/agent/runner/operations/propose", agent_runner_views.propose),
     path("api/v1/agent/runner/operations/consume", agent_runner_views.consume),
+    path("api/v1/agent/runner/operations/execute", agent_runner_views.execute),
     path("api/v1/agent/runner/operations/reconcile", agent_runner_views.reconcile_operation),
     path("api/v1/agent/runner/operations/reconcile-local", agent_runner_views.reconcile_local),
     path("api/v1/agent/runner/checkpoints", agent_runner_views.checkpoint),

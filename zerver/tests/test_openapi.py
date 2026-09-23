@@ -932,6 +932,8 @@ class OpenAPIAttributesTest(ZulipTestCase):
             "navigation_views",
             "task_board",
             "bots",
+            "agents",
+            "agent device connections",
         ]
         paths = OpenAPISpec(OPENAPI_SPEC_PATH).openapi()["paths"]
         for path, path_item in paths.items():

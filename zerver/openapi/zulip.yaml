@@ -1948,6 +1948,174 @@ paths:
               operation_id: 00000000-0000-4000-8000-000000000001
               expected_version: 1
               operation_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  /agent/runner/operations/execute:
+    post:
+      operationId: agent-runtime-operations-execute
+      summary: Run a team.manage operation
+      tags:
+        - agent device connections
+      description:
+        "Consume the current lease, job version, operation version, and operation hash for a
+        team.manage operation, then run its Zulip action as the job requester and store the
+        server-written receipt. A repeated call for the same operation returns the stored
+        receipt. A started operation with no receipt yet answers 409 with code outcome_unknown;
+        do not retry it. Use the /api/v1 path. Basic authentication and authenticated browser
+        sessions are rejected. Send the runner credential in Authorization: Bearer <token>.
+        Unknown JSON fields are rejected."
+      security:
+        - AgentRunnerBearer: []
+      servers:
+        - url: /api/v1
+      responses:
+        "200":
+          description: Successful request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRuntimeOperationResponse"
+              example:
+                result: success
+                msg: ""
+                schema_version: 1
+                operation:
+                  operation_id: 00000000-0000-4000-8000-000000000001
+                  operation_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                  version: 2
+                  status: succeeded
+                  arguments:
+                    action: team.manage
+                    input:
+                      tool: channel.create
+                      name: launch-q4
+                      description: ""
+                      is_private: true
+                      subscriber_user_ids:
+                        - 2
+                  scope:
+                    attempt_id: 00000000-0000-4000-8000-000000000001
+                    lease_epoch: 1
+                    policy_version: 1
+                    tree_hash: null
+                    diff_artifact_id: null
+                    diff_checksum: null
+                    audience:
+                      conversation_id: 11111111-1111-4111-8111-111111111111
+                      epoch: 1
+                      realm_id: 1
+                      profile_id: 00000000-0000-4000-8000-000000000002
+                      requester_user_id: 1
+                      bot_user_id: 2
+                      anchor_message_id: 10
+                      recipient_id: 1
+                      kind: stream
+                      stream_id: 1
+                      invite_only: false
+                      is_web_public: false
+                      history_public_to_subscribers: true
+                      audience_user_ids:
+                        - 1
+                        - 2
+                  approval_id: null
+                  approval_version: null
+                  nonce: null
+                  expires_at: null
+                  server_receipt:
+                    tool: channel.create
+                    outcome: succeeded
+                    summary: Created private channel #launch-q4 with 1 subscriber(s).
+                    objects:
+                      channel_id: 42
+                      group_id: null
+                      message_id: null
+                      user_ids:
+                        - 2
+                    error: null
+        "400":
+          description: Malformed input, stale versions, unavailable resources, or rejected authority.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDeviceError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Missing bearer or rejected browser session uses an uncoded error. Rejected credentials
+            use the coded credential error.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AgentDeviceError"
+                  - $ref: "#/components/schemas/AgentRunnerCredentialError"
+              examples:
+                missing:
+                  value:
+                    result: error
+                    msg: Runner authentication is required.
+                    schema_version: 1
+                rejected:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: credential_invalid
+        "405":
+          description: Unsupported HTTP method.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDeviceError"
+              example:
+                result: error
+                msg: Method is not supported.
+                schema_version: 1
+        "409":
+          description: The operation was consumed but has no receipt yet. Do not retry it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRuntimeOutcomeUnknownError"
+              example:
+                result: error
+                msg: This step may have finished. Check the channel before you try again.
+                schema_version: 1
+                code: outcome_unknown
+        "503":
+          description: Authority lock is busy. Retry after one second.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDeviceError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+              description: Delay in seconds before retry.
+      requestBody:
+        required: true
+        description: Send the versioned object directly as JSON. Do not wrap it in a form payload field.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentRuntimeConsumeRequest"
+            example:
+              schema_version: 1
+              job_id: 00000000-0000-4000-8000-000000000001
+              attempt_id: 00000000-0000-4000-8000-000000000001
+              lease_epoch: 1
+              job_version: 1
+              operation_id: 00000000-0000-4000-8000-000000000001
+              expected_version: 1
+              operation_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   /agent/runner/operations/reconcile:
     post:
       operationId: agent-runtime-operations-reconcile
@@ -39143,6 +39311,14 @@ components:
             - unknown
           title: Tool Calling
           type: string
+        team_tools:
+          default: unknown
+          enum:
+            - passed
+            - unsupported
+            - unknown
+          title: Team Tools
+          type: string
         streaming:
           default: unknown
           enum:
@@ -40630,6 +40806,13 @@ components:
           type: string
           format: date-time
           nullable: true
+        server_receipt:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeTeamReceipt"
+            - type: object
+              nullable: true
+              enum:
+                - null
       required:
         - operation_id
         - operation_hash
@@ -40691,6 +40874,13 @@ components:
               nullable: true
               enum:
                 - null
+        server_receipt:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeTeamReceipt"
+            - type: object
+              nullable: true
+              enum:
+                - null
       required:
         - operation_id
         - operation_hash
@@ -40703,6 +40893,76 @@ components:
         - nonce
         - expires_at
         - receipt
+    AgentRuntimeTeamReceiptObjects:
+      additionalProperties: false
+      properties:
+        channel_id:
+          default: null
+          minimum: 1
+          title: Channel Id
+          type: integer
+          nullable: true
+        group_id:
+          default: null
+          minimum: 1
+          title: Group Id
+          type: integer
+          nullable: true
+        message_id:
+          default: null
+          minimum: 1
+          title: Message Id
+          type: integer
+          nullable: true
+        user_ids:
+          default: null
+          items:
+            minimum: 1
+            type: integer
+          title: User Ids
+          type: array
+          nullable: true
+    AgentRuntimeTeamReceipt:
+      additionalProperties: false
+      properties:
+        tool:
+          title: Tool
+          type: string
+          enum:
+            - team.find
+            - channel.create
+            - channel.subscribe
+            - channel.unsubscribe
+            - group.create
+            - group.add_members
+            - group.remove_members
+            - topic.post
+            - topic.add_person
+            - topic.resolve
+            - topic.move
+        outcome:
+          title: Outcome
+          type: string
+          enum:
+            - succeeded
+            - failed
+        summary:
+          maxLength: 2048
+          title: Summary
+          type: string
+        objects:
+          $ref: "#/components/schemas/AgentRuntimeTeamReceiptObjects"
+        error:
+          maxLength: 2048
+          title: Error
+          type: string
+          nullable: true
+      required:
+        - tool
+        - outcome
+        - summary
+        - objects
+        - error
     AgentRuntimeSelectedContext:
       oneOf:
         - type: object
@@ -42924,6 +43184,7 @@ components:
           enum:
             - answer
             - code
+            - manage
           title: Default Mode
           type: string
         idempotency_key:
@@ -43039,6 +43300,7 @@ components:
           enum:
             - answer
             - code
+            - manage
           title: Default Mode
           type: string
         provider_id:
@@ -43860,6 +44122,9 @@ components:
           enum:
             - answer
             - code
+            - manage
+        command_allowed:
+          type: boolean
         capabilities:
           type: object
           additionalProperties: true
@@ -43964,6 +44229,7 @@ components:
         - metadata_revision
         - bot_user_id
         - default_mode
+        - command_allowed
         - capabilities
         - owner_id
         - mode
@@ -44981,6 +45247,26 @@ components:
             code:
               type: string
               enum: [credential_invalid, credential_expired, credential_revoked]
+    AgentRuntimeOutcomeUnknownError:
+      allOf:
+        - $ref: "#/components/schemas/JsonResponseBase"
+        - additionalProperties: false
+          required:
+            - result
+            - msg
+            - schema_version
+            - code
+          properties:
+            result:
+              enum: [error]
+            msg:
+              type: string
+            schema_version:
+              type: integer
+              enum: [1]
+            code:
+              type: string
+              enum: [outcome_unknown]
     AgentPairingStartRequest:
       type: object
       additionalProperties: false
@@ -45316,6 +45602,10 @@ components:
           type: boolean
           default: false
         tool_calling:
+          type: string
+          enum: [passed, unsupported, unknown]
+          default: unknown
+        team_tools:
           type: string
           enum: [passed, unsupported, unknown]
           default: unknown
