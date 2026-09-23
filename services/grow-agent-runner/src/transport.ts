@@ -4,6 +4,9 @@ import {setTimeout as sleep} from "node:timers/promises";
 import {PrivateStore, controlOrigin} from "./config.js";
 import {Journal, type Entry} from "./journal.js";
 import {canonical, type Data} from "./protocol.js";
+
+// One server lock serializes agent authority, so a busy answer is routine.
+const CONTENTION_RETRIES = 5;
 const routes = new Set([
     "/pairings",
     "/pairings/status",
@@ -56,6 +59,23 @@ export class Transport {
         this.token = token;
     }
     async request(route: string, payload?: Data, anonymous = false): Promise<Data> {
+        for (let attempt = 0; ; attempt += 1) {
+            try {
+                return await this.requestOnce(route, payload, anonymous);
+            } catch (error) {
+                // A busy server rejects the request before it commits anything, so the
+                // same request can go again after the wait that the server asks for.
+                if (
+                    !(error instanceof TransportError) ||
+                    error.kind !== "contention" ||
+                    attempt >= CONTENTION_RETRIES
+                )
+                    throw error;
+                await sleep(error.retryAfter * 1000 + Math.floor(Math.random() * 250));
+            }
+        }
+    }
+    private async requestOnce(route: string, payload?: Data, anonymous = false): Promise<Data> {
         const scope = anonymous ? this.journal.identityScope() : this.currentScope();
         if (!routes.has(route)) throw new TransportError("protocol", "unsupported_route");
         const body = payload === undefined ? undefined : canonical({schema_version: 1, ...payload});

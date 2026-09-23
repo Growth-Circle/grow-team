@@ -68,6 +68,14 @@ export function addressClass(address: string): "public" | "private" | "loopback"
     }
     return "denied";
 }
+// Some gateways return model reasoning inside <think> tags in the answer text.
+// The answer keeps only the text outside those tags.
+const REASONING_BLOCK = /<think>[\s\S]*?<\/think>/g;
+
+export function stripReasoning(text: string): string {
+    return text.replace(REASONING_BLOCK, "").trim();
+}
+
 export function approveAddress(url: URL, address: string, policies: Data[]): void {
     const hostname = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
     if (/metadata|metadata\.google\.internal/i.test(hostname))
@@ -239,7 +247,7 @@ export class ModelBroker {
                     this.outputUsed -= limit - result.outputTokens;
                     if (reservation) this.ledger!.settle(reservation, result.outputTokens);
                 }
-                result.text = this.filter.text(result.text);
+                result.text = this.filter.text(stripReasoning(result.text));
                 return result;
             } catch (e) {
                 if (

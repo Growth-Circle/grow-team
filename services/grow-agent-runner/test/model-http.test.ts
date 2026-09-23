@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {createServer} from "node:http";
-import {ModelBroker} from "../dist/model-broker.js";
+import {ModelBroker, stripReasoning} from "../dist/model-broker.js";
 async function fixture(handler: any, assertLocal?: () => void) {
     let calls = 0;
     const server = createServer(async (req, res) => {
@@ -165,4 +165,9 @@ test("text-only endpoint accepts a chat probe without tool fields", async () => 
     } finally {
         await f.close();
     }
+});
+test("reasoning tags from a gateway stay out of the answer text", () => {
+    assert.equal(stripReasoning("<think></think>PROBE_OK"), "PROBE_OK");
+    assert.equal(stripReasoning("<think>plan\nsteps</think>\nHalo"), "Halo");
+    assert.equal(stripReasoning("Use <b>bold</b> text"), "Use <b>bold</b> text");
 });

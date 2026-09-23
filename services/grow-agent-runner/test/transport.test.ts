@@ -108,6 +108,24 @@ test("redirects, policy failure and credential rejection remain distinct", async
     j.close();
     await s.close();
 });
+test("a busy server answer is retried until the server accepts the request", async () => {
+    let calls = 0;
+    const s = await server((req: any, res: any) => {
+        calls++;
+        if (calls <= 2) {
+            res.writeHead(503, {"Retry-After": "1", "content-type": "application/json"});
+            res.end(JSON.stringify({schema_version: 1, result: "error"}));
+            return;
+        }
+        ok(res, {leases: []});
+    });
+    const j = new Journal(root()),
+        t = new Transport(s.origin, j, () => "access");
+    assert.deepEqual((await t.request("/runner/leases")).leases, []);
+    assert.equal(calls, 3);
+    j.close();
+    await s.close();
+});
 test("lost exchange and rotation require explicit recovery across restart", async () => {
     let exchanged = false,
         rotated = false;

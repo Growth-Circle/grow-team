@@ -1,14 +1,18 @@
 import type {ProbeAuthority} from "./sandbox.js";
 import {randomUUID} from "node:crypto";
-import {setTimeout as sleep} from "node:timers/promises";
 import {Journal, type JournalLog} from "./journal.js";
 import {Transport, TransportError} from "./transport.js";
 import {OperationRecovery} from "./operation-recovery.js";
 import type {OwnerRegistry} from "./owner.js";
 import {parse, validateDescriptor, type Data} from "./protocol.js";
 
-// The server answers a busy authority check with Retry-After: 1.
-const PROBE_CONTENTION_RETRIES = 2;
+// The authority check stays fresh for three seconds, so it repeats inside that
+// window and leaves the rest of the window to the other authority requests.
+const PROBE_CHECK_INTERVAL = 2500;
+
+function isContention(error: unknown): boolean {
+    return error instanceof TransportError && error.kind === "contention";
+}
 
 export interface ProcessHandle {
     attempt_id: string;
@@ -787,7 +791,8 @@ export class Coordinator {
             this.armWatchdog(session);
             await this.collectInputs(session);
         } catch (error) {
-            if (session.valid) {
+            // A busy server keeps the lease. The watchdog still ends the session at its expiry.
+            if (session.valid && !isContention(error)) {
                 await this.stopSession(session);
                 this.reconciled = false;
             }
@@ -875,30 +880,10 @@ export class Coordinator {
             if (abort.signal.aborted || Date.now() >= deadline || Date.now() - checked > 3000)
                 throw new Error("Probe authority is not current");
         };
-        // The server serializes agent authority with one advisory lock and
-        // answers a busy request with a retry. A probe keeps its authority
-        // through that answer, so the check waits and asks again.
-        const authorityRequest = async (route: string, payload: Data): Promise<Data> => {
-            for (let attempt = 0; ; attempt += 1) {
-                try {
-                    return await this.transport.request(route, payload);
-                } catch (error) {
-                    if (
-                        attempt >= PROBE_CONTENTION_RETRIES ||
-                        !(error instanceof TransportError) ||
-                        error.kind !== "contention"
-                    )
-                        throw error;
-                    await sleep(Math.max(1, error.retryAfter) * 1000);
-                    if (abort.signal.aborted || Date.now() >= deadline)
-                        throw new Error("Probe authority expired");
-                }
-            }
-        };
         const validate = async () => {
             if (abort.signal.aborted || Date.now() >= deadline)
                 throw new Error("Probe authority expired");
-            const response = await authorityRequest("/runner/setup-authority", binding);
+            const response = await this.transport.request("/runner/setup-authority", binding);
             this.assertScope();
             for (const key of [
                 "setup_id",
@@ -921,7 +906,7 @@ export class Coordinator {
             validate,
             request: async (route, extra = {}) => {
                 await validate();
-                const response = await authorityRequest(route, {...extra, ...binding});
+                const response = await this.transport.request(route, {...extra, ...binding});
                 assertCurrent();
                 return response;
             },
@@ -936,7 +921,7 @@ export class Coordinator {
                 .finally(() => {
                     checking = false;
                 });
-        }, 1000);
+        }, PROBE_CHECK_INTERVAL);
         const timer = setTimeout(() => abort.abort(), Math.max(1, deadline - Date.now()));
         try {
             const resultId = `setup_result:${setupId}:${claimed.lease_epoch}`,
@@ -977,7 +962,9 @@ export async function runService(
                 if (options.setups) await coordinator.pollSetups();
             } catch (error) {
                 // Stop local effects before polling can enter backoff, even without credentials.
-                await coordinator.contain();
+                // A busy server still holds current authority, so its retry answer keeps the
+                // running setup and job work; only polling backs off.
+                if (!isContention(error)) await coordinator.contain();
                 throw error;
             }
         }, signal);
