@@ -8,11 +8,16 @@ const {run_test} = require("./lib/test.cjs");
 const {
     accepts_auxiliary_response,
     accepts_detail_response,
+    agent_selection_label,
     clears_input_on_ack,
+    derived_budget_defaults,
+    dispatch_receipt_reason_label,
     input_intent_for_draft,
     input_delivery_label,
+    job_reason_sentence,
     merge_event_sequences,
     new_client_key,
+    resume_unavailable_sentence,
 } = zrequire("agent_ui_state");
 
 function deferred() {
@@ -175,6 +180,67 @@ run_test("A to B to A edits survive an older deferred input acknowledgement", as
     await completion;
     assert.equal(draft, "A");
     assert.equal(clears_input_on_ack(sent, revision), false);
+});
+
+run_test("a hidden or paused default never claims the team has none", () => {
+    const label = agent_selection_label("no_eligible_default");
+    assert.match(label, /No default agent is available for this task/);
+    assert.doesNotMatch(label, /Your team has no default agent/);
+});
+
+run_test("a job reason code maps to its own sentence and an unknown code defers", () => {
+    assert.match(job_reason_sentence("stop_unconfirmed"), /has not confirmed it stopped/);
+    assert.match(job_reason_sentence("start_failed"), /before the agent started work/);
+    assert.match(job_reason_sentence("result_invalid"), /no usable result/);
+    assert.match(job_reason_sentence("verification_failed"), /required checks failed/);
+    assert.match(job_reason_sentence("budget_exhausted"), /used its full budget/);
+    assert.match(job_reason_sentence("lease_lost"), /stopped responding/);
+    assert.equal(job_reason_sentence("mystery_code"), undefined);
+    assert.equal(job_reason_sentence(null), undefined);
+    assert.equal(job_reason_sentence(undefined), undefined);
+});
+
+run_test("a resume_unavailable_reason maps to why Resume is hidden", () => {
+    assert.match(resume_unavailable_sentence("attempt_active"), /still active on its device/);
+    assert.match(resume_unavailable_sentence("runner_offline"), /device for this task is offline/);
+    assert.match(resume_unavailable_sentence("runner_revoked"), /device for this task was removed/);
+    assert.match(resume_unavailable_sentence("mystery_code"), /cannot resume right now/);
+    assert.match(resume_unavailable_sentence(null), /cannot resume right now/);
+});
+
+run_test("a dispatch receipt reason maps to a sentence, or defers when unknown", () => {
+    assert.match(dispatch_receipt_reason_label("queue_full"), /too many tasks that wait/);
+    assert.match(dispatch_receipt_reason_label("not_shared"), /Ask its owner to share/);
+    assert.match(dispatch_receipt_reason_label("runner_offline"), /runner is offline/);
+    assert.match(dispatch_receipt_reason_label("runner_unknown"), /runner is offline/);
+    assert.match(
+        dispatch_receipt_reason_label("command_not_allowed"),
+        /Ask an organization administrator/,
+    );
+    assert.equal(dispatch_receipt_reason_label(""), undefined);
+    assert.equal(dispatch_receipt_reason_label("runner_busy"), undefined);
+});
+
+run_test("the token budget scales with the model connection's limits", () => {
+    assert.deepEqual(derived_budget_defaults(undefined), {
+        input_tokens: 400000,
+        output_tokens: 16000,
+    });
+    // A small model still gets the floor of each range.
+    assert.deepEqual(
+        derived_budget_defaults({context_window_tokens: 1000, max_output_tokens: 100}),
+        {input_tokens: 200000, output_tokens: 16000},
+    );
+    // A large model is capped at the ceiling of each range.
+    assert.deepEqual(
+        derived_budget_defaults({context_window_tokens: 10_000_000, max_output_tokens: 1_000_000}),
+        {input_tokens: 4000000, output_tokens: 256000},
+    );
+    // A mid-range model scales linearly inside the range.
+    assert.deepEqual(
+        derived_budget_defaults({context_window_tokens: 100000, max_output_tokens: 8000}),
+        {input_tokens: 1000000, output_tokens: 32000},
+    );
 });
 
 run_test("client intent key is a version four UUID", () => {

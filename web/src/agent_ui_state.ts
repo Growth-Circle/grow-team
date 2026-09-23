@@ -111,8 +111,11 @@ export function agent_selection_label(reason: string): string {
         case "cleared":
             return $t({defaultMessage: "No agent is chosen. Choose an agent from the list."});
         case "no_eligible_default":
+            // A hidden or paused default may still exist; this must not
+            // claim the team has none, only that this task cannot use one.
             return $t({
-                defaultMessage: "Your team has no default agent. Choose an agent from the list.",
+                defaultMessage:
+                    "No default agent is available for this task. Choose an agent from the list.",
             });
         case "unavailable":
             return $t({
@@ -141,11 +144,13 @@ export function agent_selection_label(reason: string): string {
             });
         case "access_denied":
             return $t({
-                defaultMessage: "You cannot use this agent in this conversation. Choose another agent.",
+                defaultMessage:
+                    "You cannot use this agent in this conversation. Choose another agent.",
             });
         case "queue_full":
             return $t({
-                defaultMessage: "This agent has too many tasks that wait. Try again in a few minutes.",
+                defaultMessage:
+                    "This agent has too many tasks that wait. Try again in a few minutes.",
             });
         case "profile_not_ready":
             return $t({
@@ -174,7 +179,8 @@ export function agent_selection_label(reason: string): string {
             });
         default:
             return $t({
-                defaultMessage: "This agent cannot start the task now. Choose another agent, or try again later.",
+                defaultMessage:
+                    "This agent cannot start the task now. Choose another agent, or try again later.",
             });
     }
 }
@@ -224,6 +230,106 @@ export function job_status_label(status: string): string {
     }
 }
 
+// Maps a job reason_code (set for a blocked, interrupted, or failed job) to
+// the sentence that explains what happened and what to do next. Returns
+// undefined for an unset or unrecognized code, so the caller keeps its
+// generic per-status sentence.
+export function job_reason_sentence(reason_code: string | null | undefined): string | undefined {
+    switch (reason_code) {
+        case "stop_unconfirmed":
+            return $t({
+                defaultMessage:
+                    "The stop request went to the device, but the device has not confirmed it stopped. Wait for the device to come back online, then resume or create a new task.",
+            });
+        case "start_failed":
+            return $t({
+                defaultMessage:
+                    "This task stopped before the agent started work on it. Create a new task.",
+            });
+        case "result_invalid":
+            return $t({
+                defaultMessage: "The agent finished with no usable result. Create a new task.",
+            });
+        case "verification_failed":
+            return $t({
+                defaultMessage:
+                    "The required checks failed. Read the check output below, then create a new task.",
+            });
+        case "budget_exhausted":
+            return $t({
+                defaultMessage:
+                    "This task used its full budget. Create a new task with a higher budget.",
+            });
+        case "lease_lost":
+            return $t({
+                defaultMessage:
+                    "The device stopped responding. Resume the task, or create a new task.",
+            });
+        default:
+            return undefined;
+    }
+}
+
+// Maps a resume_unavailable_reason code to the sentence that explains why
+// the Resume control is hidden for an interrupted task.
+export function resume_unavailable_sentence(reason: string | null | undefined): string {
+    switch (reason) {
+        case "attempt_active":
+            return $t({
+                defaultMessage: "This task is still active on its device. Wait, then check again.",
+            });
+        case "runner_offline":
+            return $t({
+                defaultMessage:
+                    "The device for this task is offline. You can resume when it comes back online.",
+            });
+        case "runner_revoked":
+            return $t({
+                defaultMessage: "The device for this task was removed. Create a new task.",
+            });
+        default:
+            return $t({defaultMessage: "This task cannot resume right now. Create a new task."});
+    }
+}
+
+// Maps a dispatch receipt reason code to the sentence for a rejected or
+// needs_input row, or undefined when the caller should keep its own text.
+export function dispatch_receipt_reason_label(reason: string): string | undefined {
+    switch (reason) {
+        case "not_shared":
+            return $t({defaultMessage: "Ask its owner to share it with you."});
+        case "queue_full":
+            return $t({
+                defaultMessage:
+                    "This agent has too many tasks that wait. Try again in a few minutes.",
+            });
+        case "runner_offline":
+        case "runner_unknown":
+            return $t({defaultMessage: "The agent runner is offline. Try again later."});
+        case "command_not_allowed":
+            return $t({
+                defaultMessage:
+                    "You cannot give tasks to this agent. Ask an organization administrator for access.",
+            });
+        default:
+            return undefined;
+    }
+}
+
+// Maps a model connection's limits to the profile's default token budget.
+// A profile with no model connection gets a fixed budget.
+export function derived_budget_defaults(
+    provider: {context_window_tokens: number; max_output_tokens: number} | undefined,
+): {input_tokens: number; output_tokens: number} {
+    if (!provider) {
+        return {input_tokens: 400000, output_tokens: 16000};
+    }
+    return {
+        input_tokens: Math.min(Math.max(provider.context_window_tokens * 10, 200000), 4000000),
+        output_tokens: Math.min(Math.max(provider.max_output_tokens * 4, 16000), 256000),
+    };
+}
+
 // Maps a JobState code to the sentence for the job panel's live status
 // region: what is happening now, and what to do next.
 export function agent_job_status_sentence(status: string): string {
@@ -264,7 +370,8 @@ export function agent_job_status_sentence(status: string): string {
             });
         case "failed":
             return $t({
-                defaultMessage: "This task failed. Read the event summaries below, then create a new task.",
+                defaultMessage:
+                    "This task failed. Read the event summaries below, then create a new task.",
             });
         case "completed":
             return $t({
