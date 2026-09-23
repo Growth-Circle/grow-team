@@ -91,7 +91,10 @@ class AgentRealmSettings(AgentRecord):
     )
     default_selection_revision = models.PositiveIntegerField(default=1)
     default_selected_by = models.ForeignKey(
-        "zerver.UserProfile", on_delete=models.PROTECT, null=True, related_name="agent_defaults_selected"
+        "zerver.UserProfile",
+        on_delete=models.PROTECT,
+        null=True,
+        related_name="agent_defaults_selected",
     )
     default_selected_at = models.DateTimeField(null=True)
     active_job_limit = models.PositiveIntegerField(default=2)
