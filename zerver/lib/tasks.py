@@ -11,22 +11,24 @@ from typing import Any
 from django.db.models import QuerySet
 from django.utils.timezone import now as timezone_now
 from django.utils.translation import gettext as _
-
+from zerver.lib.agent_context import require_job_access
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.stream_subscription import get_active_subscriptions_for_stream_id
 from zerver.lib.streams import get_content_access_streams
 from zerver.lib.user_groups import UserGroupMembershipDetails
-from zerver.models import Realm, Stream, Task, TaskBoard, TaskBoardColumn, UserProfile
+from zerver.models.agents import AgentJob
 from zerver.models.users import active_non_guest_user_ids, active_user_ids
+
+from zerver.models import Realm, Stream, Task, TaskBoard, TaskBoardColumn, UserProfile
 
 # The default board every realm starts with. The guide leaves the final
 # column names to each team, so these are only the starting point.
 DEFAULT_BOARD_NAME = "Task board"
 DEFAULT_COLUMNS: list[dict[str, Any]] = [
-    {"name": "Inbox", "work_limit": None, "done_window_days": None},
-    {"name": "In progress", "work_limit": 3, "done_window_days": None},
-    {"name": "Awaiting review", "work_limit": None, "done_window_days": None},
-    {"name": "Done", "work_limit": None, "done_window_days": 7},
+    {"name": "Inbox", "work_limit": None, "done_window_days": None, "is_review": False},
+    {"name": "In progress", "work_limit": 3, "done_window_days": None, "is_review": False},
+    {"name": "Awaiting review", "work_limit": None, "done_window_days": None, "is_review": True},
+    {"name": "Done", "work_limit": None, "done_window_days": 7, "is_review": False},
 ]
 
 
@@ -43,6 +45,7 @@ def get_or_create_default_board(realm: Realm) -> TaskBoard:
             order=order,
             work_limit=column["work_limit"],
             done_window_days=column["done_window_days"],
+            is_review=column["is_review"],
         )
         for order, column in enumerate(DEFAULT_COLUMNS)
     )
@@ -143,3 +146,51 @@ def task_event_audience(realm: Realm, task: Task) -> list[int]:
     # A public channel is readable by every non-guest member, plus any
     # guest who is actually subscribed to it.
     return sorted(set(active_non_guest_user_ids(realm.id)) | subscriber_ids)
+
+
+# Agent jobs that are executing right now. Queued jobs and jobs waiting
+# on a person are not running, so the Work row does not count them.
+RUNNING_AGENT_JOB_STATES = ("running", "verifying")
+
+
+def running_agent_job_count(user_profile: UserProfile) -> int:
+    # The agent subsystem decides job access. The sidebar only counts the
+    # jobs that check lets this user see. It runs without the agent
+    # transaction lock: a count may be a moment stale, and taking that
+    # lock on every page load would contend with the runner.
+    count = 0
+    jobs = AgentJob.objects.filter(realm=user_profile.realm, status__in=RUNNING_AGENT_JOB_STATES)
+    for job in jobs:
+        try:
+            require_job_access(user_profile, job)
+        except JsonableError:
+            continue
+        count += 1
+    return count
+
+
+def work_counts(user_profile: UserProfile) -> dict[str, int]:
+    """Totals for the Work group in the left sidebar."""
+    counts = {
+        "task_board": 0,
+        "my_tasks": 0,
+        "awaiting_my_review": 0,
+        "agent_running": running_agent_job_count(user_profile),
+    }
+
+    # Reading the counts never creates the board; an organization without
+    # one simply has nothing to count yet.
+    board = TaskBoard.objects.filter(realm=user_profile.realm).order_by("id").first()
+    if board is None:
+        return counts
+
+    review_column_ids = set(board.columns.filter(is_review=True).values_list("id", flat=True))
+    for task in visible_tasks(user_profile, board):
+        counts["task_board"] += 1
+        if task.completed_at is not None:
+            continue
+        if task.assignee_id == user_profile.id:
+            counts["my_tasks"] += 1
+        if task.reviewer_id == user_profile.id and task.column_id in review_column_ids:
+            counts["awaiting_my_review"] += 1
+    return counts

@@ -257,6 +257,7 @@ from zerver.views.tasks import (
     create_task,
     delete_task,
     get_task_board,
+    get_task_counts,
     get_task_history,
     update_task,
     update_task_board,
@@ -499,6 +500,7 @@ v1_api_and_json_patterns = [
     ),
     # tasks -> zerver.views.tasks
     rest_path("tasks", GET=get_task_board, POST=create_task),
+    rest_path("tasks/counts", GET=get_task_counts),
     rest_path("tasks/<int:task_id>", PATCH=update_task, DELETE=delete_task),
     rest_path("tasks/<int:task_id>/history", GET=get_task_history),
     rest_path("task_boards/<int:board_id>", PATCH=update_task_board),

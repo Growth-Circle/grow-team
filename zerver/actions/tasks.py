@@ -11,8 +11,11 @@ from django.db import transaction
 from django.db.models import Max
 from django.utils.timezone import now as timezone_now
 from django.utils.translation import gettext as _
-
 from zerver.lib.exceptions import JsonableError
+from zerver.models.realm_audit_logs import AuditLogEventType
+from zerver.models.users import active_user_ids
+from zerver.tornado.django_api import send_event_on_commit
+
 from zerver.lib.tasks import task_event_audience
 from zerver.models import (
     Realm,
@@ -23,9 +26,6 @@ from zerver.models import (
     TaskHistory,
     UserProfile,
 )
-from zerver.models.realm_audit_logs import AuditLogEventType
-from zerver.models.users import active_user_ids
-from zerver.tornado.django_api import send_event_on_commit
 
 # Gap between two cards appended to a column. Wide enough that many moves
 # between the same pair of cards never exhaust float precision.
@@ -83,6 +83,7 @@ def do_create_task(
     topic: str = "",
     origin_message_id: int | None = None,
     assignee: UserProfile | None = None,
+    reviewer: UserProfile | None = None,
     labels: list[str] | None = None,
     checklist: list[dict[str, Any]] | None = None,
     due_at: datetime | None = None,
@@ -101,6 +102,7 @@ def do_create_task(
         origin_message_id=origin_message_id,
         creator=user_profile,
         assignee=assignee,
+        reviewer=reviewer,
         labels=labels or [],
         checklist=checklist or [],
         due_at=due_at,

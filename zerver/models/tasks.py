@@ -6,7 +6,6 @@ from typing import Any
 from django.db import models
 from django.db.models import Q
 from django.utils.timezone import now as timezone_now
-
 from zerver.models.agents import AgentJob, AgentProfile
 from zerver.models.messages import Message
 from zerver.models.realms import Realm
@@ -51,6 +50,9 @@ class TaskBoardColumn(models.Model):
     work_limit = models.PositiveIntegerField(null=True, default=None)
     # A column with a done window hides cards finished before it.
     done_window_days = models.PositiveIntegerField(null=True, default=None)
+    # Cards in a review column count toward their reviewer's
+    # "Awaiting my review" total.
+    is_review = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["order"]
@@ -64,6 +66,7 @@ class TaskBoardColumn(models.Model):
             "order": self.order,
             "work_limit": self.work_limit,
             "done_window_days": self.done_window_days,
+            "is_review": self.is_review,
         }
 
 
@@ -96,6 +99,9 @@ class Task(models.Model):
     creator = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name="created_tasks")
     assignee = models.ForeignKey(
         UserProfile, on_delete=models.SET_NULL, null=True, related_name="assigned_tasks"
+    )
+    reviewer = models.ForeignKey(
+        UserProfile, on_delete=models.SET_NULL, null=True, related_name="reviewed_tasks"
     )
     agent_profile = models.ForeignKey(AgentProfile, on_delete=models.SET_NULL, null=True)
     agent_job = models.ForeignKey(AgentJob, on_delete=models.SET_NULL, null=True)
@@ -133,6 +139,7 @@ class Task(models.Model):
             "origin_message_id": self.origin_message_id,
             "creator_id": self.creator_id,
             "assignee_id": self.assignee_id,
+            "reviewer_id": self.reviewer_id,
             "agent_profile_id": None
             if self.agent_profile_id is None
             else str(self.agent_profile_id),

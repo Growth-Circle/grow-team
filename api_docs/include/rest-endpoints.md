@@ -56,6 +56,7 @@
 ## Task board
 
 * [Get the task board](/api/get-task-board)
+* [Get task board counts](/api/get-task-counts)
 * [Create a task card](/api/create-task)
 * [Update a task card](/api/update-task)
 * [Delete a task card](/api/delete-task)

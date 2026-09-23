@@ -3,7 +3,6 @@ from typing import Annotated, Any, Literal
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from pydantic import AfterValidator, BaseModel
-
 from zerver.lib.types import UserGroupMembersDict
 from zerver.models.realms import RealmExportSlug
 
@@ -963,6 +962,7 @@ class TaskFields(BaseModel):
     origin_message_id: int | None
     creator_id: int
     assignee_id: int | None
+    reviewer_id: int | None
     agent_profile_id: str | None
     agent_job_id: str | None
     labels: list[str]

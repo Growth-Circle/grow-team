@@ -1,6 +1,7 @@
 import orjson
 from django.utils.timezone import now as timezone_now
 from typing_extensions import override
+from zerver.lib.test_classes import ZulipTestCase
 
 from zerver.actions.tasks import do_create_task
 from zerver.lib.tasks import (
@@ -9,8 +10,7 @@ from zerver.lib.tasks import (
     task_event_audience,
     visible_tasks,
 )
-from zerver.lib.test_classes import ZulipTestCase
-from zerver.models import Task, TaskBoardColumn, TaskHistory
+from zerver.models import Task, TaskBoard, TaskBoardColumn, TaskHistory
 
 
 class TaskBoardTestCase(ZulipTestCase):
@@ -335,3 +335,95 @@ class DoneWindowTest(TaskBoardTestCase):
     def test_column_without_a_window_folds_nothing(self) -> None:
         card = self.create_card()
         self.assertEqual(hidden_done_task_ids([self.columns[0]], [card]), set())
+
+
+class WorkCountsTest(TaskBoardTestCase):
+    def test_counts_before_any_board_exists(self) -> None:
+        self.board.delete()
+        self.login_user(self.hamlet)
+
+        result = self.client_get("/json/tasks/counts")
+        counts = self.assert_json_success(result)["counts"]
+        self.assertEqual(
+            counts,
+            {"task_board": 0, "my_tasks": 0, "awaiting_my_review": 0, "agent_running": 0},
+        )
+        # Reading the counts does not create a board.
+        self.assertFalse(TaskBoard.objects.filter(realm=self.hamlet.realm).exists())
+
+    def test_counts_follow_assignee_reviewer_and_columns(self) -> None:
+        cordelia = self.example_user("cordelia")
+        review_column = self.column_named("Awaiting review")
+        self.assertTrue(review_column.is_review)
+
+        mine = self.create_card(title="Mine")
+        mine.assignee = self.hamlet
+        mine.save(update_fields=["assignee"])
+
+        to_review = self.create_card(title="Review this", column=review_column)
+        to_review.reviewer = self.hamlet
+        to_review.save(update_fields=["reviewer"])
+
+        # A reviewer outside the review column is not waiting on anyone yet.
+        not_yet = self.create_card(title="Not ready")
+        not_yet.reviewer = self.hamlet
+        not_yet.save(update_fields=["reviewer"])
+
+        finished = self.create_card(title="Finished", column=self.column_named("Done"))
+        finished.assignee = self.hamlet
+        finished.completed_at = timezone_now()
+        finished.save(update_fields=["assignee", "completed_at"])
+
+        someone_else = self.create_card(title="Cordelia's")
+        someone_else.assignee = cordelia
+        someone_else.save(update_fields=["assignee"])
+
+        self.login_user(self.hamlet)
+        counts = self.assert_json_success(self.client_get("/json/tasks/counts"))["counts"]
+        self.assertEqual(counts["task_board"], 5)
+        self.assertEqual(counts["my_tasks"], 1)
+        self.assertEqual(counts["awaiting_my_review"], 1)
+        self.assertEqual(counts["agent_running"], 0)
+
+    def test_counts_skip_cards_the_user_cannot_read(self) -> None:
+        cordelia = self.example_user("cordelia")
+        private_stream = self.make_stream("secret-plan", invite_only=True)
+        self.subscribe(cordelia, "secret-plan")
+        do_create_task(
+            user_profile=cordelia,
+            board=self.board,
+            column=self.columns[0],
+            title="Private card",
+            stream_id=private_stream.id,
+            assignee=self.hamlet,
+        )
+
+        self.login_user(self.hamlet)
+        counts = self.assert_json_success(self.client_get("/json/tasks/counts"))["counts"]
+        self.assertEqual(counts["task_board"], 0)
+        self.assertEqual(counts["my_tasks"], 0)
+
+    def test_set_and_clear_reviewer(self) -> None:
+        self.login_user(self.hamlet)
+        cordelia = self.example_user("cordelia")
+        card = self.create_card()
+
+        result = self.client_patch(f"/json/tasks/{card.id}", {"reviewer_id": cordelia.id})
+        self.assert_json_success(result)
+        card.refresh_from_db()
+        self.assertEqual(card.reviewer_id, cordelia.id)
+
+        result = self.client_patch(f"/json/tasks/{card.id}", {"clear_reviewer": "true"})
+        self.assert_json_success(result)
+        card.refresh_from_db()
+        self.assertIsNone(card.reviewer_id)
+
+    def test_create_with_reviewer(self) -> None:
+        self.login_user(self.hamlet)
+        cordelia = self.example_user("cordelia")
+        result = self.client_post(
+            "/json/tasks",
+            {"title": "Needs review", "column_id": self.columns[0].id, "reviewer_id": cordelia.id},
+        )
+        task = Task.objects.get(id=self.assert_json_success(result)["task_id"])
+        self.assertEqual(task.reviewer_id, cordelia.id)

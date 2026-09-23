@@ -16999,6 +16999,11 @@ paths:
                   description: |
                     The ID of the user responsible for the card.
                   example: 9
+                reviewer_id:
+                  type: integer
+                  description: |
+                    The ID of the user who reviews the card.
+                  example: 10
                 labels:
                   type: array
                   description: |
@@ -17069,6 +17074,63 @@ paths:
                       }
                     description: |
                       A typical failed JSON response for when the column does not exist:
+  /tasks/counts:
+    get:
+      operationId: get-task-counts
+      tags: ["task_board"]
+      summary: Get task board counts
+      description: |
+        Fetch the totals the web app shows in the Work group of the left
+        sidebar. Cards from a channel the user cannot read are not counted.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-4a7c21).
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      counts:
+                        type: object
+                        additionalProperties: false
+                        description: |
+                          The Work group totals.
+                        properties:
+                          task_board:
+                            type: integer
+                            description: |
+                              Cards on the board that the user may read.
+                          my_tasks:
+                            type: integer
+                            description: |
+                              Unfinished cards assigned to the user.
+                          awaiting_my_review:
+                            type: integer
+                            description: |
+                              Cards in a review column that the user reviews.
+                          agent_running:
+                            type: integer
+                            description: |
+                              Agent tasks that the user may see and that are running now.
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "counts":
+                          {
+                            "task_board": 14,
+                            "my_tasks": 5,
+                            "awaiting_my_review": 2,
+                            "agent_running": 2,
+                          },
+                      }
   /tasks/{task_id}:
     patch:
       operationId: update-task
@@ -17126,6 +17188,16 @@ paths:
                   type: boolean
                   description: |
                     Whether to leave the card unassigned. Overrides `assignee_id`.
+                  example: true
+                reviewer_id:
+                  type: integer
+                  description: |
+                    The ID of the user who reviews the card.
+                  example: 10
+                clear_reviewer:
+                  type: boolean
+                  description: |
+                    Whether to remove the reviewer. Overrides `reviewer_id`.
                   example: true
                 labels:
                   type: array
@@ -47614,6 +47686,10 @@ components:
           description: |
             How many days a finished card stays visible in this column. Older
             cards are reported in `folded_task_ids`.
+        is_review:
+          type: boolean
+          description: |
+            Whether cards in this column wait on their reviewer.
     Task:
       type: object
       description: |
@@ -47672,6 +47748,11 @@ components:
           nullable: true
           description: |
             The ID of the user responsible for the card.
+        reviewer_id:
+          type: integer
+          nullable: true
+          description: |
+            The ID of the user who reviews the card.
         agent_profile_id:
           type: string
           nullable: true

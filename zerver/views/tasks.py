@@ -4,6 +4,12 @@ from typing import Annotated, Any
 from django.http import HttpRequest, HttpResponse
 from django.utils.translation import gettext as _
 from pydantic import Json, StringConstraints
+from zerver.lib.exceptions import JsonableError
+from zerver.lib.message import access_message
+from zerver.lib.response import json_success
+from zerver.lib.streams import access_stream_by_id
+from zerver.lib.typed_endpoint import PathOnly, typed_endpoint
+from zerver.lib.users import access_user_by_id
 
 from zerver.actions.tasks import (
     access_column,
@@ -13,19 +19,14 @@ from zerver.actions.tasks import (
     do_rename_task_board,
     do_update_task,
 )
-from zerver.lib.exceptions import JsonableError
-from zerver.lib.message import access_message
-from zerver.lib.response import json_success
-from zerver.lib.streams import access_stream_by_id
 from zerver.lib.tasks import (
     access_board_by_id,
     access_task_by_id,
     get_or_create_default_board,
     hidden_done_task_ids,
     visible_tasks,
+    work_counts,
 )
-from zerver.lib.typed_endpoint import PathOnly, typed_endpoint
-from zerver.lib.users import access_user_by_id
 from zerver.models import Task, TaskBoard, TaskHistory, UserProfile
 
 TaskTitle = Annotated[
@@ -107,6 +108,7 @@ def create_task(
     due_at: Json[int] | None = None,
     labels: Json[list[str]] | None = None,
     origin_message_id: Json[int] | None = None,
+    reviewer_id: Json[int] | None = None,
     stream_id: Json[int] | None = None,
     title: TaskTitle,
     topic: str = "",
@@ -126,6 +128,9 @@ def create_task(
     assignee = None
     if assignee_id is not None:
         assignee = access_user_by_id(user_profile, assignee_id, allow_bots=True, for_admin=False)
+    reviewer = None
+    if reviewer_id is not None:
+        reviewer = access_user_by_id(user_profile, reviewer_id, allow_bots=True, for_admin=False)
 
     task = do_create_task(
         user_profile=user_profile,
@@ -137,6 +142,7 @@ def create_task(
         topic=topic,
         origin_message_id=origin_message_id,
         assignee=assignee,
+        reviewer=reviewer,
         labels=clean_labels(labels or []),
         checklist=clean_checklist(checklist or []),
         due_at=None if due_at is None else timestamp_to_datetime(due_at),
@@ -154,11 +160,13 @@ def update_task(
     body: TaskBody | None = None,
     checklist: Json[list[dict[str, Any]]] | None = None,
     clear_assignee: Json[bool] = False,
+    clear_reviewer: Json[bool] = False,
     clear_due_at: Json[bool] = False,
     column_id: Json[int] | None = None,
     due_at: Json[int] | None = None,
     labels: Json[list[str]] | None = None,
     position: Json[float] | None = None,
+    reviewer_id: Json[int] | None = None,
     task_id: PathOnly[int],
     title: TaskTitle | None = None,
 ) -> HttpResponse:
@@ -184,6 +192,12 @@ def update_task(
     elif assignee_id is not None:
         changes["assignee"] = access_user_by_id(
             user_profile, assignee_id, allow_bots=True, for_admin=False
+        )
+    if clear_reviewer:
+        changes["reviewer"] = None
+    elif reviewer_id is not None:
+        changes["reviewer"] = access_user_by_id(
+            user_profile, reviewer_id, allow_bots=True, for_admin=False
         )
 
     if changes:
@@ -231,3 +245,7 @@ def update_task_board(
     board = access_board_by_id(user_profile.realm, board_id)
     do_rename_task_board(user_profile=user_profile, board=board, name=name)
     return json_success(request)
+
+
+def get_task_counts(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
+    return json_success(request, data={"counts": work_counts(user_profile)})
