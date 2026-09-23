@@ -197,7 +197,29 @@ const job_schema = z.object({
     // treats a missing flag as "does not need my action".
     title: z.optional(z.string()),
     needs_my_action: z.optional(z.boolean()),
-    result: z.unknown(),
+    // Optional until the team-backend release lane ships them: the drawer
+    // shows a fact only when its value exists.
+    repository: z.optional(z.nullable(z.object({id: z.string(), alias: z.string()}))),
+    base_ref: z.optional(z.string()),
+    budget: z.optional(
+        z.object({
+            active_seconds: z.number(),
+            tool_rounds: z.number(),
+            input_tokens: z.number(),
+            output_tokens: z.number(),
+        }),
+    ),
+    instructions: z.optional(
+        z.nullable(
+            z.object({
+                team_revision: z.nullable(z.number()),
+                profile_revision: z.nullable(z.number()),
+            }),
+        ),
+    ),
+    follows_job_id: z.optional(z.nullable(z.string())),
+    start_deadline: z.optional(z.nullable(z.string())),
+    result: z.optional(z.unknown()),
     allowed_actions: z.array(z.string()),
 });
 const attempt_schema = z.object({
@@ -223,6 +245,9 @@ const operation_schema = z.object({
     // Server text for a team.manage operation; other action kinds leave
     // this unset and keep their existing state and hash display.
     summary: z.optional(z.string()),
+    // The tool call's own fields (commit, branch, argv, and so on). Shape
+    // depends on `action`; the drawer reads it per action kind.
+    arguments: z.optional(z.unknown()),
 });
 const artifact_schema = z.object({
     id: z.string(),
@@ -712,7 +737,7 @@ export async function get_job_inputs(id: string, offset = 0) {
 }
 export async function job_action(
     id: string,
-    action: "cancel" | "resume" | "inputs",
+    action: "cancel" | "resume" | "inputs" | "deliver-privately",
     payload: Record<string, unknown>,
 ) {
     return mutate("post", `/json/agent/jobs/${id}/${action}`, payload, z.object({...version}));

@@ -230,22 +230,47 @@ export function job_status_label(status: string): string {
     }
 }
 
-// Maps a job reason_code (set for a blocked, interrupted, or failed job) to
-// the sentence that explains what happened and what to do next. Returns
-// undefined for an unset or unrecognized code, so the caller keeps its
-// generic per-status sentence.
-export function job_reason_sentence(reason_code: string | null | undefined): string | undefined {
+// Shared between job_reason_sentence's "runtime_stopped" code and
+// agent_job_status_sentence's default "interrupted" text (contract 12.2):
+// both describe the same outcome in the same words.
+function stopped_before_finish_sentence(resume_available: boolean): string {
+    return resume_available
+        ? $t({
+              defaultMessage:
+                  "This task stopped before it finished. Resume the task, or create a new task.",
+          })
+        : $t({defaultMessage: "This task stopped before it finished. Create a new task."});
+}
+
+// Maps a job reason_code (set for a blocked, interrupted, verifying, or
+// failed job) to the sentence that explains what happened and what to do
+// next. Returns undefined for an unset or unrecognized code, so the caller
+// keeps its generic per-status sentence. When resume_available is false, no
+// returned sentence contains the word "Resume" or "resume" (RL-5).
+export function job_reason_sentence(
+    reason_code: string | null | undefined,
+    resume_available: boolean,
+): string | undefined {
     switch (reason_code) {
         case "stop_unconfirmed":
-            return $t({
-                defaultMessage:
-                    "The stop request went to the device, but the device has not confirmed it stopped. Wait for the device to come back online, then resume or create a new task.",
-            });
+            return resume_available
+                ? $t({
+                      defaultMessage:
+                          "The stop request went to the device, but the device has not confirmed it stopped. Wait for the device to come back online, then resume or create a new task.",
+                  })
+                : $t({
+                      defaultMessage:
+                          "The stop request went to the device, but the device has not confirmed it stopped. Wait for the device to come back online.",
+                  });
         case "start_failed":
-            return $t({
-                defaultMessage:
-                    "This task stopped before the agent started work on it. Create a new task.",
-            });
+            return resume_available
+                ? $t({
+                      defaultMessage:
+                          "The device could not start this task. Resume the task, or create a new task.",
+                  })
+                : $t({defaultMessage: "The device could not start this task. Create a new task."});
+        case "runtime_stopped":
+            return stopped_before_finish_sentence(resume_available);
         case "result_invalid":
             return $t({
                 defaultMessage: "The agent finished with no usable result. Create a new task.",
@@ -261,9 +286,56 @@ export function job_reason_sentence(reason_code: string | null | undefined): str
                     "This task used its full budget. Create a new task with a higher budget.",
             });
         case "lease_lost":
+            return resume_available
+                ? $t({
+                      defaultMessage:
+                          "The device stopped responding. Resume the task, or create a new task.",
+                  })
+                : $t({defaultMessage: "The device stopped responding. Create a new task."});
+        case "start_deadline_expired":
+            return resume_available
+                ? $t({
+                      defaultMessage:
+                          "This task did not start before its start deadline. Resume the task to queue it again, or create a new task.",
+                  })
+                : $t({
+                      defaultMessage:
+                          "This task did not start before its start deadline. Create a new task.",
+                  });
+        case "approval_expired":
+            return resume_available
+                ? $t({
+                      defaultMessage:
+                          "No one decided on the requested action within 15 minutes, so the task stopped. Resume the task, or create a new task.",
+                  })
+                : $t({
+                      defaultMessage:
+                          "No one decided on the requested action within 15 minutes, so the task stopped. Create a new task.",
+                  });
+        case "approval_rejected":
             return $t({
                 defaultMessage:
-                    "The device stopped responding. Resume the task, or create a new task.",
+                    "The requested action was rejected, so the task stopped. Create a new task to try another way.",
+            });
+        case "authority_changed":
+            return $t({
+                defaultMessage:
+                    "Access to this agent or its resources changed, so the task stopped. Ask the agent owner to check access.",
+            });
+        case "profile_needs_action":
+            return $t({
+                defaultMessage:
+                    "This agent needs a fix before it can start. Ask its owner to check the agent.",
+            });
+        case "publication_blocked":
+            return $t({
+                defaultMessage:
+                    "The result is saved, but it cannot be posted to the conversation yet.",
+            });
+        case "audience_changed":
+            return $t({
+                defaultMessage:
+                    "The result is saved, but it was not posted because the conversation changed. You can read it below.",
             });
         default:
             return undefined;
@@ -330,14 +402,47 @@ export function derived_budget_defaults(
     };
 }
 
+function local_time(value: string): string {
+    const time = new Date(value);
+    return Number.isNaN(time.getTime())
+        ? ""
+        : time.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+}
+
+// The extra fields agent_job_status_sentence needs beyond status and
+// resume_available: a queued job's start deadline, and a completed code
+// job's delivery target.
+export type JobStatusExtra = {
+    // `| undefined` is explicit, not decorative: exactOptionalPropertyTypes
+    // otherwise rejects a job's own start_deadline (string | null |
+    // undefined) as an argument for this optional field.
+    start_deadline?: string | null | undefined;
+    job_kind?: string;
+    delivery_target?: string;
+};
+
 // Maps a JobState code to the sentence for the job panel's live status
-// region: what is happening now, and what to do next.
-export function agent_job_status_sentence(status: string): string {
+// region: what is happening now, and what to do next. When resume_available
+// is false, no returned sentence contains the word "Resume" or "resume"
+// (RL-5).
+export function agent_job_status_sentence(
+    status: string,
+    resume_available: boolean,
+    extra: JobStatusExtra = {},
+): string {
     switch (status) {
         case "draft":
             return $t({defaultMessage: "This task is not started. Send your request to start it."});
         case "queued":
-            return $t({defaultMessage: "This task waits for a free runner."});
+            return extra.start_deadline
+                ? $t(
+                      {
+                          defaultMessage:
+                              "This task waits for the agent's device. If it does not start by {time}, it stops waiting.",
+                      },
+                      {time: local_time(extra.start_deadline)},
+                  )
+                : $t({defaultMessage: "This task waits for a free runner."});
         case "running":
             return $t({defaultMessage: "The agent works on this task now."});
         case "waiting_for_input":
@@ -364,16 +469,19 @@ export function agent_job_status_sentence(status: string): string {
                 defaultMessage: "You stopped this task. Create a new task to continue the work.",
             });
         case "interrupted":
-            return $t({
-                defaultMessage:
-                    "This task stopped before it finished. Resume the task, or create a new task.",
-            });
+            return stopped_before_finish_sentence(resume_available);
         case "failed":
             return $t({
                 defaultMessage:
                     "This task failed. Read the event summaries below, then create a new task.",
             });
         case "completed":
+            if (extra.job_kind === "code" && extra.delivery_target === "patch") {
+                return $t({defaultMessage: "Done. The diff is ready for review."});
+            }
+            if (extra.job_kind === "code" && extra.delivery_target === "draft_pr") {
+                return $t({defaultMessage: "Done. The draft pull request is ready for review."});
+            }
             return $t({
                 defaultMessage: "This task finished. Read the artifacts and diff above.",
             });
@@ -382,5 +490,57 @@ export function agent_job_status_sentence(status: string): string {
                 defaultMessage:
                     "The status of this task is unclear. Wait for the next refresh, or open the task again.",
             });
+    }
+}
+
+// Maps a job event's type (zerver/actions/agent_jobs.py's activity log) to
+// the plain-language label for an activity row. Never show the raw event
+// type: it is an internal name, not a sentence a reader chose.
+export function agent_activity_label(event_type: string): string {
+    switch (event_type) {
+        case "job.queued":
+            return $t({defaultMessage: "Task queued"});
+        case "attempt.starting":
+            return $t({defaultMessage: "Preparing the task"});
+        case "workspace.prepared":
+            return $t({defaultMessage: "Code checked out"});
+        case "attempt.started":
+            return $t({defaultMessage: "Agent started"});
+        case "input.received":
+            return $t({defaultMessage: "Your input was saved"});
+        case "input.applied":
+            return $t({defaultMessage: "The agent used your input"});
+        case "input.delivery_uncertain":
+            return $t({defaultMessage: "Input delivery is not confirmed"});
+        case "input.requested":
+            return $t({defaultMessage: "The agent asked for your input"});
+        case "tool.started":
+            return $t({defaultMessage: "Step started"});
+        case "tool.finished":
+            return $t({defaultMessage: "Step finished"});
+        case "verification.finished":
+            return $t({defaultMessage: "Check finished"});
+        case "approval.requested":
+            return $t({defaultMessage: "Approval requested"});
+        case "approval.resolved":
+            return $t({defaultMessage: "Approval decided"});
+        case "team.executed":
+            return $t({defaultMessage: "Team action done"});
+        case "attempt.stop_requested":
+            return $t({defaultMessage: "Stop requested"});
+        case "attempt.stopped":
+            return $t({defaultMessage: "Agent stopped"});
+        case "attempt.interrupted":
+            return $t({defaultMessage: "Agent interrupted"});
+        case "result.prepared":
+            return $t({defaultMessage: "Result ready for checks"});
+        case "result.published":
+            return $t({defaultMessage: "Result posted"});
+        case "publication.blocked":
+            return $t({defaultMessage: "Result not posted"});
+        case "job.completed":
+            return $t({defaultMessage: "Task finished"});
+        default:
+            return $t({defaultMessage: "Other activity"});
     }
 }

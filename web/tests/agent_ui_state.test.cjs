@@ -8,6 +8,8 @@ const {run_test} = require("./lib/test.cjs");
 const {
     accepts_auxiliary_response,
     accepts_detail_response,
+    agent_activity_label,
+    agent_job_status_sentence,
     agent_selection_label,
     clears_input_on_ack,
     derived_budget_defaults,
@@ -189,15 +191,153 @@ run_test("a hidden or paused default never claims the team has none", () => {
 });
 
 run_test("a job reason code maps to its own sentence and an unknown code defers", () => {
-    assert.match(job_reason_sentence("stop_unconfirmed"), /has not confirmed it stopped/);
-    assert.match(job_reason_sentence("start_failed"), /before the agent started work/);
-    assert.match(job_reason_sentence("result_invalid"), /no usable result/);
-    assert.match(job_reason_sentence("verification_failed"), /required checks failed/);
-    assert.match(job_reason_sentence("budget_exhausted"), /used its full budget/);
-    assert.match(job_reason_sentence("lease_lost"), /stopped responding/);
-    assert.equal(job_reason_sentence("mystery_code"), undefined);
-    assert.equal(job_reason_sentence(null), undefined);
-    assert.equal(job_reason_sentence(undefined), undefined);
+    assert.match(job_reason_sentence("stop_unconfirmed", true), /has not confirmed it stopped/);
+    assert.match(job_reason_sentence("start_failed", true), /device could not start this task/);
+    assert.match(job_reason_sentence("result_invalid", true), /no usable result/);
+    assert.match(job_reason_sentence("verification_failed", true), /required checks failed/);
+    assert.match(job_reason_sentence("budget_exhausted", true), /used its full budget/);
+    assert.match(job_reason_sentence("lease_lost", true), /stopped responding/);
+    assert.equal(job_reason_sentence("mystery_code", true), undefined);
+    assert.equal(job_reason_sentence(null, true), undefined);
+    assert.equal(job_reason_sentence(undefined, true), undefined);
+});
+
+// Contract 12.2: every reason code that offers Resume when it is available
+// drops the word "Resume"/"resume" from its sentence when it is not (RL-5).
+run_test("contract 12.2: resume-gated reason codes never say Resume when unavailable", () => {
+    const cases = {
+        stop_unconfirmed: {
+            available:
+                "The stop request went to the device, but the device has not confirmed it stopped. Wait for the device to come back online, then resume or create a new task.",
+            unavailable:
+                "The stop request went to the device, but the device has not confirmed it stopped. Wait for the device to come back online.",
+        },
+        start_failed: {
+            available:
+                "The device could not start this task. Resume the task, or create a new task.",
+            unavailable: "The device could not start this task. Create a new task.",
+        },
+        runtime_stopped: {
+            available:
+                "This task stopped before it finished. Resume the task, or create a new task.",
+            unavailable: "This task stopped before it finished. Create a new task.",
+        },
+        lease_lost: {
+            available: "The device stopped responding. Resume the task, or create a new task.",
+            unavailable: "The device stopped responding. Create a new task.",
+        },
+        start_deadline_expired: {
+            available:
+                "This task did not start before its start deadline. Resume the task to queue it again, or create a new task.",
+            unavailable: "This task did not start before its start deadline. Create a new task.",
+        },
+        approval_expired: {
+            available:
+                "No one decided on the requested action within 15 minutes, so the task stopped. Resume the task, or create a new task.",
+            unavailable:
+                "No one decided on the requested action within 15 minutes, so the task stopped. Create a new task.",
+        },
+    };
+    for (const [code, sentences] of Object.entries(cases)) {
+        assert.equal(job_reason_sentence(code, true), `translated: ${sentences.available}`);
+        assert.equal(job_reason_sentence(code, false), `translated: ${sentences.unavailable}`);
+        assert.doesNotMatch(job_reason_sentence(code, false), /[Rr]esume/);
+    }
+});
+
+// The remaining new r25 codes read the same regardless of resume_available,
+// and never mention Resume either (RL-5).
+run_test("contract 12.2: fixed reason codes ignore resume_available and never say Resume", () => {
+    const cases = {
+        approval_rejected:
+            "The requested action was rejected, so the task stopped. Create a new task to try another way.",
+        authority_changed:
+            "Access to this agent or its resources changed, so the task stopped. Ask the agent owner to check access.",
+        profile_needs_action:
+            "This agent needs a fix before it can start. Ask its owner to check the agent.",
+        publication_blocked:
+            "The result is saved, but it cannot be posted to the conversation yet.",
+        audience_changed:
+            "The result is saved, but it was not posted because the conversation changed. You can read it below.",
+    };
+    for (const [code, sentence] of Object.entries(cases)) {
+        const expected = `translated: ${sentence}`;
+        assert.equal(job_reason_sentence(code, true), expected);
+        assert.equal(job_reason_sentence(code, false), expected);
+        assert.doesNotMatch(expected, /[Rr]esume/);
+    }
+});
+
+// Contract 12.2: agent_job_status_sentence's own resume- and extra-driven
+// cases (the interrupted default, a queued start_deadline, and a completed
+// coding job's delivery target).
+run_test("contract 12.2: agent_job_status_sentence resume and extra cases", () => {
+    assert.equal(
+        agent_job_status_sentence("interrupted", true),
+        "translated: This task stopped before it finished. Resume the task, or create a new task.",
+    );
+    assert.equal(
+        agent_job_status_sentence("interrupted", false),
+        "translated: This task stopped before it finished. Create a new task.",
+    );
+    assert.doesNotMatch(agent_job_status_sentence("interrupted", false), /[Rr]esume/);
+
+    assert.equal(
+        agent_job_status_sentence("queued", true),
+        "translated: This task waits for a free runner.",
+    );
+    assert.match(
+        agent_job_status_sentence("queued", true, {start_deadline: "2026-01-01T10:00:00Z"}),
+        /This task waits for the agent's device\. If it does not start by .+, it stops waiting\./,
+    );
+
+    assert.equal(
+        agent_job_status_sentence("completed", true, {job_kind: "code", delivery_target: "patch"}),
+        "translated: Done. The diff is ready for review.",
+    );
+    assert.equal(
+        agent_job_status_sentence("completed", true, {
+            job_kind: "code",
+            delivery_target: "draft_pr",
+        }),
+        "translated: Done. The draft pull request is ready for review.",
+    );
+    assert.equal(
+        agent_job_status_sentence("completed", true, {job_kind: "answer"}),
+        "translated: This task finished. Read the artifacts and diff above.",
+    );
+});
+
+// Contract 12.3: every activity event type maps to its plain-language label,
+// and an unrecognized type keeps the safe fallback instead of leaking it.
+run_test("contract 12.3: every activity label", () => {
+    const labels = {
+        "job.queued": "Task queued",
+        "attempt.starting": "Preparing the task",
+        "workspace.prepared": "Code checked out",
+        "attempt.started": "Agent started",
+        "input.received": "Your input was saved",
+        "input.applied": "The agent used your input",
+        "input.delivery_uncertain": "Input delivery is not confirmed",
+        "input.requested": "The agent asked for your input",
+        "tool.started": "Step started",
+        "tool.finished": "Step finished",
+        "verification.finished": "Check finished",
+        "approval.requested": "Approval requested",
+        "approval.resolved": "Approval decided",
+        "team.executed": "Team action done",
+        "attempt.stop_requested": "Stop requested",
+        "attempt.stopped": "Agent stopped",
+        "attempt.interrupted": "Agent interrupted",
+        "result.prepared": "Result ready for checks",
+        "result.published": "Result posted",
+        "publication.blocked": "Result not posted",
+        "job.completed": "Task finished",
+    };
+    for (const [event_type, label] of Object.entries(labels)) {
+        assert.equal(agent_activity_label(event_type), `translated: ${label}`);
+    }
+    assert.equal(agent_activity_label("some.unknown.event"), "translated: Other activity");
 });
 
 run_test("a resume_unavailable_reason maps to why Resume is hidden", () => {

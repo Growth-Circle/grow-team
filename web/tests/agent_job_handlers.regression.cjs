@@ -565,11 +565,275 @@ async function shows_team_manage_operation_card() {
     }
 }
 
+function base_detail(id, overrides) {
+    return {
+        job: {
+            id,
+            version: 1,
+            status: "running",
+            phase: "editing",
+            job_kind: "answer",
+            request: "Example",
+            allowed_actions: [],
+            ...overrides,
+        },
+        attempts: [],
+        required_checks: [],
+        operations: [],
+        artifacts: [],
+        operations_cursor: {offset: 0, next_offset: 0, truncated: false},
+        artifacts_cursor: {offset: 0, next_offset: 0, truncated: false},
+    };
+}
+
+// RL-5: the "interrupted" default sentence (no reason_code) drops the word
+// Resume from its text when the job cannot resume, the same as every
+// reason-code sentence contract 12.2 gates on resume_available.
+async function interrupted_default_sentence_gated_by_resume() {
+    const no_resume_id = "aaaaaaaa-1111-4111-8111-111111111111";
+    const resumable_id = "bbbbbbbb-2222-4222-8222-222222222222";
+    const api = {
+        get_job: async (id) =>
+            base_detail(id, {
+                status: "interrupted",
+                resume_available: id === resumable_id,
+                resume_unavailable_reason: "runner_revoked",
+                allowed_actions: ["resume"],
+            }),
+        get_job_events: async () => ({events: []}),
+        get_job_inputs: async () => ({inputs: [], count: 0}),
+        decide_approval: async () => ({}),
+        job_action: async () => ({}),
+    };
+    const {dom, $, out, flush} = build_input_retention_harness(api);
+    try {
+        out.open(no_resume_id);
+        await flush();
+        assert.equal(
+            $("#agent-job-status").text(),
+            "This task stopped before it finished. Create a new task.",
+        );
+        assert.doesNotMatch($("#agent-job-status").text(), /[Rr]esume/);
+        assert.equal($("[data-job-action='resume']").length, 0);
+
+        out.change_target(resumable_id);
+        await flush();
+        assert.equal(
+            $("#agent-job-status").text(),
+            "This task stopped before it finished. Resume the task, or create a new task.",
+        );
+        assert.equal($("[data-job-action='resume']").length, 1);
+    } finally {
+        dom.window.close();
+        delete global.window;
+        delete global.document;
+    }
+}
+
+// AT-23: a verifying job held by an audience change shows the held
+// sentence and its private-delivery button, and that button calls
+// deliver-privately exactly once.
+async function delivers_result_privately_once() {
+    const job_id = "cccccccc-3333-4333-8333-333333333333";
+    let calls = 0;
+    let delivered = false;
+    const api = {
+        get_job: async (id) =>
+            base_detail(id, {
+                status: delivered ? "completed" : "verifying",
+                reason_code: delivered ? null : "audience_changed",
+                allowed_actions: delivered ? [] : ["deliver_privately"],
+            }),
+        get_job_events: async () => ({events: []}),
+        get_job_inputs: async () => ({inputs: [], count: 0}),
+        decide_approval: async () => ({}),
+        async job_action(id, action, payload) {
+            calls += 1;
+            assert.equal(id, job_id);
+            assert.equal(action, "deliver-privately");
+            // payload crosses the vm sandbox boundary: compare its one field
+            // by value, not the whole object (its prototype belongs to the
+            // sandbox realm, so assert.deepEqual on the object itself fails).
+            assert.equal(payload.expected_version, 1);
+            delivered = true;
+            return {};
+        },
+    };
+    const {dom, $, out, flush} = build_input_retention_harness(api);
+    try {
+        out.open(job_id);
+        await flush();
+        assert.equal(
+            $("#agent-job-status").text(),
+            "The result is saved, but it was not posted because the conversation changed. You can read it below.",
+        );
+        assert.equal($("[data-job-action='deliver-privately']").length, 1);
+        $("[data-job-action='deliver-privately']").trigger("click");
+        await flush();
+        assert.equal(calls, 1);
+        assert.equal(
+            $("#agent-job-status").text(),
+            "The result was sent to you in a direct message.",
+        );
+        assert.equal($("[data-job-action='deliver-privately']").length, 0);
+    } finally {
+        dom.window.close();
+        delete global.window;
+        delete global.document;
+    }
+}
+
+// Finds the <dd> for a given fact <dt> label, the way a reader would: by
+// its visible label, not by DOM position.
+function fact_value($, $container, label) {
+    return $container
+        .find("dt")
+        .filter((_index, element) => $(element).text() === label)
+        .next("dd");
+}
+
+// Contract 13.1: the drawer shows each new fact only when the job has it,
+// including a working link to the task this one follows.
+async function shows_new_job_facts() {
+    const job_id = "dddddddd-4444-4444-8444-444444444444";
+    const follows_id = "eeeeeeee-5555-4555-8555-555555555555";
+    const api = {
+        get_job: async (id) =>
+            base_detail(id, {
+                job_kind: "code",
+                repository: {id: "repo-1", alias: "grow-team"},
+                base_ref: "main",
+                budget: {
+                    active_seconds: 900,
+                    tool_rounds: 40,
+                    input_tokens: 100000,
+                    output_tokens: 8000,
+                },
+                instructions: {team_revision: 3, profile_revision: 7},
+                follows_job_id: follows_id,
+            }),
+        get_job_events: async () => ({events: []}),
+        get_job_inputs: async () => ({inputs: [], count: 0}),
+        decide_approval: async () => ({}),
+        job_action: async () => ({}),
+    };
+    const {dom, $, out, flush} = build_input_retention_harness(api);
+    try {
+        out.open(job_id);
+        await flush();
+        const $summary = $("#agent-job-summary");
+        assert.equal(fact_value($, $summary, "Repository").text(), "grow-team");
+        assert.equal(fact_value($, $summary, "Base branch").text(), "main");
+        assert.equal(fact_value($, $summary, "Budget").text(), "15 min · 40 tool steps");
+        assert.equal(fact_value($, $summary, "Team instructions").text(), "Revision 3");
+        assert.equal(fact_value($, $summary, "Agent instructions").text(), "Revision 7");
+        const follows = fact_value($, $summary, "Follows task");
+        assert.equal(follows.text(), `#${follows_id.slice(0, 8)}`);
+        assert.equal(follows.find("a").attr("href"), `#agent-jobs/${follows_id}`);
+    } finally {
+        dom.window.close();
+        delete global.window;
+        delete global.document;
+    }
+}
+
+// Contract 13.1: git.push and git.draft_pr operation cards read in plain
+// words from `arguments`, and keep the hash and state inside a Technical
+// details disclosure instead of the main card text.
+async function shows_git_operation_cards() {
+    const job_id = "ffffffff-6666-4666-8666-666666666666";
+    const commit = "0123456789abcdef0123456789abcdef01234567";
+    const push_op = {
+        operation_id: "op-push",
+        operation_hash: "0123456789abcdef",
+        version: 1,
+        status: "outcome_unknown",
+        attempt_id: "attempt-1",
+        action: "git.push",
+        approval_id: null,
+        approval_version: null,
+        nonce: null,
+        can_decide: false,
+        arguments: {
+            action: "git.push",
+            repository_id: "repo-1",
+            remote: "origin",
+            branch: "r25/web-tasks",
+            commit,
+        },
+    };
+    const pr_op = {
+        operation_id: "op-pr",
+        operation_hash: "fedcba9876543210",
+        version: 1,
+        status: "approved",
+        attempt_id: "attempt-1",
+        action: "git.draft_pr",
+        approval_id: null,
+        approval_version: null,
+        nonce: null,
+        can_decide: false,
+        arguments: {
+            action: "git.draft_pr",
+            repository_id: "repo-1",
+            remote: "origin",
+            base: "main",
+            head: "r25/web-tasks",
+            commit,
+            title: "Add the task drawer copy",
+            body: "This closes the review leftovers.",
+        },
+    };
+    const api = {
+        get_job: async (id) => ({
+            ...base_detail(id, {job_kind: "code"}),
+            attempts: [{id: "attempt-1", number: 1, active: true, process_state: "active"}],
+            operations: [push_op, pr_op],
+        }),
+        get_job_events: async () => ({events: []}),
+        get_job_inputs: async () => ({inputs: [], count: 0}),
+        decide_approval: async () => ({}),
+        job_action: async () => ({}),
+    };
+    const {dom, $, out, flush} = build_input_retention_harness(api);
+    try {
+        out.open(job_id);
+        await flush();
+        const text = $("#agent-job-operations").text();
+        assert.match(text, /Push commit 0123456 to branch r25\/web-tasks on origin/);
+        assert.match(text, /Open a draft pull request from r25\/web-tasks into main on origin/);
+        assert.match(text, /Title: Add the task drawer copy/);
+        assert.match(
+            text,
+            /This action may have finished\. Check the repository before you try again\./,
+        );
+        const $technical = $("#agent-job-operations details").filter(
+            (_index, element) => $(element).find("summary").text() === "Technical details",
+        );
+        assert.equal($technical.length, 2);
+        assert.match($($technical[0]).text(), /Operation hash: 0123456789ab/);
+        assert.match($($technical[1]).text(), /Operation hash: fedcba987654/);
+        const $pr_text = $("#agent-job-operations details").filter(
+            (_index, element) => $(element).find("summary").text() === "Pull request text",
+        );
+        assert.equal($pr_text.length, 1);
+        assert.match($pr_text.text(), /This closes the review leftovers\./);
+    } finally {
+        dom.window.close();
+        delete global.window;
+        delete global.document;
+    }
+}
+
 void main()
     .then(() => retains_unresolved_input_across_visit())
     .then(() => accepted_input_does_not_return_on_next_visit())
     .then(() => shows_reason_sentence_and_gates_resume())
     .then(() => shows_team_manage_operation_card())
+    .then(() => interrupted_default_sentence_gated_by_resume())
+    .then(() => delivers_result_privately_once())
+    .then(() => shows_new_job_facts())
+    .then(() => shows_git_operation_cards())
     .then(() => process.stdout.write("Agent job delegated-handler regressions passed.\n"))
     .catch((error) => {
         console.error(error);

@@ -7,6 +7,7 @@ import * as api from "./agent_api.ts";
 import {
     accepts_auxiliary_response,
     accepts_detail_response,
+    agent_activity_label,
     agent_job_status_sentence,
     clears_input_on_ack,
     input_delivery_label,
@@ -97,6 +98,26 @@ function fact(parent: JQuery, label: string, value: unknown, wide = false): void
     const item = $("<div class='agent-job-fact'>").toggleClass("wide", wide).appendTo(parent);
     $("<dt>").text(label).appendTo(item);
     $("<dd>").text(printable(value)).appendTo(item);
+}
+function link_fact(parent: JQuery, label: string, href: string, text: string): void {
+    const item = $("<div class='agent-job-fact'>").appendTo(parent);
+    $("<dt>").text(label).appendTo(item);
+    $("<dd>").append($("<a>").attr("href", href).text(text)).appendTo(item);
+}
+// An operation's `arguments` field is typed `unknown` (its shape depends on
+// `action`), so every read narrows it defensively instead of asserting it.
+function args_record(value: unknown): Record<string, unknown> {
+    return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+}
+function str_field(record: Record<string, unknown>, key: string): string {
+    const value = record[key];
+    return typeof value === "string" ? value : "";
+}
+function list_field(record: Record<string, unknown>, key: string): string[] {
+    const value = record[key];
+    return Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === "string")
+        : [];
 }
 function row(parent: JQuery, icon: string, text: string, meta = ""): JQuery {
     const item = $("<div class='agent-job-row'>").appendTo(parent);
@@ -197,6 +218,97 @@ function selected_attempt(
 ): api.AgentJobDetail["attempts"][number] | undefined {
     return data.attempts.toReversed().find((item) => item.active) ?? data.attempts.at(-1);
 }
+// Renders a non-manage operation's title in plain words from its
+// `arguments`, with the hash, state, and approval moved into a Technical
+// details block (contract 13.1). An action this drawer does not special-case
+// keeps the old, generic title.
+function render_operation_card(box: JQuery, item: api.AgentJobDetail["operations"][number]): void {
+    const args = args_record(item.arguments);
+    switch (item.action) {
+        case "git.push":
+            $("<p class='agent-job-operation-title'>")
+                .text(
+                    $t(
+                        {defaultMessage: "Push commit {commit7} to branch {branch} on {remote}"},
+                        {
+                            commit7: str_field(args, "commit").slice(0, 7),
+                            branch: str_field(args, "branch"),
+                            remote: str_field(args, "remote"),
+                        },
+                    ),
+                )
+                .appendTo(box);
+            break;
+        case "git.draft_pr": {
+            $("<p class='agent-job-operation-title'>")
+                .text(
+                    $t(
+                        {
+                            defaultMessage:
+                                "Open a draft pull request from {head} into {base} on {remote}",
+                        },
+                        {
+                            head: str_field(args, "head"),
+                            base: str_field(args, "base"),
+                            remote: str_field(args, "remote"),
+                        },
+                    ),
+                )
+                .appendTo(box);
+            textline(box, $t({defaultMessage: "Title"}), str_field(args, "title"));
+            const pr_text = $("<details class='agent-job-card'>").appendTo(box);
+            $("<summary class='agent-job-card-title'>")
+                .text($t({defaultMessage: "Pull request text"}))
+                .appendTo(pr_text);
+            $("<p class='agent-job-line'>").text(str_field(args, "body")).appendTo(pr_text);
+            break;
+        }
+        case "shell.run":
+            $("<p class='agent-job-operation-title'>")
+                .text(
+                    $t(
+                        {defaultMessage: "Run a command: {argv}"},
+                        {argv: list_field(args, "argv").join(" ")},
+                    ),
+                )
+                .appendTo(box);
+            textline(box, $t({defaultMessage: "Folder"}), str_field(args, "cwd"));
+            break;
+        case "dependencies.install":
+            $("<p class='agent-job-operation-title'>")
+                .text(
+                    $t(
+                        {defaultMessage: "Install dependencies: {argv}"},
+                        {argv: list_field(args, "argv").join(" ")},
+                    ),
+                )
+                .appendTo(box);
+            break;
+        case "checks.run":
+            $("<p class='agent-job-operation-title'>")
+                .text(
+                    $t(
+                        {defaultMessage: "Run required checks: {ids}"},
+                        {ids: list_field(args, "check_ids").join(", ")},
+                    ),
+                )
+                .appendTo(box);
+            break;
+        default:
+            $("<p class='agent-job-operation-title'>").text(item.action).appendTo(box);
+    }
+    const technical = $("<details class='agent-job-card'>").appendTo(box);
+    $("<summary class='agent-job-card-title'>")
+        .text($t({defaultMessage: "Technical details"}))
+        .appendTo(technical);
+    textline(technical, $t({defaultMessage: "State"}), item.status);
+    textline(technical, $t({defaultMessage: "Operation hash"}), item.operation_hash.slice(0, 12));
+    textline(
+        technical,
+        $t({defaultMessage: "Approval"}),
+        item.approval_decision ?? $t({defaultMessage: "None"}),
+    );
+}
 function render(data: api.AgentJobDetail): void {
     const {job} = data;
     const attempt = selected_attempt(data);
@@ -221,6 +333,52 @@ function render(data: api.AgentJobDetail): void {
         attempt ? attempt.number : $t({defaultMessage: "Not started"}),
     );
     fact(summary, $t({defaultMessage: "Request"}), job.request, true);
+    // Each fact below is new in release 25 and optional until the
+    // team-backend release lane ships it, so it shows only when present.
+    if (job.repository) {
+        fact(summary, $t({defaultMessage: "Repository"}), job.repository.alias);
+    }
+    if (job.base_ref) {
+        fact(summary, $t({defaultMessage: "Base branch"}), job.base_ref);
+    }
+    if (job.budget) {
+        fact(
+            summary,
+            $t({defaultMessage: "Budget"}),
+            $t(
+                {defaultMessage: "{minutes} min · {rounds} tool steps"},
+                {
+                    minutes: Math.round(job.budget.active_seconds / 60),
+                    rounds: job.budget.tool_rounds,
+                },
+            ),
+        );
+    }
+    if (job.instructions && job.instructions.team_revision !== null) {
+        fact(
+            summary,
+            $t({defaultMessage: "Team instructions"}),
+            $t({defaultMessage: "Revision {revision}"}, {revision: job.instructions.team_revision}),
+        );
+    }
+    if (job.instructions && job.instructions.profile_revision !== null) {
+        fact(
+            summary,
+            $t({defaultMessage: "Agent instructions"}),
+            $t(
+                {defaultMessage: "Revision {revision}"},
+                {revision: job.instructions.profile_revision},
+            ),
+        );
+    }
+    if (job.follows_job_id) {
+        link_fact(
+            summary,
+            $t({defaultMessage: "Follows task"}),
+            job_hash(job.follows_job_id),
+            `#${job.follows_job_id.slice(0, 8)}`,
+        );
+    }
     const process = $("#agent-job-attempt").empty();
     // The phase, process state, reason code, and hashes are internal detail.
     // The status sentence above already says what happened in plain words.
@@ -312,21 +470,12 @@ function render(data: api.AgentJobDetail): void {
         const box = $("<div class='agent-job-operation'>")
             .toggleClass("needs-decision", Boolean(decidable))
             .appendTo(operations);
-        $("<p class='agent-job-operation-title'>")
-            .text(
-                is_manage_step
-                    ? (item.summary ?? $t({defaultMessage: "Team management step"}))
-                    : item.action,
-            )
-            .appendTo(box);
-        if (!is_manage_step) {
-            textline(box, $t({defaultMessage: "State"}), item.status);
-            textline(box, $t({defaultMessage: "Operation hash"}), item.operation_hash.slice(0, 12));
-            textline(
-                box,
-                $t({defaultMessage: "Approval"}),
-                item.approval_decision ?? $t({defaultMessage: "None"}),
-            );
+        if (is_manage_step) {
+            $("<p class='agent-job-operation-title'>")
+                .text(item.summary ?? $t({defaultMessage: "Team management step"}))
+                .appendTo(box);
+        } else {
+            render_operation_card(box, item);
         }
         if (decidable) {
             const payload = JSON.stringify({
@@ -363,6 +512,18 @@ function render(data: api.AgentJobDetail): void {
                     $t({
                         defaultMessage:
                             "This step may have finished. Check the channel before you try again.",
+                    }),
+                )
+                .appendTo(box);
+        } else if (
+            (item.action === "git.push" || item.action === "git.draft_pr") &&
+            item.status === "outcome_unknown"
+        ) {
+            $("<p class='agent-job-note'>")
+                .text(
+                    $t({
+                        defaultMessage:
+                            "This action may have finished. Check the repository before you try again.",
                     }),
                 )
                 .appendTo(box);
@@ -423,18 +584,39 @@ function render(data: api.AgentJobDetail): void {
                 ? $t({defaultMessage: "Show more artifacts"})
                 : $t({defaultMessage: "All artifacts shown"}),
         );
+    const resume_available = job.resume_available ?? false;
     const controls = $("#agent-job-controls").empty();
     if (job.allowed_actions.includes("cancel")) {
         action(controls, $t({defaultMessage: "Request stop"}), "cancel");
     }
     if (job.allowed_actions.includes("resume")) {
-        if (job.resume_available) {
+        if (resume_available) {
             action(controls, $t({defaultMessage: "Resume job"}), "resume", "", "subtle-brand");
+            if (job.job_kind === "code") {
+                $("<p class='agent-job-note'>")
+                    .text(
+                        $t({
+                            defaultMessage:
+                                "Resume continues on the same device, from its saved work.",
+                        }),
+                    )
+                    .appendTo(controls);
+            }
         } else {
             $("<p class='agent-job-note'>")
                 .text(resume_unavailable_sentence(job.resume_unavailable_reason))
                 .appendTo(controls);
         }
+    }
+    if (job.allowed_actions.includes("deliver_privately")) {
+        action(
+            controls,
+            $t({defaultMessage: "Send the result to me privately"}),
+            "deliver-privately",
+        );
+    }
+    if (job.allowed_actions.includes("follow_up")) {
+        action(controls, $t({defaultMessage: "Create follow-up task"}), "follow-up");
     }
     const input_allowed =
         job.allowed_actions.includes("input") &&
@@ -443,15 +625,21 @@ function render(data: api.AgentJobDetail): void {
             attempt?.process_state === "active");
     $("#agent-job-input-form").prop("hidden", !input_allowed);
     const finished = ["completed", "cancelled", "failed"].includes(job.status);
-    // blocked, interrupted, and failed jobs carry a reason_code that
-    // explains what happened in more detail than the status alone.
-    const reason_sentence = ["blocked", "interrupted", "failed"].includes(job.status)
-        ? job_reason_sentence(job.reason_code)
+    // blocked, interrupted, verifying, and failed jobs carry a reason_code
+    // that explains what happened in more detail than the status alone.
+    const reason_sentence = ["blocked", "interrupted", "failed", "verifying"].includes(job.status)
+        ? job_reason_sentence(job.reason_code, resume_available)
         : undefined;
+    const status_extra = {
+        start_deadline: job.start_deadline,
+        job_kind: job.job_kind,
+        delivery_target: job.delivery_target,
+    };
     status(
         finished
-            ? `${reason_sentence ?? agent_job_status_sentence(job.status)} ${$t({defaultMessage: "Create a new task for further work."})}`
-            : (reason_sentence ?? agent_job_status_sentence(job.status)),
+            ? `${reason_sentence ?? agent_job_status_sentence(job.status, resume_available, status_extra)} ${$t({defaultMessage: "Create a new task for further work."})}`
+            : (reason_sentence ??
+                  agent_job_status_sentence(job.status, resume_available, status_extra)),
     );
     $("#agent-job-status").attr("data-tone", state_tone(job.status));
     $("#agent-job-updated").text(
@@ -557,7 +745,7 @@ async function fetch_events(id: string, token: number): Promise<void> {
             row(
                 box,
                 pending ? "clock" : "check",
-                event.type,
+                agent_activity_label(event.type),
                 clock_time(event.occurred_at),
             ).toggleClass("pending", pending);
         }
@@ -885,6 +1073,24 @@ function bind(): void {
             void api
                 .job_action(id, "resume", {expected_version: job.version, checkpoint_id: null})
                 .then(on_success)
+                .catch(on_error);
+        }
+        if (name === "deliver-privately" && job.allowed_actions.includes("deliver_privately")) {
+            void api
+                .job_action(id, "deliver-privately", {expected_version: job.version})
+                .then(async () => {
+                    if (!active(id, token)) {
+                        return;
+                    }
+                    await fetch_detail(id, token);
+                    if (active(id, token)) {
+                        status(
+                            $t({
+                                defaultMessage: "The result was sent to you in a direct message.",
+                            }),
+                        );
+                    }
+                })
                 .catch(on_error);
         }
         if (name === "approve" || name === "reject") {
