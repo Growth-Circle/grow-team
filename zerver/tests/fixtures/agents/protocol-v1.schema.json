@@ -1063,7 +1063,8 @@
       "default_mode": {
         "enum": [
           "answer",
-          "code"
+          "code",
+          "manage"
         ],
         "title": "Default Mode",
         "type": "string"
@@ -1826,7 +1827,8 @@
             "profile.use",
             "provider.use",
             "runner.use",
-            "profile.manage"
+            "profile.manage",
+            "team.manage"
           ],
           "type": "string"
         },
@@ -3336,7 +3338,8 @@
       "job_kind": {
         "enum": [
           "answer",
-          "code"
+          "code",
+          "manage"
         ],
         "title": "Job Kind",
         "type": "string"
@@ -4787,6 +4790,113 @@
   },
   "approval": {
     "$defs": {
+      "ChannelCreateInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "channel.create",
+            "title": "Tool",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 1024,
+            "title": "Description",
+            "type": "string"
+          },
+          "is_private": {
+            "title": "Is Private",
+            "type": "boolean"
+          },
+          "subscriber_user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "title": "Subscriber User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "name",
+          "description",
+          "is_private",
+          "subscriber_user_ids"
+        ],
+        "title": "ChannelCreateInput",
+        "type": "object"
+      },
+      "ChannelSubscribeInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "channel.subscribe",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "user_ids"
+        ],
+        "title": "ChannelSubscribeInput",
+        "type": "object"
+      },
+      "ChannelUnsubscribeInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "channel.unsubscribe",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "user_ids"
+        ],
+        "title": "ChannelUnsubscribeInput",
+        "type": "object"
+      },
       "DraftPRArguments": {
         "additionalProperties": false,
         "properties": {
@@ -4852,6 +4962,108 @@
           "body"
         ],
         "title": "DraftPRArguments",
+        "type": "object"
+      },
+      "GroupAddMembersInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "group.add_members",
+            "title": "Tool",
+            "type": "string"
+          },
+          "group_id": {
+            "minimum": 1,
+            "title": "Group Id",
+            "type": "integer"
+          },
+          "user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "group_id",
+          "user_ids"
+        ],
+        "title": "GroupAddMembersInput",
+        "type": "object"
+      },
+      "GroupCreateInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "group.create",
+            "title": "Tool",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 1024,
+            "title": "Description",
+            "type": "string"
+          },
+          "member_user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "title": "Member User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "name",
+          "description",
+          "member_user_ids"
+        ],
+        "title": "GroupCreateInput",
+        "type": "object"
+      },
+      "GroupRemoveMembersInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "group.remove_members",
+            "title": "Tool",
+            "type": "string"
+          },
+          "group_id": {
+            "minimum": 1,
+            "title": "Group Id",
+            "type": "integer"
+          },
+          "user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "group_id",
+          "user_ids"
+        ],
+        "title": "GroupRemoveMembersInput",
         "type": "object"
       },
       "NetworkPolicy": {
@@ -4992,6 +5204,113 @@
         "title": "PushArguments",
         "type": "object"
       },
+      "TeamArguments": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "team.manage",
+            "title": "Action",
+            "type": "string"
+          },
+          "input": {
+            "discriminator": {
+              "mapping": {
+                "channel.create": "#/$defs/ChannelCreateInput",
+                "channel.subscribe": "#/$defs/ChannelSubscribeInput",
+                "channel.unsubscribe": "#/$defs/ChannelUnsubscribeInput",
+                "group.add_members": "#/$defs/GroupAddMembersInput",
+                "group.create": "#/$defs/GroupCreateInput",
+                "group.remove_members": "#/$defs/GroupRemoveMembersInput",
+                "team.find": "#/$defs/TeamFindInput",
+                "topic.add_person": "#/$defs/TopicAddPersonInput",
+                "topic.move": "#/$defs/TopicMoveInput",
+                "topic.post": "#/$defs/TopicPostInput",
+                "topic.resolve": "#/$defs/TopicResolveInput"
+              },
+              "propertyName": "tool"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/TeamFindInput"
+              },
+              {
+                "$ref": "#/$defs/ChannelCreateInput"
+              },
+              {
+                "$ref": "#/$defs/ChannelSubscribeInput"
+              },
+              {
+                "$ref": "#/$defs/ChannelUnsubscribeInput"
+              },
+              {
+                "$ref": "#/$defs/GroupCreateInput"
+              },
+              {
+                "$ref": "#/$defs/GroupAddMembersInput"
+              },
+              {
+                "$ref": "#/$defs/GroupRemoveMembersInput"
+              },
+              {
+                "$ref": "#/$defs/TopicPostInput"
+              },
+              {
+                "$ref": "#/$defs/TopicAddPersonInput"
+              },
+              {
+                "$ref": "#/$defs/TopicResolveInput"
+              },
+              {
+                "$ref": "#/$defs/TopicMoveInput"
+              }
+            ],
+            "title": "Input"
+          }
+        },
+        "required": [
+          "action",
+          "input"
+        ],
+        "title": "TeamArguments",
+        "type": "object"
+      },
+      "TeamFindInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "team.find",
+            "title": "Tool",
+            "type": "string"
+          },
+          "query": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          },
+          "kinds": {
+            "items": {
+              "enum": [
+                "person",
+                "channel",
+                "group"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "title": "Kinds",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "query",
+          "kinds"
+        ],
+        "title": "TeamFindInput",
+        "type": "object"
+      },
       "ToolArguments": {
         "additionalProperties": false,
         "properties": {
@@ -5037,6 +5356,161 @@
           "network"
         ],
         "title": "ToolArguments",
+        "type": "object"
+      },
+      "TopicAddPersonInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "topic.add_person",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "topic": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Topic",
+            "type": "string"
+          },
+          "user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "topic",
+          "user_ids"
+        ],
+        "title": "TopicAddPersonInput",
+        "type": "object"
+      },
+      "TopicMoveInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "topic.move",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "topic": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Topic",
+            "type": "string"
+          },
+          "new_topic": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "New Topic",
+            "type": "string"
+          },
+          "new_channel_id": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Channel Id"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "topic",
+          "new_topic",
+          "new_channel_id"
+        ],
+        "title": "TopicMoveInput",
+        "type": "object"
+      },
+      "TopicPostInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "topic.post",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "topic": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Topic",
+            "type": "string"
+          },
+          "content": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "topic",
+          "content"
+        ],
+        "title": "TopicPostInput",
+        "type": "object"
+      },
+      "TopicResolveInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "topic.resolve",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "topic": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Topic",
+            "type": "string"
+          },
+          "resolved": {
+            "title": "Resolved",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "topic",
+          "resolved"
+        ],
+        "title": "TopicResolveInput",
         "type": "object"
       }
     },
@@ -5094,7 +5568,8 @@
             "dependencies.install": "#/$defs/ToolArguments",
             "git.draft_pr": "#/$defs/DraftPRArguments",
             "git.push": "#/$defs/PushArguments",
-            "shell.run": "#/$defs/ToolArguments"
+            "shell.run": "#/$defs/ToolArguments",
+            "team.manage": "#/$defs/TeamArguments"
           },
           "propertyName": "action"
         },
@@ -5107,14 +5582,24 @@
           },
           {
             "$ref": "#/$defs/ToolArguments"
+          },
+          {
+            "$ref": "#/$defs/TeamArguments"
           }
         ],
         "title": "Arguments"
       },
       "tree_hash": {
-        "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
-        "title": "Tree Hash",
-        "type": "string"
+        "anyOf": [
+          {
+            "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Tree Hash"
       },
       "approver_user_id": {
         "anyOf": [
@@ -5683,7 +6168,8 @@
           "job_kind": {
             "enum": [
               "answer",
-              "code"
+              "code",
+              "manage"
             ],
             "title": "Job Kind",
             "type": "string"
@@ -7446,7 +7932,8 @@
       "job_kind": {
         "enum": [
           "answer",
-          "code"
+          "code",
+          "manage"
         ],
         "title": "Job Kind",
         "type": "string"
@@ -8545,6 +9032,133 @@
         },
         "title": "PublicationPayload",
         "type": "object"
+      },
+      "TeamExecutedPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "enum": [
+              "team.find",
+              "channel.create",
+              "channel.subscribe",
+              "channel.unsubscribe",
+              "group.create",
+              "group.add_members",
+              "group.remove_members",
+              "topic.post",
+              "topic.add_person",
+              "topic.resolve",
+              "topic.move"
+            ],
+            "title": "Tool",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "succeeded",
+              "failed"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "summary": {
+            "maxLength": 2048,
+            "title": "Summary",
+            "type": "string"
+          },
+          "objects": {
+            "$ref": "#/$defs/TeamReceiptObjects"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool",
+          "outcome",
+          "summary",
+          "objects",
+          "error",
+          "operation_id"
+        ],
+        "title": "TeamExecutedPayload",
+        "type": "object"
+      },
+      "TeamReceiptObjects": {
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Channel Id"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Group Id"
+          },
+          "message_id": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Message Id"
+          },
+          "user_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "User Ids"
+          }
+        },
+        "title": "TeamReceiptObjects",
+        "type": "object"
       }
     },
     "additionalProperties": false,
@@ -8607,7 +9221,8 @@
           "attempt.stop_requested",
           "result.published",
           "publication.blocked",
-          "job.completed"
+          "job.completed",
+          "team.executed"
         ],
         "title": "Type",
         "type": "string"
@@ -8630,6 +9245,9 @@
           },
           {
             "$ref": "#/$defs/PublicationPayload"
+          },
+          {
+            "$ref": "#/$defs/TeamExecutedPayload"
           }
         ],
         "title": "Payload"
@@ -9100,6 +9718,113 @@
   },
   "operation_arguments": {
     "$defs": {
+      "ChannelCreateInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "channel.create",
+            "title": "Tool",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 1024,
+            "title": "Description",
+            "type": "string"
+          },
+          "is_private": {
+            "title": "Is Private",
+            "type": "boolean"
+          },
+          "subscriber_user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "title": "Subscriber User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "name",
+          "description",
+          "is_private",
+          "subscriber_user_ids"
+        ],
+        "title": "ChannelCreateInput",
+        "type": "object"
+      },
+      "ChannelSubscribeInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "channel.subscribe",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "user_ids"
+        ],
+        "title": "ChannelSubscribeInput",
+        "type": "object"
+      },
+      "ChannelUnsubscribeInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "channel.unsubscribe",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "user_ids"
+        ],
+        "title": "ChannelUnsubscribeInput",
+        "type": "object"
+      },
       "ChecksArguments": {
         "additionalProperties": false,
         "properties": {
@@ -9270,6 +9995,108 @@
           "body"
         ],
         "title": "DraftPRArguments",
+        "type": "object"
+      },
+      "GroupAddMembersInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "group.add_members",
+            "title": "Tool",
+            "type": "string"
+          },
+          "group_id": {
+            "minimum": 1,
+            "title": "Group Id",
+            "type": "integer"
+          },
+          "user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "group_id",
+          "user_ids"
+        ],
+        "title": "GroupAddMembersInput",
+        "type": "object"
+      },
+      "GroupCreateInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "group.create",
+            "title": "Tool",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 1024,
+            "title": "Description",
+            "type": "string"
+          },
+          "member_user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "title": "Member User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "name",
+          "description",
+          "member_user_ids"
+        ],
+        "title": "GroupCreateInput",
+        "type": "object"
+      },
+      "GroupRemoveMembersInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "group.remove_members",
+            "title": "Tool",
+            "type": "string"
+          },
+          "group_id": {
+            "minimum": 1,
+            "title": "Group Id",
+            "type": "integer"
+          },
+          "user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "group_id",
+          "user_ids"
+        ],
+        "title": "GroupRemoveMembersInput",
         "type": "object"
       },
       "NetworkPolicy": {
@@ -9482,6 +10309,113 @@
         "title": "RepositoryReadArguments",
         "type": "object"
       },
+      "TeamArguments": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "team.manage",
+            "title": "Action",
+            "type": "string"
+          },
+          "input": {
+            "discriminator": {
+              "mapping": {
+                "channel.create": "#/$defs/ChannelCreateInput",
+                "channel.subscribe": "#/$defs/ChannelSubscribeInput",
+                "channel.unsubscribe": "#/$defs/ChannelUnsubscribeInput",
+                "group.add_members": "#/$defs/GroupAddMembersInput",
+                "group.create": "#/$defs/GroupCreateInput",
+                "group.remove_members": "#/$defs/GroupRemoveMembersInput",
+                "team.find": "#/$defs/TeamFindInput",
+                "topic.add_person": "#/$defs/TopicAddPersonInput",
+                "topic.move": "#/$defs/TopicMoveInput",
+                "topic.post": "#/$defs/TopicPostInput",
+                "topic.resolve": "#/$defs/TopicResolveInput"
+              },
+              "propertyName": "tool"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/TeamFindInput"
+              },
+              {
+                "$ref": "#/$defs/ChannelCreateInput"
+              },
+              {
+                "$ref": "#/$defs/ChannelSubscribeInput"
+              },
+              {
+                "$ref": "#/$defs/ChannelUnsubscribeInput"
+              },
+              {
+                "$ref": "#/$defs/GroupCreateInput"
+              },
+              {
+                "$ref": "#/$defs/GroupAddMembersInput"
+              },
+              {
+                "$ref": "#/$defs/GroupRemoveMembersInput"
+              },
+              {
+                "$ref": "#/$defs/TopicPostInput"
+              },
+              {
+                "$ref": "#/$defs/TopicAddPersonInput"
+              },
+              {
+                "$ref": "#/$defs/TopicResolveInput"
+              },
+              {
+                "$ref": "#/$defs/TopicMoveInput"
+              }
+            ],
+            "title": "Input"
+          }
+        },
+        "required": [
+          "action",
+          "input"
+        ],
+        "title": "TeamArguments",
+        "type": "object"
+      },
+      "TeamFindInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "team.find",
+            "title": "Tool",
+            "type": "string"
+          },
+          "query": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          },
+          "kinds": {
+            "items": {
+              "enum": [
+                "person",
+                "channel",
+                "group"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "title": "Kinds",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "query",
+          "kinds"
+        ],
+        "title": "TeamFindInput",
+        "type": "object"
+      },
       "ToolArguments": {
         "additionalProperties": false,
         "properties": {
@@ -9528,6 +10462,161 @@
         ],
         "title": "ToolArguments",
         "type": "object"
+      },
+      "TopicAddPersonInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "topic.add_person",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "topic": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Topic",
+            "type": "string"
+          },
+          "user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "topic",
+          "user_ids"
+        ],
+        "title": "TopicAddPersonInput",
+        "type": "object"
+      },
+      "TopicMoveInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "topic.move",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "topic": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Topic",
+            "type": "string"
+          },
+          "new_topic": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "New Topic",
+            "type": "string"
+          },
+          "new_channel_id": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Channel Id"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "topic",
+          "new_topic",
+          "new_channel_id"
+        ],
+        "title": "TopicMoveInput",
+        "type": "object"
+      },
+      "TopicPostInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "topic.post",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "topic": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Topic",
+            "type": "string"
+          },
+          "content": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "topic",
+          "content"
+        ],
+        "title": "TopicPostInput",
+        "type": "object"
+      },
+      "TopicResolveInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "topic.resolve",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "topic": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Topic",
+            "type": "string"
+          },
+          "resolved": {
+            "title": "Resolved",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "topic",
+          "resolved"
+        ],
+        "title": "TopicResolveInput",
+        "type": "object"
       }
     },
     "discriminator": {
@@ -9540,7 +10629,8 @@
         "git.push": "#/$defs/PushArguments",
         "repository.edit": "#/$defs/RepositoryEditArguments",
         "repository.read": "#/$defs/RepositoryReadArguments",
-        "shell.run": "#/$defs/ToolArguments"
+        "shell.run": "#/$defs/ToolArguments",
+        "team.manage": "#/$defs/TeamArguments"
       },
       "propertyName": "action"
     },
@@ -9568,11 +10658,121 @@
       },
       {
         "$ref": "#/$defs/CommitArguments"
+      },
+      {
+        "$ref": "#/$defs/TeamArguments"
       }
     ]
   },
   "approval_arguments": {
     "$defs": {
+      "ChannelCreateInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "channel.create",
+            "title": "Tool",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 1024,
+            "title": "Description",
+            "type": "string"
+          },
+          "is_private": {
+            "title": "Is Private",
+            "type": "boolean"
+          },
+          "subscriber_user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "title": "Subscriber User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "name",
+          "description",
+          "is_private",
+          "subscriber_user_ids"
+        ],
+        "title": "ChannelCreateInput",
+        "type": "object"
+      },
+      "ChannelSubscribeInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "channel.subscribe",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "user_ids"
+        ],
+        "title": "ChannelSubscribeInput",
+        "type": "object"
+      },
+      "ChannelUnsubscribeInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "channel.unsubscribe",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "user_ids"
+        ],
+        "title": "ChannelUnsubscribeInput",
+        "type": "object"
+      },
       "DraftPRArguments": {
         "additionalProperties": false,
         "properties": {
@@ -9638,6 +10838,108 @@
           "body"
         ],
         "title": "DraftPRArguments",
+        "type": "object"
+      },
+      "GroupAddMembersInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "group.add_members",
+            "title": "Tool",
+            "type": "string"
+          },
+          "group_id": {
+            "minimum": 1,
+            "title": "Group Id",
+            "type": "integer"
+          },
+          "user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "group_id",
+          "user_ids"
+        ],
+        "title": "GroupAddMembersInput",
+        "type": "object"
+      },
+      "GroupCreateInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "group.create",
+            "title": "Tool",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 1024,
+            "title": "Description",
+            "type": "string"
+          },
+          "member_user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "title": "Member User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "name",
+          "description",
+          "member_user_ids"
+        ],
+        "title": "GroupCreateInput",
+        "type": "object"
+      },
+      "GroupRemoveMembersInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "group.remove_members",
+            "title": "Tool",
+            "type": "string"
+          },
+          "group_id": {
+            "minimum": 1,
+            "title": "Group Id",
+            "type": "integer"
+          },
+          "user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "group_id",
+          "user_ids"
+        ],
+        "title": "GroupRemoveMembersInput",
         "type": "object"
       },
       "NetworkPolicy": {
@@ -9778,6 +11080,113 @@
         "title": "PushArguments",
         "type": "object"
       },
+      "TeamArguments": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "team.manage",
+            "title": "Action",
+            "type": "string"
+          },
+          "input": {
+            "discriminator": {
+              "mapping": {
+                "channel.create": "#/$defs/ChannelCreateInput",
+                "channel.subscribe": "#/$defs/ChannelSubscribeInput",
+                "channel.unsubscribe": "#/$defs/ChannelUnsubscribeInput",
+                "group.add_members": "#/$defs/GroupAddMembersInput",
+                "group.create": "#/$defs/GroupCreateInput",
+                "group.remove_members": "#/$defs/GroupRemoveMembersInput",
+                "team.find": "#/$defs/TeamFindInput",
+                "topic.add_person": "#/$defs/TopicAddPersonInput",
+                "topic.move": "#/$defs/TopicMoveInput",
+                "topic.post": "#/$defs/TopicPostInput",
+                "topic.resolve": "#/$defs/TopicResolveInput"
+              },
+              "propertyName": "tool"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/TeamFindInput"
+              },
+              {
+                "$ref": "#/$defs/ChannelCreateInput"
+              },
+              {
+                "$ref": "#/$defs/ChannelSubscribeInput"
+              },
+              {
+                "$ref": "#/$defs/ChannelUnsubscribeInput"
+              },
+              {
+                "$ref": "#/$defs/GroupCreateInput"
+              },
+              {
+                "$ref": "#/$defs/GroupAddMembersInput"
+              },
+              {
+                "$ref": "#/$defs/GroupRemoveMembersInput"
+              },
+              {
+                "$ref": "#/$defs/TopicPostInput"
+              },
+              {
+                "$ref": "#/$defs/TopicAddPersonInput"
+              },
+              {
+                "$ref": "#/$defs/TopicResolveInput"
+              },
+              {
+                "$ref": "#/$defs/TopicMoveInput"
+              }
+            ],
+            "title": "Input"
+          }
+        },
+        "required": [
+          "action",
+          "input"
+        ],
+        "title": "TeamArguments",
+        "type": "object"
+      },
+      "TeamFindInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "team.find",
+            "title": "Tool",
+            "type": "string"
+          },
+          "query": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          },
+          "kinds": {
+            "items": {
+              "enum": [
+                "person",
+                "channel",
+                "group"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "title": "Kinds",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "query",
+          "kinds"
+        ],
+        "title": "TeamFindInput",
+        "type": "object"
+      },
       "ToolArguments": {
         "additionalProperties": false,
         "properties": {
@@ -9824,6 +11233,161 @@
         ],
         "title": "ToolArguments",
         "type": "object"
+      },
+      "TopicAddPersonInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "topic.add_person",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "topic": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Topic",
+            "type": "string"
+          },
+          "user_ids": {
+            "items": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "topic",
+          "user_ids"
+        ],
+        "title": "TopicAddPersonInput",
+        "type": "object"
+      },
+      "TopicMoveInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "topic.move",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "topic": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Topic",
+            "type": "string"
+          },
+          "new_topic": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "New Topic",
+            "type": "string"
+          },
+          "new_channel_id": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Channel Id"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "topic",
+          "new_topic",
+          "new_channel_id"
+        ],
+        "title": "TopicMoveInput",
+        "type": "object"
+      },
+      "TopicPostInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "topic.post",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "topic": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Topic",
+            "type": "string"
+          },
+          "content": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "topic",
+          "content"
+        ],
+        "title": "TopicPostInput",
+        "type": "object"
+      },
+      "TopicResolveInput": {
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "const": "topic.resolve",
+            "title": "Tool",
+            "type": "string"
+          },
+          "channel_id": {
+            "minimum": 1,
+            "title": "Channel Id",
+            "type": "integer"
+          },
+          "topic": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Topic",
+            "type": "string"
+          },
+          "resolved": {
+            "title": "Resolved",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "tool",
+          "channel_id",
+          "topic",
+          "resolved"
+        ],
+        "title": "TopicResolveInput",
+        "type": "object"
       }
     },
     "discriminator": {
@@ -9831,7 +11395,8 @@
         "dependencies.install": "#/$defs/ToolArguments",
         "git.draft_pr": "#/$defs/DraftPRArguments",
         "git.push": "#/$defs/PushArguments",
-        "shell.run": "#/$defs/ToolArguments"
+        "shell.run": "#/$defs/ToolArguments",
+        "team.manage": "#/$defs/TeamArguments"
       },
       "propertyName": "action"
     },
@@ -9844,6 +11409,9 @@
       },
       {
         "$ref": "#/$defs/ToolArguments"
+      },
+      {
+        "$ref": "#/$defs/TeamArguments"
       }
     ]
   }

@@ -45,6 +45,7 @@ Action = Literal[
     "provider.use",
     "runner.use",
     "profile.manage",
+    "team.manage",
 ]
 ExecutionAction = Literal[
     "context.read",
@@ -71,7 +72,20 @@ JobState = Literal[
     "failed",
     "completed",
 ]
-JobKind = Literal["answer", "code"]
+JobKind = Literal["answer", "code", "manage"]
+TeamToolId = Literal[
+    "team.find",
+    "channel.create",
+    "channel.subscribe",
+    "channel.unsubscribe",
+    "group.create",
+    "group.add_members",
+    "group.remove_members",
+    "topic.post",
+    "topic.add_person",
+    "topic.resolve",
+    "topic.move",
+]
 DeliveryTarget = Literal["answer", "patch", "draft_pr"]
 ProfileState = Literal["draft", "enabled", "paused", "archived"]
 RunnerState = Literal["online", "offline", "unknown", "revoked"]
@@ -584,6 +598,13 @@ class AttemptDescriptor(LeaseIdentity, Versioned):
                 "repository.read",
             }:
                 raise ValueError("Answer jobs cannot carry mutation authority")
+        elif self.job_kind == "manage":
+            if (
+                self.delivery_target != "answer"
+                or self.repository is not None
+                or set(self.policy.actions) - {"context.read"}
+            ):
+                raise ValueError("Manage jobs cannot carry a repository or code authority")
         elif self.delivery_target == "answer" or self.repository is None:
             raise ValueError("Code jobs require a repository and code delivery target")
         if self.adapter.mode == "endpoint" and self.provider is None:
@@ -711,8 +732,103 @@ class ToolArguments(Record):
     network: NetworkPolicy
 
 
+class TeamFindInput(Record):
+    tool: Literal["team.find"]
+    query: Annotated[str, Field(min_length=1, max_length=100)]
+    kinds: Annotated[list[Literal["person", "channel", "group"]], Field(min_length=1, max_length=3)]
+
+
+class ChannelCreateInput(Record):
+    tool: Literal["channel.create"]
+    name: Annotated[str, Field(min_length=1, max_length=60)]
+    description: Annotated[str, Field(max_length=1024)]
+    is_private: StrictBool
+    subscriber_user_ids: Annotated[list[Positive], Field(max_length=50)]
+
+
+class ChannelSubscribeInput(Record):
+    tool: Literal["channel.subscribe"]
+    channel_id: Positive
+    user_ids: Annotated[list[Positive], Field(min_length=1, max_length=50)]
+
+
+class ChannelUnsubscribeInput(Record):
+    tool: Literal["channel.unsubscribe"]
+    channel_id: Positive
+    user_ids: Annotated[list[Positive], Field(min_length=1, max_length=50)]
+
+
+class GroupCreateInput(Record):
+    tool: Literal["group.create"]
+    name: Annotated[str, Field(min_length=1, max_length=100)]
+    description: Annotated[str, Field(max_length=1024)]
+    member_user_ids: Annotated[list[Positive], Field(max_length=50)]
+
+
+class GroupAddMembersInput(Record):
+    tool: Literal["group.add_members"]
+    group_id: Positive
+    user_ids: Annotated[list[Positive], Field(min_length=1, max_length=50)]
+
+
+class GroupRemoveMembersInput(Record):
+    tool: Literal["group.remove_members"]
+    group_id: Positive
+    user_ids: Annotated[list[Positive], Field(min_length=1, max_length=50)]
+
+
+class TopicPostInput(Record):
+    tool: Literal["topic.post"]
+    channel_id: Positive
+    topic: Annotated[str, Field(min_length=1, max_length=60)]
+    content: Annotated[str, Field(min_length=1, max_length=10000)]
+
+
+class TopicAddPersonInput(Record):
+    tool: Literal["topic.add_person"]
+    channel_id: Positive
+    topic: Annotated[str, Field(min_length=1, max_length=60)]
+    user_ids: Annotated[list[Positive], Field(min_length=1, max_length=20)]
+
+
+class TopicResolveInput(Record):
+    tool: Literal["topic.resolve"]
+    channel_id: Positive
+    topic: Annotated[str, Field(min_length=1, max_length=60)]
+    resolved: StrictBool
+
+
+class TopicMoveInput(Record):
+    tool: Literal["topic.move"]
+    channel_id: Positive
+    topic: Annotated[str, Field(min_length=1, max_length=60)]
+    new_topic: Annotated[str, Field(min_length=1, max_length=60)]
+    new_channel_id: Positive | None
+
+
+TeamToolInput = Annotated[
+    TeamFindInput
+    | ChannelCreateInput
+    | ChannelSubscribeInput
+    | ChannelUnsubscribeInput
+    | GroupCreateInput
+    | GroupAddMembersInput
+    | GroupRemoveMembersInput
+    | TopicPostInput
+    | TopicAddPersonInput
+    | TopicResolveInput
+    | TopicMoveInput,
+    Field(discriminator="tool"),
+]
+
+
+class TeamArguments(Record):
+    action: Literal["team.manage"]
+    input: TeamToolInput
+
+
 ApprovalArguments = Annotated[
-    PushArguments | DraftPRArguments | ToolArguments, Field(discriminator="action")
+    PushArguments | DraftPRArguments | ToolArguments | TeamArguments, Field(discriminator="action")
 ]
 
 
@@ -758,7 +874,8 @@ OperationArguments = Annotated[
     | RepositoryReadArguments
     | RepositoryEditArguments
     | ChecksArguments
-    | CommitArguments,
+    | CommitArguments
+    | TeamArguments,
     Field(discriminator="action"),
 ]
 
@@ -770,7 +887,7 @@ class ApprovalRecord(LeaseIdentity, Versioned):
     policy_version: Positive
     version: Positive
     arguments: ApprovalArguments
-    tree_hash: GitHash
+    tree_hash: GitHash | None
     approver_user_id: Positive | None
     decision: ApprovalState
     expires_at: AwareDatetime
@@ -944,7 +1061,7 @@ class JobRecord(Versioned):
 
     @model_validator(mode="after")
     def target_matches_kind(self) -> Self:
-        if (self.job_kind == "answer") != (self.delivery_target == "answer"):
+        if (self.job_kind in ("answer", "manage")) != (self.delivery_target == "answer"):
             raise ValueError("Delivery target does not match job kind")
         return self
 
@@ -985,6 +1102,25 @@ class PublicationPayload(Record):
     reason: Annotated[str, Field(max_length=200)] = ""
 
 
+class TeamReceiptObjects(Record):
+    channel_id: Positive | None = None
+    group_id: Positive | None = None
+    message_id: Positive | None = None
+    user_ids: list[Positive] | None = None
+
+
+class TeamReceipt(Record):
+    tool: TeamToolId
+    outcome: Literal["succeeded", "failed"]
+    summary: Annotated[str, Field(max_length=2048)]
+    objects: TeamReceiptObjects
+    error: Annotated[str, Field(max_length=2048)] | None
+
+
+class TeamExecutedPayload(TeamReceipt):
+    operation_id: UUID
+
+
 class AuthorityEvent(Versioned):
     job_id: UUID
     attempt_id: UUID | None = None
@@ -1002,9 +1138,12 @@ class AuthorityEvent(Versioned):
         "result.published",
         "publication.blocked",
         "job.completed",
+        "team.executed",
     ]
     occurred_at: AwareDatetime
-    payload: JobStatePayload | InputPayload | ApprovalPayload | PublicationPayload
+    payload: (
+        JobStatePayload | InputPayload | ApprovalPayload | PublicationPayload | TeamExecutedPayload
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -1022,6 +1161,7 @@ class AuthorityEvent(Versioned):
             "approval.resolved": ApprovalPayload,
             "result.published": PublicationPayload,
             "publication.blocked": PublicationPayload,
+            "team.executed": TeamExecutedPayload,
         }
         event_type = data.get("type")
         if not isinstance(event_type, str):
@@ -1074,6 +1214,7 @@ EVENT_AUTHORITIES = {
         "approval.requested",
         "approval.resolved",
         "attempt.stop_requested",
+        "team.executed",
     },
     "verifier": {"job.completed"},
     "publisher": {"result.published", "publication.blocked"},

@@ -203,6 +203,8 @@ class AgentModelTests(ZulipTestCase):
             {"status": "model_says_done"},
             {"job_kind": "answer", "delivery_target": "patch"},
             {"job_kind": "code", "delivery_target": "answer"},
+            {"job_kind": "manage", "delivery_target": "patch"},
+            {"job_kind": "manage", "delivery_target": "draft_pr"},
             {"version": 0},
         ]
         for changes in cases:
@@ -403,6 +405,50 @@ class AgentModelTests(ZulipTestCase):
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.readiness_configuration, snapshot)
         self.assertEqual(self.profile.readiness_revision, 1)
+
+    def test_manage_job_kind_requires_answer_delivery_target(self) -> None:
+        agents.AgentJob.objects.filter(pk=self.job.pk).update(
+            job_kind="manage", delivery_target="answer"
+        )
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.job_kind, "manage")
+        self.assertEqual(self.job.delivery_target, "answer")
+
+    def test_profile_default_mode_can_be_manage(self) -> None:
+        agents.AgentProfile.objects.filter(pk=self.profile.pk).update(default_mode="manage")
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.default_mode, "manage")
+
+    def test_operation_accepts_team_manage_and_stores_server_receipt(self) -> None:
+        operation = agents.AgentOperation(
+            realm=self.realm,
+            attempt=self.attempt(),
+            operation_id=uuid4(),
+            tool_class="team.manage",
+            argument_digest="a" * 64,
+            arguments={
+                "action": "team.manage",
+                "input": {"tool": "channel.subscribe", "channel_id": 1, "user_ids": [1]},
+            },
+            server_receipt={
+                "tool": "channel.subscribe",
+                "outcome": "succeeded",
+                "summary": "Budi is now subscribed to #launch.",
+                "objects": {"channel_id": 1, "user_ids": [1]},
+                "error": None,
+            },
+        )
+        operation.clean()
+        operation.server_receipt = {
+            "tool": "channel.subscribe",
+            "outcome": "succeeded",
+            "summary": "ok",
+            "objects": {},
+            "error": None,
+            "unexpected": True,
+        }
+        with self.assertRaises(ValidationError):
+            operation.clean()
 
     def test_operation_accepts_commit_and_binds_tool_class(self) -> None:
         operation = agents.AgentOperation(

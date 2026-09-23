@@ -498,7 +498,8 @@ class AgentJob(AgentRecord):
             state_constraint("phase", protocol.Phase, "agent_job_phase_valid"),
             models.CheckConstraint(
                 condition=Q(job_kind="answer", delivery_target="answer")
-                | Q(job_kind="code", delivery_target__in=["patch", "draft_pr"]),
+                | Q(job_kind="code", delivery_target__in=["patch", "draft_pr"])
+                | Q(job_kind="manage", delivery_target="answer"),
                 name="agent_job_kind_target_valid",
             ),
             models.CheckConstraint(
@@ -600,10 +601,12 @@ class AgentOperation(AgentRecord):
     finished_at = models.DateTimeField(null=True)
     remote_receipt = models.JSONField(null=True, default=None)
     local_receipt = models.JSONField(null=True, default=None)
+    server_receipt = models.JSONField(null=True, default=None)
     protocol_fields = {
         "arguments": protocol.OperationArguments,
         "remote_receipt": protocol.RemoteReceipt | None,
         "local_receipt": protocol.LocalOperationReceipt | None,
+        "server_receipt": protocol.TeamReceipt | None,
     }
 
     class Meta:

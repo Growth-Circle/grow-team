@@ -447,3 +447,218 @@ class AgentProtocolTest(TestCase):
         for value in [False, "0", 0.0]:
             with self.subTest(value=value), self.assertRaises(ValidationError):
                 protocol.parse_payload("verification", {**verification, "exit_code": value})
+
+    def manage_descriptor(self) -> dict[str, Any]:
+        adapter = {"id": "grow-team-manage", "version": "1", "mode": "acp"}
+        sandbox = {
+            "alias": "manage",
+            "image_digest": "sha256:" + "0" * 64,
+            "toolchain_digest": "0" * 64,
+            "catalog_revision": 1,
+            "cpu_millicores": 100,
+            "memory_bytes": 67108864,
+            "pids_limit": 16,
+            "temporary_bytes": 1048576,
+        }
+        network = {"targets": []}
+        budget = {"input_tokens": 1024, "output_tokens": 512}
+        return {
+            "job_id": "00000000-0000-4000-8000-000000000101",
+            "attempt_id": "00000000-0000-4000-8000-000000000102",
+            "lease_epoch": 1,
+            "audience": {
+                "conversation_id": "00000000-0000-4000-8000-000000000103",
+                "epoch": 1,
+                "realm_id": 1,
+                "profile_id": "00000000-0000-4000-8000-000000000104",
+                "requester_user_id": 1,
+                "bot_user_id": 2,
+                "anchor_message_id": 5,
+                "recipient_id": 9,
+                "kind": "stream",
+                "stream_id": 1,
+                "invite_only": False,
+                "is_web_public": False,
+                "history_public_to_subscribers": True,
+                "audience_user_ids": [1, 2],
+            },
+            "tested_configuration": {
+                "runner_id": "00000000-0000-4000-8000-000000000105",
+                "profile_revision": 1,
+                "adapter": adapter,
+                "provider": None,
+                "workspace_binding": None,
+                "policy_version": 1,
+                "actions": ["context.read"],
+                "sandbox": sandbox,
+                "network": network,
+                "hard_cost_cap": False,
+                "budget": budget,
+            },
+            "profile_id": "00000000-0000-4000-8000-000000000104",
+            "profile_revision": 1,
+            "descriptor_digest": "0" * 64,
+            "configuration_digest": "0" * 64,
+            "lease_expires_at": "2026-09-21T12:00:00Z",
+            "job_kind": "manage",
+            "delivery_target": "answer",
+            "request": "Give Budi access to #launch.",
+            "runner_id": "00000000-0000-4000-8000-000000000105",
+            "adapter": adapter,
+            "provider": None,
+            "repository": None,
+            "policy": {
+                "version": 1,
+                "actions": ["context.read"],
+                "grant_ids": [],
+                "scope": {
+                    "kind": "stream",
+                    "stream_id": 1,
+                    "topic": "general chat",
+                    "participant_user_ids": [],
+                    "anchor_message_id": None,
+                },
+                "sandbox": sandbox,
+                "network": network,
+                "hard_cost_cap": False,
+            },
+            "budget": budget,
+        }
+
+    def test_manage_descriptor_is_valid(self) -> None:
+        protocol = self.protocol()
+        attempt = protocol.parse_payload("attempt_descriptor", self.manage_descriptor())
+        self.assertEqual(attempt.job_kind, "manage")
+        self.assertIsNone(attempt.repository)
+
+    def test_manage_descriptor_rejects_repository(self) -> None:
+        protocol = self.protocol()
+        data = self.manage_descriptor()
+        data["repository"] = self.descriptor()["repository"]
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("attempt_descriptor", data)
+
+    def test_manage_descriptor_rejects_code_delivery_target(self) -> None:
+        protocol = self.protocol()
+        data = self.manage_descriptor()
+        data["delivery_target"] = "patch"
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("attempt_descriptor", data)
+
+    def test_team_manage_input_rejects_extra_fields(self) -> None:
+        protocol = self.protocol()
+        arguments = {
+            "action": "team.manage",
+            "input": {
+                "tool": "channel.subscribe",
+                "channel_id": 7,
+                "user_ids": [1, 2],
+                "unexpected": True,
+            },
+        }
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("operation_arguments", arguments)
+
+    def test_team_manage_input_rejects_wrong_tool_pairing(self) -> None:
+        protocol = self.protocol()
+        arguments = {
+            "action": "team.manage",
+            "input": {
+                "tool": "channel.subscribe",
+                "name": "launch",
+                "description": "",
+                "is_private": False,
+                "subscriber_user_ids": [],
+            },
+        }
+        with self.assertRaises(ValidationError):
+            protocol.parse_payload("operation_arguments", arguments)
+
+    def test_team_manage_input_is_typed_per_tool(self) -> None:
+        protocol = self.protocol()
+        cases = [
+            {"tool": "team.find", "query": "budi", "kinds": ["person"]},
+            {
+                "tool": "channel.create",
+                "name": "launch",
+                "description": "",
+                "is_private": False,
+                "subscriber_user_ids": [],
+            },
+            {"tool": "channel.subscribe", "channel_id": 1, "user_ids": [1]},
+            {"tool": "channel.unsubscribe", "channel_id": 1, "user_ids": [1]},
+            {
+                "tool": "group.create",
+                "name": "launch-team",
+                "description": "",
+                "member_user_ids": [],
+            },
+            {"tool": "group.add_members", "group_id": 1, "user_ids": [1]},
+            {"tool": "group.remove_members", "group_id": 1, "user_ids": [1]},
+            {"tool": "topic.post", "channel_id": 1, "topic": "plan", "content": "Kickoff at 9am."},
+            {"tool": "topic.add_person", "channel_id": 1, "topic": "plan", "user_ids": [1]},
+            {"tool": "topic.resolve", "channel_id": 1, "topic": "plan", "resolved": True},
+            {
+                "tool": "topic.move",
+                "channel_id": 1,
+                "topic": "plan",
+                "new_topic": "launch plan",
+                "new_channel_id": None,
+            },
+        ]
+        for input_value in cases:
+            with self.subTest(tool=input_value["tool"]):
+                parsed = protocol.parse_payload(
+                    "operation_arguments", {"action": "team.manage", "input": input_value}
+                )
+                self.assertEqual(parsed.input.tool, input_value["tool"])
+
+    def test_approval_tree_hash_is_optional_for_team_manage(self) -> None:
+        protocol = self.protocol()
+        approval = {
+            "job_id": "00000000-0000-4000-8000-000000000101",
+            "attempt_id": "00000000-0000-4000-8000-000000000102",
+            "lease_epoch": 1,
+            "id": "00000000-0000-4000-8000-000000000106",
+            "operation_id": "00000000-0000-4000-8000-000000000107",
+            "operation_hash": "a" * 64,
+            "policy_version": 1,
+            "version": 1,
+            "arguments": {
+                "action": "team.manage",
+                "input": {"tool": "team.find", "query": "budi", "kinds": ["person"]},
+            },
+            "tree_hash": None,
+            "approver_user_id": None,
+            "decision": "pending",
+            "expires_at": "2026-09-21T12:00:00Z",
+            "nonce": "00000000-0000-4000-8000-000000000108",
+        }
+        parsed = protocol.parse_payload("approval", approval)
+        self.assertIsNone(parsed.tree_hash)
+
+    def test_team_executed_is_a_server_authority_event(self) -> None:
+        protocol = self.protocol()
+        event = {
+            "job_id": "00000000-0000-4000-8000-000000000101",
+            "attempt_id": "00000000-0000-4000-8000-000000000102",
+            "lease_epoch": 1,
+            "event_id": "00000000-0000-4000-8000-000000000109",
+            "sequence": 1,
+            "type": "team.executed",
+            "occurred_at": "2026-09-21T12:00:00Z",
+            "payload": {
+                "tool": "channel.subscribe",
+                "outcome": "succeeded",
+                "summary": "Budi is now subscribed to #launch.",
+                "objects": {"channel_id": 3, "user_ids": [1]},
+                "error": None,
+                "operation_id": "00000000-0000-4000-8000-000000000107",
+            },
+        }
+        parsed = protocol.parse_authority_event("server", event)
+        self.assertEqual(parsed.type, "team.executed")
+        with self.assertRaises((ValidationError, ValueError)):
+            protocol.parse_authority_event("runner", event)
+        with self.assertRaises((ValidationError, ValueError)):
+            protocol.parse_authority_event("publisher", event)

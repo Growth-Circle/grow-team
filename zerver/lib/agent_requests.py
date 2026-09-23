@@ -54,7 +54,7 @@ class ProfileCreate(Request):
     adapter_id: Annotated[str, Field(min_length=1, max_length=80)]
     adapter_version: Annotated[str, Field(min_length=1, max_length=100)]
     mode: Literal["acp", "endpoint"] = "acp"
-    default_mode: Literal["answer", "code"] = "answer"
+    default_mode: p.JobKind = "answer"
     idempotency_key: UUID
     provider_id: UUID | None = None
     provider_network_version: p.Positive | None = None
@@ -119,7 +119,7 @@ class ProfileUpdate(Request):
     adapter_id: Annotated[str, Field(min_length=1, max_length=80)]
     adapter_version: Annotated[str, Field(min_length=1, max_length=100)]
     mode: Literal["acp", "endpoint"] = "acp"
-    default_mode: Literal["answer", "code"] = "answer"
+    default_mode: p.JobKind = "answer"
     provider_id: UUID | None = None
     provider_network_version: p.Positive | None = None
     repository_id: UUID | None = None
@@ -155,7 +155,7 @@ class DefaultSelectionUpdate(Request):
 class SelectionResolve(Request):
     destination: p.ConversationScope | None = None
     source_message_id: p.Positive | None = None
-    job_kind: Literal["answer", "code"] | None = None
+    job_kind: p.JobKind | None = None
     repository_id: UUID | None = None
     explicit_profile_id: UUID | None = None
     selection_state: Literal["unset", "explicit", "cleared"] = "unset"
