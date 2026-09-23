@@ -289,6 +289,7 @@ test("not_my_message_view_actions", ({override}) => {
 test("the task receipt item appears only on your own message", ({override}) => {
     set_page_params_no_edit_restrictions({override});
     override(realm, "realm_can_delete_any_message_group", everyone.id);
+    override(realm, "realm_agent_enabled", true);
     override(current_user, "user_id", me.user_id);
     const list = init_message_list();
     message_lists.set_current(list);
@@ -342,6 +343,42 @@ test("the task receipt item appears only on your own message", ({override}) => {
     const other_message = popover_menus_data.get_actions_popover_content_context(2);
     assert.equal(own_message.should_display_agent_task_receipt, true);
     assert.equal(other_message.should_display_agent_task_receipt, false);
+    // Create agent task has no sender restriction, unlike the receipt item.
+    assert.equal(own_message.should_display_create_agent_task, true);
+    assert.equal(other_message.should_display_create_agent_task, true);
+});
+
+test("both agent menu items hide when the organization turns agents off", ({override}) => {
+    set_page_params_no_edit_restrictions({override});
+    override(realm, "realm_can_delete_any_message_group", everyone.id);
+    override(realm, "realm_agent_enabled", false);
+    override(current_user, "user_id", me.user_id);
+    const list = init_message_list();
+    message_lists.set_current(list);
+
+    const messages = [
+        {
+            id: 1,
+            sender_id: me.user_id,
+            is_hidden: false,
+            sent_by_me: true,
+            locally_echoed: false,
+            is_stream: true,
+            stream_id: 1,
+            collapsed: false,
+            unread: false,
+            submessages: [],
+            edit_history: [
+                {prev_content: "Previous content", prev_stream: 0, prev_topic: "Previous topic"},
+            ],
+        },
+    ];
+
+    add_message_with_view(list, messages);
+
+    const response = popover_menus_data.get_actions_popover_content_context(1);
+    assert.equal(response.should_display_create_agent_task, false);
+    assert.equal(response.should_display_agent_task_receipt, false);
 });
 
 test("not_my_message_view_source_and_move", ({override}) => {
