@@ -10,40 +10,40 @@
     ></p>
     <nav
         class="agent-settings-tabs tab-switcher allow-overflow"
-        aria-label="Agent settings"
+        aria-label="{{t 'Agent settings' }}"
     >
         <button
             type="button"
             class="ind-tab first selected"
             data-agent-tab="directory"
-        >Agent directory</button>
+        >{{t "Agent directory"}}</button>
         <button
             type="button"
             class="ind-tab middle"
             data-agent-tab="devices"
-        >Devices</button>
+        >{{t "Devices"}}</button>
         <button
             type="button"
             class="ind-tab middle"
             data-agent-tab="connections"
-        >Model connections</button>
+        >{{t "Model connections"}}</button>
         <button
             type="button"
             class="ind-tab last"
             data-agent-tab="default"
-        >Team default</button>
+        >{{t "Team default"}}</button>
     </nav>
     <section
         id="agent-directory-panel"
         class="agent-settings-panel"
         aria-labelledby="agent-directory-heading"
     >
-        <h3 id="agent-directory-heading">Agent directory</h3>
+        <h3 id="agent-directory-heading">{{t "Agent directory"}}</h3>
         <form id="agent-directory-filter" class="agent-inline-form">
             <label
                 class="settings-field-label"
                 for="agent-search"
-            >Search profiles</label><input
+            >{{t "Search profiles"}}</label><input
                 id="agent-search"
                 class="settings_text_input"
                 type="search"
@@ -52,40 +52,40 @@
             <label
                 class="settings-field-label"
                 for="agent-ownership"
-            >Ownership</label><select
+            >{{t "Ownership"}}</label><select
                 id="agent-ownership"
                 class="settings_select bootstrap-focus-style"
-            ><option value="all">All</option><option
+            ><option value="all">{{t "All"}}</option><option
                     value="mine"
-                >Mine</option><option value="shared">Shared</option></select>
+                >{{t "Mine"}}</option><option value="shared">{{t "Shared"}}</option></select>
             <label
                 class="settings-field-label"
                 for="agent-access"
-            >Access</label><select
+            >{{t "Access"}}</label><select
                 id="agent-access"
                 class="settings_select bootstrap-focus-style"
-            ><option value="all">All</option><option
+            ><option value="all">{{t "All"}}</option><option
                     value="complete"
-                >Complete</option><option
+                >{{t "Complete"}}</option><option
                     value="partial"
-                >Partial</option></select>
+                >{{t "Partial"}}</option></select>
             <label
                 class="settings-field-label"
                 for="agent-host-filter"
-            >Device category</label><select
+            >{{t "Device category"}}</label><select
                 id="agent-host-filter"
                 class="settings_select bootstrap-focus-style"
-            ><option value="all">All</option><option
+            ><option value="all">{{t "All"}}</option><option
                     value="workstation"
-                >Workstation</option><option
+                >{{t "Workstation"}}</option><option
                     value="server"
-                >Server</option><option
+                >{{t "Server"}}</option><option
                     value="unknown"
-                >Unknown</option></select>
+                >{{t "Unknown"}}</option></select>
             <button
                 type="submit"
                 class="action-button action-button-subtle-neutral"
-            >Apply filters</button>
+            >{{t "Apply filters"}}</button>
         </form>
         <p id="agent-directory-count" role="status"></p><div
             id="agent-profile-list"
@@ -95,31 +95,31 @@
                 type="button"
                 id="agent-directory-prev"
                 class="action-button action-button-subtle-neutral"
-            >Previous</button><button
+            >{{t "Previous"}}</button><button
                 type="button"
                 id="agent-directory-next"
                 class="action-button action-button-subtle-neutral"
-            >Next</button></div>
+            >{{t "Next"}}</button></div>
         <button
             type="button"
             id="agent-new-profile"
             class="action-button action-button-solid-brand"
-        >Create agent profile</button>
+        >{{t "Create agent profile"}}</button>
         <section aria-labelledby="agent-recent-jobs-heading"><h4
                 id="agent-recent-jobs-heading"
-            >Recent agent jobs</h4><button
+            >{{t "Recent agent jobs"}}</h4><button
                 type="button"
                 id="agent-load-jobs"
                 class="action-button action-button-subtle-neutral"
-            >Load jobs</button><div id="agent-recent-jobs"></div></section>
+            >{{t "Load jobs"}}</button><div id="agent-recent-jobs"></div></section>
         <form id="agent-profile-form" class="agent-editor" hidden>
-            <h4 id="agent-profile-form-title">Agent profile</h4>
+            <h4 id="agent-profile-form-title">{{t "Agent profile"}}</h4>
             <p id="agent-profile-step-label" role="status"></p>
-            <fieldset data-agent-step="0"><legend>Identity</legend>
+            <fieldset data-agent-step="0"><legend>{{t "Identity"}}</legend>
                 <label
                     class="settings-field-label"
                     for="agent-profile-name"
-                >Name</label><input
+                >{{t "Name"}}</label><input
                     id="agent-profile-name"
                     class="settings_text_input"
                     required
@@ -128,29 +128,29 @@
                 <label
                     class="settings-field-label"
                     for="agent-profile-description"
-                >Description</label><textarea
+                >{{t "Description"}}</label><textarea
                     id="agent-profile-description"
                     class="settings-textarea"
                     maxlength="2000"
                 ></textarea>
             </fieldset>
-            <fieldset data-agent-step="1" hidden><legend>Runner</legend>
+            <fieldset data-agent-step="1" hidden><legend>{{t "Runner"}}</legend>
                 <label
                     class="settings-field-label"
                     for="agent-profile-runner"
-                >Selected device</label><select
+                >{{t "Selected device"}}</label><select
                     id="agent-profile-runner"
                     class="settings_select bootstrap-focus-style"
                     required
                 ></select>
-                <p>Tool execution runs on this device. Its category is declared
-                    by its owner.</p>
+                <p>{{t "Tool execution runs on this device. Its category is declared
+                    by its owner."}}</p>
             </fieldset>
-            <fieldset data-agent-step="2" hidden><legend>Runtime</legend>
+            <fieldset data-agent-step="2" hidden><legend>{{t "Runtime"}}</legend>
                 <label
                     class="settings-field-label"
                     for="agent-profile-adapter"
-                >Approved adapter</label><select
+                >{{t "Approved adapter"}}</label><select
                     id="agent-profile-adapter"
                     class="settings_select bootstrap-focus-style"
                     required
@@ -158,49 +158,49 @@
                 <label
                     class="settings-field-label"
                     for="agent-profile-mode"
-                >Runtime mode</label><select
+                >{{t "Runtime mode"}}</label><select
                     id="agent-profile-mode"
                     class="settings_select bootstrap-focus-style"
-                ><option value="acp">ACP</option><option
+                ><option value="acp">{{t "ACP"}}</option><option
                         value="endpoint"
-                    >Endpoint</option></select>
+                    >{{t "Endpoint"}}</option></select>
                 <label
                     class="settings-field-label"
                     for="agent-profile-provider"
-                >Model connection</label><select
+                >{{t "Model connection"}}</label><select
                     id="agent-profile-provider"
                     class="settings_select bootstrap-focus-style"
                 ></select>
                 <label
                     class="settings-field-label"
                     for="agent-profile-sandbox"
-                >Approved sandbox</label><select
+                >{{t "Approved sandbox"}}</label><select
                     id="agent-profile-sandbox"
                     class="settings_select bootstrap-focus-style"
                     required
                 ></select>
             </fieldset>
-            <fieldset data-agent-step="3" hidden><legend>Work</legend>
+            <fieldset data-agent-step="3" hidden><legend>{{t "Work"}}</legend>
                 <label
                     class="settings-field-label"
                     for="agent-profile-default-mode"
-                >Default task type</label><select
+                >{{t "Default task type"}}</label><select
                     id="agent-profile-default-mode"
                     class="settings_select bootstrap-focus-style"
-                ><option value="answer">Answer</option><option
+                ><option value="answer">{{t "Answer"}}</option><option
                         value="code"
-                    >Coding</option></select>
+                    >{{t "Coding"}}</option></select>
                 <label
                     class="settings-field-label"
                     for="agent-profile-repository"
-                >Repository binding</label><select
+                >{{t "Repository binding"}}</label><select
                     id="agent-profile-repository"
                     class="settings_select bootstrap-focus-style"
                 ></select>
                 <label
                     class="settings-field-label"
                     for="agent-profile-active-seconds"
-                >Maximum active seconds</label><input
+                >{{t "Maximum active seconds"}}</label><input
                     id="agent-profile-active-seconds"
                     class="settings_text_input"
                     type="number"
@@ -211,7 +211,7 @@
                 <label
                     class="settings-field-label"
                     for="agent-profile-input-tokens"
-                >Input tokens</label><input
+                >{{t "Input tokens"}}</label><input
                     id="agent-profile-input-tokens"
                     class="settings_text_input"
                     type="number"
@@ -221,7 +221,7 @@
                 <label
                     class="settings-field-label"
                     for="agent-profile-output-tokens"
-                >Output tokens</label><input
+                >{{t "Output tokens"}}</label><input
                     id="agent-profile-output-tokens"
                     class="settings_text_input"
                     type="number"
@@ -229,77 +229,77 @@
                     value="512"
                 />
             </fieldset>
-            <fieldset data-agent-step="4" hidden><legend>Access</legend>
+            <fieldset data-agent-step="4" hidden><legend>{{t "Access"}}</legend>
                 <label class="checkbox"><input
                         id="agent-profile-context"
                         type="checkbox"
                         checked
-                    /><span class="rendered-checkbox"></span>Read selected
-                    context</label>
+                    /><span class="rendered-checkbox"></span>{{t "Read selected
+                    context"}}</label>
                 <label class="checkbox"><input
                         id="agent-profile-shell"
                         type="checkbox"
-                    /><span class="rendered-checkbox"></span>Use approved tools</label>
+                    /><span class="rendered-checkbox"></span>{{t "Use approved tools"}}</label>
                 <label class="checkbox"><input
                         id="agent-profile-repository-read"
                         type="checkbox"
-                    /><span class="rendered-checkbox"></span>Read repository</label>
+                    /><span class="rendered-checkbox"></span>{{t "Read repository"}}</label>
                 <label class="checkbox"><input
                         id="agent-profile-repository-edit"
                         type="checkbox"
-                    /><span class="rendered-checkbox"></span>Edit repository</label>
+                    /><span class="rendered-checkbox"></span>{{t "Edit repository"}}</label>
                 <label class="checkbox"><input
                         id="agent-profile-checks"
                         type="checkbox"
-                    /><span class="rendered-checkbox"></span>Run required checks</label>
+                    /><span class="rendered-checkbox"></span>{{t "Run required checks"}}</label>
                 <label class="checkbox"><input
                         id="agent-profile-dependencies"
                         type="checkbox"
-                    /><span class="rendered-checkbox"></span>Install dependencies</label>
+                    /><span class="rendered-checkbox"></span>{{t "Install dependencies"}}</label>
                 <label class="checkbox"><input
                         id="agent-profile-commit"
                         type="checkbox"
-                    /><span class="rendered-checkbox"></span>Create Git commits</label>
+                    /><span class="rendered-checkbox"></span>{{t "Create Git commits"}}</label>
                 <label class="checkbox"><input
                         id="agent-profile-push"
                         type="checkbox"
-                    /><span class="rendered-checkbox"></span>Push Git changes</label>
+                    /><span class="rendered-checkbox"></span>{{t "Push Git changes"}}</label>
                 <label class="checkbox"><input
                         id="agent-profile-pr"
                         type="checkbox"
-                    /><span class="rendered-checkbox"></span>Create draft pull
-                    requests</label>
+                    /><span class="rendered-checkbox"></span>{{t "Create draft pull
+                    requests"}}</label>
                 <label class="checkbox"><input
                         id="agent-profile-hard-cap"
                         type="checkbox"
-                    /><span class="rendered-checkbox"></span>Enforce a hard cost
-                    cap</label>
-                <p id="agent-profile-network-note">Localhost addresses refer to
-                    the selected runner.</p>
+                    /><span class="rendered-checkbox"></span>{{t "Enforce a hard cost
+                    cap"}}</label>
+                <p id="agent-profile-network-note">{{t "Localhost addresses refer to
+                    the selected runner."}}</p>
             </fieldset>
-            <fieldset data-agent-step="5" hidden><legend>Review</legend><p
+            <fieldset data-agent-step="5" hidden><legend>{{t "Review"}}</legend><p
                     id="agent-profile-review"
-                ></p><p>A saved draft needs a probe and explicit enable before
-                    it accepts tasks.</p></fieldset>
+                ></p><p>{{t "A saved draft needs a probe and explicit enable before
+                    it accepts tasks."}}</p></fieldset>
             <div class="agent-actions"><button
                     type="button"
                     id="agent-profile-back"
                     class="action-button action-button-subtle-neutral"
-                >Back</button><button
+                >{{t "Back"}}</button><button
                     type="button"
                     id="agent-profile-next"
                     class="action-button action-button-subtle-neutral"
-                >Next</button>
+                >{{t "Next"}}</button>
                 <button
                     type="submit"
                     id="agent-profile-save"
                     class="action-button action-button-solid-brand"
                     hidden
-                >Save draft</button><button
+                >{{t "Save draft"}}</button><button
                     type="button"
                     id="agent-profile-cancel"
                     class="action-button action-button-subtle-neutral"
-                >Close</button></div>
+                >{{t "Close"}}</button></div>
             <p id="agent-profile-result" role="status" aria-live="polite"></p>
         </form>
         <div id="agent-profile-detail" class="agent-editor" hidden></div>
@@ -310,12 +310,12 @@
         aria-labelledby="agent-devices-heading"
         hidden
     >
-        <h3 id="agent-devices-heading">Devices</h3><p>Pair a workstation or
-            server with the same code. The owner declares its category.</p>
+        <h3 id="agent-devices-heading">{{t "Devices"}}</h3><p>{{t "Pair a workstation or
+            server with the same code. The owner declares its category."}}</p>
         <form id="agent-pairing-form" class="agent-inline-form"><label
                 class="settings-field-label"
                 for="agent-pairing-id"
-            >Pairing ID</label><input
+            >{{t "Pairing ID"}}</label><input
                 id="agent-pairing-id"
                 class="settings_text_input"
                 required
@@ -323,14 +323,14 @@
             <label
                 class="settings-field-label"
                 for="agent-pairing-code"
-            >Code shown on device</label><input
+            >{{t "Code shown on device"}}</label><input
                 id="agent-pairing-code"
                 class="settings_text_input"
                 required
             /><button
                 type="submit"
                 class="action-button action-button-solid-brand"
-            >Approve pairing</button></form>
+            >{{t "Approve pairing"}}</button></form>
         <p id="agent-device-count"></p><div
             id="agent-runner-list"
             class="agent-cards"
@@ -338,14 +338,14 @@
             type="button"
             id="agent-device-more"
             class="action-button action-button-subtle-neutral"
-        >Load more devices</button>
-        <h4>Repositories</h4><div id="agent-repository-list" class="agent-cards"></div>
-        <form id="agent-runner-form" class="agent-editor" hidden><h4>Edit device
-                metadata</h4>
+        >{{t "Load more devices"}}</button>
+        <h4>{{t "Repositories"}}</h4><div id="agent-repository-list" class="agent-cards"></div>
+        <form id="agent-runner-form" class="agent-editor" hidden><h4>{{t "Edit device
+                metadata"}}</h4>
             <label
                 class="settings-field-label"
                 for="agent-runner-name"
-            >Device name</label><input
+            >{{t "Device name"}}</label><input
                 id="agent-runner-name"
                 class="settings_text_input"
                 required
@@ -354,29 +354,29 @@
             <label
                 class="settings-field-label"
                 for="agent-runner-kind"
-            >Declared category</label><select
+            >{{t "Declared category"}}</label><select
                 id="agent-runner-kind"
                 class="settings_select bootstrap-focus-style"
-            ><option value="unknown">Unknown</option><option
+            ><option value="unknown">{{t "Unknown"}}</option><option
                     value="workstation"
-                >Workstation</option><option
+                >{{t "Workstation"}}</option><option
                     value="server"
-                >Server</option></select>
+                >{{t "Server"}}</option></select>
             <div class="agent-actions"><button
                     type="submit"
                     class="action-button action-button-solid-brand"
-                >Save metadata</button><button
+                >{{t "Save metadata"}}</button><button
                     type="button"
                     id="agent-runner-cancel"
                     class="action-button action-button-subtle-neutral"
-                >Close</button></div></form>
+                >{{t "Close"}}</button></div></form>
         <form id="agent-repository-form" class="agent-editor" hidden><h4
-            >Register repository</h4><p>Register only aliases that already exist
-                in the selected runner catalog.</p>
+            >{{t "Register repository"}}</h4><p>{{t "Register only aliases that already exist
+                in the selected runner catalog."}}</p>
             <label
                 class="settings-field-label"
                 for="agent-repository-alias"
-            >Workspace alias</label><input
+            >{{t "Workspace alias"}}</label><input
                 id="agent-repository-alias"
                 class="settings_text_input"
                 required
@@ -385,7 +385,7 @@
             <label
                 class="settings-field-label"
                 for="agent-repository-origin"
-            >Canonical origin</label><input
+            >{{t "Canonical origin"}}</label><input
                 id="agent-repository-origin"
                 class="settings_text_input"
                 type="url"
@@ -393,7 +393,7 @@
             <label
                 class="settings-field-label"
                 for="agent-repository-ref"
-            >Allowed ref</label><input
+            >{{t "Allowed ref"}}</label><input
                 id="agent-repository-ref"
                 class="settings_text_input"
                 required
@@ -401,11 +401,11 @@
             <div class="agent-actions"><button
                     type="submit"
                     class="action-button action-button-solid-brand"
-                >Register repository</button><button
+                >{{t "Register repository"}}</button><button
                     type="button"
                     id="agent-repository-cancel"
                     class="action-button action-button-subtle-neutral"
-                >Close</button></div><p
+                >{{t "Close"}}</button></div><p
                 id="agent-repository-result"
                 role="status"
             ></p></form>
@@ -416,25 +416,25 @@
         aria-labelledby="agent-connections-heading"
         hidden
     >
-        <h3 id="agent-connections-heading">Model connections</h3><p>Credentials
-            are write-only. Replacement fields stay empty after a read.</p>
+        <h3 id="agent-connections-heading">{{t "Model connections"}}</h3><p>{{t "Credentials
+            are write-only. Replacement fields stay empty after a read."}}</p>
         <div id="agent-provider-list" class="agent-cards"></div><button
             type="button"
             id="agent-provider-more"
             class="action-button action-button-subtle-neutral"
-        >Load more connections</button>
+        >{{t "Load more connections"}}</button>
         <button
             type="button"
             id="agent-new-provider"
             class="action-button action-button-solid-brand"
-        >Add model connection</button>
+        >{{t "Add model connection"}}</button>
         <form id="agent-provider-form" class="agent-editor" hidden><h4
                 id="agent-provider-form-title"
-            >Model connection</h4>
+            >{{t "Model connection"}}</h4>
             <label
                 class="settings-field-label"
                 for="agent-provider-runner"
-            >Runner</label><select
+            >{{t "Runner"}}</label><select
                 id="agent-provider-runner"
                 class="settings_select bootstrap-focus-style"
                 required
@@ -442,7 +442,7 @@
             <label
                 class="settings-field-label"
                 for="agent-provider-name"
-            >Name</label><input
+            >{{t "Name"}}</label><input
                 id="agent-provider-name"
                 class="settings_text_input"
                 required
@@ -451,7 +451,7 @@
             <label
                 class="settings-field-label"
                 for="agent-provider-url"
-            >Endpoint URL</label><input
+            >{{t "Endpoint URL"}}</label><input
                 id="agent-provider-url"
                 class="settings_text_input"
                 required
@@ -461,16 +461,16 @@
             <label
                 class="settings-field-label"
                 for="agent-provider-api-mode"
-            >API mode</label><select
+            >{{t "API mode"}}</label><select
                 id="agent-provider-api-mode"
                 class="settings_select bootstrap-focus-style"
-            ><option value="chat_completions">Chat completions</option><option
+            ><option value="chat_completions">{{t "Chat completions"}}</option><option
                     value="responses"
-                >Responses</option></select>
+                >{{t "Responses"}}</option></select>
             <label
                 class="settings-field-label"
                 for="agent-provider-model"
-            >Model ID</label><input
+            >{{t "Model ID"}}</label><input
                 id="agent-provider-model"
                 class="settings_text_input"
                 required
@@ -479,7 +479,7 @@
             <label
                 class="settings-field-label"
                 for="agent-provider-allowed-models"
-            >Allowed model IDs, one per line</label><textarea
+            >{{t "Allowed model IDs, one per line"}}</label><textarea
                 id="agent-provider-allowed-models"
                 class="settings-textarea"
                 required
@@ -487,7 +487,7 @@
             <label
                 class="settings-field-label"
                 for="agent-provider-context"
-            >Context window tokens</label><input
+            >{{t "Context window tokens"}}</label><input
                 id="agent-provider-context"
                 class="settings_text_input"
                 type="number"
@@ -498,7 +498,7 @@
             <label
                 class="settings-field-label"
                 for="agent-provider-output"
-            >Maximum output tokens</label><input
+            >{{t "Maximum output tokens"}}</label><input
                 id="agent-provider-output"
                 class="settings_text_input"
                 type="number"
@@ -509,7 +509,7 @@
             <label
                 class="settings-field-label"
                 for="agent-provider-credential"
-            >Replacement credential</label><input
+            >{{t "Replacement credential"}}</label><input
                 id="agent-provider-credential"
                 class="settings_text_input"
                 type="password"
@@ -518,7 +518,7 @@
             <label
                 class="settings-field-label"
                 for="agent-provider-local-ref"
-            >Local credential reference</label><input
+            >{{t "Local credential reference"}}</label><input
                 id="agent-provider-local-ref"
                 class="settings_text_input"
                 autocomplete="off"
@@ -526,14 +526,14 @@
             <label
                 class="settings-field-label"
                 for="agent-provider-network-host"
-            >Allowed network hostname</label><input
+            >{{t "Allowed network hostname"}}</label><input
                 id="agent-provider-network-host"
                 class="settings_text_input"
             />
             <label
                 class="settings-field-label"
                 for="agent-provider-network-port"
-            >Allowed network port</label><input
+            >{{t "Allowed network port"}}</label><input
                 id="agent-provider-network-port"
                 class="settings_text_input"
                 type="number"
@@ -544,43 +544,43 @@
             <label class="checkbox"><input
                     id="agent-provider-network-private"
                     type="checkbox"
-                /><span class="rendered-checkbox"></span>Permit private network
-                target</label>
+                /><span class="rendered-checkbox"></span>{{t "Permit private network
+                target"}}</label>
             <label class="checkbox"><input
                     id="agent-provider-network-loopback"
                     type="checkbox"
-                /><span class="rendered-checkbox"></span>Permit HTTP loopback on
-                the runner</label>
+                /><span class="rendered-checkbox"></span>{{t "Permit HTTP loopback on
+                the runner"}}</label>
             <label class="checkbox"><input
                     id="agent-provider-network-http-private"
                     type="checkbox"
-                /><span class="rendered-checkbox"></span>Permit HTTP on an
-                approved private target</label>
-            <fieldset id="agent-provider-scopes"><legend>Data scopes</legend>
+                /><span class="rendered-checkbox"></span>{{t "Permit HTTP on an
+                approved private target"}}</label>
+            <fieldset id="agent-provider-scopes"><legend>{{t "Data scopes"}}</legend>
                 <label class="checkbox"><input
                         type="checkbox"
                         value="synthetic"
-                    /><span class="rendered-checkbox"></span>Synthetic</label>
+                    /><span class="rendered-checkbox"></span>{{t "Synthetic"}}</label>
                 <label class="checkbox"><input
                         type="checkbox"
                         value="selected_chat"
-                    /><span class="rendered-checkbox"></span>Selected chat</label>
+                    /><span class="rendered-checkbox"></span>{{t "Selected chat"}}</label>
                 <label class="checkbox"><input
                         type="checkbox"
                         value="selected_repository"
-                    /><span class="rendered-checkbox"></span>Selected repository</label>
+                    /><span class="rendered-checkbox"></span>{{t "Selected repository"}}</label>
             </fieldset>
-            <p>Localhost addresses refer to the selected runner. An execution
-                change makes dependent profiles need a new probe.</p>
+            <p>{{t "Localhost addresses refer to the selected runner. An execution
+                change makes dependent profiles need a new probe."}}</p>
             <div id="agent-provider-impact" role="status"></div>
             <div class="agent-actions"><button
                     type="submit"
                     class="action-button action-button-solid-brand"
-                >Save connection</button><button
+                >{{t "Save connection"}}</button><button
                     type="button"
                     id="agent-provider-cancel"
                     class="action-button action-button-subtle-neutral"
-                >Close</button></div><p
+                >{{t "Close"}}</button></div><p
                 id="agent-provider-result"
                 role="status"
             ></p>
@@ -592,8 +592,8 @@
         aria-labelledby="agent-default-heading"
         hidden
     >
-        <h3 id="agent-default-heading">Team default</h3><p>The default grants no
-            access to profiles, devices, connections, or repositories.</p>
+        <h3 id="agent-default-heading">{{t "Team default"}}</h3><p>{{t "The default grants no
+            access to profiles, devices, connections, or repositories."}}</p>
         <div id="agent-team-default" role="status"></div><form
             id="agent-default-form"
             class="agent-editor"
@@ -602,18 +602,18 @@
             <label
                 class="settings-field-label"
                 for="agent-default-choice"
-            >Default profile</label><select
+            >{{t "Default profile"}}</label><select
                 id="agent-default-choice"
                 class="settings_select bootstrap-focus-style"
             ></select>
             <div class="agent-actions"><button
                     type="submit"
                     class="action-button action-button-solid-brand"
-                >Save team default</button><button
+                >{{t "Save team default"}}</button><button
                     type="button"
                     id="agent-default-clear"
                     class="action-button action-button-subtle-neutral"
-                >Clear default</button></div></form>
+                >{{t "Clear default"}}</button></div></form>
     </section>
     <div id="agent-grant-editor" class="agent-editor" hidden></div>
 </div>
