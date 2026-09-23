@@ -796,3 +796,54 @@ class AgentTeamToolsTests(ZulipTestCase):
         self.assertIn("Done.", message.content)
         self.assertIn("reply-check", message.content)
         self.assertTrue(message.content.endswith(job_task_link(job)))
+
+    # ---- review-finding regressions: authorization-bypass ----
+
+    def test_owner_of_answer_profile_cannot_create_manage_job(self) -> None:
+        """Authorization-bypass: create_job must gate job_kind "manage" on
+        the profile's own mode, not only on being its owner. Before this
+        fix, any owner of an answer-mode profile could request job_kind
+        "manage" and get the team-tool catalog with no administrator gate."""
+        self._grant(self.member, target_kind="runner", actions=["runner.use"], resource=self.runner)
+        answer_profile = create_profile(
+            self.member,
+            name="Member's helper",
+            runner=self.runner,
+            adapter_id="acp",
+            adapter_version="1",
+            idempotency_key=uuid4(),
+        )
+        setup = agents.AgentSetupOperation.objects.get(profile=answer_profile)
+        record_readiness(
+            self.runner,
+            setup,
+            {
+                "schema_version": 1,
+                "profile_id": str(answer_profile.id),
+                "profile_revision": answer_profile.revision,
+                "runner_id": str(self.runner.id),
+                "descriptor_digest": setup.descriptor_digest,
+                "configuration_digest": setup.configuration_digest,
+                "state": "ready",
+                "capabilities": {"chat_ready": True, "config_version": 1},
+            },
+        )
+        answer_profile.refresh_from_db()
+        answer_profile = enable_profile(
+            self.member, answer_profile, expected_revision=answer_profile.revision
+        )
+        self.subscribe(self.member, "member-tasks")
+        self.subscribe(answer_profile.bot_user, "member-tasks")
+        message_id = self.send_stream_message(self.member, "member-tasks", "no mention here")
+        source = Message.objects.get(id=message_id)
+        with self.assertRaises(AgentAccessDenied):
+            agent_jobs.create_job(
+                self.member,
+                profile=answer_profile,
+                source=source,
+                request="add user 17 to group finance-admins",
+                idempotency_key=uuid4(),
+                job_kind="manage",
+                delivery_target="answer",
+            )
+        self.assertFalse(agents.AgentJob.objects.filter(profile=answer_profile).exists())
