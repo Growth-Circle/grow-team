@@ -94,7 +94,7 @@ function narrow(d: Data): void {
         requireThat(equal(actual[k], tested[k]), `Untested ${k}`);
     requireThat(
         equal(actual.workspace_binding, tested.workspace_binding) ||
-            (d.job_kind === "answer" && actual.workspace_binding === null),
+            (["answer", "manage"].includes(d.job_kind) && actual.workspace_binding === null),
         "Untested workspace",
     );
     requireThat(
@@ -244,6 +244,16 @@ function semantics(v: any): void {
                         ["context.read", "repository.read"].includes(a),
                     ),
                 "Answer mutation",
+            );
+        else if (v.job_kind === "manage")
+            // A manage job has no repository or workspace (contract 2.5). Its policy
+            // stays read-only; team.manage authority is not an ExecutionAction, so it
+            // is granted and checked server-side at propose and execute, never here.
+            requireThat(
+                v.delivery_target === "answer" &&
+                    v.repository === null &&
+                    v.policy.actions.every((a: string) => a === "context.read"),
+                "Manage job scope",
             );
         else
             requireThat(
