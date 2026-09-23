@@ -52,6 +52,7 @@ for (const fault of ["close", "stop", "none", "certified"]) {
             journal,
             {
                 assertRuntime: () => {},
+                catalogState: () => ({adapter: {auth_state: "ready"}, sandboxApproved: true}),
                 read: () => ({
                     catalog_reported: true,
                     catalog: {adapters: [{auth_state: "ready", capabilities: {chat_ready: true}}]},
@@ -380,7 +381,10 @@ test("checkpoint restoration preserves edited tree and owner WIP and rejects alt
             data_scope: ["selected_chat", "selected_repository"],
         },
         policy: {actions: ["repository.read"]},
-        budget: {active_seconds: 10, artifact_bytes: 100000, job_artifact_bytes: 500000},
+        // lease_expires_at follows the real claim-time convention (contract 10.1: claim
+        // time + 90s) so attemptDeadline lands comfortably after this fixture's turns.
+        lease_expires_at: new Date(Date.now() + 90_000).toISOString(),
+        budget: {active_seconds: 60, artifact_bytes: 100000, job_artifact_bytes: 500000},
     };
     let prepared: any, resumedContext: any;
     let done!: () => void;

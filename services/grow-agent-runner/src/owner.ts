@@ -146,6 +146,21 @@ export class OwnerRegistry {
         state.catalog_reported = true;
         this.store.write("registry.json", state);
     }
+    // Setup probes read this before assertRuntime (contract 10.2): it never throws, so a
+    // probe can turn a missing or unready adapter into a reported requirement.
+    catalogState(descriptor: Data): {adapter: Data | undefined; sandboxApproved: boolean} {
+        const state = this.connected(),
+            catalog = state.catalog;
+        if (!catalog || !state.catalog_reported) return {adapter: undefined, sandboxApproved: false};
+        return {
+            adapter: catalog.adapters.find(
+                (a: Data) => a.id === descriptor.adapter.id && a.version === descriptor.adapter.version,
+            ),
+            sandboxApproved: catalog.sandboxes.some(
+                (s: Data) => canonical(s) === canonical(descriptor.policy.sandbox),
+            ),
+        };
+    }
     assertRuntime(descriptor: Data): void {
         const state = this.connected();
         const catalog = state.catalog;

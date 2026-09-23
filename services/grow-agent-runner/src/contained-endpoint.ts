@@ -92,7 +92,12 @@ export class ContainedEndpointRuntime implements Runtime {
                 },
                 this.image,
                 socket,
-                {mode: "endpoint", tools: this.tools.catalog, budget: this.d.budget},
+                {
+                    mode: "endpoint",
+                    tools: this.tools.catalog,
+                    budget: this.d.budget,
+                    deadline_ms: this.authority.deadline,
+                },
             );
             let buffer = "";
             this.process.child.stdout.on("data", (b) => {

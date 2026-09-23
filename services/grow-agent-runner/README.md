@@ -7,6 +7,7 @@ The distribution supports Linux x64 with Node 24.18.0.
 `run` starts the coordinator and contained runtime supervisor.
 The runner checks local approval, current server authority, and retained state before execution.
 Setup probes measure capabilities. Coding evidence requires separate owner review and installation.
+A probe result can report one setup requirement instead of an error: install the adapter, sign in the adapter, or approve the sandbox. See [RUNTIME.md](RUNTIME.md) for the deadline rule and the full requirement list.
 `doctor` reports local checks; it does not certify a provider or profile.
 
 ## Development

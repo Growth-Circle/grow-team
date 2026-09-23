@@ -166,7 +166,11 @@ export class AcpRuntime implements Runtime {
                 },
                 this.image,
                 socket,
-                {model: this.d.provider.model_id, tools: this.tools.catalog},
+                {
+                    model: this.d.provider.model_id,
+                    tools: this.tools.catalog,
+                    deadline_ms: this.authority.deadline,
+                },
             );
             this.connection = acp
                 .client({name: "grow-runner"})

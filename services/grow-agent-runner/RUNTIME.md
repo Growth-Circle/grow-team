@@ -41,6 +41,7 @@ Use adapter version `0.1.0` for endpoint mode and `1.12.0` for ACP mode.
 ACP requires a Responses provider. Endpoint mode supports Chat Completions and Responses.
 Missing installation approval, dependency pins, catalog approval, or chat evidence prevents job claims.
 Setup probes can run before chat readiness exists. Each probe needs a current server setup grant.
+A probe reports five setup conditions as a plain requirement instead of an error: a missing or unsupported adapter, a required or unclear adapter sign-in, and an unapproved sandbox. Each requirement names one action: install the adapter, sign in the adapter, or approve the sandbox.
 The runtime does not report real coding certification from synthetic fixtures.
 
 ## Authority and containment
@@ -97,6 +98,7 @@ Input accepted before this boundary invalidates the result and keeps execution a
 Confirmed stop evidence then permits result publication. Publication still requires empty containment.
 A later input wakes the queue. The original active deadline remains in force.
 The runner stops on cancellation or deadline. A stopped interrupted attempt requires explicit recovery.
+`attemptDeadline(d)` derives the attempt ceiling from the lease expiry and the active-second budget, minus a five-second margin. `execute()` uses the smaller of that ceiling and the local budget deadline for the guard, the model authority, and the abort timer. Every socket request to the tool and model broker waits for that same remaining time, with no separate margin for a tool call. The sandbox shell timeout still bounds each command.
 
 Each published repository checkpoint retains a local immutable snapshot under the owner-only runner state directory.
 Recovery accepts only the server-selected checkpoint with matching job, source attempt, repository policy, base commit, and complete checkpoint record.

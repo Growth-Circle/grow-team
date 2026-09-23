@@ -1,21 +1,18 @@
 import {request} from "node:http";
 import {ProviderFailure} from "./codecs.js";
 
-// Docker workspace seed and final-snapshot copy run outside the shell timeout itself
-// (see sandbox.ts), so give the /tool ceiling room for that fixed overhead.
-const TOOL_TIMEOUT_MARGIN_MS = 30_000;
-
 // Neither route streams partial output back to the container, so this socket looks idle
-// for the call's entire duration. The timeout must match the real ceiling of whatever it
-// is waiting for: the descriptor's shell budget for /tool, the session deadline for /model.
-export function requestTimeoutMs(
-    path: string,
-    shellTimeoutSeconds: number,
-    deadline: number,
-    now = Date.now(),
-): number {
-    const ceiling = path === "/tool" ? shellTimeoutSeconds * 1000 + TOOL_TIMEOUT_MARGIN_MS : Infinity;
-    return Math.min(ceiling, Math.max(1, deadline - now));
+// for the call's entire duration (contract 10.1). The supervisor's abort timer already
+// enforces the attempt deadline, and the sandbox enforces the shell timeout and approval
+// expiry, so this ceiling only has to reach the deadline: it must never cut a long
+// approval wait short, so /tool and /model share the same rule.
+export function requestTimeoutMs(deadlineMs: number, now = Date.now()): number {
+    return Math.max(1, deadlineMs - now);
+}
+// endpoint-child.ts supplies deadline_ms on every real container config (contract 10.1);
+// the local computation only guards a config that omits it.
+export function resolveDeadline(config: {deadline_ms?: number; budget: {active_seconds: number}}): number {
+    return config.deadline_ms ?? Date.now() + config.budget.active_seconds * 1000;
 }
 
 export function exchange(

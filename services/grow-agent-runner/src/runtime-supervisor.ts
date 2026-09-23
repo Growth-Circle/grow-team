@@ -36,6 +36,12 @@ export function assertDataScope(d: Data): void {
     if (d.repository && !d.provider.data_scope.includes("selected_repository"))
         throw new Error("Provider does not permit selected repository data");
 }
+// The server sets lease_expires_at to claim time + 90s and ends the attempt at claim
+// time + active_seconds (contract 10.1). Keep a 5s margin so the runner always reports
+// before the server's own lease check does.
+export function attemptDeadline(d: Data): number {
+    return Date.parse(d.lease_expires_at) - 90_000 + d.budget.active_seconds * 1000 - 5_000;
+}
 export interface RuntimeExtensions {
     // Task 8 supplies bounded context and trusted publication. Neither enters the model process.
     context?(descriptor: Data, channel: AttemptChannel): Promise<string>;
@@ -274,8 +280,8 @@ export class RuntimeSupervisor implements Supervisor {
         if (!channel.request || !channel.upload || !channel.download)
             throw new Error("Runtime callbacks unavailable");
         const request = channel.request;
-        const deadline = Date.now() + d.budget.active_seconds * 1000;
-        const timer = setTimeout(() => active.abort.abort(), d.budget.active_seconds * 1000);
+        const deadline = Math.min(Date.now() + d.budget.active_seconds * 1000, attemptDeadline(d));
+        const timer = setTimeout(() => active.abort.abort(), Math.max(0, deadline - Date.now()));
         const current = () => {
             channel.lease();
             if (active.abort.signal.aborted || Date.now() >= deadline)
@@ -637,23 +643,6 @@ export class RuntimeSupervisor implements Supervisor {
     }> {
         this.assertContainment();
         if (!authority) throw new Error("A current setup authority channel is required");
-        if (
-            (d.adapter.mode === "acp" &&
-                (d.adapter.version !== "1.12.0" || d.provider?.api_mode !== "responses")) ||
-            (d.adapter.mode === "endpoint" && d.adapter.version !== "0.1.0")
-        )
-            throw new Error("Unsupported runtime configuration");
-        this.registry.assertRuntime(d);
-        await authority.validate();
-        if (d.provider && !d.provider.data_scope.includes("synthetic"))
-            throw new Error("Provider does not permit synthetic probes");
-        const filter = new SecretFilter(),
-            modelAuthority: ModelAuthority = {
-                signal: authority.signal,
-                deadline: authority.deadline,
-                assertCurrent: authority.validate,
-                assertLocal: authority.assertCurrent,
-            };
         const capabilities: Data = {
             config_version: d.provider?.config_version ?? d.profile_revision,
             chat_ready: false,
@@ -673,6 +662,37 @@ export class RuntimeSupervisor implements Supervisor {
             adapter_version: d.adapter.version,
             probed_at: new Date().toISOString(),
         };
+        // Contract 10.2 (AS-07): report each of these as a setup requirement instead of
+        // throwing, so the owner sees one plain action rather than a stalled setup.
+        const needsSetup = (code: string, surface: string, action: string) => ({
+            state: "needs_action" as const,
+            capabilities,
+            requirements: [{code, surface, action, diagnostic_id: null}],
+        });
+        const {adapter, sandboxApproved} = this.registry.catalogState(d);
+        if (!adapter) return needsSetup("runtime_missing", "adapter", "install_adapter");
+        if (
+            (d.adapter.mode === "acp" &&
+                (d.adapter.version !== "1.12.0" || d.provider?.api_mode !== "responses")) ||
+            (d.adapter.mode === "endpoint" && d.adapter.version !== "0.1.0")
+        )
+            return needsSetup("runtime_unsupported", "adapter", "install_adapter");
+        if (adapter.auth_state === "login_required" || adapter.auth_state === "expired")
+            return needsSetup("auth_required", "adapter", "login_vendor");
+        if (adapter.auth_state === "unchecked" || adapter.auth_state === "error")
+            return needsSetup("auth_unknown", "adapter", "login_vendor");
+        if (!sandboxApproved) return needsSetup("sandbox_unavailable", "sandbox", "configure_sandbox");
+        this.registry.assertRuntime(d);
+        await authority.validate();
+        if (d.provider && !d.provider.data_scope.includes("synthetic"))
+            throw new Error("Provider does not permit synthetic probes");
+        const filter = new SecretFilter(),
+            modelAuthority: ModelAuthority = {
+                signal: authority.signal,
+                deadline: authority.deadline,
+                assertCurrent: authority.validate,
+                assertLocal: authority.assertCurrent,
+            };
         if (!d.provider)
             return {
                 state: "needs_action",

@@ -78,7 +78,11 @@ export function exchange(path, value) {
                 res.on("error", () => reject(Error("Broker unavailable")));
             },
         );
-        r.setTimeout(60000, () => r.destroy(Error("Broker deadline")));
+        // Same rule as broker-exchange.ts's requestTimeoutMs (contract 10.1): the
+        // remaining supervisor deadline, not a flat guess.
+        r.setTimeout(Math.max(1, config.deadline_ms - Date.now()), () =>
+            r.destroy(Error("Broker deadline")),
+        );
         r.on("error", () => reject(Error("Broker unavailable")));
         r.end(body);
     });

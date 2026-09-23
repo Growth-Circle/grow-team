@@ -3,16 +3,11 @@ import {EndpointRuntime, type RuntimeTools} from "./runtime.js";
 import type {ModelBroker} from "./model-broker.js";
 import type {Data} from "./protocol.js";
 import {SecretFilter} from "./redaction.js";
-import {exchange, requestTimeoutMs} from "./broker-exchange.js";
+import {exchange, requestTimeoutMs, resolveDeadline} from "./broker-exchange.js";
 const config = JSON.parse(process.env.GROW_NATIVE_CONFIG!);
-const deadline = Date.now() + config.budget.active_seconds * 1000;
+const deadline = resolveDeadline(config);
 const send = (path: string, value: unknown) =>
-    exchange(
-        "/grow/broker.sock",
-        path,
-        value,
-        requestTimeoutMs(path, config.budget.shell_timeout_seconds, deadline),
-    );
+    exchange("/grow/broker.sock", path, value, requestTimeoutMs(deadline));
 const controller = new AbortController();
 const runtime = new EndpointRuntime(
     {
