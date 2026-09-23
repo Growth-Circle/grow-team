@@ -21,7 +21,7 @@ Gunakan topik untuk memisahkan pekerjaan di dalam setiap channel.
 - Chat, channel, topik, pesan langsung, pencarian, dan unggah berkas memakai fitur Zulip.
 - Email transaksi memakai Cloudflare Email Sending melalui Worker yang memiliki autentikasi.
 - Landing page, billing, dan desain produk belum dibuat.
-- Koneksi model Wulan dipertahankan. Integrasi agent AI ke Zulip belum dibuat.
+- Koneksi model Wulan dipertahankan. Integrasi agent AI berjalan di produksi; lihat bagian Agent.
 - Data Buzz lama disimpan dalam arsip pemulihan. Percakapannya tidak diimpor ke Zulip.
 
 ## Source dan runtime

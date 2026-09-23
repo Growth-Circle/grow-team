@@ -1,6 +1,6 @@
 # Blueprint Grow Team
 
-Status dokumen: penyelarasan sementara, 2026-09-22. Grow Team mempertahankan chat Zulip untuk tim internal lima sampai enam anggota. Produk dapat masuk ke pasar klien setelah gate produk dan operasi selesai.
+Status dokumen: penyelarasan sementara, 2026-09-23. Grow Team mempertahankan chat Zulip untuk tim internal lima sampai enam anggota. Produk dapat masuk ke pasar klien setelah gate produk dan operasi selesai.
 
 ## Tujuan
 
@@ -47,14 +47,15 @@ Endpoint model tidak memberi akses repository dengan sendirinya. Server dan runn
 
 ## Status komponen dan gate rilis
 
-| Area | Status | Arti |
-| --- | --- | --- |
-| Chat dan branding Grow Team | Bukti deploy bertanggal tersedia | Runtime chat telah diverifikasi pada cakupan laporan branding. Bukti perlu diulang untuk perubahan rilis berikutnya. |
-| Control plane agent | Ada di source | Model durable, protocol v1, pairing, secret, grant, lifecycle, dan audit tersedia. |
-| Runner dan containment | Komponen selesai direview untuk Task 0–6 | Task 0–6 telah melalui review komponen. Ini belum menjadi sertifikasi produk penuh. |
-| Image runner | Image `1c3ebcde3d7e` diuji sebagai intermediate image | Image ini bukan image rilis final. Paket, notice, recovery, dan gate rilis tetap perlu bukti final. |
-| Enable profil | Kontrak diterima, koreksi source pending Task9 | Probe seharusnya hanya merekam readiness. Enable harus berupa aksi eksplisit pada revision yang diuji. Source saat ini masih auto-enable setelah probe siap. |
-| UI dan operasi rilis | Pending | UI agent belum dikirim. Migrasi live, 106 acceptance rows, recovery, dan sertifikasi keamanan belum selesai. |
+| Area                        | Status                                                | Arti                                                                                                                                   |
+| --------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Chat dan branding Grow Team | Bukti deploy bertanggal tersedia                      | Runtime chat telah diverifikasi pada cakupan laporan branding. Bukti perlu diulang untuk perubahan rilis berikutnya.                   |
+| Control plane agent         | Ada di source                                         | Model durable, protocol v1, pairing, secret, grant, lifecycle, dan audit tersedia.                                                     |
+| Runner dan containment      | Komponen selesai direview untuk Task 0–6              | Task 0–6 telah melalui review komponen. Ini belum menjadi sertifikasi produk penuh.                                                    |
+| Image runner                | Image `1c3ebcde3d7e` diuji sebagai intermediate image | Image ini bukan image rilis final. Paket, notice, recovery, dan gate rilis tetap perlu bukti final.                                    |
+| Enable profil               | Ada di source                                         | Probe hanya merekam readiness. Enable adalah aksi eksplisit pada revision yang diuji; bukti backend ada pada `6725a74`.                |
+| UI agent                    | Terbit di image `12.2-grow-team.22`                   | Pengaturan agent, dialog tugas, drawer tugas, dan berbagi agent berjalan di produksi (`83b1a57b9e4`). Baris penerimaan UI belum lulus. |
+| Operasi rilis               | Pending                                               | Migrasi agent sudah berjalan di produksi. Baris penerimaan, recovery, rollback, dan sertifikasi keamanan belum selesai.                |
 
 ## Batas otoritas
 
@@ -66,6 +67,6 @@ Trigger otomatis berasal dari mention personal yang sah atau DM antara satu angg
 
 1. Pilih isolasi pelanggan: instance per klien atau realm bersama.
 2. Tetapkan operasi dukungan, retensi, dan kewajiban komersial setelah pilot internal.
-3. Aktifkan realm, runner, atau provider hanya setelah gate rilis final selesai.
+3. Produksi internal sudah menjalankan runner dan koneksi model sebelum gate rilis final selesai. Selesaikan gate itu sebelum agent tersedia untuk klien.
 
-Rujukan: [PRD](prd.md), [BRD](brd.md), [FRD](frd.md), [ERD](erd.md), [tech stack](techstack.md), [security](security.md), [roadmap](roadmap.md), dan tiga spesifikasi agent: [connections and coding harness](spec/2026-09-21-agent-connections-and-coding-harness.md), [lifecycle and mention flow](spec/2026-09-21-agent-lifecycle-and-mention-flow.md), serta [settings, connections, and team defaults](spec/2026-09-22-agent-settings-connections-and-team-defaults.md).
+Rujukan: [PRD](prd.md), [BRD](brd.md), [FRD](frd.md), [ERD](erd.md), [tech stack](techstack.md), [security](security.md), [roadmap](roadmap.md), [bukti penerimaan](agent-acceptance.md), [keputusan harness](agent-harness-decision.md), dan lima spesifikasi agent: [connections and coding harness](spec/2026-09-21-agent-connections-and-coding-harness.md), [lifecycle and mention flow](spec/2026-09-21-agent-lifecycle-and-mention-flow.md), [settings, connections, and team defaults](spec/2026-09-22-agent-settings-connections-and-team-defaults.md), [execution, context, skills, and MCP](spec/2026-09-22-agent-execution-context-skills-and-mcp.md), serta [administrator agent](spec/2026-09-23-agent-administrator.md).

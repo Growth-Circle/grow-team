@@ -2,7 +2,7 @@
 
 Tanggal: 2026-09-22, Asia/Jakarta.
 
-Status: **rancangan tambahan untuk implementasi berikutnya; bukan fitur yang sudah tersedia**.
+Status: **sebagian sudah diimplementasikan; image `12.2-grow-team.22` (`83b1a57b9e4`) memuat default tim, resolver, metadata runner, dan UI pengaturan, tetapi [baris AS](../agent-acceptance.md) belum lulus.**
 
 Baseline dokumentasi Grow Team: `de318427be97a527decc10bc792a638ae8e2c8c1`.
 Snapshot implementasi paralel: `3469f2f39de4d3487ab9ffeda0a8f3e661bec57c`, branch `feat/grow-team-agents`.

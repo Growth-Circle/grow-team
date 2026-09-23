@@ -2,7 +2,7 @@
 
 Tanggal: 2026-09-22, Asia/Jakarta.
 
-Status: **rancangan tambahan; belum menjadi bukti implementasi atau sertifikasi runtime**.
+Status: **sebagian sudah diimplementasikan; claim, sandbox, checkpoint, dan verifier ada pada `83b1a57b9e4`, tetapi instruksi profil, skills, MCP, dan protokol v2 belum ada ([baris EX](../agent-acceptance.md)).**
 
 Baseline dokumentasi: `0fce9f0ab8f3e9c715dcb3c782db7b07eb22d47e`.
 Snapshot implementasi paralel: `fb12e290d0c5a1efcde274f8ee502433ac236219`.

@@ -1,6 +1,6 @@
 # Security Grow Team
 
-Status dokumen: penyelarasan sementara, 2026-09-22. Kontrol source, preflight, dan bukti deploy chat tidak menjadi sertifikasi keamanan atau kesiapan AI produksi.
+Status dokumen: penyelarasan sementara, 2026-09-23. Kontrol source, preflight, dan bukti deploy chat tidak menjadi sertifikasi keamanan atau kesiapan AI produksi.
 
 ## Bukti deploy chat bertanggal
 
@@ -29,7 +29,7 @@ Bukti ini menetapkan konteks deploy chat. Bukti ini tidak membuktikan setiap ACL
 
 Trigger otomatis berasal dari mention personal yang sah atau DM antara satu anggota dan satu agent yang telah diotorisasi. DM grup memerlukan mention personal eksplisit. Default tim tidak menambah recipient, grant, atau trigger. Mode ACP dan endpoint memakai konfigurasi, policy, dan readiness sendiri. Sistem tidak melakukan fallback model atau switch mode otomatis.
 
-Kontrak yang diterima mengharuskan enable eksplisit sesudah probe pada revision yang diuji. Source saat ini masih auto-enable profil siap. Task9 harus memperbaiki perilaku ini.
+Probe hanya merekam readiness. Enable adalah aksi eksplisit pada revision yang diuji; bukti backend ada pada `6725a74`.
 
 Operasi lokal dan remote memakai proposal, consumption, evidence, dan reconciliation. Push dan draft PR adalah effect terpisah. Approval read, edit, atau check tidak memberi authority push atau PR.
 
@@ -54,4 +54,4 @@ Kontrak ini belum menjadi bukti. Baris AD pada [bukti penerimaan](agent-acceptan
 - Recovery rehearsal terbatas tidak membuktikan reboot host, VPS kedua, atau disaster recovery penuh.
 - Isolasi tenant komersial, lifecycle credential pelanggan, support, dan offboarding belum selesai.
 
-Simpan rahasia di path privat. Jangan salin rahasia ke Git, descriptor, event, artifact, telemetry, atau dokumen produk. Aktifkan hanya realm, runner, provider, dan fixture yang disetujui setelah gate final selesai. Lihat [roadmap](roadmap.md), [FRD](frd.md), serta tiga spesifikasi agent: [connections and coding harness](spec/2026-09-21-agent-connections-and-coding-harness.md), [lifecycle and mention flow](spec/2026-09-21-agent-lifecycle-and-mention-flow.md), dan [settings, connections, and team defaults](spec/2026-09-22-agent-settings-connections-and-team-defaults.md).
+Simpan rahasia di path privat. Jangan salin rahasia ke Git, descriptor, event, artifact, telemetry, atau dokumen produk. Aktifkan hanya realm, runner, provider, dan fixture yang disetujui setelah gate final selesai. Lihat [roadmap](roadmap.md), [FRD](frd.md), serta lima spesifikasi agent: [connections and coding harness](spec/2026-09-21-agent-connections-and-coding-harness.md), [lifecycle and mention flow](spec/2026-09-21-agent-lifecycle-and-mention-flow.md), [settings, connections, and team defaults](spec/2026-09-22-agent-settings-connections-and-team-defaults.md), [execution, context, skills, and MCP](spec/2026-09-22-agent-execution-context-skills-and-mcp.md), serta [administrator agent](spec/2026-09-23-agent-administrator.md).

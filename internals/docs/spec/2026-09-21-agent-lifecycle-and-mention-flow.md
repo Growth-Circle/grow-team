@@ -2,7 +2,7 @@
 
 Tanggal: 2026-09-21.
 
-Status: **rancangan implementasi; belum tersedia pada aplikasi**.
+Status: **sebagian sudah diimplementasikan; image `12.2-grow-team.22` (`83b1a57b9e4`) memuat admission mention, job, runner, dialog tugas, dan drawer tugas, tetapi [baris AF](../agent-acceptance.md) belum lulus.**
 
 Baseline Grow Team: `fe0da4b53b09e95abaa2a567952412a56d21a6ed`.
 Baseline riset Buzz: `5079c770fe30bb3d8204822ce6c2431eacac6d4b`.

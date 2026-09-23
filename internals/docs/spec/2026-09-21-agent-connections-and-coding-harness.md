@@ -2,7 +2,7 @@
 
 Tanggal: 2026-09-21.
 
-Status: **rancangan untuk ditinjau; belum diimplementasikan**.
+Status: **sebagian sudah diimplementasikan; image `12.2-grow-team.22` (`83b1a57b9e4`) menjalankan control plane, runner, dan UI agent, tetapi Coding belum tersertifikasi dan [baris AT](../agent-acceptance.md) belum lulus.**
 
 Alur operasional dan kasus regresi dijabarkan dalam
 [spesifikasi lifecycle dan mention](2026-09-21-agent-lifecycle-and-mention-flow.md).
