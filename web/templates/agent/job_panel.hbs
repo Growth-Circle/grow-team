@@ -4,58 +4,110 @@
     data-overlay="agent-jobs"
     aria-hidden="true"
 >
-    <div class="flex overlay-content"><div
-            class="overlay-messages-container overlay-container agent-job-container"
+    <div class="flex overlay-content"><aside
+            class="overlay-container agent-job-container"
+            role="dialog"
+            aria-labelledby="agent-job-heading"
         >
-            <div class="overlay-messages-header"><h1
-                    id="agent-job-heading"
-                    tabindex="-1"
-                >{{t "Agent job" }}</h1><button
+            <header class="agent-job-header">
+                <div class="agent-job-title"><h1
+                        id="agent-job-heading"
+                        tabindex="-1"
+                    >{{t "Agent task" }}</h1><p
+                        id="agent-job-subtitle"
+                        class="agent-job-subtitle"
+                    ></p></div>
+                <span id="agent-job-state" class="agent-job-state" hidden></span>
+                <button
                     type="button"
-                    class="exit"
-                    aria-label="{{t 'Close agent job' }}"
-                >×</button></div>
+                    class="exit agent-job-close"
+                    aria-label="{{t 'Close agent task' }}"
+                ><i class="zulip-icon zulip-icon-close" aria-hidden="true"></i></button>
+            </header>
             <div class="agent-job-body">
                 <p
                     id="agent-job-status"
+                    class="agent-job-status"
                     role="status"
                     aria-live="polite"
                 >{{t "Loading job…" }}</p>
-                <div id="agent-job-summary"></div>
-                <section aria-labelledby="agent-job-attempt-heading"><h2
-                        id="agent-job-attempt-heading"
-                    >{{t "Attempt and process" }}</h2><div
-                        id="agent-job-attempt"
-                    ></div></section>
-                <section aria-labelledby="agent-job-checks-heading"><h2
-                        id="agent-job-checks-heading"
-                    >{{t "Required checks" }}</h2><div
-                        id="agent-job-checks"
-                    ></div></section>
-                <section aria-labelledby="agent-job-operations-heading"><h2
-                        id="agent-job-operations-heading"
-                    >{{t "Operations and approvals" }}</h2><div
-                        id="agent-job-operations"
+                <dl id="agent-job-summary" class="agent-job-facts"></dl>
+                <section
+                    class="agent-job-card"
+                    aria-labelledby="agent-job-events-heading"
+                ><h2
+                        id="agent-job-events-heading"
+                        class="agent-job-card-title"
+                    >{{t "Activity" }}</h2><div
+                        id="agent-job-events"
+                        class="agent-job-rows"
                     ></div><button
                         type="button"
-                        id="agent-job-more-operations"
-                        class="action-button action-button-subtle-neutral"
+                        id="agent-job-more-events"
+                        class="action-button action-button-text-brand agent-job-more"
                         hidden
-                    >{{t "Show the next operations" }}</button></section>
-                <section aria-labelledby="agent-job-artifacts-heading"><h2
+                    >{{t "Show more events" }}</button></section>
+                <section
+                    class="agent-job-card"
+                    aria-labelledby="agent-job-artifacts-heading"
+                ><h2
                         id="agent-job-artifacts-heading"
-                    >{{t "Artifacts and diff" }}</h2><div
+                        class="agent-job-card-title"
+                    >{{t "Files" }}</h2><div
                         id="agent-job-artifacts"
+                        class="agent-job-rows"
                     ></div><button
                         type="button"
                         id="agent-job-more-artifacts"
-                        class="action-button action-button-subtle-neutral"
+                        class="action-button action-button-text-brand agent-job-more"
                         hidden
                     >{{t "Show more artifacts" }}</button></section>
-                <section aria-labelledby="agent-job-inputs-heading"><h2
+                <section
+                    class="agent-job-card"
+                    aria-labelledby="agent-job-checks-heading"
+                ><h2
+                        id="agent-job-checks-heading"
+                        class="agent-job-card-title"
+                    >{{t "Checks" }}</h2><div
+                        id="agent-job-checks"
+                        class="agent-job-rows"
+                    ></div></section>
+                <section
+                    class="agent-job-card"
+                    aria-labelledby="agent-job-operations-heading"
+                ><h2
+                        id="agent-job-operations-heading"
+                        class="agent-job-card-title"
+                    >{{t "Operations and approvals" }}</h2><div
+                        id="agent-job-operations"
+                        class="agent-job-rows"
+                    ></div><button
+                        type="button"
+                        id="agent-job-more-operations"
+                        class="action-button action-button-text-brand agent-job-more"
+                        hidden
+                    >{{t "Show the next operations" }}</button></section>
+                <section
+                    class="agent-job-card"
+                    aria-labelledby="agent-job-attempt-heading"
+                ><h2
+                        id="agent-job-attempt-heading"
+                        class="agent-job-card-title"
+                    >{{t "Attempt" }}</h2><div
+                        id="agent-job-attempt"
+                        class="agent-job-rows"
+                    ></div></section>
+                <section
+                    class="agent-job-card"
+                    aria-labelledby="agent-job-inputs-heading"
+                ><h2
                         id="agent-job-inputs-heading"
-                    >{{t "Input delivery" }}</h2><div id="agent-job-inputs"></div>
-                    <form id="agent-job-input-form" hidden><label
+                        class="agent-job-card-title"
+                    >{{t "Follow-up input" }}</h2><div
+                        id="agent-job-inputs"
+                        class="agent-job-rows"
+                    ></div>
+                    <form id="agent-job-input-form" class="agent-job-input-form" hidden><label
                             class="settings-field-label"
                             for="agent-job-input"
                         >{{t "Follow-up input for this job" }}</label><textarea
@@ -68,17 +120,10 @@
                             class="action-button action-button-solid-brand"
                         >{{t "Send input" }}</button></form>
                 </section>
-                <section aria-labelledby="agent-job-events-heading"><h2
-                        id="agent-job-events-heading"
-                    >{{t "Event summaries" }}</h2><div
-                        id="agent-job-events"
-                    ></div><button
-                        type="button"
-                        id="agent-job-more-events"
-                        class="action-button action-button-subtle-neutral"
-                        hidden
-                    >{{t "Show more events" }}</button></section>
-                <div id="agent-job-controls" class="agent-actions"></div>
             </div>
-        </div></div>
+            <footer class="agent-job-footer">
+                <div id="agent-job-controls" class="agent-job-controls"></div>
+                <span id="agent-job-updated" class="agent-job-updated"></span>
+            </footer>
+        </aside></div>
 </div>

@@ -124,6 +124,9 @@ async function main() {
                 if (name === "./state_data.ts") {
                     return {current_user: {user_id: 1}};
                 }
+                if (name === "./people.ts") {
+                    return {maybe_get_user_by_id: () => ({full_name: "Requester"})};
+                }
                 if (name === "./overlays.ts") {
                     return {open_overlay: ({$overlay}) => $overlay.addClass("show")};
                 }
@@ -254,6 +257,9 @@ function build_input_retention_harness(api) {
                 }
                 if (name === "./state_data.ts") {
                     return {current_user: {user_id: 1}};
+                }
+                if (name === "./people.ts") {
+                    return {maybe_get_user_by_id: () => ({full_name: "Requester"})};
                 }
                 if (name === "./overlays.ts") {
                     return {open_overlay: ({$overlay}) => $overlay.addClass("show")};

@@ -19,10 +19,19 @@ import type {InputIntent} from "./agent_ui_state.ts";
 import * as browser_history from "./browser_history.ts";
 import {$t} from "./i18n.ts";
 import * as overlays from "./overlays.ts";
+import * as people from "./people.ts";
 import {current_user} from "./state_data.ts";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const poll_interval_ms = 5000;
+const executing_states = new Set([
+    "queued",
+    "running",
+    "verifying",
+    "waiting_for_input",
+    "waiting_for_approval",
+    "cancel_requested",
+]);
 let target = "";
 let visit = 0;
 let actor = "";
@@ -44,6 +53,8 @@ let input_intent: InputIntent | undefined;
 // Holds an unresolved input intent while its job is not the open one.
 // The key is the actor and the job ID. A visit to another job keeps this retry key.
 const unresolved_inputs = new Map<string, InputIntent>();
+// Profile names change rarely, so one lookup serves every job of that profile.
+const profile_names = new Map<string, string>();
 
 export function valid_job_id(id: string): boolean {
     return uuid.test(id);
@@ -70,19 +81,111 @@ function active(id: string, token: number): boolean {
         $("#agent-job-overlay").hasClass("show")
     );
 }
-function textline(parent: JQuery, label: string, value: unknown): void {
-    const printable =
-        typeof value === "string" || typeof value === "number" || typeof value === "boolean"
-            ? String(value)
-            : $t({defaultMessage: "Unknown"});
-    $("<p>").text(`${label}: ${printable}`).appendTo(parent);
+function printable(value: unknown): string {
+    return typeof value === "string" || typeof value === "number" || typeof value === "boolean"
+        ? String(value)
+        : $t({defaultMessage: "Unknown"});
 }
-function action(parent: JQuery, label: string, name: string, id = ""): void {
+function textline(parent: JQuery, label: string, value: unknown): void {
+    $("<p class='agent-job-line'>")
+        .text(`${label}: ${printable(value)}`)
+        .appendTo(parent);
+}
+function fact(parent: JQuery, label: string, value: unknown, wide = false): void {
+    const item = $("<div class='agent-job-fact'>").toggleClass("wide", wide).appendTo(parent);
+    $("<dt>").text(label).appendTo(item);
+    $("<dd>").text(printable(value)).appendTo(item);
+}
+function row(parent: JQuery, icon: string, text: string, meta = ""): JQuery {
+    const item = $("<div class='agent-job-row'>").appendTo(parent);
+    $("<i class='agent-job-row-icon zulip-icon' aria-hidden='true'>")
+        .addClass(`zulip-icon-${icon}`)
+        .appendTo(item);
+    $("<span class='agent-job-row-text'>").text(text).appendTo(item);
+    if (meta) {
+        $("<span class='agent-job-row-meta'>").text(meta).appendTo(item);
+    }
+    return item;
+}
+function clock_time(value: string): string {
+    const time = new Date(value);
+    return Number.isNaN(time.getTime())
+        ? ""
+        : time.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+}
+function byte_size(bytes: number): string {
+    return bytes < 1024
+        ? $t({defaultMessage: "{count} B"}, {count: bytes})
+        : $t({defaultMessage: "{count} KB"}, {count: Math.ceil(bytes / 1024)});
+}
+// The pill color follows the job state machine, never the text of a reply.
+function state_tone(state: string): string {
+    switch (state) {
+        case "running":
+        case "verifying":
+        case "completed":
+            return "progress";
+        case "queued":
+        case "draft":
+        case "waiting_for_input":
+        case "waiting_for_approval":
+        case "cancel_requested":
+            return "attention";
+        case "blocked":
+        case "failed":
+        case "interrupted":
+            return "danger";
+        default:
+            return "neutral";
+    }
+}
+function action(
+    parent: JQuery,
+    label: string,
+    name: string,
+    id = "",
+    variant = "subtle-neutral",
+): void {
     $("<button type='button'>")
+        .addClass(`action-button action-button-${variant}`)
         .text(label)
         .attr("data-job-action", name)
         .attr("data-job-id", id)
         .appendTo(parent);
+}
+function render_header(job: api.AgentJobDetail["job"]): void {
+    $("#agent-job-heading")
+        .text($t({defaultMessage: "Task #{id}"}, {id: job.id.slice(0, 8)}))
+        .attr("title", job.id);
+    $("#agent-job-state")
+        .text(job_status_label(job.status))
+        .attr("data-tone", state_tone(job.status))
+        .prop("hidden", false);
+    const requester = people.maybe_get_user_by_id(job.requester_id, true)?.full_name;
+    const parts = [
+        requester
+            ? $t({defaultMessage: "Requested by {name}"}, {name: requester})
+            : $t({defaultMessage: "Requested by a former member"}),
+    ];
+    const profile_name = profile_names.get(job.profile_id);
+    if (profile_name) {
+        parts.push(profile_name);
+    }
+    $("#agent-job-subtitle").text(parts.join(" · "));
+}
+async function load_profile_name(profile_id: string, id: string, token: number): Promise<void> {
+    if (profile_names.has(profile_id)) {
+        return;
+    }
+    try {
+        const {profile} = await api.get_profile(profile_id);
+        profile_names.set(profile_id, profile.name);
+        if (active(id, token) && detail) {
+            render_header(detail.job);
+        }
+    } catch {
+        // The subtitle keeps the requester when the profile is not visible to this member.
+    }
 }
 function status(message: string): void {
     $("#agent-job-status").text(message);
@@ -96,17 +199,25 @@ function render(data: api.AgentJobDetail): void {
     const {job} = data;
     const attempt = selected_attempt(data);
     const attempt_id = attempt?.id;
+    render_header(job);
     const summary = $("#agent-job-summary").empty();
-    $("#agent-job-heading").text($t({defaultMessage: "Job {id}"}, {id: job.id}));
-    textline(summary, $t({defaultMessage: "State"}), job_status_label(job.status));
-    textline(summary, $t({defaultMessage: "Phase"}), job.phase);
-    textline(summary, $t({defaultMessage: "Task type"}), job.job_kind);
-    textline(summary, $t({defaultMessage: "Request"}), job.request);
-    if (job.blocked_reason) {
-        textline(summary, $t({defaultMessage: "Block"}), job.blocked_reason);
+    fact(
+        summary,
+        $t({defaultMessage: "Task type"}),
+        job.job_kind === "code" ? $t({defaultMessage: "Coding"}) : $t({defaultMessage: "Answer"}),
+    );
+    fact(summary, $t({defaultMessage: "Phase"}), job.phase);
+    fact(
+        summary,
+        $t({defaultMessage: "Attempt"}),
+        attempt ? attempt.number : $t({defaultMessage: "Not started"}),
+    );
+    if (attempt?.base_commit) {
+        fact(summary, $t({defaultMessage: "Base commit"}), attempt.base_commit.slice(0, 12));
     }
-    if (job.source_message_id) {
-        textline(summary, $t({defaultMessage: "Source message"}), job.source_message_id);
+    fact(summary, $t({defaultMessage: "Request"}), job.request, true);
+    if (job.blocked_reason) {
+        fact(summary, $t({defaultMessage: "Block"}), job.blocked_reason, true);
     }
     const process = $("#agent-job-attempt").empty();
     if (!attempt) {
@@ -145,27 +256,31 @@ function render(data: api.AgentJobDetail): void {
         (item) => !item.attempt_id || item.attempt_id === attempt_id,
     );
     if (current_checks.length === 0) {
-        textline(
-            checks,
-            $t({defaultMessage: "Checks"}),
-            $t({defaultMessage: "No required check evidence for this attempt"}),
-        );
+        $("<p class='agent-job-empty'>")
+            .text($t({defaultMessage: "No required check evidence for this attempt."}))
+            .appendTo(checks);
     }
     for (const check of current_checks) {
-        const row = $("<div class='agent-card'>").appendTo(checks);
-        textline(row, check.check_id, check.outcome);
-        if (check.tree_hash) {
-            textline(row, $t({defaultMessage: "Tree"}), check.tree_hash);
-        }
+        const item = row(checks, "file-check", `${check.check_id} · ${check.outcome}`);
         if (check.command) {
-            textline(row, $t({defaultMessage: "Command"}), check.command.join(" "));
+            $("<code class='agent-job-row-detail'>").text(check.command.join(" ")).appendTo(item);
         }
         if (check.output_artifact_id && valid_job_id(check.output_artifact_id)) {
-            $("<a>")
+            $("<a class='agent-job-row-link'>")
                 .attr("href", `/json/agent/artifacts/${check.output_artifact_id}`)
                 .text($t({defaultMessage: "Download check output"}))
-                .appendTo(row);
+                .appendTo(item);
         }
+    }
+    if (current_checks.length > 0) {
+        $("<p class='agent-job-note'>")
+            .text(
+                $t({
+                    defaultMessage:
+                        "Results refer to the final tree of this attempt. A new edit cancels them.",
+                }),
+            )
+            .appendTo(checks);
     }
     const operations = $("#agent-job-operations");
     operations.empty();
@@ -173,31 +288,41 @@ function render(data: api.AgentJobDetail): void {
         (item) => item.attempt_id === attempt_id,
     );
     if (current_operations.length === 0) {
-        textline(
-            operations,
-            $t({defaultMessage: "Operations"}),
-            $t({defaultMessage: "No operations for this attempt"}),
-        );
+        $("<p class='agent-job-empty'>")
+            .text($t({defaultMessage: "No operations for this attempt."}))
+            .appendTo(operations);
     }
     for (const item of current_operations) {
-        const row = $("<div class='agent-card'>").appendTo(operations);
-        textline(row, $t({defaultMessage: "Action"}), item.action);
-        textline(row, $t({defaultMessage: "State"}), item.status);
-        textline(row, $t({defaultMessage: "Operation hash"}), item.operation_hash);
+        const decidable =
+            item.can_decide && item.approval_id && item.nonce && item.approval_version !== null;
+        const box = $("<div class='agent-job-operation'>")
+            .toggleClass("needs-decision", Boolean(decidable))
+            .appendTo(operations);
+        $("<p class='agent-job-operation-title'>").text(item.action).appendTo(box);
+        textline(box, $t({defaultMessage: "State"}), item.status);
+        textline(box, $t({defaultMessage: "Operation hash"}), item.operation_hash.slice(0, 12));
         textline(
-            row,
+            box,
             $t({defaultMessage: "Approval"}),
             item.approval_decision ?? $t({defaultMessage: "None"}),
         );
-        if (item.can_decide && item.approval_id && item.nonce && item.approval_version !== null) {
+        if (decidable) {
             const payload = JSON.stringify({
                 approval_id: item.approval_id,
                 expected_version: item.approval_version,
                 operation_hash: item.operation_hash,
                 nonce: item.nonce,
             });
-            action(row, $t({defaultMessage: "Approve"}), "approve", payload);
-            action(row, $t({defaultMessage: "Reject"}), "reject", payload);
+            const buttons = $("<div class='agent-job-decision'>").appendTo(box);
+            action(buttons, $t({defaultMessage: "Approve"}), "approve", payload, "solid-brand");
+            action(buttons, $t({defaultMessage: "Reject"}), "reject", payload);
+            $("<p class='agent-job-note'>")
+                .text(
+                    $t({
+                        defaultMessage: "The approval covers this operation only and works once.",
+                    }),
+                )
+                .appendTo(box);
         }
     }
     $("#agent-job-more-operations")
@@ -209,19 +334,21 @@ function render(data: api.AgentJobDetail): void {
         );
     $("#agent-job-first-operations").remove();
     if (operation_offset > 0) {
-        $("<button type='button' id='agent-job-first-operations'>")
+        $(
+            "<button type='button' id='agent-job-first-operations' class='action-button action-button-text-brand agent-job-more'>",
+        )
             .text($t({defaultMessage: "Show the first operations"}))
             .insertBefore("#agent-job-more-operations");
     }
     if (operation_offset > 0) {
-        textline(
-            operations,
-            $t({defaultMessage: "Evidence"}),
-            $t({
-                defaultMessage:
-                    'This list does not show earlier operations. Choose "Show the first operations" to see them.',
-            }),
-        );
+        $("<p class='agent-job-note'>")
+            .text(
+                $t({
+                    defaultMessage:
+                        'This list does not show earlier operations. Choose "Show the first operations" to see them.',
+                }),
+            )
+            .appendTo(operations);
     }
     const artifacts = $("#agent-job-artifacts");
     artifacts.empty();
@@ -229,26 +356,21 @@ function render(data: api.AgentJobDetail): void {
         (item) => item.attempt_id === attempt_id,
     );
     if (current_artifacts.length === 0) {
-        textline(
-            artifacts,
-            $t({defaultMessage: "Artifacts"}),
-            $t({defaultMessage: "No artifacts for this attempt"}),
-        );
+        $("<p class='agent-job-empty'>")
+            .text($t({defaultMessage: "No files for this attempt."}))
+            .appendTo(artifacts);
     }
     for (const item of current_artifacts) {
-        const row = $("<div class='agent-card'>").appendTo(artifacts);
-        textline(row, $t({defaultMessage: "File"}), item.filename);
-        textline(row, $t({defaultMessage: "Attempt"}), item.attempt_id);
-        textline(row, $t({defaultMessage: "Kind"}), item.kind);
-        textline(row, $t({defaultMessage: "Bytes"}), item.size);
+        const line = row(artifacts, "file-text", item.filename, byte_size(item.size));
         if (valid_job_id(item.id)) {
-            $("<a>")
+            $("<a class='agent-job-row-link'>")
                 .attr("href", `/json/agent/artifacts/${item.id}`)
-                .text($t({defaultMessage: "Download artifact"}))
-                .appendTo(row);
+                .attr("aria-label", $t({defaultMessage: "Download {file}"}, {file: item.filename}))
+                .text($t({defaultMessage: "Download"}))
+                .appendTo(line);
         }
         if (item.kind === "diff" || item.media_type.startsWith("text/")) {
-            action(row, $t({defaultMessage: "Preview first 64 KB"}), "preview", item.id);
+            action(line, $t({defaultMessage: "Preview"}), "preview", item.id, "text-brand");
         }
     }
     $("#agent-job-more-artifacts")
@@ -263,7 +385,7 @@ function render(data: api.AgentJobDetail): void {
         action(controls, $t({defaultMessage: "Request stop"}), "cancel");
     }
     if (job.allowed_actions.includes("resume")) {
-        action(controls, $t({defaultMessage: "Resume job"}), "resume");
+        action(controls, $t({defaultMessage: "Resume job"}), "resume", "", "subtle-brand");
     }
     const input_allowed =
         job.allowed_actions.includes("input") &&
@@ -271,14 +393,16 @@ function render(data: api.AgentJobDetail): void {
             attempt?.process_state === "starting" ||
             attempt?.process_state === "active");
     $("#agent-job-input-form").prop("hidden", !input_allowed);
-    if (["completed", "cancelled", "failed"].includes(job.status)) {
-        textline(
-            controls,
-            $t({defaultMessage: "Next step"}),
-            $t({defaultMessage: "Create a new task for further work."}),
-        );
-    }
-    status(agent_job_status_sentence(job.status));
+    const finished = ["completed", "cancelled", "failed"].includes(job.status);
+    status(
+        finished
+            ? `${agent_job_status_sentence(job.status)} ${$t({defaultMessage: "Create a new task for further work."})}`
+            : agent_job_status_sentence(job.status),
+    );
+    $("#agent-job-status").attr("data-tone", state_tone(job.status));
+    $("#agent-job-updated").text(
+        $t({defaultMessage: "Updated {time}"}, {time: new Date().toLocaleTimeString()}),
+    );
 }
 async function fetch_detail(id: string, token: number): Promise<void> {
     detail_request += 1;
@@ -326,6 +450,7 @@ async function fetch_detail(id: string, token: number): Promise<void> {
         }
         detail = fresh;
         render(fresh);
+        void load_profile_name(fresh.job.profile_id, id, token);
         await fetch_events(id, token);
         await fetch_inputs(id, token);
     } catch {
@@ -370,15 +495,22 @@ async function fetch_events(id: string, token: number): Promise<void> {
         }
         events = merge_event_sequences(events, incoming);
         const box = $("#agent-job-events").empty();
-        for (const event of events.filter((item) => item.attempt_id === attempt_id).slice(-100)) {
-            textline(box, event.occurred_at, event.type);
-        }
-        if (box.children().length === 0) {
-            textline(
+        const shown = events.filter((item) => item.attempt_id === attempt_id).slice(-100);
+        // The newest event still waits for the next step while the job runs.
+        const running = executing_states.has(detail?.job.status ?? "");
+        for (const [index, event] of shown.entries()) {
+            const pending = running && index === shown.length - 1;
+            row(
                 box,
-                $t({defaultMessage: "Events"}),
-                $t({defaultMessage: "No events for this attempt"}),
-            );
+                pending ? "clock" : "check",
+                event.type,
+                clock_time(event.occurred_at),
+            ).toggleClass("pending", pending);
+        }
+        if (shown.length === 0) {
+            $("<p class='agent-job-empty'>")
+                .text($t({defaultMessage: "No events for this attempt."}))
+                .appendTo(box);
         }
         $("#agent-job-more-events").prop("hidden", result.events.length < 100);
     } catch {
@@ -416,20 +548,22 @@ async function fetch_inputs(id: string, token: number): Promise<void> {
         }
         const box = $("#agent-job-inputs").empty();
         for (const input of result.inputs) {
-            const row = $("<div class='agent-card'>").appendTo(box);
+            const item = $("<div class='agent-job-input'>").appendTo(box);
             textline(
-                row,
+                item,
                 $t({defaultMessage: "Input {sequence}"}, {sequence: input.sequence}),
                 input.text,
             );
             textline(
-                row,
+                item,
                 $t({defaultMessage: "Delivery"}),
                 input_delivery_label(input.delivery_state),
             );
         }
         if (result.inputs.length === 0) {
-            textline(box, $t({defaultMessage: "Input"}), $t({defaultMessage: "No input yet"}));
+            $("<p class='agent-job-empty'>")
+                .text($t({defaultMessage: "No input yet."}))
+                .appendTo(box);
         }
         if (result.count > result.inputs.length) {
             textline(
@@ -604,7 +738,11 @@ function bind(): void {
                             if (clears_input_on_ack(intent, input_revision)) {
                                 $("#agent-job-input").val("");
                             }
-                            status($t({defaultMessage: "Input accepted. Delivery status will update."}));
+                            status(
+                                $t({
+                                    defaultMessage: "Input accepted. Delivery status will update.",
+                                }),
+                            );
                             void fetch_detail(id, token);
                         } else {
                             status(
@@ -739,6 +877,12 @@ export function change_target(id: string): void {
     }
     const token = visit;
     status($t({defaultMessage: "Loading current job status…"}));
+    $("#agent-job-status").removeAttr("data-tone");
+    $("#agent-job-heading")
+        .text($t({defaultMessage: "Agent task"}))
+        .removeAttr("title");
+    $("#agent-job-subtitle, #agent-job-updated").text("");
+    $("#agent-job-state").prop("hidden", true);
     $(
         "#agent-job-summary, #agent-job-attempt, #agent-job-checks, #agent-job-operations, #agent-job-artifacts, #agent-job-inputs, #agent-job-events, #agent-job-controls",
     ).empty();

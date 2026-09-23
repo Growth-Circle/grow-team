@@ -2562,8 +2562,7 @@ label.preferences-radio-choice-label {
         }
     }
 
-    .agent-settings-panel,
-    .agent-job-body section {
+    .agent-settings-panel {
         margin-block: 1.25rem;
     }
 
@@ -2639,34 +2638,384 @@ label.preferences-radio-choice-label {
         width: min(var(--modal-input-width), 100%);
     }
 
-    #agent-job-input {
-        box-sizing: border-box;
-        width: 100%;
-        margin-bottom: 0;
-    }
-
     a:focus-visible {
         outline: 2px solid currentcolor;
         outline-offset: 2px;
     }
 }
 
-#agent-job-overlay .agent-job-container {
-    width: min(74rem, 96vw);
-    max-height: 96vh;
-    overflow: hidden;
-}
+/* The task panel is a drawer on the right edge, as in mockup 4b. Sizes
+   come from the mockup at the 15px base size, expressed in em so that
+   they follow the member's font size setting. */
+#agent-job-overlay {
+    --agent-job-surface: light-dark(hsl(0deg 0% 100%), hsl(185deg 13% 13%));
+    --agent-job-border: light-dark(hsl(170deg 10% 88%), hsl(180deg 10% 20%));
+    --agent-job-divider: light-dark(hsl(170deg 10% 91%), hsl(180deg 10% 18%));
+    --agent-job-fill: light-dark(hsl(170deg 8% 95%), hsl(185deg 12% 16%));
+    --agent-job-brand: light-dark(hsl(173deg 88% 26%), hsl(168deg 55% 72%));
+    --agent-job-attention-text: light-dark(
+        hsl(35deg 70% 28%),
+        var(--color-text-warning-subtle-action-button)
+    );
+    --agent-job-attention-fill: light-dark(
+        hsl(40deg 80% 92%),
+        var(--color-background-warning-subtle-action-button)
+    );
+    --agent-job-attention-card: light-dark(
+        hsl(40deg 80% 96%),
+        var(--color-background-warning-subtle-action-button)
+    );
+    --agent-job-attention-border: light-dark(
+        hsl(40deg 60% 80%),
+        hsl(40deg 40% 30%)
+    );
 
-#agent-job-overlay .agent-job-body {
-    padding: 1rem;
-    overflow: auto;
-    overflow-wrap: anywhere;
-    flex: 1;
-    min-height: 0;
-}
+    background-color: light-dark(
+        hsl(180deg 20% 10% / 18%),
+        hsl(185deg 28% 4% / 45%)
+    );
 
-#agent-job-overlay #agent-job-input {
-    min-height: 6rem;
+    .overlay-content {
+        justify-content: flex-end;
+        align-items: stretch;
+        height: 100%;
+        transform: translateX(1.6em);
+    }
+
+    &.show .overlay-content {
+        transform: translateX(0);
+    }
+
+    .agent-job-container {
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        width: min(30.13em, 100vw);
+        height: 100%;
+        color: var(--color-text-default);
+        background-color: var(--agent-job-surface);
+        border-left: 1px solid var(--agent-job-border);
+        box-shadow: -12px 0 30px hsl(180deg 20% 20% / 8%);
+        overflow: hidden;
+    }
+
+    .agent-job-header {
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 0.67em;
+        padding: 1.07em 1.2em;
+        border-bottom: 1px solid var(--agent-job-divider);
+    }
+
+    .agent-job-title {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2em;
+
+        & h1 {
+            margin: 0;
+            font-size: 1.13em;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+    }
+
+    .agent-job-subtitle {
+        margin: 0;
+        font-size: 0.87em;
+        color: var(--color-text-item);
+        overflow-wrap: anywhere;
+    }
+
+    .agent-job-state {
+        flex: none;
+        font-size: 0.87em;
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 0.3em 0.77em;
+        color: var(--color-text-item);
+        background-color: var(--agent-job-fill);
+
+        &[data-tone="progress"] {
+            color: var(--color-text-brand-subtle-action-button);
+            background-color: var(
+                --color-background-brand-subtle-action-button
+            );
+        }
+
+        &[data-tone="attention"] {
+            color: var(--agent-job-attention-text);
+            background-color: var(--agent-job-attention-fill);
+        }
+
+        &[data-tone="danger"] {
+            color: var(--color-text-danger-subtle-action-button);
+            background-color: var(
+                --color-background-danger-subtle-action-button
+            );
+        }
+    }
+
+    .agent-job-close {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.13em;
+        height: 2.13em;
+        padding: 0;
+        border: none;
+        border-radius: 8px;
+        color: var(--color-text-item);
+        background: transparent;
+        cursor: pointer;
+
+        &:hover,
+        &:focus-visible {
+            color: var(--color-text-default);
+            background-color: var(--agent-job-fill);
+        }
+    }
+
+    .agent-job-body {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.73em;
+        padding: 0.93em 1.2em;
+        overflow: auto;
+        overflow-wrap: anywhere;
+    }
+
+    .agent-job-status {
+        margin: 0;
+        font-size: 0.93em;
+        line-height: 1.5;
+        color: var(--color-text-item);
+
+        &[data-tone="attention"] {
+            color: var(--agent-job-attention-text);
+        }
+
+        &[data-tone="danger"] {
+            color: var(--color-text-danger-subtle-action-button);
+        }
+    }
+
+    .agent-job-facts {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.53em 0.93em;
+        margin: 0;
+        font-size: 0.93em;
+    }
+
+    .agent-job-fact {
+        display: flex;
+        flex-direction: column;
+        gap: 0.14em;
+        min-width: 0;
+
+        &.wide {
+            grid-column: 1 / -1;
+        }
+
+        & dt {
+            font-weight: normal;
+            color: var(--color-text-item);
+        }
+
+        & dd {
+            margin: 0;
+            white-space: pre-wrap;
+        }
+    }
+
+    .agent-job-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.53em;
+        padding: 0.8em 0.93em;
+        border: 1px solid var(--agent-job-divider);
+        border-radius: 10px;
+    }
+
+    .agent-job-card-title {
+        margin: 0;
+        font-size: 0.8em;
+        line-height: 1.4;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-text-item);
+    }
+
+    .agent-job-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 0.53em;
+    }
+
+    .agent-job-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.2em 0.53em;
+        font-size: 0.93em;
+
+        &.pending {
+            color: var(--color-text-item);
+        }
+    }
+
+    .agent-job-row-icon {
+        flex: none;
+        font-size: 1.07em;
+        color: var(--agent-job-brand);
+    }
+
+    .agent-job-row.pending .agent-job-row-icon {
+        color: var(--color-text-item);
+    }
+
+    .agent-job-row-text {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .agent-job-row-meta,
+    .agent-job-row-link {
+        font-size: 0.93em;
+        color: var(--color-text-item);
+    }
+
+    .agent-job-row-link {
+        font-weight: 600;
+        color: var(--agent-job-brand);
+    }
+
+    .agent-job-row-detail {
+        flex-basis: 100%;
+        font-size: 0.87em;
+    }
+
+    /* A row action reads like the download link beside it. */
+    .agent-job-row .action-button {
+        min-height: 0;
+        padding: 0;
+        font-size: 0.93em;
+        background: none;
+    }
+
+    .agent-job-line,
+    .agent-job-empty,
+    .agent-job-note {
+        margin: 0;
+        font-size: 0.87em;
+        line-height: 1.5;
+        color: var(--color-text-item);
+    }
+
+    .agent-job-operation,
+    .agent-job-input {
+        display: flex;
+        flex-direction: column;
+        gap: 0.27em;
+        padding-top: 0.53em;
+        border-top: 1px solid var(--agent-job-divider);
+
+        &:first-child {
+            padding-top: 0;
+            border-top: none;
+        }
+    }
+
+    .agent-job-operation-title {
+        margin: 0;
+        font-size: 0.93em;
+        font-weight: 600;
+    }
+
+    .agent-job-operation.needs-decision {
+        gap: 0.4em;
+        padding: 0.93em;
+        border: 1px solid var(--agent-job-attention-border);
+        border-radius: 10px;
+        background-color: var(--agent-job-attention-card);
+
+        .agent-job-line,
+        .agent-job-note {
+            color: var(--agent-job-attention-text);
+        }
+    }
+
+    .agent-job-decision {
+        display: flex;
+        gap: 0.53em;
+
+        .action-button-solid-brand {
+            flex: 1;
+        }
+    }
+
+    .agent-job-more {
+        align-self: flex-start;
+    }
+
+    .agent-job-input-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.53em;
+
+        & textarea {
+            box-sizing: border-box;
+            width: 100%;
+            min-height: 6em;
+            margin-bottom: 0;
+        }
+
+        .action-button {
+            align-self: flex-start;
+        }
+    }
+
+    .agent-artifact-preview {
+        max-height: 16em;
+        margin: 0;
+        overflow: auto;
+        font-size: 0.87em;
+        white-space: pre-wrap;
+    }
+
+    .agent-job-footer {
+        flex: none;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.67em;
+        padding: 0.8em 1.2em;
+        border-top: 1px solid var(--agent-job-divider);
+    }
+
+    .agent-job-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.53em;
+
+        &:empty {
+            display: none;
+        }
+    }
+
+    .agent-job-updated {
+        margin-left: auto;
+        font-size: 0.87em;
+        color: var(--color-text-item);
+    }
 }
 
 #agent-task-dialog {
@@ -2712,12 +3061,5 @@ label.preferences-radio-choice-label {
     a:focus-visible {
         outline: 2px solid currentcolor;
         outline-offset: 2px;
-    }
-}
-
-@media (width <= 40rem) {
-    #agent-job-overlay .agent-job-container {
-        width: 100vw;
-        max-height: 100vh;
     }
 }
