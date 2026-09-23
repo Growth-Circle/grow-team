@@ -7,6 +7,8 @@ from time import monotonic
 from uuid import UUID
 
 from django.db import OperationalError, connection, transaction
+from django.http import HttpRequest, HttpResponse
+from django.utils.log import log_response
 
 from zerver.lib import agent_protocol as p
 from zerver.lib.agent_policy import AgentAccessDenied, _owner_or_grant, check_agent_access
@@ -45,6 +47,21 @@ ACL_TABLES = (
 
 class AgentBusy(ValueError):  # noqa: N818
     pass
+
+
+def log_agent_busy(request: HttpRequest, response: HttpResponse) -> None:
+    # Clients wait for Retry-After and send the request again, so this
+    # 503 is expected contention, not a server error. Log it as a
+    # warning first; Django then does not log it as an error, and the
+    # server administrators do not get an error email for it.
+    log_response(
+        "%s: %s",
+        response.reason_phrase,
+        request.path,
+        response=response,
+        request=request,
+        level="warning",
+    )
 
 
 _deadline: ContextVar[float | None] = ContextVar("agent_transaction_deadline", default=None)

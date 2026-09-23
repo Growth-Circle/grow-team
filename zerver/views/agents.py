@@ -14,7 +14,7 @@ from django.utils.timezone import now
 from zerver.actions import agents as actions
 from zerver.lib import agent_protocol as p
 from zerver.lib import agent_requests as r
-from zerver.lib.agent_context import AgentBusy
+from zerver.lib.agent_context import AgentBusy, log_agent_busy
 from zerver.lib.agent_policy import (
     _principal_matches,
     _readable_scope,
@@ -55,6 +55,9 @@ def safe_agent_endpoint(view: Callable[P, HttpResponse]) -> Callable[P, HttpResp
                 status=503,
             )
             response["Retry-After"] = "1"
+            request = args[0]
+            assert isinstance(request, HttpRequest)
+            log_agent_busy(request, response)
             return response
         except (ValueError, ValidationError, ObjectDoesNotExist, JsonableError, OSError):
             return json_response(

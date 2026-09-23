@@ -248,7 +248,7 @@ def send_message_backend(
         raise JsonableError(_("Agent send key requires the authenticated sender."))
 
     data: dict[str, int] = {}
-    from zerver.lib.agent_context import AgentBusy
+    from zerver.lib.agent_context import AgentBusy, log_agent_busy
 
     try:
         sent_message_result = check_send_message(
@@ -270,12 +270,14 @@ def send_message_backend(
             agent_send_metadata=metadata,
         )
     except AgentBusy:
-        return HttpResponse(
+        response = HttpResponse(
             '{"result":"error","msg":"Agent authority is busy. Retry the same send key.","schema_version":1}',
             status=503,
             content_type="application/json",
             headers={"Retry-After": "1"},
         )
+        log_agent_busy(request, response)
+        return response
     data["id"] = sent_message_result.message_id
     if sent_message_result.automatic_new_visibility_policy:
         data["automatic_new_visibility_policy"] = (

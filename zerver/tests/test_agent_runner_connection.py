@@ -4,12 +4,14 @@ import json
 from collections.abc import Callable
 from datetime import timedelta
 from typing import Any
+from unittest import mock
 
 from django.http import HttpRequest, HttpResponse
 from django.test import RequestFactory
 from django.utils.timezone import now
 
 from zerver.actions.agents import approve_pairing, authenticate_runner_token
+from zerver.lib.agent_context import AgentBusy
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.models import agents
 from zerver.views import agent_devices as views
@@ -128,6 +130,21 @@ class RunnerConnectionTest(ZulipTestCase):
         self.assertEqual(response.status_code, 400)
         self.assertNotIn("s" * 48, response.content.decode())
         self.assertEqual(self.client_get("/api/v1/agent/pairings/status").status_code, 405)
+
+    def test_busy_runner_request_logs_warning_not_error(self) -> None:
+        with (
+            mock.patch("zerver.views.agent_runner.agent_transaction", side_effect=AgentBusy),
+            self.assertLogs("django.request", "WARNING") as logs,
+        ):
+            response = self.client.get(
+                "/api/v1/agent/runner/leases", HTTP_AUTHORIZATION="Bearer busy"
+            )
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response["Retry-After"], "1")
+        self.assertEqual(
+            logs.output,
+            ["WARNING:django.request:Service Unavailable: /api/v1/agent/runner/leases"],
+        )
 
     def test_pending_expired_status_does_not_mint_credentials(self) -> None:
         payload = {"device_name": "test", "fingerprint": "f" * 64, "polling_secret": "pending" * 8}
