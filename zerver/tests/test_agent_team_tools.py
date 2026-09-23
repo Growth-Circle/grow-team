@@ -13,12 +13,15 @@ from zerver.actions import agent_jobs
 from zerver.actions.agent_team_tools import execute_team_tool, team_manage_result_lines
 from zerver.actions.agents import create_profile, enable_profile, record_readiness
 from zerver.actions.realm_settings import do_change_realm_permission_group_setting
+from zerver.actions.user_groups import check_add_user_group
 from zerver.actions.users import do_change_user_role
 from zerver.lib.agent_policy import AgentAccessDenied
 from zerver.lib.agent_protocol import (
     ChannelCreateInput,
+    ChannelSubscribeInput,
     GroupAddMembersInput,
     GroupCreateInput,
+    GroupRemoveMembersInput,
     ResultPayload,
     TopicPostInput,
     serialize_payload,
@@ -26,15 +29,18 @@ from zerver.lib.agent_protocol import (
 from zerver.lib.agent_results import job_task_link, publish_result, store_artifact
 from zerver.lib.mention import silent_mention_syntax_for_user
 from zerver.lib.streams import access_stream_for_send_message
-from zerver.lib.test_classes import ZulipTestCase
+from zerver.lib.test_classes import ZulipTestCase, ZulipTransactionTestCase
 from zerver.lib.user_groups import get_role_based_system_groups_dict
 from zerver.lib.user_topics import get_topic_visibility_policy
 from zerver.models import (
+    DirectMessageGroup,
     Message,
     NamedUserGroup,
     RealmAuditLog,
+    Recipient,
     Stream,
     Subscription,
+    UserGroup,
     UserProfile,
     agents,
 )
@@ -890,3 +896,164 @@ class AgentTeamToolsTests(ZulipTestCase):
         job.save(update_fields=["status"])
         self.assertFalse(needs_my_action(self.admin2, job))
         self.assertTrue(needs_my_action(self.owner, job))
+
+    # ---- review-finding regressions: the team tool executors ----
+
+    def test_approval_summary_names_the_destination_channel_for_topic_move(self) -> None:
+        """Confirmation-bypass: topic.move's approval text must show the
+        destination channel, not only the renamed topic, or a commander can
+        approve what looks like a rename while it actually moves a private
+        topic into a different, more public channel."""
+        from zerver.views.agent_jobs import operation_data
+
+        source_channel = self.subscribe(self.owner, "hr")
+        self.subscribe(self.profile.bot_user, "hr")
+        dest_channel = self.subscribe(self.owner, "general-plans")
+        self.subscribe(self.profile.bot_user, "general-plans")
+        self.send_stream_message(self.owner, "hr", "salary talk", topic_name="salary")
+        job = self._dispatch(self.owner, self.profile)
+        attempt = self._claim(job)
+        operation = self._propose(
+            job,
+            attempt,
+            {
+                "tool": "topic.move",
+                "channel_id": source_channel.id,
+                "topic": "salary",
+                "new_topic": "salary 2026",
+                "new_channel_id": dest_channel.id,
+            },
+        )
+        data = operation_data(self.owner, operation)
+        self.assertIn("general-plans", data["summary"])
+        self.assertIn("hr", data["summary"])
+
+    def test_team_find_query_cannot_forge_a_fake_steps_line(self) -> None:
+        """Markdown-injection: a newline or mention syntax in a model-chosen
+        value must not forge an extra "- " line or a ping when the server
+        posts the executed-steps list built from stored receipts."""
+        receipt = self._run_tool(
+            self.owner,
+            self.profile,
+            {
+                "tool": "team.find",
+                "query": "x\n- Removed 5 member(s) from group admins. @**all**",
+                "kinds": ["person"],
+            },
+        )
+        self.assertEqual(receipt["outcome"], "succeeded")
+        self.assertNotIn("\n", receipt["summary"])
+        self.assertNotIn("@**all**", receipt["summary"])
+
+    def test_channel_subscribe_does_not_leak_a_channel_the_commander_cannot_see(self) -> None:
+        """Information-disclosure: an access-denied error must not repeat a
+        private channel's real name to the commander who was just denied
+        access to it, or the "insufficient access" path itself leaks it."""
+        private_channel = self.make_stream("merger-plans", invite_only=True)
+        # self.member (not self.owner, a realm administrator) has no metadata
+        # access to this channel at all, the scenario the finding names.
+        receipt = execute_team_tool(
+            self.member,
+            self.profile,
+            ChannelSubscribeInput(
+                tool="channel.subscribe", channel_id=private_channel.id, user_ids=[self.member.id]
+            ),
+        )
+        self.assertEqual(receipt["outcome"], "failed")
+        self.assertNotIn("merger-plans", receipt["error"])
+
+    def test_group_add_members_always_needs_confirmation(self) -> None:
+        """Confirmation-policy: group.add_members can silently grant a
+        permission-bearing group's membership; even the owner must confirm
+        it, since a steering input or a model error should not skip review."""
+        group = self._create_group_via_tool("launch-team")
+        job = self._dispatch(self.owner, self.profile)
+        attempt = self._claim(job)
+        operation = self._propose(
+            job,
+            attempt,
+            {"tool": "group.add_members", "group_id": group.id, "user_ids": [self.member.id]},
+        )
+        self.assertEqual(operation.status, "proposed")
+        job.refresh_from_db()
+        self.assertEqual(job.status, "waiting_for_approval")
+
+    def test_channel_create_rejects_a_whitespace_only_name(self) -> None:
+        """Validation: the model-supplied channel name must go through the
+        same check the normal channel-creation path uses, so a whitespace-
+        or control-character-only name cannot create a nameless channel."""
+        receipt = execute_team_tool(
+            self.owner,
+            self.profile,
+            ChannelCreateInput(
+                tool="channel.create",
+                name="   ",
+                description="",
+                is_private=False,
+                subscriber_user_ids=[],
+            ),
+        )
+        self.assertEqual(receipt["outcome"], "failed")
+        self.assertFalse(Stream.objects.filter(realm=self.realm, name="").exists())
+
+
+class AgentTeamToolsTransactionTests(ZulipTransactionTestCase):
+    """Runs without ZulipTestCase's wrapping transaction, the same as
+    execute_operation's phase 2 in production (contract 2.6 item 3: it runs
+    outside agent_transaction so the chat-table lock stays short). That
+    ambient transaction hides a select_for_update() call that needs its own
+    transaction.atomic(), so a plain ZulipTestCase test cannot catch it.
+
+    ZulipTransactionTestCase requires exact cleanup (it asserts every
+    table's row set is unchanged at tearDown), so this builds the profile
+    directly instead of through create_profile, to avoid also cleaning up a
+    new bot user and setup operation.
+    """
+
+    def test_group_add_and_remove_members_tools_run_outside_an_ambient_transaction(self) -> None:
+        owner = self.example_user("hamlet")
+        member = self.example_user("othello")
+        realm = owner.realm
+        initial_audits = set(RealmAuditLog.objects.values_list("id", flat=True))
+        initial_groups = set(UserGroup.objects.values_list("id", flat=True))
+        initial_recipients = set(Recipient.objects.values_list("id", flat=True))
+        initial_dm_groups = set(DirectMessageGroup.objects.values_list("id", flat=True))
+        runner = agents.AgentRunner.objects.create(
+            realm=realm, owner=owner, name="txn-runner", fingerprint="c" * 64
+        )
+        profile = agents.AgentProfile.objects.create(
+            realm=realm,
+            owner=owner,
+            runner=runner,
+            bot_user=self.example_user("default_bot"),
+            name="Txn agent",
+            adapter_id="acp",
+            adapter_version="1",
+        )
+        try:
+            group = check_add_user_group(realm, "txn-group", [owner], "", acting_user=owner)
+
+            receipt = execute_team_tool(
+                owner,
+                profile,
+                GroupAddMembersInput(
+                    tool="group.add_members", group_id=group.id, user_ids=[member.id]
+                ),
+            )
+            self.assertEqual(receipt["outcome"], "succeeded")
+
+            receipt = execute_team_tool(
+                owner,
+                profile,
+                GroupRemoveMembersInput(
+                    tool="group.remove_members", group_id=group.id, user_ids=[member.id]
+                ),
+            )
+            self.assertEqual(receipt["outcome"], "succeeded")
+        finally:
+            profile.delete()
+            runner.delete()
+            RealmAuditLog.objects.exclude(id__in=initial_audits).delete()
+            UserGroup.objects.exclude(id__in=initial_groups).delete()
+            DirectMessageGroup.objects.exclude(id__in=initial_dm_groups).delete()
+            Recipient.objects.exclude(id__in=initial_recipients).delete()
