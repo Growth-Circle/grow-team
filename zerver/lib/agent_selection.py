@@ -21,6 +21,7 @@ class SelectionResolution:
     selection_state: str
     job_kind: str | None
     repository_id: str | None
+    repository: dict[str, str] | None
     runner: dict[str, str] | None
     eligible: bool
     queue_permitted: bool
@@ -57,7 +58,7 @@ def resolve_agent_selection(
 
     def empty(reason: str, state: str = "none") -> SelectionResolution:
         return SelectionResolution(
-            state, None, None, None, selection_state, None, None, None, False, False, reason
+            state, None, None, None, selection_state, None, None, None, None, False, False, reason
         )
 
     if selection_state == "cleared":
@@ -84,6 +85,16 @@ def resolve_agent_selection(
     if profile is None:
         return empty("no_eligible_default" if selection_source == "team_default" else "unavailable")
 
+    default_repository = profile.default_repository
+    default_repository_info = (
+        {
+            "id": str(default_repository.id),
+            "alias": default_repository.workspace_alias,
+            "base_ref": default_repository.allowed_refs[0],
+        }
+        if default_repository is not None and default_repository.allowed_refs
+        else None
+    )
     effective_kind = job_kind or profile.default_mode
     repository = None
     if repository_id is not None:
@@ -108,6 +119,7 @@ def resolve_agent_selection(
             selection_state=selection_state,
             job_kind=effective_kind,
             repository_id=str(repository.id) if repository is not None else None,
+            repository=default_repository_info,
             runner=runner,
             eligible=eligible,
             queue_permitted=eligible,

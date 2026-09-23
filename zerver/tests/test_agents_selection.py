@@ -255,6 +255,13 @@ class AgentSelectionTests(ZulipTestCase):
         )
         self.assertEqual(selected["job_kind"], "answer")
         self.assertTrue(selected["eligible"])
+        # The profile's own repository resolves for anyone who may use it, even
+        # while job_kind stays "answer": the composer needs it to offer Coding.
+        self.assertEqual(
+            selected["repository"],
+            {"id": str(code.default_repository_id), "alias": "work", "base_ref": "main"},
+        )
+        self.assertIsNone(self.resolve(self.owner, **base)["repository"])
         selected = self.resolve(
             self.owner,
             explicit_profile_id=str(code.id),

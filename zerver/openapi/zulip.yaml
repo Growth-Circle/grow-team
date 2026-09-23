@@ -44801,6 +44801,25 @@ components:
           type: string
           format: uuid
           nullable: true
+        repository:
+          type: object
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+              format: uuid
+            alias:
+              type: string
+            base_ref:
+              type: string
+          required:
+            - id
+            - alias
+            - base_ref
+          nullable: true
+          description:
+            The profile's own default repository and its first allowed ref, for
+            anyone who may use the profile, regardless of the resolved job kind.
         runner:
           type: object
           additionalProperties: false
@@ -44830,6 +44849,7 @@ components:
         - selection_state
         - job_kind
         - repository_id
+        - repository
         - runner
         - eligible
         - queue_permitted
