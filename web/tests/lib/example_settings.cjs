@@ -130,6 +130,15 @@ exports.server_supported_permission_settings = {
             default_for_system_groups: null,
             allowed_system_groups: [],
         },
+        can_command_administrator_agents_group: {
+            require_system_group: false,
+            allow_internet_group: false,
+            allow_nobody_group: true,
+            allow_everyone_group: false,
+            default_group_name: "role:administrators",
+            default_for_system_groups: null,
+            allowed_system_groups: [],
+        },
         can_create_bots_group: {
             require_system_group: false,
             allow_internet_group: false,

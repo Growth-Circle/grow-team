@@ -289,6 +289,7 @@ export function dispatch_normal_event(event) {
                 can_access_all_users_group: noop,
                 can_add_custom_emoji_group: settings_emoji.update_custom_emoji_ui,
                 can_add_subscribers_group: noop,
+                can_command_administrator_agents_group: noop,
                 can_create_bots_group: settings_bots.update_bot_permissions_ui,
                 can_create_groups: user_group_edit.update_group_creation_ui,
                 can_create_private_channel_group: noop,

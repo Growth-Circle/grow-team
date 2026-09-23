@@ -43,6 +43,7 @@ exports.make_realm = (opts = {}) => {
         realm_can_access_all_users_group: 0,
         realm_can_add_custom_emoji_group: 0,
         realm_can_add_subscribers_group: 0,
+        realm_can_command_administrator_agents_group: 0,
         realm_can_create_bots_group: 0,
         realm_can_create_groups: 0,
         realm_can_create_public_channel_group: 0,

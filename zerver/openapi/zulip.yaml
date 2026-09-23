@@ -14156,6 +14156,18 @@ paths:
                                             permission was controlled by the enum `invite_to_stream_policy`. Values
                                             were 1=Members, 2=Admins, 3=Full members, 4=Moderators.
                                         - $ref: "#/components/schemas/GroupSettingValue"
+                                    can_command_administrator_agents_group:
+                                      allOf:
+                                        - description: |
+                                            A [group-setting value](/api/group-setting-values) defining the set of
+                                            users who have permission to give tasks to administrator agents.
+
+                                            An administrator agent acts on the commanding user's own Zulip
+                                            permissions to create channels and user groups, manage channel
+                                            subscriptions and group membership, and post or organize topics.
+
+                                            **Changes**: New in Zulip 12.0 (feature level ZF-bcb7f9).
+                                        - $ref: "#/components/schemas/GroupSettingValue"
                                     can_delete_any_message_group:
                                       allOf:
                                         - description: |
@@ -29513,6 +29525,20 @@ paths:
                               **Changes**: New in Zulip 10.0 (feature level 341). Previously, this
                               permission was controlled by the enum `invite_to_stream_policy`. Values
                               were 1=Members, 2=Admins, 3=Full members, 4=Moderators.
+                          - $ref: "#/components/schemas/GroupSettingValue"
+                      realm_can_command_administrator_agents_group:
+                        allOf:
+                          - description: |
+                              Present if `realm` is present in `fetch_event_types`.
+
+                              A [group-setting value](/api/group-setting-values) defining the set of
+                              users who have permission to give tasks to administrator agents.
+
+                              An administrator agent acts on the commanding user's own Zulip
+                              permissions to create channels and user groups, manage channel
+                              subscriptions and group membership, and post or organize topics.
+
+                              **Changes**: New in Zulip 12.0 (feature level ZF-bcb7f9).
                           - $ref: "#/components/schemas/GroupSettingValue"
                       realm_can_delete_any_message_group:
                         allOf:

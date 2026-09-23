@@ -818,6 +818,9 @@ export const all_group_setting_labels = {
             }),
         ),
         workplace_users_group: $t({defaultMessage: "Workplace users"}),
+        can_command_administrator_agents_group: $t({
+            defaultMessage: "Who can give tasks to administrator agents",
+        }),
     },
     stream: {
         can_add_subscribers_group: $t({defaultMessage: "Who can subscribe anyone to this channel"}),
@@ -920,6 +923,7 @@ export const realm_group_permission_settings: {
             "can_create_write_only_bots_group",
             "can_create_bots_group",
             "can_add_custom_emoji_group",
+            "can_command_administrator_agents_group",
         ],
     },
     {

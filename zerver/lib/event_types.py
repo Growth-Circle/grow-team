@@ -3,6 +3,7 @@ from typing import Annotated, Any, Literal
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from pydantic import AfterValidator, BaseModel
+
 from zerver.lib.types import UserGroupMembersDict
 from zerver.models.realms import RealmExportSlug
 
@@ -619,6 +620,7 @@ class GroupSettingUpdateData(GroupSettingUpdateDataCore):
     can_access_all_users_group: int | UserGroupMembersDict | None = None
     can_add_custom_emoji_group: int | UserGroupMembersDict | None = None
     can_add_subscribers_group: int | UserGroupMembersDict | None = None
+    can_command_administrator_agents_group: int | UserGroupMembersDict | None = None
     can_create_bots_group: int | UserGroupMembersDict | None = None
     can_create_groups: int | UserGroupMembersDict | None = None
     can_create_public_channel_group: int | UserGroupMembersDict | None = None

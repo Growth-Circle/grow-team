@@ -114,6 +114,7 @@ def update_realm(
     can_access_all_users_group: Json[GroupSettingChangeRequest] | None = None,
     can_add_custom_emoji_group: Json[GroupSettingChangeRequest] | None = None,
     can_add_subscribers_group: Json[GroupSettingChangeRequest] | None = None,
+    can_command_administrator_agents_group: Json[GroupSettingChangeRequest] | None = None,
     can_create_bots_group: Json[GroupSettingChangeRequest] | None = None,
     can_create_groups: Json[GroupSettingChangeRequest] | None = None,
     can_create_private_channel_group: Json[GroupSettingChangeRequest] | None = None,
