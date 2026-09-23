@@ -86,6 +86,8 @@ class AgentRealmSettings(AgentRecord):
     enabled = models.BooleanField(default=False)
     retention_cleanup_enabled = models.BooleanField(default=False)
     revision = models.PositiveIntegerField(default=1)
+    team_instructions = models.TextField(default="")
+    team_instructions_revision = models.PositiveIntegerField(default=1)
     default_profile = models.ForeignKey(
         "AgentProfile", on_delete=models.PROTECT, null=True, related_name="default_for_realms"
     )
@@ -276,6 +278,7 @@ class AgentProfile(AgentRecord):
     runner = models.ForeignKey(AgentRunner, on_delete=models.PROTECT)
     name = models.CharField(max_length=200)
     description = models.TextField(default="")
+    instructions = models.TextField(default="")
     mode = models.CharField(max_length=20, default="acp")
     adapter_id = models.CharField(max_length=80)
     adapter_version = models.CharField(max_length=100)
@@ -446,6 +449,7 @@ class AgentJob(AgentRecord):
     resume_checkpoint = models.ForeignKey(
         "AgentCheckpoint", on_delete=models.PROTECT, null=True, related_name="resume_jobs"
     )
+    follows_job = models.ForeignKey("self", on_delete=models.PROTECT, null=True, related_name="+")
     draft_completion = models.JSONField(null=True, default=None)
     event_sequence = models.PositiveBigIntegerField(default=0)
     input_sequence = models.PositiveBigIntegerField(default=0)

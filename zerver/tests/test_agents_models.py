@@ -225,6 +225,26 @@ class AgentModelTests(ZulipTestCase):
         self.assertEqual(self.job.status, "draft")
         self.assertEqual(self.attempt().process_state, "starting")
 
+    def test_instruction_fields_default_empty_and_follows_job_is_nullable(self) -> None:
+        settings = agents.AgentRealmSettings.objects.create(realm=self.realm)
+        self.assertEqual(self.profile.instructions, "")
+        self.assertEqual(settings.team_instructions, "")
+        self.assertEqual(settings.team_instructions_revision, 1)
+        self.assertIsNone(self.job.follows_job)
+        follow_up = agents.AgentJob.objects.create(
+            realm=self.realm,
+            requester=self.owner,
+            conversation=self.conversation,
+            profile=self.profile,
+            runner=self.runner,
+            request="Follow up on the earlier answer",
+            idempotency_key=uuid4(),
+            payload_digest="b" * 64,
+            admission_revision=1,
+            follows_job=self.job,
+        )
+        self.assertEqual(follow_up.follows_job, self.job)
+
     def test_references_require_same_realm(self) -> None:
         other = self.mit_user("sipbtest")
         self.profile.owner = other
