@@ -337,6 +337,11 @@ function do_hashchange_overlay(old_hash: string | undefined): void {
             if (coming_from_overlay && old_base === base) {
                 overlays.close_for_hash_change();
             }
+            if (coming_from_overlay && old_base !== base) {
+                // Coming from a different overlay (for example #settings):
+                // close it first, so only one overlay is ever open (RL-6).
+                overlays.close_for_hash_change();
+            }
             if (!coming_from_overlay) {
                 browser_history.set_hash_before_overlay(old_hash);
             }

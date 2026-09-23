@@ -528,3 +528,34 @@ run_test("agent_jobs_task_list_routing", ({override, override_rewire}) => {
     assert.deepEqual(opened_ids, [job_a]);
     assert.deepEqual(changed_ids, [job_b]);
 });
+
+run_test("agent_jobs_list_closes_other_overlay", ({override, override_rewire}) => {
+    browser_history.clear_for_testing();
+    override(popovers, "hide_all", noop);
+    test_helper({override, override_rewire, change_tab: false});
+
+    override_rewire(agent_task_list, "open", noop);
+
+    let previous_hash = "#";
+    function go(new_hash) {
+        const old_url = `http://zulip.zulipdev.com/${previous_hash}`;
+        window.location.hash = new_hash;
+        $window_stub.trigger({type: "hashchange", originalEvent: {oldURL: old_url}});
+        previous_hash = new_hash;
+    }
+
+    // Enter the settings overlay first, then count every close call from
+    // that point on. The section keeps this hash away from
+    // validate_settings_hash's own no-section branch, which needs a real
+    // settings_panel_menu.normal_settings that this test never builds.
+    go("#settings/profile");
+    let close_calls = 0;
+    overlays.close_for_hash_change = () => {
+        close_calls += 1;
+    };
+
+    // #agent-jobs with no ID (the task list) must close the settings
+    // overlay first, so only one overlay is ever open at a time (RL-6).
+    go("#agent-jobs");
+    assert.equal(close_calls, 1);
+});
