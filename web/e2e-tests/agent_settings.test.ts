@@ -67,7 +67,7 @@ async function create_visible_grant(
     kind: string,
     target_id: string,
     principal_id: number,
-    action: string,
+    actions: string[],
 ): Promise<void> {
     await page.click(`[data-agent-tab="${tab}"]`);
     if (kind === "profile") {
@@ -100,7 +100,7 @@ async function create_visible_grant(
     );
     await page.waitForSelector("#agent-resource-grant-form", {visible: true});
     await page.select("#agent-grant-principal", String(principal_id));
-    await page.select("#agent-grant-actions", action);
+    await page.select("#agent-grant-actions", ...actions);
     await page.click('#agent-resource-grant-form button[type="submit"]');
     await page.waitForFunction(() =>
         document.querySelector("#agent-grant-result")?.textContent?.includes("Grant created"),
@@ -487,7 +487,7 @@ async function test_agent_settings(page: Page): Promise<void> {
         "profile",
         sharing.profile_id,
         sharing.ordinary_member_id,
-        "profile.use",
+        ["profile.use", "context.read"],
     );
     await log_in_as(page, sharing.ordinary_member);
     await page.waitForSelector(
@@ -523,7 +523,7 @@ async function test_agent_settings(page: Page): Promise<void> {
         "runner",
         sharing.runner_id,
         sharing.ordinary_member_id,
-        "runner.use",
+        ["runner.use"],
     );
     await log_in_as(page, sharing.provider_owner);
     await create_visible_grant(
@@ -532,7 +532,7 @@ async function test_agent_settings(page: Page): Promise<void> {
         "provider",
         sharing.provider_id,
         sharing.ordinary_member_id,
-        "provider.use",
+        ["provider.use"],
     );
     await log_in_as(page, sharing.repository_owner);
     await create_visible_grant(
@@ -541,7 +541,7 @@ async function test_agent_settings(page: Page): Promise<void> {
         "repository",
         sharing.repository_id,
         sharing.ordinary_member_id,
-        "repository.read",
+        ["repository.read"],
     );
     await log_in_as(page, sharing.ordinary_member);
     await page.waitForSelector(

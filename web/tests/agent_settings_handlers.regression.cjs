@@ -481,6 +481,12 @@ async function main() {
         assert.equal($("#agent-repository-result").closest("form").prop("hidden"), false);
         click("repository-new", "ra");
         assert.equal($("#agent-repository-result").text(), "");
+        await fresh();
+        click("grant-open-profile", "a");
+        assert.deepEqual($("#agent-grant-actions").val(), ["profile.use", "context.read"]);
+        assert.ok($("#agent-grant-actions option[value='repository.edit']").length);
+        click("grant-open-runner", "ra");
+        assert.deepEqual($("#agent-grant-actions").val(), ["runner.use"]);
     } finally {
         out.reset();
         dom.window.close();

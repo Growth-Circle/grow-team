@@ -96,23 +96,28 @@ function button(parent: JQuery, label: string, action: string, id: string): void
         .attr("data-agent-id", id)
         .appendTo(parent);
 }
+const repository_grant_actions = [
+    {id: "repository.read", label: "Read repository"},
+    {id: "repository.edit", label: "Edit repository"},
+    {id: "checks.run", label: "Run checks"},
+    {id: "shell.run", label: "Run shell"},
+    {id: "dependencies.install", label: "Install dependencies"},
+    {id: "git.commit", label: "Create commits"},
+    {id: "git.push", label: "Push changes"},
+    {id: "git.draft_pr", label: "Create draft pull requests"},
+];
+// The server checks each job action against the profile grant as well as
+// the repository grant, so a profile grant must be able to carry them all.
 const grant_actions: Record<GrantKind, {id: string; label: string}[]> = {
     profile: [
         {id: "profile.use", label: "Use profile"},
+        {id: "context.read", label: "Read the conversation"},
+        ...repository_grant_actions,
         {id: "profile.manage", label: "Manage profile"},
     ],
     runner: [{id: "runner.use", label: "Use device"}],
     provider: [{id: "provider.use", label: "Use model connection"}],
-    repository: [
-        {id: "repository.read", label: "Read repository"},
-        {id: "repository.edit", label: "Edit repository"},
-        {id: "checks.run", label: "Run checks"},
-        {id: "shell.run", label: "Run shell"},
-        {id: "dependencies.install", label: "Install dependencies"},
-        {id: "git.commit", label: "Create commits"},
-        {id: "git.push", label: "Push changes"},
-        {id: "git.draft_pr", label: "Create draft pull requests"},
-    ],
+    repository: repository_grant_actions,
 };
 function grant_principal_label(principal: unknown): string {
     if (!principal || typeof principal !== "object") {
@@ -252,7 +257,10 @@ function open_grant_editor(kind: GrantKind, id: string, revision: number, label:
     for (const item of grant_actions[kind]) {
         option(actions, item.id, item.label);
     }
-    actions.val([grant_actions[kind][0]!.id]);
+    // Every task reads its conversation, so a profile grant for use needs both.
+    actions.val(
+        kind === "profile" ? ["profile.use", "context.read"] : [grant_actions[kind][0]!.id],
+    );
     $("<label for='agent-grant-scope-kind' class='settings-field-label'>")
         .text("Conversation restriction")
         .appendTo(form);
