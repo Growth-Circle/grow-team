@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {createServer} from "node:http";
-import {ModelBroker, stripReasoning} from "../dist/model-broker.js";
+import {ModelBroker, stripReasoning, idleTimer} from "../dist/model-broker.js";
 async function fixture(handler: any, assertLocal?: () => void) {
     let calls = 0;
     const server = createServer(async (req, res) => {
@@ -170,4 +170,55 @@ test("reasoning tags from a gateway stay out of the answer text", () => {
     assert.equal(stripReasoning("<think></think>PROBE_OK"), "PROBE_OK");
     assert.equal(stripReasoning("<think>plan\nsteps</think>\nHalo"), "Halo");
     assert.equal(stripReasoning("Use <b>bold</b> text"), "Use <b>bold</b> text");
+});
+test("idleTimer expires once its window elapses without a fresh arm", async () => {
+    let expired = false;
+    const timer = idleTimer(
+        () => (expired = true),
+        () => 40,
+    );
+    timer.arm();
+    await new Promise((r) => setTimeout(r, 120));
+    assert.equal(expired, true);
+    timer.clear();
+});
+test("idleTimer survives past its window as long as it keeps getting re-armed", async () => {
+    let expired = false;
+    const timer = idleTimer(
+        () => (expired = true),
+        () => 60,
+    );
+    timer.arm();
+    for (let i = 0; i < 4; i++) {
+        await new Promise((r) => setTimeout(r, 30)); // Under the window; each loop re-arms it.
+        timer.arm();
+    }
+    assert.equal(expired, false, "4 * 30ms of resets (120ms) should outlive a single 60ms window");
+    timer.clear();
+});
+test("a model response with gaps under the idle window is not cut off by their sum", async () => {
+    const body = JSON.stringify({
+        status: "completed",
+        output: [{type: "message", content: [{type: "output_text", text: "CANARY_PROVIDER_SECRET"}]}],
+        usage: {input_tokens: 1, output_tokens: 1},
+    });
+    const parts = body.match(/[\s\S]{1,12}/g)!; // Many small chunks; the streamed sum outlives one window.
+    const f = await fixture((_req: any, res: any) => {
+        res.writeHead(200, {"Content-Type": "application/json"});
+        let i = 0;
+        const pump = () => {
+            res.write(parts[i++]);
+            if (i < parts.length) setTimeout(pump, 15);
+            else res.end();
+        };
+        pump();
+    });
+    try {
+        assert.equal(
+            (await f.model.turn([{role: "user", text: "synthetic"}], [])).text,
+            "[REDACTED]",
+        );
+    } finally {
+        await f.close();
+    }
 });

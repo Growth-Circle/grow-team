@@ -1,66 +1,31 @@
 import {createInterface} from "node:readline";
-import {request} from "node:http";
 import {EndpointRuntime, type RuntimeTools} from "./runtime.js";
 import type {ModelBroker} from "./model-broker.js";
 import type {Data} from "./protocol.js";
-import {ProviderFailure} from "./codecs.js";
 import {SecretFilter} from "./redaction.js";
+import {exchange, requestTimeoutMs} from "./broker-exchange.js";
 const config = JSON.parse(process.env.GROW_NATIVE_CONFIG!);
-function exchange(path: string, value: unknown): Promise<any> {
-    return new Promise((resolve, reject) => {
-        const body = Buffer.from(JSON.stringify(value));
-        const req = request(
-            {
-                socketPath: "/grow/broker.sock",
-                path,
-                method: "POST",
-                headers: {"Content-Type": "application/json", "Content-Length": body.length},
-            },
-            (res) => {
-                let size = 0;
-                const chunks: Buffer[] = [];
-                res.on("data", (b) => {
-                    size += b.length;
-                    if (size > 2 * 1024 * 1024) req.destroy();
-                    else chunks.push(b);
-                });
-                res.on("error", () => reject(new Error("Broker unavailable")));
-                res.on("end", () => {
-                    try {
-                        const data = JSON.parse(Buffer.concat(chunks).toString());
-                        if (res.statusCode !== 200) {
-                            reject(
-                                data.error === "context"
-                                    ? new ProviderFailure("context")
-                                    : new Error("Broker denied"),
-                            );
-                            return;
-                        }
-                        resolve(data);
-                    } catch {
-                        reject(new Error("Broker denied"));
-                    }
-                });
-            },
-        );
-        req.on("error", () => reject(new Error("Broker unavailable")));
-        req.setTimeout(60000, () => req.destroy());
-        req.end(body);
-    });
-}
+const deadline = Date.now() + config.budget.active_seconds * 1000;
+const send = (path: string, value: unknown) =>
+    exchange(
+        "/grow/broker.sock",
+        path,
+        value,
+        requestTimeoutMs(path, config.budget.shell_timeout_seconds, deadline),
+    );
 const controller = new AbortController();
 const runtime = new EndpointRuntime(
     {
         filter: new SecretFilter(),
-        turn: (messages: Data[]) => exchange("/model", {messages}),
+        turn: (messages: Data[]) => send("/model", {messages}),
     } as unknown as ModelBroker,
     {
         catalog: config.tools,
-        call: (call: Data) => exchange("/tool", call).then((r) => r.text),
+        call: (value: Data) => send("/tool", value).then((r) => r.text),
     } as unknown as RuntimeTools,
     {
         signal: controller.signal,
-        deadline: Date.now() + config.budget.active_seconds * 1000,
+        deadline,
         assertCurrent: async () => {
             if (controller.signal.aborted) throw new Error("Cancelled");
         },

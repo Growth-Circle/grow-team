@@ -103,6 +103,21 @@ export function approveAddress(url: URL, address: string, policies: Data[]): voi
             throw new Error("Provider requires HTTPS");
     }
 }
+// Destroys the connection once `windowMs()` has passed since the last `arm()`. A caller
+// that keeps calling `arm()` while bytes are still arriving never looks idle, so a slow
+// but active response is not treated the same as one that has actually stalled.
+export function idleTimer(onExpire: () => void, windowMs: () => number): {arm(): void; clear(): void} {
+    let handle: ReturnType<typeof setTimeout> | undefined;
+    return {
+        arm() {
+            clearTimeout(handle);
+            handle = setTimeout(onExpire, Math.max(1, windowMs()));
+        },
+        clear() {
+            clearTimeout(handle);
+        },
+    };
+}
 export class ModelBudgetLedger {
     constructor(
         private journal: JournalLog,
@@ -279,6 +294,10 @@ export class ModelBroker {
         const body = Buffer.from(JSON.stringify(payload));
         if (body.length > 2 * 1024 * 1024) throw new Error("Provider request limit");
         return new Promise((resolve, reject) => {
+            const idle = idleTimer(
+                () => request.destroy(new Error("Deadline")),
+                () => Math.min(60000, Math.max(1, this.authority.deadline - Date.now())),
+            );
             const request = (url.protocol === "https:" ? httpsRequest : httpRequest)(
                 url,
                 {
@@ -300,6 +319,9 @@ export class ModelBroker {
                     const chunks: Buffer[] = [];
                     let size = 0;
                     response.on("data", (chunk: Buffer) => {
+                        // A response still sending bytes is not idle; only real silence,
+                        // not the reply's total length, should destroy the request.
+                        idle.arm();
                         size += chunk.length;
                         if (size > 2 * 1024 * 1024)
                             request.destroy(new ProviderFailure("protocol"));
@@ -350,10 +372,7 @@ export class ModelBroker {
                     });
                 },
             );
-            const timer = setTimeout(
-                () => request.destroy(new Error("Deadline")),
-                Math.min(60000, Math.max(1, this.authority.deadline - Date.now())),
-            );
+            idle.arm();
             const pulse = setInterval(() => {
                 try {
                     this.authority.assertLocal?.();
@@ -363,7 +382,7 @@ export class ModelBroker {
                 }
             }, 100);
             request.once("close", () => {
-                clearTimeout(timer);
+                idle.clear();
                 clearInterval(pulse);
             });
             // An uncertain network outcome is never retried. Only explicit 429/5xx are retried.
