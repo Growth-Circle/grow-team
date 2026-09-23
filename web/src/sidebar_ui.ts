@@ -296,7 +296,26 @@ export function initialize(): void {
     );
 }
 
+function update_work_rows_for_search(search_term: string): void {
+    const show_all_rows =
+        !search_term || util.prefix_match({value: $t({defaultMessage: "Work"}), search_term});
+    let any_row_visible = false;
+    for (const row of $("#left-sidebar-work-list .top_left_row")) {
+        const $row = $(row);
+        const show_row =
+            show_all_rows ||
+            util.prefix_match({
+                value: $row.find(".left-sidebar-navigation-label").text(),
+                search_term,
+            });
+        $row.toggleClass("hidden-by-filters", !show_row);
+        any_row_visible ||= show_row;
+    }
+    $("#left-sidebar-work-area").toggleClass("hidden-by-filters", !any_row_visible);
+}
+
 export function update_expanded_views_for_search(search_term: string): void {
+    update_work_rows_for_search(search_term);
     if (!search_term) {
         // Show all the views if there is no search term.
         $("#left-sidebar-navigation-area, #left-sidebar-navigation-list .top_left_row").removeClass(

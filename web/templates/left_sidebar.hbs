@@ -23,43 +23,53 @@
           empty_list_message=(t "No matches.")
           }}
     </ul>
-    {{!-- "My tasks" and "Awaiting my review" have no real destination or
-    count to show yet, so they render disabled rather than as dead or
-    misleading links. "Task board" (#tasks) and "Agent tasks" (#agent-jobs)
-    both have working destinations. This group is not yet collapsible or
-    count-persisted per user, unlike the groups below it. --}}
-    <div id="work-section-header" class="left-sidebar-section-header">
-        <i id="toggle-work-section-icon" class="zulip-icon zulip-icon-heading-triangle-right sidebar-heading-icon rotate-icon-down" aria-hidden="true"></i>
-        <h4 class="left-sidebar-title"><span>{{t "Work"}}</span></h4>
+    {{!-- The Work group mirrors the Conversations group below it: the same
+    header grid and the same row grid, so both groups share one layout. The
+    counts come from task_board_ui.render_work_counts(). --}}
+    <div id="left-sidebar-work-area" class="left-sidebar-navigation-area hidden-for-spectators">
+        <div id="work-section-header" class="left-sidebar-section-header" role="button" tabindex="0" aria-expanded="true" aria-controls="left-sidebar-work-list">
+            <i id="toggle-work-section-icon" class="zulip-icon zulip-icon-heading-triangle-right sidebar-heading-icon rotate-icon-down" aria-hidden="true"></i>
+            {{~!-- squash whitespace --~}}
+            <h4 class="left-sidebar-title"><span>{{t "Work"}}</span></h4>
+        </div>
+        <ul id="left-sidebar-work-list" class="left-sidebar-navigation-list filters">
+            <li class="top_left_row top_left_task_board">
+                <a href="#tasks" class="left-sidebar-navigation-label-container tippy-left-sidebar-tooltip" data-tooltip-template-id="work-section-task-board-tooltip-template">
+                    <span class="filter-icon"><i class="zulip-icon zulip-icon-todo-list" aria-hidden="true"></i></span>
+                    {{~!-- squash whitespace --~}}
+                    <span class="left-sidebar-navigation-label">{{t "Task board"}}</span>
+                    <span class="unread_count quiet-count hide"></span>
+                </a>
+            </li>
+            <li class="top_left_row top_left_my_tasks">
+                <a href="#tasks/mine" class="left-sidebar-navigation-label-container tippy-left-sidebar-tooltip" data-tooltip-template-id="work-section-my-tasks-tooltip-template">
+                    <span class="filter-icon"><i class="zulip-icon zulip-icon-check" aria-hidden="true"></i></span>
+                    {{~!-- squash whitespace --~}}
+                    <span class="left-sidebar-navigation-label">{{t "My tasks"}}</span>
+                    <span class="unread_count normal-count hide"></span>
+                </a>
+            </li>
+            <li class="top_left_row top_left_awaiting_review">
+                <a href="#tasks/review" class="left-sidebar-navigation-label-container tippy-left-sidebar-tooltip" data-tooltip-template-id="work-section-awaiting-review-tooltip-template">
+                    <span class="filter-icon"><i class="zulip-icon zulip-icon-git-pull-request" aria-hidden="true"></i></span>
+                    {{~!-- squash whitespace --~}}
+                    <span class="left-sidebar-navigation-label">{{t "Awaiting my review"}}</span>
+                    <span class="unread_count normal-count hide"></span>
+                </a>
+            </li>
+            <li class="top_left_row top_left_agent_tasks">
+                <a href="#agent-jobs" class="left-sidebar-navigation-label-container tippy-left-sidebar-tooltip" data-tooltip-template-id="work-section-agent-tasks-tooltip-template">
+                    <span class="filter-icon"><i class="zulip-icon zulip-icon-bot" aria-hidden="true"></i></span>
+                    {{~!-- squash whitespace --~}}
+                    <span class="left-sidebar-navigation-label">{{t "Agent tasks"}}</span>
+                    <span class="unread_count normal-count hide"></span>
+                </a>
+            </li>
+        </ul>
     </div>
-    <ul id="left-sidebar-work-list" class="left-sidebar-navigation-list filters">
-        <li class="top_left_row top_left_task_board">
-            <a href="#tasks" class="left-sidebar-navigation-label-container tippy-left-sidebar-tooltip" data-tooltip-template-id="work-section-task-board-tooltip-template">
-                <span class="filter-icon"><i class="zulip-icon zulip-icon-todo-list" aria-hidden="true"></i></span>
-                <span class="left-sidebar-navigation-label">{{t "Task board"}}</span>
-            </a>
-        </li>
-        <li class="top_left_row disabled-for-now" aria-disabled="true">
-            <span class="left-sidebar-navigation-label-container tippy-left-sidebar-tooltip" data-tooltip-template-id="work-section-coming-soon-tooltip-template">
-                <span class="filter-icon"><i class="zulip-icon zulip-icon-check" aria-hidden="true"></i></span>
-                <span class="left-sidebar-navigation-label">{{t "My tasks"}}</span>
-            </span>
-        </li>
-        <li class="top_left_row disabled-for-now" aria-disabled="true">
-            <span class="left-sidebar-navigation-label-container tippy-left-sidebar-tooltip" data-tooltip-template-id="work-section-coming-soon-tooltip-template">
-                <span class="filter-icon"><i class="zulip-icon zulip-icon-git-pull-request" aria-hidden="true"></i></span>
-                <span class="left-sidebar-navigation-label">{{t "Awaiting my review"}}</span>
-            </span>
-        </li>
-        <li class="top_left_row">
-            <a href="#agent-jobs" class="left-sidebar-navigation-label-container tippy-left-sidebar-tooltip" data-tooltip-template-id="work-section-agent-tasks-tooltip-template">
-                <span class="filter-icon"><i class="zulip-icon zulip-icon-bot" aria-hidden="true"></i></span>
-                <span class="left-sidebar-navigation-label">{{t "Agent tasks"}}</span>
-            </a>
-        </li>
-    </ul>
-    <template id="work-section-coming-soon-tooltip-template">{{t "Coming soon" }}</template>
     <template id="work-section-task-board-tooltip-template">{{t "Task board" }}</template>
+    <template id="work-section-my-tasks-tooltip-template">{{t "My tasks" }}</template>
+    <template id="work-section-awaiting-review-tooltip-template">{{t "Awaiting my review" }}</template>
     <template id="work-section-agent-tasks-tooltip-template">{{t "Agent tasks" }}</template>
     <div id="left-sidebar-navigation-area" class="left-sidebar-navigation-area">
         <div id="views-label-container" class="left-sidebar-section-header showing-expanded-navigation{{#if is_spectator}} remove-pointer-for-spectator{{/if}}">

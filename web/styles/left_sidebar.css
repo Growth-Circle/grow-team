@@ -53,12 +53,14 @@
     cursor: pointer;
 }
 
-#left-sidebar-navigation-list .filter-icon i {
+#left-sidebar-navigation-list .filter-icon i,
+#left-sidebar-work-list .filter-icon i {
     color: var(--color-left-sidebar-navigation-icon);
 }
 
 #stream_filters,
-#left-sidebar-navigation-list {
+#left-sidebar-navigation-list,
+#left-sidebar-work-list {
     margin-right: var(--left-sidebar-right-margin);
 }
 
@@ -246,7 +248,7 @@
     padding: var(--left-sidebar-direct-messages-bottom-divider-padding) 0;
     position: sticky;
     top: var(--line-height-sidebar-row-prominent);
-    background: var(--color-background);
+    background: var(--color-background-sidebar);
     z-index: 3;
 }
 
@@ -295,9 +297,11 @@
     top: 0;
     z-index: 3;
 
-    /* The active direct messages section has a different background color */
+    /* The active direct messages section has a different background color.
+       Otherwise the sticky header takes the sidebar surface, so it hides
+       the rows scrolling under it without drawing a band of its own. */
     &:not(.active-direct-messages-section) {
-        background-color: var(--color-background);
+        background-color: var(--color-background-sidebar);
     }
 
     #toggle-direct-messages-section-icon {
@@ -423,39 +427,39 @@
     width: calc(100% - 2 * var(--left-sidebar-right-margin));
 }
 
-/* Work group rows (left_sidebar.hbs): My tasks and Awaiting my
-   review have no destination yet (see the template comment above
-   them), so they render inert instead of clickable. Left at full
-   opacity to match the rest of the group instead of a dimmed,
-   patchy look; the "Coming soon" tooltip carries that signal
-   instead. */
-.top_left_row.disabled-for-now {
-    cursor: default;
-
-    .left-sidebar-navigation-label-container {
-        cursor: default;
-
-        &:hover {
-            background: none;
-        }
-    }
-}
-
 #left-sidebar-search {
     display: grid;
     grid-template-areas: "filter-container add-channel channel-folders-option";
-    grid-template-columns:
-        minmax(0, 1fr) var(--left-sidebar-header-icon-width)
-        auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     position: sticky;
     top: 0;
-    background: var(--color-background);
+    background: var(--color-background-sidebar);
     /* Must be padding not margin so that the sticky headers don't show behind it */
     padding: 0 var(--left-sidebar-right-margin)
         var(--sidebar-filter-bottom-spacing) 5px;
 
     &.no-display {
         display: none;
+    }
+
+    /* Frame 10a: a 34px bordered filter box beside 34px bordered square
+       buttons, 8px apart. */
+    column-gap: 8px;
+
+    .left-sidebar-search-section {
+        min-height: var(--height-menu-row);
+        border-radius: var(--radius-md);
+    }
+
+    .add-stream-icon-container,
+    .channel-folders-sidebar-menu-icon {
+        box-sizing: border-box;
+        width: var(--height-menu-row);
+        height: var(--height-menu-row);
+        margin: 0;
+        border: 1px solid var(--color-border-sidebar);
+        border-radius: var(--radius-md);
+        align-self: center;
     }
 
     .channel-folders-sidebar-menu-icon {
@@ -500,7 +504,7 @@
         )
         minmax(0, max-content) var(--left-sidebar-vdots-width);
     cursor: pointer;
-    background-color: var(--color-background);
+    background-color: var(--color-background-sidebar);
     position: sticky;
     /* Channels come first in the scroll container now, so no
        header sits above this one to offset it from. */
@@ -1214,10 +1218,22 @@ li.top-left-active-filter {
    never used inside #stream_filters). Scoped to #stream_filters so
    the shared active-row rule above still applies everywhere else. */
 #stream_filters li.active-filter {
-    background-color: var(--color-background-hover-narrow-filter);
+    /* Frame 10a tints only the channel row. The topic list under it
+       stays on the sidebar surface, so the active topic's own tint is
+       the one that stands out. */
+    background-color: transparent;
 
     &:hover {
+        background-color: transparent;
+    }
+
+    > .bottom_left_row,
+    > .bottom_left_row:hover {
         background-color: var(--color-background-hover-narrow-filter);
+    }
+
+    .topic-list li:not(.active-sub-filter) .sidebar-topic-check {
+        background-color: transparent;
     }
 }
 
@@ -1422,7 +1438,8 @@ li.active-sub-filter {
     }
 }
 
-#left-sidebar-navigation-list {
+#left-sidebar-navigation-list,
+#left-sidebar-work-list {
     margin-bottom: 0;
     /* Frame 10a: 2px between the group title and its first row. */
     margin-top: 2px;
@@ -1447,6 +1464,7 @@ li.active-sub-filter {
     }
 }
 
+#left-sidebar-work-area,
 #left-sidebar-navigation-area {
     /* Frame 10a: 18px between this group and the channel list
        below it. #left-sidebar-navigation-area sits outside the
@@ -1639,6 +1657,7 @@ li.active-sub-filter {
 
 /* New grid definitions here. */
 #views-label-container,
+#work-section-header,
 .top_left_row,
 .left-sidebar-navigation-label-container,
 .dm-box,
@@ -1739,6 +1758,81 @@ li.active-sub-filter {
     .zulip-icon-heading-triangle-right {
         rotate: 0deg;
     }
+}
+
+/* The Work header has only a caret and a title: no condensed row and
+   no menu, so the title runs to the end of the row. */
+#work-section-header {
+    margin-right: var(--left-sidebar-right-margin);
+    grid-template-columns:
+        0 var(--left-sidebar-header-icon-toggle-width) 0 minmax(0, 1fr)
+        0 0 0 0;
+    /* 28px at 16px/1em, like the Conversations header. */
+    grid-template-rows: 1.75em;
+    cursor: pointer;
+    border-radius: var(--radius-md);
+
+    &:hover {
+        background-color: var(--color-background-hover-narrow-filter);
+        box-shadow: inset 0 0 0 1px var(--color-shadow-sidebar-row-hover);
+
+        .left-sidebar-title,
+        .sidebar-heading-icon {
+            opacity: var(--opacity-sidebar-heading-hover);
+        }
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--color-outline-focus);
+        outline-offset: -2px;
+    }
+
+    #toggle-work-section-icon {
+        grid-area: starting-anchor-element;
+        justify-self: center;
+    }
+
+    .left-sidebar-title {
+        grid-area: row-content;
+    }
+}
+
+#left-sidebar-work-area.collapsed #left-sidebar-work-list {
+    display: none;
+}
+
+#left-sidebar-work-area.hidden-by-filters,
+#left-sidebar.zoom-in #left-sidebar-work-area {
+    display: none;
+}
+
+/* Frame 10a count styles for the Work rows: the board total is quiet,
+   "My tasks" is a solid badge like Inbox, "Awaiting my review" is a bare
+   bold number like Mentions, and running agent tasks sit in a pale pill. */
+.top_left_task_board .unread_count.quiet-count {
+    color: light-dark(hsl(180deg 10% 38%), hsl(170deg 8% 60%));
+    font-weight: 400;
+}
+
+.top_left_my_tasks .unread_count.normal-count {
+    background-color: var(--color-background-unread-counter-prominent);
+    color: var(--color-unread-counter-prominent);
+    box-shadow: none;
+}
+
+.top_left_awaiting_review .unread_count.normal-count {
+    background-color: transparent;
+    box-shadow: none;
+    padding: 0;
+    color: var(--color-unread-counter-normal);
+}
+
+.top_left_agent_tasks .unread_count.normal-count {
+    background-color: var(--color-background-brand-subtle-action-button);
+    color: var(--color-text-brand-subtle-action-button);
+    box-shadow: none;
+    /* 12px at 14px/1em; the pill carries a word, not only a digit. */
+    font-size: 0.8571em;
 }
 
 #views-label-container {

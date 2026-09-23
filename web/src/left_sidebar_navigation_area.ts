@@ -215,8 +215,15 @@ export function animate_unread_changes(
     }
 }
 
-export function highlight_task_board_view(): void {
-    select_top_left_corner_item(".top_left_task_board");
+// The board opens filtered from the "My tasks" and "Awaiting my review"
+// rows, so the row that opened it is the one to highlight.
+const TASK_BOARD_ROW_BY_FILTER: Record<string, string> = {
+    mine: ".top_left_my_tasks",
+    review: ".top_left_awaiting_review",
+};
+
+export function highlight_task_board_view(filter = ""): void {
+    select_top_left_corner_item(TASK_BOARD_ROW_BY_FILTER[filter] ?? ".top_left_task_board");
 
     setTimeout(() => {
         resize.resize_stream_filters_container();
@@ -265,16 +272,23 @@ export function reorder_left_sidebar_navigation_list(home_view: string): void {
     const $left_sidebar = $("#left-sidebar-navigation-list");
     const $left_sidebar_condensed = $("#left-sidebar-navigation-list-condensed");
 
-    // First, re-order the views back to the original default order, to preserve the relative order.
+    // Put the expanded rows back in the built-in order. Prepending in
+    // reverse keeps any custom views after the built-in ones. Only the home
+    // view is lifted out of that order, below; the other home-view
+    // candidates keep their built-in place.
+    for (const view of get_built_in_views().toReversed()) {
+        $left_sidebar.children(`.top_left_${view.css_class_suffix}`).prependTo($left_sidebar);
+    }
+
+    // The condensed list holds only the home-view candidates, in their
+    // default order.
     for (const key of Object.keys(settings_config.web_home_view_values).toReversed()) {
         if (key !== home_view) {
-            const $view = get_view_rows_by_view_name(key);
-            $view.eq(1).prependTo($left_sidebar);
-            $view.eq(0).prependTo($left_sidebar_condensed);
+            get_view_rows_by_view_name(key).eq(0).prependTo($left_sidebar_condensed);
         }
     }
 
-    // Detach the selected home_view and inserts it at the beginning of the navigation list.
+    // Lift the selected home view to the top of both lists.
     const $selected_home_view = get_view_rows_by_view_name(home_view);
     $selected_home_view.eq(1).prependTo($left_sidebar);
     $selected_home_view.eq(0).prependTo($left_sidebar_condensed);
@@ -377,10 +391,38 @@ export function get_built_in_views(): navigation_views.BuiltInViewMetadata[] {
         });
 }
 
+const work_collapsed_ls_key = "left_sidebar_work_collapsed";
+
+function set_work_section_collapsed(collapsed: boolean): void {
+    $("#left-sidebar-work-area").toggleClass("collapsed", collapsed);
+    $("#work-section-header").attr("aria-expanded", String(!collapsed));
+    $("#toggle-work-section-icon")
+        .toggleClass("rotate-icon-down", !collapsed)
+        .toggleClass("rotate-icon-right", collapsed);
+}
+
+function toggle_work_section(): void {
+    const collapsed = !$("#left-sidebar-work-area").hasClass("collapsed");
+    set_work_section_collapsed(collapsed);
+    ls.set(work_collapsed_ls_key, collapsed);
+}
+
 export function initialize(): void {
     update_reminders_row();
     update_scheduled_messages_row();
     restore_views_state();
+    set_work_section_collapsed(ls.get(work_collapsed_ls_key) === true);
+
+    $("body").on("click", "#work-section-header", (e) => {
+        e.stopPropagation();
+        toggle_work_section();
+    });
+    $("body").on("keydown", "#work-section-header", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggle_work_section();
+        }
+    });
 
     $("body").on(
         "click",
