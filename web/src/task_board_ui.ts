@@ -158,14 +158,15 @@ export function complete_rerender(): void {
             id: column.id,
             name: column.name,
             work_limit: column.work_limit,
-            done_window_days: column.done_window_days,
+            has_work_limit: column.work_limit !== null && column.work_limit > 0,
+            has_done_window: column.done_window_days !== null,
             done_window_label:
                 column.done_window_days === null
                     ? ""
                     : $t({defaultMessage: "{days} days"}, {days: column.done_window_days}),
             card_count: task_board_data.tasks_in_column(column.id).length,
             at_work_limit: task_board_data.column_is_over_work_limit(column.id),
-            folded_count,
+            has_folded: folded_count > 0,
             folded_label: $t({defaultMessage: "Show {count} older cards"}, {count: folded_count}),
             cards: task_board_data
                 .visible_tasks_in_column(column.id, people.my_current_user_id())
@@ -190,7 +191,8 @@ export function complete_rerender(): void {
             columns,
             filters: filter_options(),
             members,
-            extra_member_count: Math.max(0, member_ids.length - MAX_HEADER_MEMBERS),
+            has_extra_members: member_ids.length > MAX_HEADER_MEMBERS,
+            extra_member_count: member_ids.length - MAX_HEADER_MEMBERS,
         }),
     );
 
@@ -254,6 +256,7 @@ function render_card_detail(task_id: number): void {
                 {defaultMessage: "Created {date}"},
                 {date: day_label(task.date_created)},
             ),
+            has_checklist: task.checklist.length > 0,
             checklist: task.checklist.map((item, index) => ({...item, index})),
             assignee_label:
                 assignee === undefined

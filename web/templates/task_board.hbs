@@ -21,7 +21,7 @@
                         <img class="task-board-card-avatar-image" src="{{this.avatar_url}}" alt="{{this.full_name}}" />
                     </span>
                 {{/each}}
-                {{#if extra_member_count}}
+                {{#if has_extra_members}}
                     <span class="task-board-card-avatar task-board-card-avatar-empty">+{{extra_member_count}}</span>
                 {{/if}}
             </span>
@@ -38,10 +38,14 @@
         <section class="task-board-column" role="listitem" data-column-id="{{this.id}}" aria-labelledby="task-board-column-heading-{{this.id}}">
             <header class="task-board-column-header">
                 <h2 class="task-board-column-name" id="task-board-column-heading-{{this.id}}">{{this.name}}</h2>
-                <span class="task-board-column-count{{#if this.at_work_limit}} task-board-column-count-warning{{/if}}">
-                    {{#if this.work_limit}}{{this.card_count}} / {{this.work_limit}}{{else}}{{this.card_count}}{{/if}}
-                </span>
-                {{#if this.done_window_days}}
+                {{#if this.has_work_limit}}
+                    <span class="task-board-column-count{{#if this.at_work_limit}} task-board-column-count-warning{{/if}}">
+                        {{this.card_count}} / {{this.work_limit}}
+                    </span>
+                {{else}}
+                    <span class="task-board-column-count">{{this.card_count}}</span>
+                {{/if}}
+                {{#if this.has_done_window}}
                     <span class="task-board-column-window">{{this.done_window_label}}</span>
                 {{/if}}
             </header>
@@ -50,7 +54,7 @@
                     {{> task_board_card}}
                 {{/each}}
             </div>
-            {{#if this.folded_count}}
+            {{#if this.has_folded}}
                 <button type="button" class="task-board-show-folded" data-column-id="{{this.id}}">
                     {{this.folded_label}}
                 </button>
