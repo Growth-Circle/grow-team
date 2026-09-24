@@ -481,8 +481,13 @@ Aturan:
 
 ## 15. Keputusan terbuka
 
-1. Apakah 9router menerima format Anthropic Messages dengan streaming dan `tool_use`
-   (gerbang F0)?
+1. Gerbang F0 **lulus** pada 2026-09-24 17:12 WIB. 9router (`127.0.0.1:20129`, model
+   `cc/claude-opus-5`) menerima `POST /v1/messages` dengan header `x-api-key` dan
+   `anthropic-version`. Respons memuat blok `tool_use` (2,2 s). Streaming mengirim semua
+   event Messages (`message_start` sampai `message_stop`); "halo" selesai dalam 2,8 s.
+   Temuan: 9router mengganti nama alat (`get_weather` kembali sebagai `get_weather_ide`).
+   Runner wajib memetakan nama kembali ke katalog dengan aturan pasti sebelum validasi,
+   atau 9router harus berhenti mengganti nama. Tanpa itu, FL-13 menolak setiap alat.
 2. Apakah jalur code nanti pindah dari ACP ke Claude Agent SDK? Di luar cakupan ini.
 3. Apakah pemilik profil boleh memilih `speed: "fast"` bila endpoint mendukungnya?
    Biayanya lebih tinggi.
