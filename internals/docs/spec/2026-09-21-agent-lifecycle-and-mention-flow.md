@@ -4,6 +4,28 @@ Tanggal: 2026-09-21.
 
 Status: **sebagian sudah diimplementasikan; image `12.2-grow-team.22` (`83b1a57b9e4`) memuat admission mention, job, runner, dialog tugas, dan drawer tugas, tetapi [baris AF](../agent-acceptance.md) belum lulus.**
 
+> **Status 2026-09-24:** job `answer` dan `manage` sekarang memakai jalur cepat.
+> Lihat [spesifikasi jalur cepat](2026-09-24-agent-fast-lane.md),
+> [spesifikasi streaming](2026-09-24-agent-streaming-delivery.md), dan
+> [keputusan SDK](../agent-sdk-decision.md). Bila ada konflik, spesifikasi jalur cepat berlaku.
+>
+> Bagian yang digantikan untuk jalur cepat:
+>
+> - §1, §3, §8, §8.1: runtime ACP dan endpoint hanya untuk jalur code. Jalur cepat memakai
+>   loop Anthropic SDK di proses runner (jalur cepat bagian 6).
+> - §4.1, §13: tambah field `lane`; `job_kind` juga memuat `manage`.
+> - §5.1, §5.2: "agent terpasang atau endpoint" menjadi koneksi model `anthropic_messages`.
+> - §7.2: respons claim membawa paket konteks (jalur cepat bagian 5.3).
+> - §7.4: trigger `manage` mengikuti [spesifikasi administrator](2026-09-23-agent-administrator.md).
+> - §10: kapasitas per jalur (fast 4, code 1); runner dibangunkan long-poll `/runner/wake`.
+> - §12.1, §12.2: batal jalur cepat = abort stream, lalu `attempt.stopped`.
+> - §13.4: event baru `result.draft`.
+> - §14, §16, §17.1, §18, §19: baris adapter, fixture ACP, dan urutan implementasi hanya
+>   untuk jalur code. Urutan jalur cepat mengikuti fase F0–F5.
+> - §17.2: AF-25, AF-28, AF-30, AF-37, AF-38 punya versi baru di
+>   [matriks penerimaan](../agent-acceptance.md).
+> - §20: target latensi ada di [spesifikasi latensi](2026-09-24-agent-latency-and-reliability.md).
+
 Baseline Grow Team: `fe0da4b53b09e95abaa2a567952412a56d21a6ed`.
 Baseline riset Buzz: `5079c770fe30bb3d8204822ce6c2431eacac6d4b`.
 

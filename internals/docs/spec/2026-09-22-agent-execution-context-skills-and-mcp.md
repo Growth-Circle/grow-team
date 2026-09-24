@@ -4,6 +4,27 @@ Tanggal: 2026-09-22, Asia/Jakarta.
 
 Status: **sebagian sudah diimplementasikan; claim, sandbox, checkpoint, dan verifier ada pada `83b1a57b9e4`, tetapi instruksi profil, skills, MCP, dan protokol v2 belum ada ([baris EX](../agent-acceptance.md)).**
 
+> **Status 2026-09-24:** job `answer` dan `manage` sekarang memakai jalur cepat.
+> Lihat [spesifikasi jalur cepat](2026-09-24-agent-fast-lane.md) dan
+> [keputusan SDK](../agent-sdk-decision.md). Bila ada konflik, spesifikasi jalur cepat berlaku.
+>
+> Bagian yang digantikan untuk jalur cepat:
+>
+> - §1, §3, §4: alur umum sekarang punya dua jalur. Publikasi sesudah bukti stop hanya
+>   untuk jalur code. Jalur cepat terbit segera (jalur cepat bagian 8).
+> - §5.1: respons claim membawa paket konteks.
+> - §7.1, §7.2: container model hanya untuk jalur code. Jalur cepat adalah jalur terpisah
+>   yang server pilih, bukan fallback ke host.
+> - §8, §9.3, §9.4: checkpoint, verifikasi, dan commit hanya untuk jalur code.
+> - §9.2: urutan instruksi menjadi urutan prompt dan prefix cache (jalur cepat bagian 6.4).
+> - §9.6: tidak ada native session load di jalur cepat.
+> - §11: jalur cepat hanya memakai MCP HTTP lewat broker. MCP stdio hanya di jalur code.
+> - §12: panel tugas menampilkan streaming (spesifikasi streaming bagian 4).
+> - §13.4, §13.5: protokol v2 membawa `lane`, paket konteks, `model_policy`, dan `result.draft`.
+> - §14: urutan adopsi: jalur cepat lebih dulu.
+> - §15: EX-13 sampai EX-19 hanya jalur code; EX-16 dan EX-60 punya versi baru; EX-35
+>   dipensiunkan.
+
 Baseline dokumentasi: `0fce9f0ab8f3e9c715dcb3c782db7b07eb22d47e`.
 Snapshot implementasi paralel: `fb12e290d0c5a1efcde274f8ee502433ac236219`.
 Baseline source Buzz: `6a86531ac9d27b5123cca14636ced581578975df`.
