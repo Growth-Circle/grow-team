@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {parse, validateDescriptor, digest, effectiveConfiguration} from "../dist/protocol.js";
+import {parse, validateDescriptor, digest} from "../dist/protocol.js";
 const fixtures = JSON.parse(
     readFileSync(
         new URL("../../../zerver/tests/fixtures/agents/protocol-v1.json", import.meta.url),
@@ -66,7 +66,11 @@ test("an instructed descriptor digest matches the Python oracle", () => {
     const c = fixtures.valid.find((c: any) => c.name === "instructed_answer_descriptor");
     const parsed = parse(c.schema, c.payload);
     assert.equal(digest(parsed), vector.payload_digest);
-    assert.equal(digest(effectiveConfiguration(parsed)), vector.configuration_digest);
+    // An attempt's configuration digest is its frozen tested_configuration,
+    // never a freshly derived one (Python's execution_configuration does the
+    // same): the attempt may have narrowed its own budget below what was
+    // tested, so effectiveConfiguration(parsed) is not the right comparison.
+    assert.equal(digest(parsed.tested_configuration), vector.configuration_digest);
     validateDescriptor(parsed, parsed.runner_id);
 });
 test("a profile revision mismatch is rejected", () => {
