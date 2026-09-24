@@ -2782,6 +2782,12 @@ label.preferences-radio-choice-label {
         background: transparent;
         cursor: pointer;
 
+        /* overlays.ts closes an overlay only when the click target is
+           the `.exit` button, so the icon must not take the click. */
+        .zulip-icon {
+            pointer-events: none;
+        }
+
         &:hover,
         &:focus-visible {
             color: var(--color-text-default);
