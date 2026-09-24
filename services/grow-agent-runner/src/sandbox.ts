@@ -44,6 +44,22 @@ export interface SandboxResult {
     containerId: string;
     stopConfirmed: boolean;
 }
+// EX-15: every approved image is a pinned digest, never a mutable tag, so the same name
+// cannot resolve to different bytes later.
+export function assertPinnedImages(images: string[]): void {
+    if (images.some((x) => !/^sha256:[0-9a-f]{64}$/.test(x)))
+        throw new Error("Pinned image ID required");
+}
+// EX-15: `docker info` must confirm the rootless, seccomp, cgroup v2 engine this sandbox
+// design depends on; a root-capable or unconfined engine defeats the container limits below.
+export function assertRootlessEngine(data: Data): void {
+    if (
+        !data.SecurityOptions?.includes("name=rootless") ||
+        !data.SecurityOptions.some((x: string) => x.startsWith("name=seccomp")) ||
+        data.CgroupVersion !== "2"
+    )
+        throw new Error("Rootless seccomp cgroup v2 required");
+}
 export class RootlessSandbox {
     private store: PrivateStore;
     private active = new Map<string, ContainerRecord>();
@@ -66,8 +82,7 @@ export class RootlessSandbox {
             throw new Error("Only the approved local rootless endpoint is supported");
         const socket = lstatSync(options.endpoint.slice(7));
         if (!socket.isSocket() || socket.uid !== uid) throw new Error("Unsafe rootless endpoint");
-        if (options.images.some((x) => !/^sha256:[0-9a-f]{64}$/.test(x)))
-            throw new Error("Pinned image ID required");
+        assertPinnedImages(options.images);
         const binary = realpathSync(options.docker);
         if (lstatSync(binary).mode & 0o022) throw new Error("Unsafe Docker executable");
         const store = new PrivateStore(options.root);
@@ -89,12 +104,7 @@ export class RootlessSandbox {
         const info = await docker(i, ["info", "--format", "{{json .}}"]);
         if (info.code !== 0) throw new Error("Rootless engine unavailable");
         const data = JSON.parse(info.stdout.toString());
-        if (
-            !data.SecurityOptions?.includes("name=rootless") ||
-            !data.SecurityOptions.some((x: string) => x.startsWith("name=seccomp")) ||
-            data.CgroupVersion !== "2"
-        )
-            throw new Error("Rootless seccomp cgroup v2 required");
+        assertRootlessEngine(data);
         Object.freeze(i.images);
         Object.freeze(i);
         const sandbox = new RootlessSandbox(i, store.root);

@@ -4,6 +4,7 @@ import {
     mkdtempSync,
     writeFileSync,
     readFileSync,
+    readdirSync,
     mkdirSync,
     existsSync,
     symlinkSync,
@@ -164,5 +165,53 @@ test("preparation and final-tree traversal recheck current authority between fil
                 throw Error("cancelled");
             }),
         /cancelled/,
+    );
+});
+test("EX-07 staged index, stash, and active branch stay identical after prepare, edit, final tree, and candidate commit", async () => {
+    assert(module, "workspace implementation is required");
+    const {root, source, d, base} = fixture();
+    git(source, "checkout", "-qb", "feature/protect-me");
+    // A stash entry and a staged addition: state prepareWorkspace must never touch.
+    writeFileSync(join(source, "a.txt"), "will be stashed\n");
+    git(source, "stash", "push", "-qm", "protect-me-stash");
+    writeFileSync(join(source, "staged.txt"), "staged content\n");
+    git(source, "add", "staged.txt");
+    const indexBefore = git(source, "diff", "--cached");
+    const stashBefore = git(source, "stash", "list");
+    const branchBefore = git(source, "symbolic-ref", "HEAD");
+    const w = await module.prepareWorkspace(d, () => ({attempt_id: "a", lease_epoch: 1}), {
+        root: join(root, "retained"),
+        source,
+        approvedCommit: base,
+    });
+    // The agent edits the isolated checkout only; the source tree above is untouched.
+    writeFileSync(join(w.checkout, "a.txt"), "edited by agent\n");
+    const tree = await module.hashFinalTree(w);
+    const candidate = module.createCandidateCommit(w.gitDir, w.record.base_commit, tree, "job-ex07");
+    assert.match(candidate, /^[0-9a-f]{40}$/);
+    assert.equal(git(source, "diff", "--cached"), indexBefore);
+    assert.equal(git(source, "stash", "list"), stashBefore);
+    assert.equal(git(source, "symbolic-ref", "HEAD"), branchBefore);
+});
+test("EX-10 a linked worktree source never makes the common dir writable or referenced", async () => {
+    assert(module, "workspace implementation is required");
+    const {root, source, d, base} = fixture();
+    const linked = join(root, "linked-worktree");
+    git(source, "worktree", "add", "-q", "--detach", linked, base);
+    const commonDir = join(source, ".git");
+    const commonObjectsBefore = JSON.stringify(readdirSync(join(commonDir, "objects")).sort());
+    const w = await module.prepareWorkspace(d, () => ({attempt_id: "a", lease_epoch: 1}), {
+        root: join(root, "retained"),
+        source: linked,
+        approvedCommit: base,
+    });
+    // The isolated repo is a fresh bare init (see prepareWorkspace); it must stay fully
+    // standalone, never linked back to the worktree's common object database.
+    const alternates = join(w.gitDir, "objects", "info", "alternates");
+    assert.equal(existsSync(alternates), false, "the isolated repo must carry no alternates file");
+    assert.equal(
+        JSON.stringify(readdirSync(join(commonDir, "objects")).sort()),
+        commonObjectsBefore,
+        "the common object database must gain no new objects",
     );
 });

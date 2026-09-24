@@ -296,6 +296,42 @@ test("bounded context recovery preserves the active input once", async () => {
     assert.equal(observed[1].filter((m: any) => m.text === "CURRENT_UNIQUE").length, 1);
     assert.equal(observed[1].length, 1);
 });
+test("AF-38 a second context failure fails the turn, runs no tool, and keeps the active input once", async () => {
+    const {ProviderFailure} = await import("../dist/codecs.js");
+    const observed: any[] = [];
+    let toolCalls = 0;
+    const runtime = new EndpointRuntime(
+        {
+            filter: new SecretFilter(),
+            turn: async (messages: any[]) => {
+                observed.push(structuredClone(messages));
+                throw new ProviderFailure("context");
+            },
+        } as any,
+        {
+            catalog: [],
+            call: async () => {
+                toolCalls++;
+                return "";
+            },
+        } as any,
+        {
+            signal: new AbortController().signal,
+            deadline: Date.now() + 1000,
+            assertCurrent: async () => {},
+        },
+        {tool_rounds: 3, context_recoveries: 1},
+    );
+    await runtime.resume({summary: "Old untrusted checkpoint"});
+    await assert.rejects(
+        () => runtime.sendTurn("CURRENT_UNIQUE", "id"),
+        (e: unknown) => e instanceof ProviderFailure && e.kind === "context",
+    );
+    assert.equal(observed.length, 2, "one attempt plus one recovery retry, then the turn gives up");
+    assert.equal(toolCalls, 0, "a failed turn must never reach a tool call");
+    assert.equal(observed[1].filter((m: any) => m.text === "CURRENT_UNIQUE").length, 1);
+    assert.equal(observed[1].length, 1);
+});
 test("native model catalog rejects remote tools and media", async () => {
     const {nativeMessages} = await import("../dist/acp-runtime.js");
     assert.throws(() =>

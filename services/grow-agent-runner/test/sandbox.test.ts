@@ -23,3 +23,26 @@ test("process identity includes start time and rejects reused PID", () => {
     assert(m.sameProcess(identity));
     assert(!m.sameProcess({...identity, start: "0"}));
 });
+test("EX-15 a tag without digest is rejected", () => {
+    assert(m, "containment implementation required");
+    assert.throws(() => m.assertPinnedImages(["codex:latest"]), /Pinned image ID required/);
+    assert.throws(() => m.assertPinnedImages(["sha256:" + "g".repeat(64)]), /Pinned image ID required/);
+    assert.doesNotThrow(() => m.assertPinnedImages(["sha256:" + "a".repeat(64)]));
+});
+test("EX-15 a non-rootless engine is rejected", () => {
+    assert(m, "containment implementation required");
+    const ready = {SecurityOptions: ["name=rootless", "name=seccomp,profile=default"], CgroupVersion: "2"};
+    assert.doesNotThrow(() => m.assertRootlessEngine(ready));
+    assert.throws(
+        () => m.assertRootlessEngine({...ready, SecurityOptions: ["name=seccomp,profile=default"]}),
+        /Rootless seccomp cgroup v2 required/,
+    );
+    assert.throws(
+        () => m.assertRootlessEngine({...ready, SecurityOptions: ["name=rootless"]}),
+        /Rootless seccomp cgroup v2 required/,
+    );
+    assert.throws(
+        () => m.assertRootlessEngine({...ready, CgroupVersion: "1"}),
+        /Rootless seccomp cgroup v2 required/,
+    );
+});
