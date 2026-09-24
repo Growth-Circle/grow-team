@@ -19,7 +19,7 @@ Chat, kanal, topik, DM, pencarian, unggah, peran, undangan, reset password, dan 
 
 ## Perilaku target pilot agent
 
-Pilot memiliki dua mode: agent ACP yang tersedia dan endpoint model yang dipilih. Tugas memasuki lifecycle durable dan melewati current access check. Operasi penting memerlukan approval yang terikat pada attempt, policy, argumen, dan tree. Hasil hanya diterbitkan setelah gate audience dan verification.
+Pilot memiliki dua jalur: jalur cepat (Anthropic SDK, answer dan manage) dan jalur code (container, ACP), tanpa fallback antarjalur. Tugas memasuki lifecycle durable dan melewati current access check. Operasi penting memerlukan approval yang terikat pada attempt, policy, argumen, dan tree. Hasil hanya diterbitkan setelah gate audience dan verification.
 
 Pilot tidak melakukan pemantauan umum. Trigger otomatis berasal dari mention personal yang sah atau DM antara satu anggota dan satu agent yang telah diotorisasi. DM grup memerlukan mention personal eksplisit. Tugas manual memilih profil secara eksplisit; input susulan memilih job yang dituju. Mention grup, wildcard, pesan bot, edit pesan, dan default tim tidak menambah trigger.
 

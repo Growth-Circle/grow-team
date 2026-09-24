@@ -23,26 +23,32 @@ Bukti deploy chat sebelumnya mencakup `team.growc.id`, Cloudflare Tunnel, Email 
 
 ## Arsitektur agent yang diterima
 
+Status 2026-09-24: [keputusan SDK agent](agent-sdk-decision.md) memindahkan job
+`answer` dan `manage` ke jalur cepat. Lihat
+[spesifikasi jalur cepat](spec/2026-09-24-agent-fast-lane.md).
+
 ```mermaid
 flowchart LR
   Browser[Browser anggota] --> Django[Django control plane]
   Django --> PG[(PostgreSQL: state durable)]
   Django --> Chat[Chat Zulip dan bot profil]
   Runner[Runner Linux milik owner] -->|Koneksi keluar| Django
+  Runner --> FastLane["Jalur cepat: SDK Anthropic (answer, manage)"]
   Runner --> Sandbox[Sandbox rootless]
-  Runner --> ACP[Mode ACP]
-  Runner --> Endpoint[Mode endpoint model]
+  Runner --> ACP["Jalur code: ACP"]
   Runner --> Repo[Checkout lokal yang disetujui]
   Django --> Approval[Approval dan publication gate]
 ```
 
 Django menyimpan identitas, pairing, grant, profil, job, attempt, approval, artifact, audit, dan outbox. Runner TypeScript terpisah berjalan pada laptop atau server milik owner. Runner membuat koneksi keluar ke control plane. Runner tidak membuka port masuk.
 
-Dua mode awal tetap terpisah:
+Dua jalur awal tetap terpisah: jalur cepat (Anthropic SDK, answer dan manage) dan
+jalur code (container, ACP).
 
-- **ACP:** agent yang tersedia berjalan dalam sandbox dengan adapter yang didaftarkan owner.
-- **Endpoint:** runtime endpoint model memakai provider dan konfigurasi yang telah diuji.
+- **Jalur cepat:** job `answer` dan `manage` menjalankan loop `@anthropic-ai/sdk` di proses runner, tanpa container.
+- **Jalur code:** job `code` berjalan dalam sandbox dengan adapter ACP yang didaftarkan owner.
 
+Tidak ada fallback antarjalur. Server memilih jalur dari `job_kind` saat claim.
 Endpoint model tidak memberi akses repository dengan sendirinya. Server dan runner memeriksa workspace, tools, pembatalan, pemeriksaan, dan publication.
 
 ## Status komponen dan gate rilis

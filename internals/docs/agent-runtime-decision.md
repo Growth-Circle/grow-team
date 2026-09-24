@@ -2,7 +2,12 @@
 
 Tanggal: 2026-09-21. Penyelidikan ini read-only terhadap repository dan tidak memakai credential, produksi, atau model berbayar. Artifact sementara berada di `/tmp/grow-team-p0-research/`.
 
-**Rekomendasi: gunakan runtime endpoint TypeScript terbatas dengan tool broker milik Grow Runner. Gunakan SDK ACP 1.5.0 dan sertifikasi `@agentclientprotocol/codex-acp` 1.12.0 sebagai adapter awal.** Ini merupakan keputusan rekayasa berdasarkan source dan handshake nyata yang terbatas. Seluruh P0 belum lulus: browser integration, coding fixture, sandbox, provider nyata, dan recovery belum diuji pada laporan ini.
+Status: **digantikan sebagian 2026-09-24.** [Keputusan SDK agent](agent-sdk-decision.md)
+memindahkan job `answer` dan `manage` ke jalur cepat dengan `@anthropic-ai/sdk`.
+Keputusan pada halaman ini tetap berlaku untuk jalur code. Lihat
+[spesifikasi jalur cepat](spec/2026-09-24-agent-fast-lane.md).
+
+**[jalur code]** **Rekomendasi: gunakan runtime endpoint TypeScript terbatas dengan tool broker milik Grow Runner. Gunakan SDK ACP 1.5.0 dan sertifikasi `@agentclientprotocol/codex-acp` 1.12.0 sebagai adapter awal.** Ini merupakan keputusan rekayasa berdasarkan source dan handshake nyata yang terbatas. Seluruh P0 belum lulus: browser integration, coding fixture, sandbox, provider nyata, dan recovery belum diuji pada laporan ini.
 
 ## Bukti yang sudah diperoleh
 
@@ -26,6 +31,11 @@ Artifact bukti:
 - `src__AgentMode.ts`, `src__CodexJsonRpcConnection.ts`: source tag adapter untuk temuan policy.
 
 ## Perbandingan endpoint runtime
+
+Sejarah 2026-09-21, sebelum keputusan SDK agent. Perbandingan ini menilai runtime
+endpoint TypeScript yang sekarang menjadi jalur code. Jalur cepat (`answer`,
+`manage`) tidak dibahas di sini; lihat
+[keputusan SDK agent](agent-sdk-decision.md).
 
 | Sumbu | Buzz agent subprocess pada commit pinned | Runtime TypeScript terbatas |
 | --- | --- | --- |
@@ -64,6 +74,7 @@ Sumber primer pinned:
 | `@openai/codex` | `0.154.0` | Basis update adapter 1.12.0; pin dependency override/lock agar `^0.154.0` tidak menggeser test target. Apache-2.0. |
 | `zod` | `4.6.5` | SDK accepts 3.25/4.x; installed conformance pin 4.6.5. MIT. |
 | Claude alternative | `@agentclientprotocol/claude-agent-acp@0.79.0` | Registry current; Node >=22, SDK exact 1.4.0, Claude Agent SDK exact 0.3.274. Belum diprobe; bukan supported release. |
+| `@anthropic-ai/sdk` **[jalur cepat]** | `0.128.0` (versi dikunci persis di `package-lock.json`; nilai pasti ditetapkan saat implementasi) | Dipilih pada [keputusan SDK agent](agent-sdk-decision.md) untuk loop model jalur cepat. |
 
 Integrity utama dari registry:
 
@@ -133,10 +144,10 @@ Implikasi:
 
 Sumber: [AgentMode.ts pinned](https://github.com/agentclientprotocol/codex-acp/blob/v1.12.0/src/AgentMode.ts), [App Server process env](https://github.com/agentclientprotocol/codex-acp/blob/v1.12.0/src/CodexJsonRpcConnection.ts), [README adapter](https://github.com/agentclientprotocol/codex-acp/blob/v1.12.0/README.md).
 
-## Boundary yang tetap wajib pada dua mode
+## Boundary yang tetap wajib pada dua mode (sejarah; sekarang jalur code)
 
 - Supervisor luar sandbox memiliki credential runner/provider dan mengelola lease heartbeat. Tool sandbox tidak memiliki keduanya.
-- Rootless container per attempt, non-root, drop capabilities, no host socket/home/SSH, limits CPU/RAM/PID/output/time, mount checkout terisolasi.
+- **[jalur code]** Rootless container per attempt, non-root, drop capabilities, no host socket/home/SSH, limits CPU/RAM/PID/output/time, mount checkout terisolasi.
 - Seluruh tools native ACP berada dalam containment setara bila tidak dapat diarahkan lewat broker.
 - Model egress menggunakan transport/broker terpisah; shell tidak mendapat network atau write credential Git dari akses model.
 - Egress proxy memvalidasi DNS/IP pada koneksi dan menolak metadata; public TLS diverifikasi; private endpoint owner allowlist explicit.
@@ -144,14 +155,14 @@ Sumber: [AgentMode.ts pinned](https://github.com/agentclientprotocol/codex-acp/b
 - Durable operation state sebelum mutation; operation ID/hash terikat attempt/epoch/policy; outcome unknown tidak dieksekusi ulang otomatis.
 - Approval per remote effect melalui backend ledger + CAS, di luar model/native mode.
 - Secret redaction di error/header/stdout/event/artifact; test synthetic canary dari shell env/filesystem dan model error echo.
-- Final diff/tree/check artifacts dari actual workspace/broker, bukan klaim native model.
+- **[jalur code]** Final diff/tree/check artifacts dari actual workspace/broker, bukan klaim native model.
 
 ## Gate P0/S0 yang masih tersisa
 
 - [ ] Runner package/browser/control-plane integration dengan satu fixture.
 - [ ] Real installed ACP session/prompt/progress/permission/cancel dan coding di sandbox.
 - [ ] Satu endpoint nyata yang disetujui, dengan biaya dibatasi, probe dan fixture coding; laporan ini tidak memakai credential.
-- [ ] Fake HTTP conformance dua mode: Chat Completions/Responses, fragmented streams, malformed schema, retries, secret echoes, context recovery.
+- [ ] Fake HTTP conformance dua mode: Chat Completions/Responses, fragmented streams, malformed schema, retries, secret echoes, context recovery. Dipensiunkan untuk jalur cepat 2026-09-24: jalur cepat memakai `anthropic_messages` lewat `@anthropic-ai/sdk`, bukan codec dua mode ini. Gerbang ini tetap berlaku untuk jalur code.
 - [ ] Budget/error/restore journal tests pada runtime TS pilihan.
 - [ ] Sandbox process-grandchild, no-new-tools-after-disconnect, owner-WIP, symlink/Git metadata escape, secret filesystem/env tests.
 - [ ] Browser-only evidence dengan tab close/reopen; tidak cukup dari ACP handshake.

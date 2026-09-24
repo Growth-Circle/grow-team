@@ -119,6 +119,11 @@ Lock berada di dalam container. Request berikutnya tidak berjalan bersamaan jika
 koneksi Docker dari host terputus. Batas proses remote adalah 60 detik, diikuti
 SIGKILL setelah tambahan 5 detik jika proses belum berhenti.
 
+Timer rekonsiliasi 15 detik ini hanya cadangan. Publikasi hasil jalur cepat
+tidak menunggu timer ini; server menerbitkan hasil segera sesudah
+`result.prepared` (lihat [jalur cepat](spec/2026-09-24-agent-fast-lane.md)
+bagian 8.1).
+
 Sebelum mengaktifkan timer, siapkan `/data/grow-team-agent-private` dengan pemilik
 `zulip` dan mode `0700`. Direktori tersebut memakai volume aplikasi yang sudah ada.
 Simpan artifact dalam subdirektori `artifacts` dan keyring pada `keyring.json`.

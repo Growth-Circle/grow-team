@@ -2,6 +2,13 @@
 
 Audit 2026-09-21, diperbarui 2026-09-22. Tidak memakai credential nyata, menghubungi model berbayar, atau mengubah produksi.
 
+Status 2026-09-24: desain ini berlaku untuk **[jalur code]**. Bagian 53–57 dan 61
+(validasi request, DNS/IP, dan batas streaming broker) berlaku juga untuk
+**[jalur cepat]**, dipindahkan ke opsi `fetch` milik runner. Gerbang negatif 3–6
+di bagian "Asumsi dan gate negatif wajib" berlaku juga untuk jalur cepat. Lihat
+[keputusan SDK agent](agent-sdk-decision.md) dan
+[spesifikasi jalur cepat](spec/2026-09-24-agent-fast-lane.md) bagian 6.2.
+
 ## Keputusan konkret
 
 Gunakan **rootless Docker dengan network namespace `none` dan broker Grow untuk seluruh operasi project**. Adapter ACP 1.12.0 dan Codex 0.154.0 berada dalam container model tanpa mount repository. SDK 1.5.0 dan supervisor Grow berada di luar container. Operasi project berjalan dalam container tool terpisah. Provider/device/Git credential hanya berada pada supervisor/broker luar.
@@ -50,15 +57,15 @@ Relay mendengar pada `127.0.0.1:PORT` dalam network namespace container. Konfigu
 
 Broker menerima hanya method/path yang benar-benar diperlukan, awalnya POST `/v1/responses`. Tolak CONNECT, absolute-form URLs, Upgrade/WebSocket, forwarding headers, path traversal, query tujuan, dan API provider lainnya. WebSocket Responses belum disertifikasi; gunakan HTTP SSE. Jika native meminta endpoint tambahan, deny dan audit dahulu.
 
-Broker memvalidasi schema, model, ukuran request, output token, concurrency, jumlah request, budget biaya, dan lease sebelum meneruskan. Native request tidak boleh mengubah model atau memakai server-side web search, remote MCP, computer use, ataupun URL fetch melalui tool provider. Allowlist hanya memuat dynamic tools Grow yang diuji dan tool internal tanpa efek eksternal yang secara eksplisit disetujui. Tolak media URL eksternal bila data scope belum mengizinkannya.
+**[jalur code + jalur cepat]** Broker memvalidasi schema, model, ukuran request, output token, concurrency, jumlah request, budget biaya, dan lease sebelum meneruskan. Native request tidak boleh mengubah model atau memakai server-side web search, remote MCP, computer use, ataupun URL fetch melalui tool provider. Allowlist hanya memuat dynamic tools Grow yang diuji dan tool internal tanpa efek eksternal yang secara eksplisit disetujui. Tolak media URL eksternal bila data scope belum mengizinkannya. Pada jalur cepat, pemeriksaan setara berjalan di opsi `fetch` milik runner, bukan di broker container.
 
-Broker membangun tujuan dari konfigurasi host, bukan dari Host/header/body. Ia membuang seluruh credential/header client dan menyuntik provider credential miliknya. DNS diselesaikan dan IP diperiksa pada setiap koneksi; IP koneksi dipatok setelah validasi, dengan TLS SNI/certificate memakai hostname yang disetujui. Tolak metadata, redirect, dan alamat di luar policy. LAN/Tailscale hanya per host/port yang disetujui. Tidak ada fallback provider otomatis.
+**[jalur code + jalur cepat]** Broker membangun tujuan dari konfigurasi host, bukan dari Host/header/body. Ia membuang seluruh credential/header client dan menyuntik provider credential miliknya. DNS diselesaikan dan IP diperiksa pada setiap koneksi; IP koneksi dipatok setelah validasi, dengan TLS SNI/certificate memakai hostname yang disetujui. Tolak metadata, redirect, dan alamat di luar policy. LAN/Tailscale hanya per host/port yang disetujui. Tidak ada fallback provider otomatis. Pada jalur cepat, aturan yang sama berjalan di opsi `fetch` milik runner (lihat [jalur cepat](spec/2026-09-24-agent-fast-lane.md) bagian 6.2).
 
-Streaming SSE dibatasi ukuran, waktu idle, total waktu, dan schema. Broker menghentikan upstream ketika lease/cancel/budget habis. Jangan log header/body mentah. Sanitasi error dan known-secret echoes sebelum keluar. Provider yang sengaja menyandikan ulang secret adalah batas kepercayaan eksternal; redaction bukan bukti bahwa provider berbahaya tidak bisa membocorkannya.
+**[jalur code + jalur cepat]** Streaming SSE dibatasi ukuran, waktu idle, total waktu, dan schema. Broker menghentikan upstream ketika lease/cancel/budget habis. Jangan log header/body mentah. Sanitasi error dan known-secret echoes sebelum keluar. Provider yang sengaja menyandikan ulang secret adalah batas kepercayaan eksternal; redaction bukan bukti bahwa provider berbahaya tidak bisa membocorkannya. Jalur cepat menegakkan `idle_timeout_s` yang setara pada stream SDK (lihat [jalur cepat](spec/2026-09-24-agent-fast-lane.md) bagian 6.3).
 
 Container tool tidak mendapat socket atau relay model. Proses project tidak dapat memanggil model melalui kemampuan milik container native. Pemisahan ini harus diuji, termasuk namespace jaringan, mount, environment, dan file descriptor yang diwariskan.
 
-Semua dynamic tool masuk melalui request `item/tool/call` yang diteruskan adapter ke supervisor. Broker mengikat identitas call ke attempt aktif, memeriksa lease/izin/scope/argumen/budget, lalu mencatat intent lokal secara durable sebelum eksekusi. Hasil dicatat sebelum dikembalikan. ID yang sama dengan argumen berbeda ditolak; hasil tidak pasti harus direkonsiliasi. Kontrak backend yang dipakai runner mewajibkan proposal dan konsumsi operasi server sebelum setiap efek tool, termasuk read, edit, dan check. Journal lokal melengkapi otorisasi tersebut; respons consume yang hilang tidak memberi izin eksekusi.
+**[jalur code]** Semua dynamic tool masuk melalui request `item/tool/call` yang diteruskan adapter ke supervisor. Broker mengikat identitas call ke attempt aktif, memeriksa lease/izin/scope/argumen/budget, lalu mencatat intent lokal secara durable sebelum eksekusi. Hasil dicatat sebelum dikembalikan. ID yang sama dengan argumen berbeda ditolak; hasil tidak pasti harus direkonsiliasi. Kontrak backend yang dipakai runner mewajibkan proposal dan konsumsi operasi server sebelum setiap efek tool, termasuk read, edit, dan check. Journal lokal melengkapi otorisasi tersebut; respons consume yang hilang tidak memberi izin eksekusi. **[jalur cepat]** Alat baca memakai pola yang sama lewat `POST /runner/operations/run` dalam satu request (lihat [jalur cepat](spec/2026-09-24-agent-fast-lane.md) bagian 7.1).
 
 Sumber pemeriksaan API Node: [net.Socket pada Node 24.18.0](https://github.com/nodejs/node/blob/v24.18.0/doc/api/net.md). Probe Python membuktikan dukungan kernel Linux, bukan ketersediaan API Node.
 
@@ -104,10 +111,10 @@ Probe hanya membuktikan primitive UDS + network namespace + penghentian child te
 
 1. Image/runtime/toolchain pinned tersedia dan dapat menjalankan loop Codex dalam seccomp default tanpa elevated capabilities. Native environments harus tetap kosong dan katalog tool sesuai allowlist. Kegagalan containment atau protokol harus fail closed.
 2. Fake provider SSE melalui relay: initialize/new/prompt, tool call fixture edit/test, permission deny/cancel, resume, output diff, dan penghentian semuanya diuji dengan package exact.
-3. Model auth tidak membutuhkan key vendor nyata pada agent. Cari synthetic credential canary di env, /proc, files, stdout/stderr, ACP, artifacts, errors, dan config logs.
-4. Direct IPv4/IPv6, DNS, UDP, metadata, loopback host, bridge, proxy env, alternate hostnames, redirect, DNS rebinding, URL userinfo, encoded paths, CONNECT dan websocket semuanya ditolak.
-5. Socket attempt lain, epoch lama, revoked lease, expiry selama stream, model berbeda, forged Host/Authorization, concurrent budget race, dan oversized bodies ditolak.
-6. Proses tool tidak dapat mengakses relay/socket model. Native tidak memperoleh key, tujuan bebas, remote tools, atau budget tambahan. Uji endpoint yang mengembalikan synthetic secret canary.
+3. **[jalur code + jalur cepat]** Model auth tidak membutuhkan key vendor nyata pada agent. Cari synthetic credential canary di env, /proc, files, stdout/stderr, ACP, artifacts, errors, dan config logs. Untuk jalur cepat, canary juga dicari di event, jurnal, log, dan snapshot draft (FL-28).
+4. **[jalur code + jalur cepat]** Direct IPv4/IPv6, DNS, UDP, metadata, loopback host, bridge, proxy env, alternate hostnames, redirect, DNS rebinding, URL userinfo, encoded paths, CONNECT dan websocket semuanya ditolak. Jalur cepat menegakkan ini pada opsi `fetch` milik runner.
+5. **[jalur code + jalur cepat]** Socket attempt lain, epoch lama, revoked lease, expiry selama stream, model berbeda, forged Host/Authorization, concurrent budget race, dan oversized bodies ditolak. Jalur cepat menegakkan lease/epoch/versi yang setara pada setiap request `operations/run` (FL-12).
+6. **[jalur code + jalur cepat]** Proses tool tidak dapat mengakses relay/socket model. Native tidak memperoleh key, tujuan bebas, remote tools, atau budget tambahan. Uji endpoint yang mengembalikan synthetic secret canary. Jalur cepat memisahkan attempt satu sama lain tanpa riwayat atau hasil alat bersama (jalur cepat bagian 6.6).
 7. Host HOME/SSH/Docker/cloud files tidak tersedia. Uji symlink, /proc/root/fd, mount attempts, setuid binaries, devices, Git common-dir escape, hooks, submodules/LFS/filter, dan poisoned shared cache.
 8. Fork bomb, RAM/CPU/disk/output flood, setsid/double-fork, child ignores TERM, supervisor SIGKILL, ACP crash, control disconnect, broker crash, dan reboot recovery. Verifikasi cgroup kosong, bukan exit parent saja.
 9. Owner WIP tetap identik; mutation hanya checkout attempt. Read-only mode menolak writes. Final tests terikat final tree hash.

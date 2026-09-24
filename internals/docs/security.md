@@ -27,7 +27,7 @@ Bukti ini menetapkan konteks deploy chat. Bukti ini tidak membuktikan setiap ACL
 
 ## Batas authority dan effect
 
-Trigger otomatis berasal dari mention personal yang sah atau DM antara satu anggota dan satu agent yang telah diotorisasi. DM grup memerlukan mention personal eksplisit. Default tim tidak menambah recipient, grant, atau trigger. Mode ACP dan endpoint memakai konfigurasi, policy, dan readiness sendiri. Sistem tidak melakukan fallback model atau switch mode otomatis.
+Trigger otomatis berasal dari mention personal yang sah atau DM antara satu anggota dan satu agent yang telah diotorisasi. DM grup memerlukan mention personal eksplisit. Default tim tidak menambah recipient, grant, atau trigger. Dua jalur berbeda memakai konfigurasi, policy, dan readiness sendiri: jalur cepat (Anthropic SDK, answer dan manage) dan jalur code (container, ACP). Sistem tidak melakukan fallback model atau switch jalur otomatis.
 
 Probe hanya merekam readiness. Enable adalah aksi eksplisit pada revision yang diuji; bukti backend ada pada `6725a74`.
 
@@ -48,7 +48,7 @@ Kontrak ini belum menjadi bukti. Baris AD pada [bukti penerimaan](agent-acceptan
 
 ## Gate keamanan dan rilis
 
-- UI browser, provider nyata, dua mode runtime, dan smoke pilot belum disertifikasi.
+- UI browser, provider nyata, dua jalur runtime (jalur cepat dan jalur code), dan smoke pilot belum disertifikasi.
 - Image final, package dan notice final, migrasi live, dan activation realm/provider belum memiliki bukti rilis final.
 - Backup/restore produksi, retained-key decryption, rollback kompatibel, capacity, dan host isolation pascarilis masih memerlukan evidence final.
 - Recovery rehearsal terbatas tidak membuktikan reboot host, VPS kedua, atau disaster recovery penuh.

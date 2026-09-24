@@ -32,7 +32,7 @@ Jangan pilih model komersial sebelum gate keamanan, backup/restore, observabilit
 
 - Pertahankan Zulip sebagai chat browser.
 - Gunakan Django sebagai control plane dan runner Linux terpisah milik owner.
-- Dukung mode ACP dan endpoint model sebagai dua mode awal.
+- Dukung dua jalur awal: jalur cepat (Anthropic SDK, answer dan manage) dan jalur code (container, ACP). Tanpa fallback antarjalur.
 - Gunakan authority eksplisit per owner, principal, resource, scope, dan action.
 - Jangan beri bypass authority karena seseorang adalah administrator platform.
 - Jangan jadikan default tim sebagai grant atau trigger otomatis.
@@ -43,7 +43,7 @@ Jangan pilih model komersial sebelum gate keamanan, backup/restore, observabilit
 | Status | Keputusan |
 | --- | --- |
 | Bukti deploy bertanggal | Fork Zulip Grow Team berjalan pada `team.growc.id`. Laporan branding merekam browser checks dan isolasi deploy. |
-| Diterima | Arsitektur agent, dua mode runtime, dan authority eksplisit tercatat dalam tiga spesifikasi agent. |
+| Diterima | Arsitektur agent, dua jalur runtime (jalur cepat dengan Anthropic SDK dan jalur code dengan container/ACP), dan authority eksplisit tercatat dalam spesifikasi agent. |
 | Komponen selesai direview | Task 0–6 untuk control plane, runner, dan containment telah selesai dan lulus review komponen. Image `1c3ebcde3d7e` adalah intermediate image yang diuji. |
 | Pending gate rilis | UI, provider nyata, package dan notice final, recovery, capacity, migrasi live, dan activation realm/provider. |
 | Belum diputuskan | Isolasi klien, harga, SLA, support, billing, dan operasi komersial. |
