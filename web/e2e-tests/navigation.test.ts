@@ -4,11 +4,39 @@ import type {Page} from "puppeteer";
 
 import * as common from "./lib/common.ts";
 
+// The Grow Team navbar hides #message_view_header (message_view_header.css:
+// "the top bar holds no view title or breadcrumb"), so a narrow change shows
+// through the browser tab title instead of a header icon. The title updates
+// only once the new narrow is in place (narrow_title.ts), including for a
+// view with no messages of its own (e.g. this user's direct message feed),
+// so it stays a reliable signal where a wait for a message row would not.
+async function wait_for_narrow(page: Page, title_prefix: string): Promise<void> {
+    await page.waitForFunction((prefix) => document.title.startsWith(prefix), {}, title_prefix);
+}
+
 async function navigate_using_left_sidebar(page: Page, stream_name: string): Promise<void> {
     console.log("Visiting #" + stream_name);
     const stream_id = await page.evaluate(() => zulip_test.get_sub("Verona")!.stream_id);
     await page.click(`.narrow-filter[data-stream-id="${stream_id}"] .stream-name`);
-    await page.waitForSelector("#message_view_header .zulip-icon-hashtag", {visible: true});
+    await wait_for_narrow(page, `#${stream_name}`);
+}
+
+// Frame 10a's expanded Views list hides Combined feed
+// (left_sidebar_navigation_area.ts: FRAGMENTS_HIDDEN_FROM_EXPANDED_VIEWS_LIST);
+// it stays reachable from the condensed icon row, so collapse the list first
+// when it is not collapsed already.
+async function navigate_to_all_messages(page: Page): Promise<void> {
+    const is_expanded = await page.evaluate(
+        () =>
+            document
+                .querySelector("#views-label-container")
+                ?.classList.contains("showing-expanded-navigation") ?? false,
+    );
+    if (is_expanded) {
+        await page.click("#toggle-top-left-navigation-area-icon");
+    }
+    await page.click("#left-sidebar-navigation-list-condensed .top_left_all_messages");
+    await wait_for_narrow(page, "Combined feed");
 }
 
 async function open_menu(page: Page): Promise<void> {
@@ -59,7 +87,7 @@ async function navigate_to_private_messages(page: Page): Promise<void> {
     await page.waitForSelector(all_private_messages_icon, {visible: true});
     await page.click(all_private_messages_icon);
 
-    await page.waitForSelector("#message_view_header .zulip-icon-user", {visible: true});
+    await wait_for_narrow(page, "Direct message feed");
 }
 
 async function test_reload_hash(page: Page): Promise<void> {
@@ -93,13 +121,11 @@ async function navigation_tests(page: Page): Promise<void> {
 
     await navigate_using_left_sidebar(page, "Verona");
 
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
-    await page.waitForSelector("#message_view_header .zulip-icon-all-messages", {visible: true});
+    await navigate_to_all_messages(page);
 
     await navigate_to_subscriptions(page);
 
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
-    await page.waitForSelector("#message_view_header .zulip-icon-all-messages", {visible: true});
+    await navigate_to_all_messages(page);
 
     await navigate_to_settings(page);
     await navigate_to_private_messages(page);
@@ -108,12 +134,8 @@ async function navigation_tests(page: Page): Promise<void> {
 
     await test_reload_hash(page);
 
-    // Verify that we're narrowed to the target stream
-    await page.waitForSelector(
-        `xpath///*[@id="message_view_header"]//*[${common.has_class_x(
-            "message-header-stream-settings-button",
-        )} and normalize-space()="Verona"]`,
-    );
+    // Verify that we're still narrowed to the target stream after the reload.
+    assert.ok((await page.title()).startsWith("#Verona"), "Not narrowed to the Verona channel.");
 }
 
 await common.run_test(navigation_tests);
