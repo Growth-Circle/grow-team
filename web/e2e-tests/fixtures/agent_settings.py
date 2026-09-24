@@ -332,6 +332,7 @@ print(
         {
             "job_id": str(job.id),
             "evidence_job_id": str(evidence_job.id),
+            "runner_id": str(runner.id),
             "provider_id": str(provider.id),
             "owner_id": owner.id,
             "profile_ids": [str(profile.id), str(second.id)],

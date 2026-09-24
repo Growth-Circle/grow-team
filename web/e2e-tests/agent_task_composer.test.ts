@@ -11,6 +11,7 @@ const fixture_schema = z.object({
     bot_user_id: z.number(),
     source_message_id: z.number(),
     profile_ids: z.array(z.string()),
+    runner_id: z.string(),
 });
 
 async function test_task_composer(page: Page): Promise<void> {
@@ -43,6 +44,13 @@ async function test_task_composer(page: Page): Promise<void> {
         new RegExp(String(fixture.source_message_id)),
     );
     await page.waitForSelector(`#agent-task-profile option[value='${fixture.profile_ids[0]}']`);
+    // The selection reason needs a recent heartbeat, or it stays "the agent
+    // runner did not report recently" instead of "ready to start the task".
+    execFileSync(
+        "python3",
+        ["web/e2e-tests/fixtures/agent_fake_runner.py", "heartbeat", "--runner", fixture.runner_id],
+        {encoding: "utf8"},
+    );
     await page.select("#agent-task-profile", fixture.profile_ids[0]!);
     await page.waitForFunction(() =>
         document.querySelector("#agent-task-status")?.textContent?.includes("ready"),
@@ -64,8 +72,10 @@ async function test_task_composer(page: Page): Promise<void> {
     assert.equal(body.job.source_message_id, fixture.source_message_id);
     assert.equal(body.job.profile_id, fixture.profile_ids[0]);
     await page.waitForSelector("#agent-job-overlay", {visible: true});
+    // The heading text is only an 8-character prefix; the full id lives in
+    // its title attribute (agent_job_panel.ts render_header).
     await page.waitForFunction(
-        (id) => document.querySelector("#agent-job-heading")?.textContent?.includes(id),
+        (id) => document.querySelector("#agent-job-heading")?.getAttribute("title") === id,
         {},
         body.job.id,
     );
