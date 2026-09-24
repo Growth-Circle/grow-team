@@ -2271,6 +2271,183 @@ class AgentLifecycleTests(ZulipTestCase):
             outbox.refresh_from_db()
             self.assertEqual(outbox.status, "blocked")
 
+    def test_resume_after_required_checks_failed_resets_the_outbox_row(self) -> None:
+        """A resumed attempt's freshly staged result must not inherit an
+        earlier attempt's parked ("blocked") outbox row: reconcile_agents
+        never retries a "blocked" row, so a stale one is stuck forever."""
+        import hashlib
+        import tempfile
+        from copy import deepcopy
+
+        from django.test import override_settings
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.actions.agents import register_repository
+        from zerver.lib import agent_protocol as p
+        from zerver.lib.agent_results import publish_result, store_artifact
+
+        repository = register_repository(
+            self.owner,
+            self.runner,
+            workspace_alias="resumecheck",
+            canonical_origin="https://example.com/team/resume-repo",
+            allowed_refs=["main"],
+            required_checks=[{"id": "required", "argv": ["true"]}],
+        )
+        policy = deepcopy(self.profile.policy)
+        policy["actions"] = ["context.read", "repository.read", "repository.edit", "checks.run"]
+        profile = create_profile(
+            self.owner,
+            name="ResumeCheck",
+            runner=self.runner,
+            adapter_id="acp",
+            adapter_version="1",
+            repository=repository,
+            policy=policy,
+            default_mode="code",
+            idempotency_key=uuid4(),
+        )
+        setup = agents.AgentSetupOperation.objects.get(profile=profile)
+        record_readiness(
+            self.runner,
+            setup,
+            {
+                "schema_version": 1,
+                "profile_id": str(profile.id),
+                "profile_revision": 1,
+                "runner_id": str(self.runner.id),
+                "descriptor_digest": setup.descriptor_digest,
+                "configuration_digest": setup.configuration_digest,
+                "state": "ready",
+                "capabilities": {
+                    "chat_ready": True,
+                    "code_ready": True,
+                    "tool_calling": "passed",
+                    "sandbox": "passed",
+                    "config_version": 1,
+                },
+            },
+        )
+        profile.refresh_from_db()
+        enable_profile(self.owner, profile, expected_revision=profile.revision)
+        message = Message.objects.get(
+            id=self.send_group_direct_message(
+                self.owner, [profile.bot_user, self.example_user("iago")], "Code task"
+            )
+        )
+        job = actions.create_job(
+            self.owner,
+            profile=profile,
+            source=message,
+            request="Run a script",
+            idempotency_key=uuid4(),
+            job_kind="code",
+            delivery_target="patch",
+            repository=repository,
+            base_ref="main",
+        )
+        sequence = 0
+
+        def event(attempt: agents.AgentAttempt, kind: str, payload: dict[str, object]) -> None:
+            nonlocal sequence
+            sequence += 1
+            actions.record_event(
+                self.runner,
+                p.RunnerEvent.model_validate(
+                    {
+                        "schema_version": 1,
+                        "job_id": str(job.id),
+                        "attempt_id": str(attempt.id),
+                        "lease_epoch": attempt.lease_epoch,
+                        "event_id": str(uuid4()),
+                        "sequence": sequence,
+                        "type": kind,
+                        "occurred_at": now().isoformat(),
+                        "payload": payload,
+                    }
+                ),
+            )
+
+        def run_attempt(attempt: agents.AgentAttempt, tree_hash: str) -> None:
+            nonlocal sequence
+            sequence = 0  # Each attempt's event_cursor starts at 0 again.
+            event(
+                attempt,
+                "workspace.prepared",
+                {
+                    "repository_id": str(repository.id),
+                    "workspace_reference": "fixture",
+                    "base_ref": "main",
+                    "base_commit": "a" * 40,
+                    "tree_hash": tree_hash,
+                    "user_worktree_dirty": False,
+                },
+            )
+            event(attempt, "attempt.started", {"process_state": "active"})
+            diff = store_artifact(
+                self.runner,
+                job.id,
+                attempt.id,
+                attempt.lease_epoch,
+                chunks=[b"diff"],
+                checksum=hashlib.sha256(b"diff").hexdigest(),
+                kind="diff",
+                filename="diff.patch",
+                media_type="text/x-diff",
+            )
+            summary = store_artifact(
+                self.runner,
+                job.id,
+                attempt.id,
+                attempt.lease_epoch,
+                chunks=[b"Done"],
+                checksum=hashlib.sha256(b"Done").hexdigest(),
+                kind="summary",
+                filename="summary.txt",
+                media_type="text/plain",
+            )
+            event(
+                attempt,
+                "result.prepared",
+                {
+                    "artifact_ids": [str(diff.id), str(summary.id)],
+                    "tree_hash": tree_hash,
+                    "summary": "Done",
+                },
+            )
+            event(attempt, "attempt.stopped", {"process_state": "stopped", "stop_confirmed": True})
+
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            override_settings(AGENT_ARTIFACT_ROOT=directory),
+        ):
+            actions.claim_work(self.runner, claim_key=uuid4())
+            first_attempt = agents.AgentAttempt.objects.get(job=job, number=1)
+            run_attempt(first_attempt, "b" * 40)
+            # No AgentVerification row exists for the required check: this
+            # parks the outbox row, as in test_failed_required_check_... above.
+            with self.assertRaisesRegex(ValueError, "Required checks"):
+                publish_result(job.id)
+            job.refresh_from_db()
+            self.assertEqual(job.status, "failed")
+            outbox = agents.AgentOutbox.objects.get(delivery_key=f"result:{job.id}")
+            self.assertEqual(outbox.status, "blocked")
+            self.assertEqual(outbox.payload_ref, first_attempt.id)
+
+            actions.resume_job(self.owner, job.id, job.version)
+            actions.claim_work(self.runner, claim_key=uuid4())
+            second_attempt = agents.AgentAttempt.objects.get(job=job, number=2)
+            run_attempt(second_attempt, "c" * 40)
+
+        # The second attempt just staged a brand-new result: the row must be
+        # ready for a fresh delivery, not stuck on the first attempt's parked
+        # row that reconcile_agents will never retry.
+        outbox.refresh_from_db()
+        self.assertEqual(outbox.status, "pending")
+        self.assertEqual(outbox.payload_ref, second_attempt.id)
+        self.assertEqual(outbox.attempt_count, 0)
+
     def test_audience_change_holds_the_result_and_parks_the_outbox(self) -> None:
         import hashlib
         import tempfile

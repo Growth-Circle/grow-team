@@ -1399,13 +1399,21 @@ def record_event(
                 job.phase = "review"
                 job.save(update_fields=["phase"])
                 transition(job, "verifying")
-                agents.AgentOutbox.objects.get_or_create(
+                # A resumed job can reuse this delivery_key from an earlier,
+                # now-parked ("blocked") attempt. Reset every retry field for
+                # this attempt's own result: reconcile_agents never selects a
+                # "blocked" row, so an old status or attempt_count would leave
+                # a transient publish failure stuck with no way to retry.
+                agents.AgentOutbox.objects.update_or_create(
                     delivery_key=f"result:{job.id}",
                     defaults={
                         "realm": job.realm,
                         "job": job,
                         "event_type": "result.publish",
                         "payload_ref": attempt.id,
+                        "status": "pending",
+                        "attempt_count": 0,
+                        "next_attempt_at": now(),
                     },
                 )
         attempt.event_cursor = event.sequence
