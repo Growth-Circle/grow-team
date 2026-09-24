@@ -576,7 +576,9 @@ function build_composer_harness(api, current_user) {
             },
             window: dom.window,
             document: dom.window.document,
+            // The composer's runner summary checks `instanceof HTMLElement`.
             HTMLDialogElement: dom.window.HTMLDialogElement,
+            HTMLElement: dom.window.HTMLElement,
             console,
         },
     );
@@ -831,7 +833,7 @@ async function test_as_21_offline_default_still_queues_and_a_full_queue_blocks_s
         assert.equal($("#agent-task-profile").val(), "A", "an offline default is still selected");
         assert.match(
             $("#agent-task-status").text(),
-            /The agent runner is offline\. You can create the task now\. It starts when the runner comes back\./,
+            /The agent's device is offline\. You can create the task now\. It waits until the device connects or until its start deadline passes\./,
         );
         $("#agent-task-request").val("Queue this while offline").trigger("input");
         // A plain jQuery .trigger("submit") also invokes the native

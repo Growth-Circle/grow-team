@@ -4,6 +4,7 @@ import $ from "jquery";
 import render_panel from "../templates/agent/job_panel.hbs";
 
 import * as api from "./agent_api.ts";
+import {open_for_followup} from "./agent_task_composer.ts";
 import {
     accepts_auxiliary_response,
     accepts_detail_response,
@@ -1074,6 +1075,15 @@ function bind(): void {
                 .job_action(id, "resume", {expected_version: job.version, checkpoint_id: null})
                 .then(on_success)
                 .catch(on_error);
+        }
+        if (name === "follow-up" && job.allowed_actions.includes("follow_up")) {
+            open_for_followup({
+                id: job.id,
+                profile_id: job.profile_id,
+                source_message_id: job.source_message_id,
+                result: job.result,
+            });
+            return;
         }
         if (name === "deliver-privately" && job.allowed_actions.includes("deliver_privately")) {
             void api

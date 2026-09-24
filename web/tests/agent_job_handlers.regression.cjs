@@ -143,6 +143,9 @@ async function main() {
                 if (name === "./browser_history.ts") {
                     return {exit_overlay() {}};
                 }
+                if (name === "./agent_task_composer.ts") {
+                    return {open_for_followup() {}};
+                }
                 if (name === "./i18n.ts") {
                     return {$t: format_t};
                 }
@@ -217,7 +220,7 @@ async function main() {
 // global.document exists the moment it is first required and then caches
 // that binding, so each harness must bust that cache before requiring it
 // again for a new jsdom window.
-function build_input_retention_harness(api) {
+function build_input_retention_harness(api, composer = {}) {
     Reflect.deleteProperty(require.cache, require.resolve("jquery"));
     const dom = new JSDOM("<body></body>", {url: "https://realm.test"});
     global.window = dom.window;
@@ -271,6 +274,9 @@ function build_input_retention_harness(api) {
                 }
                 if (name === "./browser_history.ts") {
                     return {exit_overlay() {}};
+                }
+                if (name === "./agent_task_composer.ts") {
+                    return {open_for_followup: composer.open_for_followup ?? (() => {})};
                 }
                 if (name === "./i18n.ts") {
                     return {$t: format_t};
@@ -825,6 +831,171 @@ async function shows_git_operation_cards() {
     }
 }
 
+// Contract 13.1: the follow-up button hands the job to the composer's
+// follow-up mode, with the result message preferred over the source
+// message and the job's own ID and profile carried along.
+async function opens_the_composer_in_followup_mode() {
+    const job_id = "77777777-7777-4777-8777-777777777777";
+    const followed = [];
+    const api = {
+        get_job: async (id) =>
+            base_detail(id, {
+                status: "completed",
+                profile_id: "profile-x",
+                source_message_id: 42,
+                result: {message_id: 99},
+                allowed_actions: ["follow_up"],
+            }),
+        get_job_events: async () => ({events: []}),
+        get_job_inputs: async () => ({inputs: [], count: 0}),
+        decide_approval: async () => ({}),
+        job_action: async () => ({}),
+    };
+    const {dom, $, out, flush} = build_input_retention_harness(api, {
+        open_for_followup(job) {
+            followed.push(job);
+        },
+    });
+    try {
+        out.open(job_id);
+        await flush();
+        assert.equal($("[data-job-action='follow-up']").length, 1);
+        $("[data-job-action='follow-up']").trigger("click");
+        assert.equal(followed.length, 1);
+        // The object open_for_followup receives is built inside the vm
+        // sandbox, so its prototype belongs to that realm; compare its
+        // fields, not the object itself.
+        assert.equal(followed[0].id, job_id);
+        assert.equal(followed[0].profile_id, "profile-x");
+        assert.equal(followed[0].source_message_id, 42);
+        assert.deepEqual(followed[0].result, {message_id: 99});
+    } finally {
+        dom.window.close();
+        delete global.window;
+        delete global.document;
+    }
+}
+
+// AF-24: an input submission captures its job ID at submit time, so a
+// response that arrives after the drawer has moved on to another job never
+// touches that other job's own input box or posts a second time.
+async function input_from_job_a_never_posts_to_job_b() {
+    const job_a = "88888888-8888-4888-8888-888888888888";
+    const job_b = "99999999-9999-4999-8999-999999999999";
+    const posted_to = [];
+    let resolve_a;
+    const pending_a = new Promise((resolve) => {
+        resolve_a = resolve;
+    });
+    const api = {
+        get_job: async (id) => queued_job_detail(id),
+        get_job_events: async () => ({events: []}),
+        get_job_inputs: async () => ({inputs: [], count: 0}),
+        decide_approval: async () => ({}),
+        async job_action(id) {
+            posted_to.push(id);
+            if (id === job_a) {
+                await pending_a;
+            }
+            return {};
+        },
+    };
+    const {dom, $, out, flush} = build_input_retention_harness(api);
+    try {
+        out.open(job_a);
+        await flush();
+        $("#agent-job-input").val("hello from A");
+        $("#agent-job-input-form").trigger("submit");
+        await flush();
+        assert.deepEqual(posted_to, [job_a]);
+
+        out.change_target(job_b);
+        await flush();
+        $("#agent-job-input").val("hello from B");
+
+        resolve_a();
+        await flush();
+
+        // Job A's late response must never touch job B's own input box or
+        // post a second time.
+        assert.deepEqual(posted_to, [job_a]);
+        assert.equal($("#agent-job-input").val(), "hello from B");
+    } finally {
+        dom.window.close();
+        delete global.window;
+        delete global.document;
+    }
+}
+
+// AF-30: once a stop request is sent, a step that was waiting for approval
+// stops offering Approve, and the live status reads the stopping sentence.
+async function cancel_removes_approve_and_shows_stopping_sentence() {
+    const job_id = "12121212-1212-4212-8212-121212121212";
+    let status_value = "waiting_for_approval";
+    let decidable = true;
+    const detail = () => ({
+        job: {
+            id: job_id,
+            version: 1,
+            status: status_value,
+            phase: "editing",
+            job_kind: "code",
+            request: "Push the fix",
+            allowed_actions: status_value === "waiting_for_approval" ? ["cancel"] : [],
+        },
+        attempts: [{id: "attempt-1", number: 1, active: true, process_state: "active"}],
+        required_checks: [],
+        operations: [
+            {
+                operation_id: "operation-1",
+                operation_hash: "0123456789abcdef",
+                version: 1,
+                status: "proposed",
+                attempt_id: "attempt-1",
+                action: "git.push",
+                approval_id: "approval-1",
+                approval_version: 1,
+                nonce: "nonce-1",
+                can_decide: decidable,
+                approval_decision: "pending",
+                arguments: {commit: "abcdef0", branch: "main", remote: "origin"},
+            },
+        ],
+        artifacts: [],
+        operations_cursor: {offset: 0, next_offset: 0, truncated: false},
+        artifacts_cursor: {offset: 0, next_offset: 0, truncated: false},
+    });
+    const api = {
+        get_job: async () => detail(),
+        get_job_events: async () => ({events: []}),
+        get_job_inputs: async () => ({inputs: [], count: 0}),
+        decide_approval: async () => ({}),
+        async job_action(_id, action) {
+            if (action === "cancel") {
+                status_value = "cancel_requested";
+                decidable = false;
+            }
+            return {};
+        },
+    };
+    const {dom, $, out, flush} = build_input_retention_harness(api);
+    try {
+        out.open(job_id);
+        await flush();
+        assert.equal($("[data-job-action='approve']").length, 1);
+
+        $("[data-job-action='cancel']").trigger("click");
+        await flush();
+
+        assert.equal($("[data-job-action='approve']").length, 0);
+        assert.equal($("#agent-job-status").text(), "Your stop request went to the agent.");
+    } finally {
+        dom.window.close();
+        delete global.window;
+        delete global.document;
+    }
+}
+
 void main()
     .then(() => retains_unresolved_input_across_visit())
     .then(() => accepted_input_does_not_return_on_next_visit())
@@ -834,6 +1005,9 @@ void main()
     .then(() => delivers_result_privately_once())
     .then(() => shows_new_job_facts())
     .then(() => shows_git_operation_cards())
+    .then(() => opens_the_composer_in_followup_mode())
+    .then(() => input_from_job_a_never_posts_to_job_b())
+    .then(() => cancel_removes_approve_and_shows_stopping_sentence())
     .then(() => process.stdout.write("Agent job delegated-handler regressions passed.\n"))
     .catch((error) => {
         console.error(error);

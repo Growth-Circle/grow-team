@@ -134,6 +134,9 @@ async function test_ex_54_unconfirmed_cancel_survives_a_failed_poll() {
                 if (name === "./browser_history.ts") {
                     return {exit_overlay() {}};
                 }
+                if (name === "./agent_task_composer.ts") {
+                    return {open_for_followup() {}};
+                }
                 if (name === "./i18n.ts") {
                     return {$t: format_message};
                 }
@@ -276,7 +279,12 @@ function build_composer_harness(api, current_user) {
             },
             window: dom.window,
             document: dom.window.document,
+            // The composer checks `instanceof HTMLElement` in
+            // render_runner_summary's details_box() helper, so the sandbox
+            // needs the real constructor, the same as
+            // agent_task_composer.regression.cjs's own harness.
             HTMLDialogElement: dom.window.HTMLDialogElement,
+            HTMLElement: dom.window.HTMLElement,
             console,
         },
     );

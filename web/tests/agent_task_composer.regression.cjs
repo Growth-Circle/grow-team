@@ -99,9 +99,11 @@ function build_harness(api) {
             },
             window: dom.window,
             document: dom.window.document,
-            // The composer checks `instanceof HTMLDialogElement` at runtime,
-            // so the sandbox needs this DOM constructor as a bare global.
+            // The composer checks `instanceof HTMLDialogElement` and
+            // `instanceof HTMLElement` at runtime, so the sandbox needs
+            // both DOM constructors as bare globals.
             HTMLDialogElement: dom.window.HTMLDialogElement,
+            HTMLElement: dom.window.HTMLElement,
             console,
         },
     );
@@ -123,12 +125,19 @@ function submit_form(dom) {
         .dispatchEvent(new dom.window.Event("submit", {cancelable: true, bubbles: true}));
 }
 
-function profile(id, name, owner, runner_name, default_mode = "answer") {
+function profile(id, name, owner, runner_name, default_mode = "answer", extra = {}) {
     return {
         id,
         name,
         owner: {id: 1, name: owner},
-        runner: runner_name ? {name: runner_name} : null,
+        runner: runner_name
+            ? {
+                  name: runner_name,
+                  host_kind: extra.host_kind ?? "workstation",
+                  observed_presence: extra.observed_presence ?? "online",
+              }
+            : null,
+        provider: extra.provider ?? null,
         default_mode,
     };
 }
@@ -369,11 +378,200 @@ async function keeps_the_idempotent_retry_message_for_an_unclear_failure() {
     }
 }
 
+// Contract 13.3: the resolved runner's device, device type, and connection,
+// the model connection's location, and the Coding repository each show as
+// their own line, built from data the dialog already has.
+async function shows_runner_model_and_repository_lines() {
+    const resolution = {
+        selection_source: "explicit",
+        profile_id: "profile-a",
+        profile_revision: 1,
+        selection_revision: 1,
+        selection_state: "explicit",
+        eligible: true,
+        queue_permitted: true,
+        reason: "available",
+        repository: {id: "repo-1", alias: "app", base_ref: "main"},
+    };
+    const api = {
+        list_profiles: async () => ({
+            profiles: [
+                profile("profile-a", "Coder", "Ann", "ann-laptop", "code", {
+                    host_kind: "server",
+                    observed_presence: "online",
+                    provider: {model_location: "private_network"},
+                }),
+            ],
+            count: 1,
+        }),
+        resolve_selection: async () => resolution,
+    };
+    const {dom, $, out, messages, flush} = build_harness(api);
+    try {
+        messages.set(1, {
+            id: 1,
+            locally_echoed: false,
+            type: "stream",
+            display_recipient: "general",
+            topic: "chat",
+        });
+        out.open_for_message(1, "profile-a");
+        await flush();
+        const details = $("#agent-task-details").text();
+        assert.match(details, /Runs on ann-laptop · Server · Connected/);
+        assert.match(details, /Model: private network/);
+        assert.match(details, /Repository: app · base main/);
+    } finally {
+        dom.window.close();
+        delete global.window;
+        delete global.document;
+    }
+}
+
+// Contract 13.3: the runner_offline selection label no longer promises the
+// task "starts when the runner comes back"; it says the task waits until
+// the device connects or its start deadline passes.
+async function shows_the_offline_device_label() {
+    const resolution = {
+        selection_source: "explicit",
+        profile_id: "profile-a",
+        profile_revision: 1,
+        selection_revision: 1,
+        selection_state: "explicit",
+        eligible: true,
+        queue_permitted: true,
+        reason: "runner_offline",
+        repository: null,
+    };
+    const api = {
+        list_profiles: async () => ({
+            profiles: [profile("profile-a", "Helper", "Ann", "ann-laptop")],
+            count: 1,
+        }),
+        resolve_selection: async () => resolution,
+    };
+    const {dom, $, out, messages, flush} = build_harness(api);
+    try {
+        messages.set(1, {
+            id: 1,
+            locally_echoed: false,
+            type: "stream",
+            display_recipient: "general",
+            topic: "chat",
+        });
+        out.open_for_message(1, "profile-a");
+        await flush();
+        assert.match(
+            $("#agent-task-status").text(),
+            /device is offline.*waits until the device connects or until its start deadline passes/,
+        );
+    } finally {
+        dom.window.close();
+        delete global.window;
+        delete global.document;
+    }
+}
+
+// Contract 13.3: with no source message, Create task stays disabled and the
+// dialog explains why instead of letting the person submit a task that is
+// guaranteed to fail.
+async function disables_submit_and_explains_when_there_is_no_source() {
+    const api = {
+        list_profiles: async () => ({profiles: [], count: 0}),
+        resolve_selection: async () => ({
+            selection_source: "explicit",
+            profile_id: null,
+            profile_revision: null,
+            selection_revision: null,
+            selection_state: "unset",
+            eligible: false,
+            queue_permitted: false,
+            reason: "cleared",
+            repository: null,
+        }),
+    };
+    const {dom, $, out, flush} = build_harness(api);
+    try {
+        out.open_for_message(-1);
+        await flush();
+        assert.equal($("#agent-task-submit").prop("disabled"), true);
+        assert.match(
+            $("#agent-task-source").text(),
+            /Open a conversation and select a message first/,
+        );
+    } finally {
+        dom.window.close();
+        delete global.window;
+        delete global.document;
+    }
+}
+
+// Contract 13.3: open_for_followup renames the dialog, notes which task it
+// follows, preselects that task's agent, and sends follows_job_id.
+async function opens_in_followup_mode_and_sends_follows_job_id() {
+    const resolution = {
+        selection_source: "explicit",
+        profile_id: "profile-a",
+        profile_revision: 1,
+        selection_revision: 1,
+        selection_state: "explicit",
+        eligible: true,
+        queue_permitted: true,
+        reason: "available",
+        repository: null,
+    };
+    let created_payload;
+    const api = {
+        list_profiles: async () => ({
+            profiles: [profile("profile-a", "Helper", "Ann", "ann-laptop")],
+            count: 1,
+        }),
+        resolve_selection: async () => resolution,
+        async create_job(payload) {
+            created_payload = payload;
+            return {job: {id: "aaaaaaaa-0000-4000-8000-000000000000", status: "queued"}};
+        },
+    };
+    const {dom, $, out, messages, flush} = build_harness(api);
+    try {
+        messages.set(7, {
+            id: 7,
+            locally_echoed: false,
+            type: "stream",
+            display_recipient: "general",
+            topic: "chat",
+        });
+        out.open_for_followup({
+            id: "ffffffff-1111-4111-8111-111111111111",
+            profile_id: "profile-a",
+            source_message_id: 7,
+            result: null,
+        });
+        await flush();
+        assert.equal($("#agent-task-heading").text(), "Create follow-up task");
+        assert.match($("#agent-task-source").text(), /Follows task #ffffffff/);
+        assert.equal($("#agent-task-profile").val(), "profile-a");
+
+        $("#agent-task-request").val("Continue the work").trigger("input");
+        submit_form(dom);
+        await flush();
+        assert.equal(created_payload.follows_job_id, "ffffffff-1111-4111-8111-111111111111");
+    } finally {
+        dom.window.close();
+        delete global.window;
+        delete global.document;
+    }
+}
+
 void labels_two_same_named_profiles_by_owner_and_device()
     .then(() => disables_coding_without_a_repository_and_reverts_the_choice())
     .then(() => sends_patch_delivery_with_the_resolved_repository())
     .then(() => shows_the_servers_rejection_reason_for_a_definite_failure())
     .then(() => keeps_the_idempotent_retry_message_for_an_unclear_failure())
+    .then(() => shows_runner_model_and_repository_lines())
+    .then(() => shows_the_offline_device_label())
+    .then(() => disables_submit_and_explains_when_there_is_no_source())
+    .then(() => opens_in_followup_mode_and_sends_follows_job_id())
     .then(() => process.stdout.write("Agent task composer regressions passed.\n"))
     .catch((error) => {
         console.error(error);

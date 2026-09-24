@@ -4,7 +4,10 @@ import * as api from "./agent_api.ts";
 import {
     agent_selection_label,
     job_status_label,
+    model_location_label,
     new_client_key,
+    runner_host_kind_label,
+    runner_presence_label,
     selection_origin_label,
 } from "./agent_ui_state.ts";
 import * as hash_util from "./hash_util.ts";
@@ -26,6 +29,8 @@ let key = "";
 let profiles: api.AgentProfile[] = [];
 let kind_dirty = false;
 let bound = false;
+// Set only by open_for_followup, and carried into the create_job payload.
+let follows_job_id: string | undefined;
 
 function identity(): string {
     return `${window.location.origin}:${realm.realm_url}:${current_user.user_id}`;
@@ -55,7 +60,70 @@ function source(): number | undefined {
 function profile(): api.AgentProfile | undefined {
     return profiles.find((item) => item.id === selected_id);
 }
-function render_choice(): void {
+// `model_location` is added to the provider schema by the settings-backend
+// release lane (contract 4.7 keeps that schema out of this lane's scope), so
+// this lane's own worktree does not type it yet. Read it defensively: this
+// picks it up once that lane merges, and shows nothing before that.
+function provider_model_location(provider: api.AgentProvider | null): string | undefined {
+    if (!provider) {
+        return undefined;
+    }
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- forward-compat read of a field this lane's schema does not type yet
+    const value = (provider as unknown as Record<string, unknown>)["model_location"];
+    return typeof value === "string" ? value : undefined;
+}
+function details_box(): HTMLElement | undefined {
+    const element = document.querySelector("#agent-task-details");
+    return element instanceof HTMLElement ? element : undefined;
+}
+// Contract 13.3: the resolved runner's device, device type, and connection,
+// the model connection's location, and, for Coding, the resolved
+// repository. Each line shows only when its data exists.
+function render_runner_summary(
+    item: api.AgentProfile | undefined,
+    repository: {alias: string; base_ref: string} | null | undefined,
+): void {
+    const box = details_box();
+    if (!box) {
+        return;
+    }
+    box.replaceChildren();
+    if (!item) {
+        return;
+    }
+    function add_line(container: HTMLElement, text: string): void {
+        const line = append_element(container, "p");
+        line.className = "agent-task-detail";
+        line.textContent = text;
+    }
+    if (item.runner) {
+        add_line(
+            box,
+            $t(
+                {defaultMessage: "Runs on {device} · {device_type} · {status}"},
+                {
+                    device: item.runner.name,
+                    device_type: runner_host_kind_label(item.runner.host_kind),
+                    status: runner_presence_label(item.runner.observed_presence),
+                },
+            ),
+        );
+    }
+    const model_location = model_location_label(provider_model_location(item.provider));
+    if (model_location) {
+        add_line(box, model_location);
+    }
+    if (selected_kind() === "code" && repository) {
+        add_line(
+            box,
+            $t(
+                {defaultMessage: "Repository: {alias} · base {branch}"},
+                {alias: repository.alias, branch: repository.base_ref},
+            ),
+        );
+    }
+}
+function render_choice(repository?: {alias: string; base_ref: string} | null): void {
     $("#agent-task-profile").val(selected_id);
     const item = profile();
     $("#agent-task-choice").text(
@@ -69,6 +137,7 @@ function render_choice(): void {
     if (!kind_dirty && item) {
         $("#agent-task-kind").val(item.default_mode === "code" ? "code" : "answer");
     }
+    render_runner_summary(item, repository);
 }
 // Reads a 4xx rejection's server message from a jQuery ajax failure, with no
 // type assertion: each step narrows the unknown value through `in` checks.
@@ -140,7 +209,7 @@ async function resolve(
             selection_origin = result.selection_source;
             selection_state = "explicit";
         }
-        render_choice();
+        render_choice(result.repository);
         // Show the general selection reason first: apply_repository_gate
         // overrides it only when it actually reverts a Coding choice, and
         // that message must be the one the person reads last.
@@ -165,7 +234,7 @@ function ensure_dialog(): void {
     const form = document.createElement("form");
     form.id = "agent-task-form";
     dialog.append(form);
-    append_element(form, "h2").textContent = $t({defaultMessage: "Create agent task"});
+    append_element(form, "h2").id = "agent-task-heading";
     append_element(form, "p").id = "agent-task-source";
     const profile_label = append_element(form, "label");
     profile_label.className = "settings-field-label";
@@ -175,6 +244,7 @@ function ensure_dialog(): void {
     profile_choice.id = "agent-task-profile";
     profile_choice.className = "settings_select bootstrap-focus-style";
     append_element(form, "p").id = "agent-task-choice";
+    append_element(form, "div").id = "agent-task-details";
     const kind_label = append_element(form, "label");
     kind_label.className = "settings-field-label";
     kind_label.setAttribute("for", "agent-task-kind");
@@ -204,6 +274,7 @@ function ensure_dialog(): void {
     const actions = append_element(form, "div");
     actions.className = "agent-actions";
     const submit_button = append_element(actions, "button");
+    submit_button.id = "agent-task-submit";
     submit_button.className = "action-button action-button-solid-brand";
     submit_button.setAttribute("type", "submit");
     submit_button.textContent = $t({defaultMessage: "Create task"});
@@ -304,6 +375,7 @@ async function submit(): Promise<void> {
                       base_ref: resolved.repository.base_ref,
                   }
                 : {delivery_target: "answer"}),
+            ...(follows_job_id ? {follows_job_id} : {}),
         });
         if (current(token) && revision === form_revision && key === intent_key) {
             notice(
@@ -352,7 +424,11 @@ async function submit(): Promise<void> {
         }
     }
 }
-export function open_for_message(id: number, profile_id = ""): void {
+export function open_for_message(
+    id: number,
+    profile_id = "",
+    options?: {follows_job_id?: string; heading?: string; source_note?: string},
+): void {
     ensure_dialog();
     visit += 1;
     actor = identity();
@@ -364,11 +440,15 @@ export function open_for_message(id: number, profile_id = ""): void {
     key = "";
     kind_dirty = false;
     profiles = [];
+    follows_job_id = options?.follows_job_id;
+    $("#agent-task-heading").text(options?.heading ?? $t({defaultMessage: "Create agent task"}));
     $("#agent-task-request").val("");
     $("#agent-task-kind").val("answer");
     const message = source_id === undefined ? undefined : message_store.get(source_id);
+    const has_source = Boolean(message && !message.locally_echoed);
+    $("#agent-task-submit").prop("disabled", !has_source);
     const $source_box = $("#agent-task-source").empty();
-    if (message && !message.locally_echoed) {
+    if (message && has_source) {
         $(document.createElement("a"))
             .attr("href", hash_util.by_conversation_and_time_url(message))
             .text($t({defaultMessage: "Source message {id}"}, {id: message.id}))
@@ -389,11 +469,17 @@ export function open_for_message(id: number, profile_id = ""): void {
                     )
                   : $t({defaultMessage: "Direct message"});
         $(document.createElement("span")).text(` · ${destination}`).appendTo($source_box);
+        if (options?.source_note) {
+            $(document.createElement("p"))
+                .addClass("agent-task-follows-note")
+                .text(options.source_note)
+                .appendTo($source_box);
+        }
     } else {
         $source_box.text(
             $t({
                 defaultMessage:
-                    "Choose a message that finished sending. The task starts from that message.",
+                    "Open a conversation and select a message first. The task starts from that message.",
             }),
         );
     }
@@ -446,6 +532,32 @@ export function open_for_message(id: number, profile_id = ""): void {
         render_choice();
         void resolve(token, form_revision);
     })();
+}
+// `result` is typed `unknown` (its shape belongs to the job-backend release
+// lane), so this reads `message_id` defensively instead of asserting it.
+function result_message_id(result: unknown): number | undefined {
+    if (typeof result !== "object" || result === null) {
+        return undefined;
+    }
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- `result`'s shape belongs to the job-backend release lane
+    const value = (result as Record<string, unknown>)["message_id"];
+    return typeof value === "number" ? value : undefined;
+}
+// Contract 13.3: a follow-up task starts from the followed task's result
+// message when it has one, else from its own source message, with that
+// task's agent preselected and its ID carried into the new task's payload.
+export function open_for_followup(job: {
+    id: string;
+    profile_id: string;
+    source_message_id: number | null;
+    result?: unknown;
+}): void {
+    const source_message_id = result_message_id(job.result) ?? job.source_message_id ?? -1;
+    open_for_message(source_message_id, job.profile_id, {
+        follows_job_id: job.id,
+        heading: $t({defaultMessage: "Create follow-up task"}),
+        source_note: $t({defaultMessage: "Follows task #{id}"}, {id: job.id.slice(0, 8)}),
+    });
 }
 export function initialize(): void {
     if (bound) {

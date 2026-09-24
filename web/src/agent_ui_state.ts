@@ -165,7 +165,7 @@ export function agent_selection_label(reason: string): string {
         case "runner_offline":
             return $t({
                 defaultMessage:
-                    "The agent runner is offline. You can create the task now. It starts when the runner comes back.",
+                    "The agent's device is offline. You can create the task now. It waits until the device connects or until its start deadline passes.",
             });
         case "runner_unknown":
             return $t({
@@ -383,6 +383,53 @@ export function dispatch_receipt_reason_label(reason: string): string | undefine
                 defaultMessage:
                     "You cannot give tasks to this agent. Ask an organization administrator for access.",
             });
+        default:
+            return undefined;
+    }
+}
+
+// Maps a runner's host_kind to the composer's device-type word (contract
+// 12.4). This lane's own worktree branches before the settings-backend lane
+// adds `web/src/agent_settings_labels.ts`, so the composer keeps this small
+// copy of the one row it needs instead of importing that file.
+export function runner_host_kind_label(host_kind: string): string {
+    switch (host_kind) {
+        case "workstation":
+            return $t({defaultMessage: "Personal computer"});
+        case "server":
+            return $t({defaultMessage: "Server"});
+        default:
+            return $t({defaultMessage: "Device type not set"});
+    }
+}
+
+// Maps a runner's observed_presence to the composer's connection word
+// (contract 12.4), for the same reason as runner_host_kind_label above.
+export function runner_presence_label(presence: string): string {
+    switch (presence) {
+        case "online":
+            return $t({defaultMessage: "Connected"});
+        case "offline":
+            return $t({defaultMessage: "Offline"});
+        case "revoked":
+            return $t({defaultMessage: "Removed"});
+        default:
+            return $t({defaultMessage: "Status unknown"});
+    }
+}
+
+// Maps a provider's model_location to the composer's short label (contract
+// 12.4), for the same reason as runner_host_kind_label above. Returns
+// undefined for an absent or unrecognized value, so the caller shows
+// nothing rather than a guess.
+export function model_location_label(value: string | undefined): string | undefined {
+    switch (value) {
+        case "runner_local":
+            return $t({defaultMessage: "Model: on the device"});
+        case "private_network":
+            return $t({defaultMessage: "Model: private network"});
+        case "external":
+            return $t({defaultMessage: "Model: external service"});
         default:
             return undefined;
     }
