@@ -4,7 +4,7 @@
 
 **Goal:** Complete all three agent specifications, verify the supported Linux modes, and move completed specifications to `internals/docs/done/`.
 
-**Architecture:** Django owns identity, permissions, configuration, jobs, leases, approvals, and publication. A separate TypeScript runner owns local execution. Rootless containers isolate project code and native agents. PostgreSQL stores the durable journal.
+**Architecture:** Django owns identity, permissions, configuration, jobs, leases, approvals, and publication. A separate TypeScript runner owns local execution, on two lanes. The **fast lane** (`answer`, `manage`) runs an `@anthropic-ai/sdk` loop in the runner process, with no container. The **code lane** (`code`) keeps rootless containers to isolate project code and native agents. PostgreSQL stores the durable journal. See the [agent SDK decision](../../../internals/docs/agent-sdk-decision.md) and the [fast lane spec](../../../internals/docs/spec/2026-09-24-agent-fast-lane.md).
 
 **Tech Stack:** Existing Django, PostgreSQL, TypeScript, jQuery, Handlebars, and RabbitMQ. The runner uses pinned Node and ACP packages.
 
@@ -17,9 +17,9 @@
 ## Global Constraints
 
 - Keep Grow Team on Zulip. Do not migrate the chat platform.
-- Support Linux first. Certify one installed ACP agent and one real model endpoint.
-- Support Chat Completions and Responses with separate wire schemas.
-- Use one selected endpoint runtime. Record the Buzz comparison before selecting it.
+- Support Linux first. Two lanes: **[fast lane]** certify the Anthropic Messages connection through gate F0. **[code lane]** certify one installed ACP agent and one real model endpoint.
+- **[code lane]** Support Chat Completions and Responses with separate wire schemas. **[fast lane]** Use the `anthropic_messages` dialect through `@anthropic-ai/sdk`.
+- **[code lane]** Use one selected endpoint runtime. Record the Buzz comparison before selecting it. No fallback between lanes.
 - Keep all member interactions in the browser. A closed tab must not stop a job.
 - Do not modify Hermes services, settings, data, or containers.
 - Do not modify the user's active repository checkout during an agent job.
@@ -42,10 +42,11 @@ Pilot limits from the specifications:
 | Refresh credential lifetime    | 30 days; rotate on use                                      |
 | HTTP wait                      | At most 25 seconds                                          |
 | Heartbeat / lease              | 15 / 90 seconds                                             |
-| Active jobs                    | 1 per runner; 2 per realm                                   |
+| Job claim (fast lane)          | `agent_job_ready` event (target < 0.5 s); 2 s polling fallback if the event queue disconnects |
+| Active jobs                    | Code lane: 1 per runner; 2 per realm. Fast lane: 4 per runner (default); 8 per realm |
 | Queued jobs                    | 20 per profile; 100 per realm                               |
 | Queue start deadline           | 24 hours                                                    |
-| Active job duration            | 60 minutes; configured maximum 120 minutes                  |
+| Active job duration            | Code lane: 60 minutes; configured maximum 120 minutes. Fast lane: 3 minutes for `answer`, 15 minutes for `manage` |
 | Model tool rounds              | 40                                                          |
 | Shell timeout                  | 2 minutes; approved checks at most 20 minutes               |
 | Transport retries              | 2 per operation                                             |
@@ -88,16 +89,18 @@ type AttemptDescriptor = LeaseIdentity & {
     profile_revision: number;
     descriptor_digest: string;
     lease_expires_at: string;
-    job_kind: "answer" | "code";
+    job_kind: "answer" | "code" | "manage";
     delivery_target: "answer" | "patch" | "draft_pr";
     request: string;
     runner_id: string;
-    adapter: {id: string; version: string; mode: "acp" | "endpoint"};
+    lane: "fast" | "code"; // v2: server picks the lane from job_kind
+    adapter: {id: string; version: string; mode: "acp" | "endpoint"} | null; // code lane only
     provider: Record<string, unknown> | null;
     repository: Record<string, unknown> | null;
     policy: Record<string, unknown>;
     budget: Record<string, number>;
     context_refs: Record<string, unknown>[];
+    context_bundle: Record<string, unknown> | null; // v2: fast lane context bundle, assembled at claim
     inputs: Record<string, unknown>[];
     checkpoint: Record<string, unknown> | null;
 };
@@ -124,6 +127,10 @@ Backend modules have these responsibilities:
 | `zerver/views/agents.py`, `agent_runner.py`         | Human and device API boundaries                                                           |
 
 ## Task 0: Runtime decision and isolated test environment
+
+History 2026-09-24: this task decided the runtime for what is now the **code lane**
+only. The fast lane runtime decision is separate; see the
+[agent SDK decision](../../../internals/docs/agent-sdk-decision.md).
 
 **Files:** `internals/docs/agent-runtime-decision.md`; `tools/grow-team/test-environment/`; runner conformance fixtures.
 
@@ -297,7 +304,16 @@ assert.equal(await processExists(grandchildPid), false);
 assert.equal(await hashUserCheckout(), originalUserCheckoutHash);
 ```
 
-## Task 7: ACP and the selected endpoint runtime
+## Task 7: ACP and the selected endpoint runtime **[code lane]**
+
+Status 2026-09-24: this task covers the **code lane** only (job kind `code`). The
+**fast lane** (`answer`, `manage`) does not use ACP, an endpoint runtime, or a
+container; it runs an `@anthropic-ai/sdk` loop in the runner process. That work is
+its own task set under the
+[fast lane spec](../../../internals/docs/spec/2026-09-24-agent-fast-lane.md),
+covering: protocol v2 and the `agent_job_ready` event (FL-01–FL-08), the SDK loop
+and model connection (FL-09–FL-15), draft message streaming (FL-16–FL-22), and the
+`operations/run` read-tool catalog (FL-23–FL-27).
 
 **Files:** runner ACP/runtime/provider/broker modules and conformance fixtures.
 
@@ -406,14 +422,23 @@ assert.equal(currentDraftText(), "");
 
 ## Task 11: Full acceptance, real runtime certification, and API documentation
 
+Status 2026-09-24: this task now covers two lanes. **[code lane]** Certify one
+installed ACP agent and one real endpoint as before. **[fast lane]** Certify the
+Anthropic Messages connection through gate F0 and produce evidence for
+FL-01–FL-30, SD-01–SD-13, and LR-01–LR-11 in the
+[bukti penerimaan](../../../internals/docs/agent-acceptance.md). See the
+[fast lane](../../../internals/docs/spec/2026-09-24-agent-fast-lane.md),
+[streaming delivery](../../../internals/docs/spec/2026-09-24-agent-streaming-delivery.md),
+and [latency and reliability](../../../internals/docs/spec/2026-09-24-agent-latency-and-reliability.md) specs.
+
 **Files:** acceptance matrix, backend/frontend/runner tests, OpenAPI/changelog, runtime decision and certification documents.
 
-**Interfaces:** Produce evidence for every AT-01–AT-36, AF-01–AF-38, and AS-01–AS-32 requirement on supported modes.
+**Interfaces:** Produce evidence for every AT-01–AT-36, AF-01–AF-38, AS-01–AS-32, FL-01–FL-30, SD-01–SD-13, and LR-01–LR-11 requirement on supported lanes.
 
 - [ ] Test database crash windows, row-lock races, expiry, ACL revocation, and publication deduplication.
 - [ ] Test fake-provider failure modes and real Linux process boundaries.
-- [ ] Certify one installed ACP agent and one real endpoint with bounded synthetic fixture tasks.
-- [ ] Exercise browser-to-Django-to-background-runner flows in both modes without a desktop app.
+- [ ] **[code lane]** Certify one installed ACP agent and one real endpoint with bounded synthetic fixture tasks. **[fast lane]** Certify the Anthropic Messages connection through gate F0 (`POST /v1/messages`, streaming, `tool_use`).
+- [ ] Exercise browser-to-Django-to-background-runner flows on both lanes without a desktop app.
 - [ ] Use owner, authorized member, unauthorized member, private channel, and isolated fixture repository.
 - [ ] Verify tab-close persistence, explicit follow-up, cancel, offline queue recovery, and cross-realm denial.
 - [ ] Verify shared defaults with two browser users, stale revisions, explicit choices, offline runners, and revoked grants.
@@ -430,6 +455,7 @@ Acceptance mapping:
 | Tasks 5–7   | AT-04–10, AT-15–20, AT-27–29, AT-32, AT-34; AF-14–18, AF-25–32, AF-37–38 |
 | Task 8      | AT-24–26, AT-30, AT-32; AF-30–32                                         |
 | Tasks 9–10  | AT-33, AT-36; AF-01–06, AF-19–26, AF-28–37; AS-01–32                     |
+| Fast lane (spec work under Task 7) | FL-01–FL-30; SD-01–SD-13; LR-01–LR-11             |
 | Tasks 11–12 | Every preceding row, AT-35, production and recovery evidence             |
 
 ## Task 12: Release, recovery proof, and specification completion
@@ -455,5 +481,5 @@ Acceptance mapping:
 - Future platform migration, hosted runners, marketplace, billing, multi-agent execution, Windows, merge, and deployment tools remain outside initial scope.
 - Rootless test services must be dedicated to this work. Do not reuse another project's database or change host services.
 - The feature flag uses a new realm-scoped settings record to keep the integration isolated from existing chat settings.
-- Test fixtures may use synthetic principals and providers. Real ACP and endpoint certification remain separate, mandatory gates.
+- Test fixtures may use synthetic principals and providers. **[code lane]** Real ACP and endpoint certification remain separate, mandatory gates. **[fast lane]** Real Anthropic Messages certification through gate F0 is a separate, mandatory gate.
 - Do not claim success for a missing real-runtime or recovery gate. Continue independent work and record the exact remaining condition.

@@ -1,10 +1,15 @@
 # Contained runtime
 
-Task 7 supplies the endpoint runtime, the pinned ACP adapter, and the host model broker.
+This document covers the **code lane** only (job kind `code`): the endpoint runtime,
+the pinned ACP adapter, and the host model broker in a container. The **fast lane**
+(job kinds `answer` and `manage`) runs `@anthropic-ai/sdk` in the runner process
+without a container. See the
+[agent SDK decision](../../internals/docs/agent-sdk-decision.md) and the
+[fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md).
 The CLI uses `RuntimeSupervisor`. It keeps model turns outside the control callback queue.
 Task 8 supplies remote Git effects and final publication. Task 11 certifies real providers and coding readiness.
 
-## Install and build
+## Install and build **[code lane]**
 
 Use Node 24.18.0 on Linux x64. Install the exact production dependencies from `package-lock.json`.
 
@@ -28,23 +33,27 @@ The adapter patch accepts only the recorded upstream bundle hash. Each patch tar
 Launch verifies the patched bundle and policy hashes. Keep all upstream licenses and notices.
 Rebuild the image when the patch, policy, package lock, or compiled runtime changes.
 
-Create owner-only `runtime.json` in the runner state directory. Set these fields:
+**[code lane]** Create owner-only `runtime.json` in the runner state directory.
+This file configures the code lane container only; the fast lane has no container
+and uses a separate `model-connection.json` (see the runner README). Set these
+`runtime.json` fields:
 
 - `owner_approved`: explicit local approval, as `true`.
 - `docker`: the approved local Docker executable.
 - `endpoint`: `unix:///run/user/UID/docker.sock` for the current user.
 - `images`: immutable IDs for the approved model and tool images.
-- `model_image`: the approved model image ID.
+- `model_image`: the approved model image ID. This field selects the code lane container image only; it has no fast lane equivalent.
 
 Register the matching owner catalog through the existing CLI.
-Use adapter version `0.1.0` for endpoint mode and `1.12.0` for ACP mode.
-ACP requires a Responses provider. Endpoint mode supports Chat Completions and Responses.
+Use adapter version `0.1.0` for endpoint dialect and `1.12.0` for ACP mode. Both
+dialects run in the code lane.
+ACP requires a Responses provider. Endpoint dialect supports Chat Completions and Responses.
 Missing installation approval, dependency pins, catalog approval, or chat evidence prevents job claims.
 Setup probes can run before chat readiness exists. Each probe needs a current server setup grant.
 A probe reports five setup conditions as a plain requirement instead of an error: a missing or unsupported adapter, a required or unclear adapter sign-in, and an unapproved sandbox. Each requirement names one action: install the adapter, sign in the adapter, or approve the sandbox.
 The runtime does not report real coding certification from synthetic fixtures.
 
-## Authority and containment
+## Authority and containment **[code lane]**
 
 The host broker owns provider credentials. The model container gets no provider, runner, or Git credential.
 Each model container has network disabled, a read-only root, fixed resource limits, and no project mount.
@@ -68,13 +77,21 @@ Each connection uses a validated address. HTTPS verifies the approved hostname a
 The broker fixes the origin, route, model, token limit, and authorization header.
 It rejects redirects and remote media. It has no discovery or fallback-provider path.
 
-The endpoint loop assembles the complete response before any tool effect.
+**[code lane]** The endpoint loop assembles the complete response before any tool effect.
 A malformed or partial stream cannot dispatch a tool. Tool calls require catalog, argument, and identity validation.
 Answer mode exposes only approved read tools. Tools require durable local intent and consumed server operation authority.
 The server operation hash remains distinct from the raw argument digest.
 Tool and provider reservations survive journal restart. Uncertain effects and uploads require explicit recovery.
 
+**[fast lane]** The same rule applies to the SDK message stream: the runner
+assembles the complete response before any tool effect. A partial `input_json`
+delta never dispatches a tool. Read tools go through `POST /runner/operations/run`
+in one request; team tools still use `propose` and `execute`. See the
+[fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md) section 6.5.
+
 Known secrets are removed before shared artifact retention, checksums, answers, and tool output receipts.
+The same filter runs before every fast lane draft snapshot (`result.draft`), with a
+64-character trailing buffer so a secret split across two deltas does not leak.
 Secret-bearing tool arguments are rejected. Replacing their content could change the requested operation.
 Reasoning content is discarded. Adapter stderr and provider error bodies are not retained as diagnostics.
 
@@ -82,7 +99,7 @@ Reasoning content is discarded. Adapter stderr and provider error bodies are not
 
 The Coordinator serializes events, operations, uploads, checkpoints, context, and input callbacks.
 It refreshes the monotonic job version without changing immutable attempt identity.
-Long model turns do not block control polling. Lease loss stops both contained process classes.
+**[code lane]** Long model turns do not block control polling. Lease loss stops both contained process classes.
 Setup checks observe the existing claim and grant. They cannot extend a grant or claim another lease.
 The independent watchdog discovers model and tool containers through the same installation labels.
 Stopped containers, volume metadata, snapshots, socket records, and artifacts remain available for inspection.
@@ -92,13 +109,24 @@ The runner records pending input before dispatch. It records the runtime outcome
 The input cursor advances only after that acknowledgement. Checkpoints use the acknowledged cursor.
 An uncertain dispatch cannot replay automatically. A lost acknowledgement can use the durable runtime receipt through input reconciliation.
 
-Before result preparation, the runtime polls and drains accepted input. The model session stays available until the next control or heartbeat poll closes the input boundary.
+**[code lane]** Before result preparation, the runtime polls and drains accepted input. The model session stays available until the next control or heartbeat poll closes the input boundary.
 That poll marks a valid prepared result as stopping only when no accepted input remains unapplied.
 Input accepted before this boundary invalidates the result and keeps execution active. Input after the boundary is rejected.
 Confirmed stop evidence then permits result publication. Publication still requires empty containment.
+
+**[fast lane]** Publication does not wait for confirmed stop evidence or empty
+containment; there is no container. The server publishes the result immediately
+after `result.prepared`. The runner sends `attempt.stopped` right after the loop
+ends, but publication has already happened by then. See the
+[fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md) section 8.1.
 A later input wakes the queue. The original active deadline remains in force.
 The runner stops on cancellation or deadline. A stopped interrupted attempt requires explicit recovery.
-`attemptDeadline(d)` derives the attempt ceiling from the lease expiry and the active-second budget, minus a five-second margin. `execute()` uses the smaller of that ceiling and the local budget deadline for the guard, the model authority, and the abort timer. Every socket request to the tool and model broker waits for that same remaining time, with no separate margin for a tool call. The sandbox shell timeout still bounds each command.
+**[code lane]** `attemptDeadline(d)` derives the attempt ceiling from the lease expiry and the active-second budget, minus a five-second margin. `execute()` uses the smaller of that ceiling and the local budget deadline for the guard, the model authority, and the abort timer. Every socket request to the tool and model broker waits for that same remaining time, with no separate margin for a tool call. The sandbox shell timeout still bounds each command.
+
+**[fast lane]** Timeout ceilings come from `model_policy` per job kind instead:
+`idle_timeout_s` (30), `turn_timeout_s` (120 for `answer`, 180 for `manage`), and
+`attempt_timeout_s` (180 for `answer`, 900 for `manage`). See the
+[fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md) section 6.3.
 
 Each published repository checkpoint retains a local immutable snapshot under the owner-only runner state directory.
 Recovery accepts only the server-selected checkpoint with matching job, source attempt, repository policy, base commit, and complete checkpoint record.
@@ -114,6 +142,10 @@ Inspection clears that block only after it confirms no owned active containers.
 Hard monetary caps fail closed until reviewed pricing reservations exist.
 Token reservations use conservative input byte counts and fixed output ceilings.
 An uncertain provider request retains its reservation. Only explicit 429 or 5xx responses permit bounded retries.
+**[fast lane]** The `maxRetries` option on the `@anthropic-ai/sdk` client must match
+this retry policy: retry only on 408, 409, 429, 5xx, and connection errors, honor
+`retry-after`, and never retry once the first delta has reached chat. See the
+[fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md) section 6.3.
 
 Run isolated integration checks with the reviewed image tags:
 

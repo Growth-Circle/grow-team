@@ -52,13 +52,27 @@ Checkpoint payloads include source attempt, input cursor, next step, context IDs
 An uncertain upload cannot create a local substitute for a server receipt.
 Operation proposals and consumption use the current serialized job version and the returned `operation_hash`.
 
-## Team tools (manage jobs)
+## Team tools (manage jobs) **[fast lane]**
 
-A manage job has no repository and no workspace. Its policy stays read-only (`context.read` only);
-the `team.manage` authority that reaches the 11 catalog tools is a grant the server checks at propose
-and execute, not an entry in the attempt policy. `services/grow-agent-runner/src/team-tools.ts` builds
-the tool catalog straight from `protocol/protocol-v1.schema.json`'s own input records, so the fields a
-model sees can never drift from the server's definition.
+A `manage` job has no repository and no workspace. It runs on the fast lane. Its
+initial context no longer comes from a `context.read` propose/consume round trip;
+the server assembles the **context bundle** inside claim and returns it on
+`ClaimResponse.attempt.context_bundle` (`schema_version` 2). Further reads during
+the attempt go through `POST /runner/operations/run`, which runs one read tool in
+a single request and returns its result in the same response; a repeated
+`operation_id` returns the stored result. That endpoint rejects any tool that has
+an effect. The `team.manage` authority that reaches the 11 catalog tools is a
+grant the server checks at propose and execute, not an entry in the attempt
+policy. `services/grow-agent-runner/src/team-tools.ts` builds the tool catalog
+straight from `protocol/protocol-v1.schema.json`'s own input records, so the
+fields a model sees can never drift from the server's definition.
+
+While the model writes, the runner sends `result.draft` events (`draft_seq`,
+`text`, `final: false`) at most once per second; the server edits one draft
+message in place from these snapshots. See the
+[fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md)
+sections 5.3, 5.4, 7.1, and 8.2, and the
+[streaming delivery spec](../../internals/docs/spec/2026-09-24-agent-streaming-delivery.md).
 
 | Route                                        | Request                                                                    | Response and retry contract                                                                                |
 | --------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |

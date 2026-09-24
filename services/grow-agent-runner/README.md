@@ -4,10 +4,13 @@ The runner connects to Grow Team through outbound HTTPS requests. It opens no in
 This package uses a separate npm lockfile. It does not use the browser dependency tree.
 
 The distribution supports Linux x64 with Node 24.18.0.
-`run` starts the coordinator and contained runtime supervisor.
+`run` starts the coordinator and both runtime lanes: the in-process fast lane
+(`answer`, `manage`) and the contained code lane (`code`). See the
+[agent SDK decision](../../internals/docs/agent-sdk-decision.md) and the
+[fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md).
 The runner checks local approval, current server authority, and retained state before execution.
-Setup probes measure capabilities. Coding evidence requires separate owner review and installation.
-A probe result can report one setup requirement instead of an error: install the adapter, sign in the adapter, or approve the sandbox. See [RUNTIME.md](RUNTIME.md) for the deadline rule and the full requirement list.
+**[code lane]** Setup probes measure adapter capabilities. Coding evidence requires separate owner review and installation.
+**[code lane]** A probe result can report one setup requirement instead of an error: install the adapter, sign in the adapter, or approve the sandbox. See [RUNTIME.md](RUNTIME.md) for the deadline rule and the full requirement list.
 `doctor` reports local checks; it does not certify a provider or profile.
 
 ## Development
@@ -21,8 +24,9 @@ node dist/cli.js doctor
 node dist/cli.js help
 ```
 
-The lockfile pins ACP SDK 1.5.0, Codex ACP 1.12.0, Codex 0.154.0, and Zod 4.6.5.
+The lockfile pins ACP SDK 1.5.0, Codex ACP 1.12.0, Codex 0.154.0, and Zod 4.6.5 for the code lane.
 It also pins the Linux x64 Codex payload and compiler dependencies.
+For the fast lane, the lockfile pins `@anthropic-ai/sdk` at an exact version.
 `npm ci` verifies package archive integrity. Tests use the built JavaScript.
 
 ## Connect a device
@@ -102,13 +106,20 @@ Catalogs contain adapter identities and pinned image/toolchain digests. They do 
 The owner supplies each revision. An exact replay preserves readiness; changed metadata requires a newer revision.
 Browser profile settings cannot create local commands or host paths.
 
-Create owner-only `runtime.json` in the same runner state directory before `run`.
+**[code lane]** Create owner-only `runtime.json` in the same runner state directory before `run`.
 Set `owner_approved` to `true`, `docker` to the approved executable, and `endpoint` to the current rootless Docker socket.
 Set `images` to the approved immutable model and tool image IDs.
-Set `model_image` to one image ID in that list.
+Set `model_image` to one image ID in that list. `model_image` applies to the code lane only.
 The runtime verifies Node, locked adapter dependencies, image approval, and the frozen containment installation.
 The catalog must report the matching adapter and sandbox image, toolchain digest, and revision.
 A changed catalog needs a new revision. Update the profile sandbox selection after that report.
+
+**[fast lane]** Create owner-only `model-connection.json` in the same runner state
+directory before `run`. Set `api` to the fixed value `anthropic_messages`, `base_url`
+to the Anthropic Messages endpoint, `api_key` to the provider key, `model` to the
+model ID, and `max_output` to the owner-approved `max_tokens` ceiling. The runner
+keeps this file at mode 0600 and never sends `api_key` to the server. See the
+[fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md) section 6.2.
 
 Use this owner sequence for coding work:
 
@@ -195,6 +206,9 @@ Local receipts require the stopped latest attempt and a valid workspace observat
 All receipts remain immutable. Recovery does not resume a job or authorize another effect.
 
 Idle polling sends an empty-lease heartbeat after containment and credential checks. Presence does not certify runtime readiness.
+For fast lane jobs, the `agent_job_ready` event is the primary wake signal. Idle
+polling is a fallback claim path for when the event queue disconnects; it is not
+the primary path. See the [fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md) section 5.1.
 The coordinator checks controls, heartbeats, and lease expiry. A separate expiry timer stops effects during a blocked request.
 Transport or credential failure confirms local containment before polling backoff or reconnect. Current authority must still be checked at each broker effect.
 Reserved environment values are not inherited. Only the fixed owner-approved environment allowlist reaches adapters.
@@ -235,7 +249,7 @@ grow-agent titen titen.json
 }
 ```
 
-`grow-agent run` resolves the lowercase Git origin and performs one bounded Titen compile for each logical job. It records the requester, project reference, and runner scope before memory network access. It does not pass a visibility argument to compile. It adds returned text as untrusted context. A missing configuration, an originless repository, or a failed memory request adds no context. Patch-only jobs still run.
+`grow-agent run` resolves the lowercase Git origin and performs one bounded Titen compile for each logical job. It records the requester, project reference, and runner scope before memory network access. It does not pass a visibility argument to compile. It adds returned text as untrusted context. A missing configuration, an originless repository, or a failed memory request adds no context. Patch-only jobs still run. For fast lane jobs, the compile call carries a short deadline so it cannot delay the job past its `attempt_timeout_s` in `model_policy`; a compile that misses the deadline adds no context.
 
 The host creates the candidate from the verified tree. It proposes the exact push and draft PR operations. It waits for approval with controls active. It uses one explicit expected-head lease and reconciles a lost receipt before another effect. If accepted input arrives before remote dispatch, it records a cancelled no-effect operation before another candidate. The model and project containers do not receive remote Git or Titen credentials.
 

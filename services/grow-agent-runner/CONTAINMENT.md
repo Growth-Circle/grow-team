@@ -1,5 +1,10 @@
 # Linux containment API
 
+Status 2026-09-24: this contract covers the **code lane** only. The fast lane
+(`answer`, `manage`) runs without a container. See the
+[agent SDK decision](../../internals/docs/agent-sdk-decision.md) and the
+[fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md).
+
 Task 6 supplies the tool boundary. It does not enable native agents or report `code_ready`.
 
 `RootlessSandbox.open` requires the owner-approved local Docker executable, endpoint, state directory, and immutable image IDs. The endpoint must be `unix:///run/user/<uid>/docker.sock`. The rootless engine must use seccomp and cgroup v2. The installation identity remains stable across runner credential changes.
@@ -35,11 +40,17 @@ An edit or shell operation clears the server tree, including a read-only shell. 
 
 For restart recovery, call `inspect` and stop each returned scope before accepting work. Container and volume labels bind resources to one installation. Stop operations also verify immutable container IDs and scope labels. PID observations include kernel start times.
 
-## Probe authority
+## Probe authority **[code lane]**
 
 `runProbe` requires a separate `ProbeAuthority`: `setup_operation_id`, `assertCurrent`, `deadline`, and `signal`. It uses a distinct `probe-<setup_operation_id>` scope. It mounts no project or provider socket. It has the same resource limits and watchdog.
 
 Task 7 must supply the real setup grant and control revocation checks. The bare Task 5 `Supervisor.probe(descriptor)` interface does not authorize process execution. Do not synthesize a job lease for setup. Task 7 must also integrate provider request revocation and the separate model container.
+
+**[fast lane]** The fast lane probe is not this container probe. Gate F0 sends a
+direct `POST /v1/messages` request with streaming and one `tool_use` round trip to
+the configured Anthropic Messages endpoint, with no container and no project
+mount. See the
+[fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md) sections 6.2 and 12.
 
 ## Limits and retained evidence
 
