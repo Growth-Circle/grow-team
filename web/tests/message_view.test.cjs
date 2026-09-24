@@ -26,6 +26,7 @@ const message_view = zrequire("message_view");
 const narrow_title = zrequire("narrow_title");
 const recent_view_util = zrequire("recent_view_util");
 const inbox_util = zrequire("inbox_util");
+const task_board_data = zrequire("task_board_data");
 const {set_current_user, set_realm} = zrequire("state_data");
 const user_groups = zrequire("user_groups");
 const {initialize_user_settings} = zrequire("user_settings");
@@ -1098,6 +1099,10 @@ run_test("narrow_compute_title", () => {
     assert.equal(narrow_title.compute_narrow_title(filter), "translated: Inbox");
 
     inbox_util.set_visible(false);
+    task_board_data.set_visible(true);
+    assert.equal(narrow_title.compute_narrow_title(filter), "translated: Task board");
+
+    task_board_data.set_visible(false);
     filter = new Filter([{operator: "in", operand: "home"}]);
     assert.equal(narrow_title.compute_narrow_title(filter), "translated: Combined feed");
 

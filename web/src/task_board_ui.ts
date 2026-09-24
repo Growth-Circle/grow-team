@@ -22,18 +22,12 @@ import * as timerender from "./timerender.ts";
 import * as ui_report from "./ui_report.ts";
 import * as views_util from "./views_util.ts";
 
-let is_task_board_visible = false;
 let hide_other_views_callback: (() => void) | undefined;
 let open_task_id: number | undefined;
 const history_by_task_id = new Map<number, TaskHistoryEntry[]>();
 
-export function is_visible(): boolean {
-    return is_task_board_visible;
-}
-
-function set_visible(value: boolean): void {
-    is_task_board_visible = value;
-}
+export const is_visible = task_board_data.is_visible;
+const set_visible = task_board_data.set_visible;
 
 function day_label(timestamp: number): string {
     return timerender.get_localized_date_or_time_for_format(

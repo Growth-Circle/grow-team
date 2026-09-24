@@ -185,6 +185,18 @@ export function set_filter(filter: TaskFilter): void {
     current_filter = filter;
 }
 
+// The visibility flag lives here rather than in task_board_ui so that
+// narrow_title can read it without an import cycle through views_util.
+let is_task_board_visible = false;
+
+export function is_visible(): boolean {
+    return is_task_board_visible;
+}
+
+export function set_visible(value: boolean): void {
+    is_task_board_visible = value;
+}
+
 function passes_filter(task: Task, my_user_id: number | undefined): boolean {
     switch (current_filter) {
         case FILTERS.MINE:
