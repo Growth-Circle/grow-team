@@ -24,7 +24,7 @@ class PairingPreview(Request):
 
 class TeamInstructionsUpdate(Request):
     expected_revision: p.Positive
-    text: Annotated[str, Field(max_length=p.INSTRUCTIONS_MAX_CHARS)] = ""
+    text: p.InstructionsText = ""
 
 
 ProviderStoredText = Annotated[str, Field(min_length=1, max_length=200)]
@@ -61,7 +61,7 @@ class ProfileCreate(Request):
     runner_id: UUID
     name: p.Text
     description: Annotated[str, Field(max_length=2000)] = ""
-    instructions: Annotated[str, Field(max_length=p.INSTRUCTIONS_MAX_CHARS)] = ""
+    instructions: p.InstructionsText = ""
     adapter_id: Annotated[str, Field(min_length=1, max_length=80)]
     adapter_version: Annotated[str, Field(min_length=1, max_length=100)]
     mode: Literal["acp", "endpoint"] = "acp"
@@ -131,7 +131,9 @@ class ProfileUpdate(Request):
     expected_revision: p.Positive
     name: p.Text
     description: Annotated[str, Field(max_length=2000)] = ""
-    instructions: Annotated[str, Field(max_length=p.INSTRUCTIONS_MAX_CHARS)] = ""
+    # None (the default, also sent by omitting the field) keeps the profile's
+    # current instructions; only an explicit string, including "", replaces them.
+    instructions: p.InstructionsText | None = None
     adapter_id: Annotated[str, Field(min_length=1, max_length=80)]
     adapter_version: Annotated[str, Field(min_length=1, max_length=100)]
     mode: Literal["acp", "endpoint"] = "acp"

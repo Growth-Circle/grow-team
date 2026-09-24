@@ -615,6 +615,34 @@ class AgentAPITests(ZulipTestCase):
         self.assertTrue(shared_view["has_instructions"])
         self.assertIsNone(shared_view["configuration"])
 
+    def test_profile_update_without_instructions_keeps_text_and_enabled_state(self) -> None:
+        created = self.post_agent("profiles", self.profile_payload())
+        profile = agents.AgentProfile.objects.get(id=created["profile"]["id"])
+
+        body = {**self.profile_edit_body(profile), "instructions": "Reply politely."}
+        self.assert_json_success(
+            self.client_patch(f"/json/agent/profiles/{profile.id}", {"payload": json.dumps(body)})
+        )
+        profile.refresh_from_db()
+        self.assertEqual(profile.instructions, "Reply politely.")
+        agents.AgentProfile.objects.filter(id=profile.id).update(
+            desired_state="enabled", enabled_revision=profile.revision
+        )
+        profile.refresh_from_db()
+
+        # profile_edit_body never sets "instructions": this update omits the
+        # field, the same as a client that only touches unrelated settings.
+        omitted_body = self.profile_edit_body(profile)
+        self.assertNotIn("instructions", omitted_body)
+        self.assert_json_success(
+            self.client_patch(
+                f"/json/agent/profiles/{profile.id}", {"payload": json.dumps(omitted_body)}
+            )
+        )
+        profile.refresh_from_db()
+        self.assertEqual(profile.instructions, "Reply politely.")
+        self.assertEqual(profile.desired_state, "enabled")
+
     def test_instructions_with_a_credential_return_instructions_rejected(self) -> None:
         response = self.client_post(
             "/json/agent/profiles",

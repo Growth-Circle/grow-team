@@ -679,7 +679,7 @@ def update_profile(
     expected_revision: int,
     name: str,
     description: str,
-    instructions: str = "",
+    instructions: str | None = None,
     provider: agents.AgentProvider | None,
     repository: agents.AgentRepository | None,
     adapter_id: str,
@@ -709,6 +709,10 @@ def update_profile(
     )
     if profile.runner_id != runner.id:
         raise ValueError("Runner binding changed.")
+    if instructions is None:
+        # Omitting the field keeps the current text; only an explicit string
+        # (including "") replaces it.
+        instructions = profile.instructions
     check_agent_access(owner, profile, None, None, "profile.manage")
     if (
         profile.metadata_revision != expected_metadata_revision
