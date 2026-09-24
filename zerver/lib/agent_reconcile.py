@@ -72,7 +72,7 @@ def reconcile_agents(
             counts["expired_approvals"] += 1
     pending = list(
         agents.AgentOutbox.objects.filter(
-            status__in=["pending", "processing", "blocked"], next_attempt_at__lte=now()
+            status__in=["pending", "processing"], next_attempt_at__lte=now()
         )
         .order_by("next_attempt_at", "id")
         .values_list("id", flat=True)[:limit]
@@ -125,7 +125,10 @@ def reconcile_agents(
             counts["blocked"] += 1
         with agent_transaction():
             item = agents.AgentOutbox.objects.select_for_update().get(id=outbox_id)
-            if item.status != "delivered":
+            # A blocked row was parked by publish_result's own exception handling
+            # (an audience change or a failed required check); only that action,
+            # never a reconcile pass, can move it out of "blocked".
+            if item.status not in {"delivered", "blocked"}:
                 item.status = "delivered" if delivered else "pending"
                 item.delivered_at = now() if delivered else None
                 item.save(update_fields=["status", "delivered_at"])

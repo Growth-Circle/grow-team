@@ -162,7 +162,7 @@ def admit_message(
                     decision, reason = (
                         ("accepted", "")
                         if ready_to_queue
-                        else ("needs_input", "Coding choices are required.")
+                        else ("needs_input", "configuration_needed")
                     )
                 else:
                     job = agent_jobs.create_job(
@@ -190,7 +190,7 @@ def admit_message(
                 continue
             except (JsonableError, ValueError, agents.AgentRealmSettings.DoesNotExist) as error:
                 reason = (
-                    "queue_full" if str(error) == "Agent queue is full." else "Admission denied."
+                    "queue_full" if str(error) == "Agent queue is full." else "admission_denied"
                 )
                 receipts.append(
                     _receipt(message, profile, message.sender, trigger_kind, "rejected", reason)

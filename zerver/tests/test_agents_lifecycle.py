@@ -319,7 +319,10 @@ class AgentLifecycleTests(ZulipTestCase):
             )
             with self.assertRaises(ValueError):
                 results.publish_result(job.id)
-            event(3, "attempt.stopped", {"process_state": "stopped", "stop_confirmed": True})
+            # RL-3: the auto-publish below is scheduled on transaction commit, so
+            # a plain ZulipTestCase test needs captureOnCommitCallbacks to run it.
+            with self.captureOnCommitCallbacks(execute=True):
+                event(3, "attempt.stopped", {"process_state": "stopped", "stop_confirmed": True})
             job.refresh_from_db()
             # The attempt stopping while the job is verifying publishes right away
             # instead of waiting for the reconcile timer.
@@ -343,6 +346,51 @@ class AgentLifecycleTests(ZulipTestCase):
             job.refresh_from_db()
             self.assertIsNone(job.result_message_id)
             self.assertEqual(results.publish_result(job.id), first)
+
+    def test_accepted_job_posts_one_queued_notice(self) -> None:
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+
+        agents.AgentRunner.objects.filter(id=self.runner.id).update(
+            status="online", last_heartbeat_at=now()
+        )
+        with self.captureOnCommitCallbacks(execute=True):
+            job = actions.create_job(
+                self.owner,
+                profile=self.profile,
+                source=self.message,
+                request="Please answer",
+                idempotency_key=uuid4(),
+                job_kind="answer",
+                delivery_target="answer",
+            )
+        message = Message.objects.get(sender=self.profile.bot_user)
+        self.assertEqual(
+            message.content, f"This task is queued. {self.owner.realm.url}/#agent-jobs/{job.id}"
+        )
+        self.assertEqual(Message.objects.filter(sender=self.profile.bot_user).count(), 1)
+
+    def test_accepted_notice_for_an_offline_runner_says_it_waits(self) -> None:
+        from zerver.actions import agent_jobs as actions
+
+        agents.AgentRunner.objects.filter(id=self.runner.id).update(status="offline")
+        with self.captureOnCommitCallbacks(execute=True):
+            job = actions.create_job(
+                self.owner,
+                profile=self.profile,
+                source=self.message,
+                request="Please answer",
+                idempotency_key=uuid4(),
+                job_kind="answer",
+                delivery_target="answer",
+            )
+        message = Message.objects.get(sender=self.profile.bot_user)
+        self.assertEqual(
+            message.content,
+            "This task is saved. It starts when the agent's device connects."
+            f" {self.owner.realm.url}/#agent-jobs/{job.id}",
+        )
 
     def test_post_job_notice_marks_once_and_never_admits(self) -> None:
         from zerver.actions import agent_jobs as actions
@@ -374,6 +422,368 @@ class AgentLifecycleTests(ZulipTestCase):
         self.assertEqual(Message.objects.filter(sender=self.profile.bot_user).count(), 1)
         # Bot messages never trigger agent admission.
         self.assertEqual(agents.AgentJob.objects.count(), jobs_before)
+
+    def test_status_notice_posts_after_commit_and_never_undoes_the_transition(self) -> None:
+        """RL-4: notify_conversation only schedules the post; the caller's own
+        transition already committed by the time (or whether) it ever runs."""
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib import agent_protocol as p
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+        actions.record_event(
+            self.runner,
+            p.RunnerEvent.model_validate(
+                {
+                    "schema_version": 1,
+                    "job_id": str(job.id),
+                    "attempt_id": str(attempt.id),
+                    "lease_epoch": 1,
+                    "event_id": str(uuid4()),
+                    "sequence": 1,
+                    "type": "attempt.started",
+                    "occurred_at": now().isoformat(),
+                    "payload": {"process_state": "active"},
+                }
+            ),
+        )
+        with self.captureOnCommitCallbacks() as callbacks:
+            actions.record_event(
+                self.runner,
+                p.RunnerEvent.model_validate(
+                    {
+                        "schema_version": 1,
+                        "job_id": str(job.id),
+                        "attempt_id": str(attempt.id),
+                        "lease_epoch": 1,
+                        "event_id": str(uuid4()),
+                        "sequence": 2,
+                        "type": "input.requested",
+                        "occurred_at": now().isoformat(),
+                        "payload": {"question": "Which environment?", "options": []},
+                    }
+                ),
+            )
+            # The transition already committed; the notice is still only scheduled.
+            job.refresh_from_db()
+            self.assertEqual(job.status, "waiting_for_input")
+            self.assertFalse(Message.objects.filter(sender=self.profile.bot_user).exists())
+        self.assertEqual(len(callbacks), 1)
+        for callback in callbacks:
+            callback()
+        message = Message.objects.get(sender=self.profile.bot_user)
+        self.assertEqual(
+            message.content,
+            f"@**{self.owner.full_name}|{self.owner.id}** This task needs your answer."
+            f" {self.owner.realm.url}/#agent-jobs/{job.id}",
+        )
+        job.refresh_from_db()
+        self.assertEqual(job.status, "waiting_for_input")
+
+    def test_failed_notice_send_leaves_no_marker(self) -> None:
+        from unittest.mock import patch
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib.agent_results import post_job_notice
+        from zerver.models.clients import get_client
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        # Warm the cached "Grow Agent" Client row outside the mocked attempt
+        # below: get_client caches its result across the row's own rollback,
+        # so creating it for the first time inside that rolled-back savepoint
+        # would leave the cache holding a Client id no longer in the database.
+        get_client("Grow Agent")
+        with (
+            patch("zerver.actions.message_send.do_send_messages", side_effect=ValueError("boom")),
+            self.assertRaises(ValueError),
+        ):
+            post_job_notice(job, "status:test:fails", "This task needs your approval.")
+        self.assertFalse(
+            agents.AgentOutbox.objects.filter(delivery_key="status:test:fails").exists()
+        )
+        self.assertFalse(Message.objects.filter(sender=self.profile.bot_user).exists())
+        # A later, unpatched call with the same key can still succeed.
+        sent = post_job_notice(job, "status:test:fails", "This task needs your approval.")
+        self.assertTrue(sent)
+        self.assertEqual(
+            agents.AgentOutbox.objects.filter(delivery_key="status:test:fails").count(), 1
+        )
+
+    def test_robust_on_commit_notice_failure_never_blocks_a_later_hook(self) -> None:
+        """RL-4: functools.partial has no __qualname__, so a raised exception
+        used to make Django's own robust=True logging raise AttributeError and
+        skip every later on_commit hook registered in the same transaction."""
+        from unittest.mock import patch
+
+        from django.db import transaction
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.models.clients import get_client
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        # Warm the cached "Grow Agent" Client row outside the mocked send
+        # below, the same reason test_failed_notice_send_leaves_no_marker does.
+        get_client("Grow Agent")
+        later_hook_ran: list[bool] = []
+        with (
+            patch("zerver.actions.message_send.do_send_messages", side_effect=ValueError("boom")),
+            self.assertLogs("zerver.actions.agent_jobs", level="ERROR"),
+            self.captureOnCommitCallbacks(execute=True),
+        ):
+            actions.notify_conversation(job, "status:test:raises", "This will fail to send.")
+            transaction.on_commit(lambda: later_hook_ran.append(True))
+        self.assertEqual(later_hook_ran, [True])
+        self.assertFalse(Message.objects.filter(sender=self.profile.bot_user).exists())
+
+    def test_job_notice_retries_agent_busy_before_giving_up(self) -> None:
+        """RL-1: post_job_notice runs its own agent_transaction with
+        try-locks; a single AgentBusy used to drop the notice for good instead
+        of retrying it the way the phase-3 team receipt store does."""
+        from unittest.mock import patch
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib.agent_context import AgentBusy
+        from zerver.lib.agent_results import post_job_notice as real_post_job_notice
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        calls = 0
+
+        def flaky_once(*args: object, **kwargs: object) -> bool:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise AgentBusy("Agent authority is busy. Retry this request.")
+            return real_post_job_notice(*args, **kwargs)  # type: ignore[arg-type]
+
+        with (
+            patch("zerver.lib.agent_results.post_job_notice", side_effect=flaky_once),
+            patch("time.sleep"),
+            self.captureOnCommitCallbacks(execute=True),
+        ):
+            actions.notify_conversation(job, "status:test:busy", "Retry me.")
+        self.assertEqual(calls, 2)
+        message = Message.objects.get(sender=self.profile.bot_user)
+        self.assertIn("Retry me.", message.content)
+        self.assertEqual(
+            agents.AgentOutbox.objects.filter(delivery_key="status:test:busy").count(), 1
+        )
+
+    def test_eager_publish_runs_after_the_events_transaction_commits(self) -> None:
+        import hashlib
+        import tempfile
+
+        from django.test import override_settings
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib import agent_protocol as p
+        from zerver.lib.agent_results import store_artifact
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+        sequence = 0
+
+        def event(kind: str, payload: dict[str, object]) -> None:
+            nonlocal sequence
+            sequence += 1
+            actions.record_event(
+                self.runner,
+                p.RunnerEvent.model_validate(
+                    {
+                        "schema_version": 1,
+                        "job_id": str(job.id),
+                        "attempt_id": str(attempt.id),
+                        "lease_epoch": 1,
+                        "event_id": str(uuid4()),
+                        "sequence": sequence,
+                        "type": kind,
+                        "occurred_at": now().isoformat(),
+                        "payload": payload,
+                    }
+                ),
+            )
+
+        event("attempt.started", {"process_state": "active"})
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            override_settings(AGENT_ARTIFACT_ROOT=directory),
+        ):
+            content = b"A verified answer."
+            artifact = store_artifact(
+                self.runner,
+                job.id,
+                attempt.id,
+                1,
+                chunks=[content],
+                checksum=hashlib.sha256(content).hexdigest(),
+                kind="summary",
+                filename="answer.txt",
+                media_type="text/plain",
+            )
+            event(
+                "result.prepared",
+                {"artifact_ids": [str(artifact.id)], "summary": "A verified answer."},
+            )
+            with self.captureOnCommitCallbacks() as callbacks:
+                event("attempt.stopped", {"process_state": "stopped", "stop_confirmed": True})
+                job.refresh_from_db()
+                self.assertEqual(job.status, "verifying")
+            self.assertEqual(len(callbacks), 1)
+            for callback in callbacks:
+                callback()
+            job.refresh_from_db()
+            self.assertEqual(job.status, "completed")
+
+    def test_stop_evidence_publishes_after_commit(self) -> None:
+        import hashlib
+        import tempfile
+        from datetime import timedelta
+
+        from django.test import override_settings
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib import agent_protocol as p
+        from zerver.lib.agent_results import store_artifact
+        from zerver.lib.agent_secrets import hash_agent_credential
+
+        token = "stop-evidence-publish-token" + "x" * 40
+        agents.AgentRunnerCredential.objects.create(
+            realm=self.owner.realm,
+            runner=self.runner,
+            token_hash=hash_agent_credential(token),
+            refresh_hash=hash_agent_credential("refresh" + token),
+            expires_at=now() + timedelta(hours=24),
+            refresh_expires_at=now() + timedelta(days=30),
+        )
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+        actions.record_event(
+            self.runner,
+            p.RunnerEvent.model_validate(
+                {
+                    "schema_version": 1,
+                    "job_id": str(job.id),
+                    "attempt_id": str(attempt.id),
+                    "lease_epoch": 1,
+                    "event_id": str(uuid4()),
+                    "sequence": 1,
+                    "type": "attempt.started",
+                    "occurred_at": now().isoformat(),
+                    "payload": {"process_state": "active"},
+                }
+            ),
+        )
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            override_settings(AGENT_ARTIFACT_ROOT=directory),
+        ):
+            content = b"A verified answer."
+            artifact = store_artifact(
+                self.runner,
+                job.id,
+                attempt.id,
+                1,
+                chunks=[content],
+                checksum=hashlib.sha256(content).hexdigest(),
+                kind="summary",
+                filename="answer.txt",
+                media_type="text/plain",
+            )
+            actions.record_event(
+                self.runner,
+                p.RunnerEvent.model_validate(
+                    {
+                        "schema_version": 1,
+                        "job_id": str(job.id),
+                        "attempt_id": str(attempt.id),
+                        "lease_epoch": 1,
+                        "event_id": str(uuid4()),
+                        "sequence": 2,
+                        "type": "result.prepared",
+                        "occurred_at": now().isoformat(),
+                        "payload": {
+                            "artifact_ids": [str(artifact.id)],
+                            "summary": "A verified answer.",
+                        },
+                    }
+                ),
+            )
+            stop_event = p.RunnerEvent.model_validate(
+                {
+                    "schema_version": 1,
+                    "job_id": str(job.id),
+                    "attempt_id": str(attempt.id),
+                    "lease_epoch": 1,
+                    "event_id": str(uuid4()),
+                    "sequence": 3,
+                    "type": "attempt.stopped",
+                    "occurred_at": now().isoformat(),
+                    "payload": {"process_state": "stopped", "stop_confirmed": True},
+                }
+            )
+            with self.captureOnCommitCallbacks() as callbacks:
+                actions.stop_evidence(token, stop_event)
+                job.refresh_from_db()
+                self.assertEqual(job.status, "verifying")
+            self.assertEqual(len(callbacks), 1)
+            for callback in callbacks:
+                callback()
+            job.refresh_from_db()
+            self.assertEqual(job.status, "completed")
 
     def test_waiting_for_input_posts_one_bot_notice(self) -> None:
         from django.utils.timezone import now
@@ -412,7 +822,8 @@ class AgentLifecycleTests(ZulipTestCase):
             )
 
         event(1, "attempt.started", {"process_state": "active"})
-        event(2, "input.requested", {"question": "Which environment?", "options": []})
+        with self.captureOnCommitCallbacks(execute=True):
+            event(2, "input.requested", {"question": "Which environment?", "options": []})
         job.refresh_from_db()
         self.assertEqual(job.status, "waiting_for_input")
         message = Message.objects.get(sender=self.profile.bot_user)
@@ -445,7 +856,8 @@ class AgentLifecycleTests(ZulipTestCase):
         agents.AgentAttempt.objects.filter(id=attempt.id).update(
             lease_expires_at=now() - timedelta(seconds=1)
         )
-        reconcile_agents()
+        with self.captureOnCommitCallbacks(execute=True):
+            reconcile_agents()
         job.refresh_from_db()
         self.assertEqual(job.status, "interrupted")
         message = Message.objects.get(sender=self.profile.bot_user)
@@ -860,16 +1272,17 @@ class AgentLifecycleTests(ZulipTestCase):
                 "commit": "c" * 40,
                 "expected_remote_head": None,
             }
-            operation = propose_operation(
-                self.runner,
-                job.id,
-                attempt.id,
-                1,
-                operation_id=operation_id,
-                arguments=operation_arguments,
-                tree_hash="b" * 40,
-                diff_artifact_id=artifact.id,
-            )
+            with self.captureOnCommitCallbacks(execute=True):
+                operation = propose_operation(
+                    self.runner,
+                    job.id,
+                    attempt.id,
+                    1,
+                    operation_id=operation_id,
+                    arguments=operation_arguments,
+                    tree_hash="b" * 40,
+                    diff_artifact_id=artifact.id,
+                )
             job.refresh_from_db()
             self.assertEqual(job.status, "waiting_for_approval")
             message = Message.objects.get(sender=profile.bot_user)
@@ -1659,8 +2072,14 @@ class AgentLifecycleTests(ZulipTestCase):
                 },
             )
             event("attempt.stopped", {"process_state": "stopped", "stop_confirmed": True})
+            # verify_result itself (not the job-transitioning publish_result wrapper)
+            # exercises these rejections: r25 makes a required-check failure end the
+            # job (contract 9.5), so a fixed-and-retried publish_result would no
+            # longer see job.status == "verifying" on the later, successful call.
+            job.refresh_from_db()
+            attempt.refresh_from_db()
             with self.assertRaises(ValueError):
-                results.publish_result(job.id)
+                results.verify_result(job, attempt, artifacts)
             verification = agents.AgentVerification.objects.get(attempt=attempt)
             # A newer failed outcome must not be hidden by an older success on the same tree.
             operation.status = "succeeded"
@@ -1681,17 +2100,789 @@ class AgentLifecycleTests(ZulipTestCase):
                 output_artifact=verification.output_artifact,
             )
             with self.assertRaisesRegex(ValueError, "Required checks"):
-                results.publish_result(job.id)
+                results.verify_result(job, attempt, artifacts)
             older.delete()
             verification.exit_code = 0
             verification.tree_hash = "c" * 40
             verification.save()
             with self.assertRaises(ValueError):
-                results.publish_result(job.id)
+                results.verify_result(job, attempt, artifacts)
             verification.tree_hash = "b" * 40
             verification.save()
             receipt = results.publish_result(job.id)
             self.assertIsNotNone(receipt["message_id"])
+
+    def test_failed_required_check_fails_the_job_and_parks_the_outbox(self) -> None:
+        import hashlib
+        import tempfile
+        from copy import deepcopy
+
+        from django.test import override_settings
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.actions.agents import register_repository
+        from zerver.lib import agent_protocol as p
+        from zerver.lib.agent_reconcile import reconcile_agents
+        from zerver.lib.agent_results import publish_result, store_artifact
+
+        repository = register_repository(
+            self.owner,
+            self.runner,
+            workspace_alias="failedcheck",
+            canonical_origin="https://example.com/team/repo",
+            allowed_refs=["main"],
+            required_checks=[{"id": "required", "argv": ["true"]}],
+        )
+        policy = deepcopy(self.profile.policy)
+        policy["actions"] = ["context.read", "repository.read", "repository.edit", "checks.run"]
+        profile = create_profile(
+            self.owner,
+            name="FailedCheck",
+            runner=self.runner,
+            adapter_id="acp",
+            adapter_version="1",
+            repository=repository,
+            policy=policy,
+            default_mode="code",
+            idempotency_key=uuid4(),
+        )
+        setup = agents.AgentSetupOperation.objects.get(profile=profile)
+        record_readiness(
+            self.runner,
+            setup,
+            {
+                "schema_version": 1,
+                "profile_id": str(profile.id),
+                "profile_revision": 1,
+                "runner_id": str(self.runner.id),
+                "descriptor_digest": setup.descriptor_digest,
+                "configuration_digest": setup.configuration_digest,
+                "state": "ready",
+                "capabilities": {
+                    "chat_ready": True,
+                    "code_ready": True,
+                    "tool_calling": "passed",
+                    "sandbox": "passed",
+                    "config_version": 1,
+                },
+            },
+        )
+        profile.refresh_from_db()
+        enable_profile(self.owner, profile, expected_revision=profile.revision)
+        message = Message.objects.get(
+            id=self.send_group_direct_message(
+                self.owner, [profile.bot_user, self.example_user("iago")], "Code task"
+            )
+        )
+        job = actions.create_job(
+            self.owner,
+            profile=profile,
+            source=message,
+            request="Run a script",
+            idempotency_key=uuid4(),
+            job_kind="code",
+            delivery_target="patch",
+            repository=repository,
+            base_ref="main",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+        sequence = 0
+
+        def event(kind: str, payload: dict[str, object]) -> None:
+            nonlocal sequence
+            sequence += 1
+            actions.record_event(
+                self.runner,
+                p.RunnerEvent.model_validate(
+                    {
+                        "schema_version": 1,
+                        "job_id": str(job.id),
+                        "attempt_id": str(attempt.id),
+                        "lease_epoch": 1,
+                        "event_id": str(uuid4()),
+                        "sequence": sequence,
+                        "type": kind,
+                        "occurred_at": now().isoformat(),
+                        "payload": payload,
+                    }
+                ),
+            )
+
+        event(
+            "workspace.prepared",
+            {
+                "repository_id": str(repository.id),
+                "workspace_reference": "fixture",
+                "base_ref": "main",
+                "base_commit": "a" * 40,
+                "tree_hash": "b" * 40,
+                "user_worktree_dirty": False,
+            },
+        )
+        event("attempt.started", {"process_state": "active"})
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            override_settings(AGENT_ARTIFACT_ROOT=directory),
+        ):
+            diff = store_artifact(
+                self.runner,
+                job.id,
+                attempt.id,
+                1,
+                chunks=[b"diff"],
+                checksum=hashlib.sha256(b"diff").hexdigest(),
+                kind="diff",
+                filename="diff.patch",
+                media_type="text/x-diff",
+            )
+            summary = store_artifact(
+                self.runner,
+                job.id,
+                attempt.id,
+                1,
+                chunks=[b"Done"],
+                checksum=hashlib.sha256(b"Done").hexdigest(),
+                kind="summary",
+                filename="summary.txt",
+                media_type="text/plain",
+            )
+            event(
+                "result.prepared",
+                {
+                    "artifact_ids": [str(diff.id), str(summary.id)],
+                    "tree_hash": "b" * 40,
+                    "summary": "Done",
+                },
+            )
+            event("attempt.stopped", {"process_state": "stopped", "stop_confirmed": True})
+            # No AgentVerification row exists for the required check, so
+            # publication fails the job outright instead of leaving it stuck
+            # in "verifying" forever.
+            with self.assertRaisesRegex(ValueError, "Required checks"):
+                publish_result(job.id)
+            job.refresh_from_db()
+            self.assertEqual(job.status, "failed")
+            self.assertEqual(job.blocked_reason, "verification_failed")
+            outbox = agents.AgentOutbox.objects.get(delivery_key=f"result:{job.id}")
+            self.assertEqual(outbox.status, "blocked")
+            reconcile_agents()
+            outbox.refresh_from_db()
+            self.assertEqual(outbox.status, "blocked")
+
+    def test_audience_change_holds_the_result_and_parks_the_outbox(self) -> None:
+        import hashlib
+        import tempfile
+
+        from django.test import override_settings
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib import agent_protocol as p
+        from zerver.lib.agent_reconcile import reconcile_agents
+        from zerver.lib.agent_results import publish_result, store_artifact
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+        sequence = 0
+
+        def event(kind: str, payload: dict[str, object]) -> None:
+            nonlocal sequence
+            sequence += 1
+            actions.record_event(
+                self.runner,
+                p.RunnerEvent.model_validate(
+                    {
+                        "schema_version": 1,
+                        "job_id": str(job.id),
+                        "attempt_id": str(attempt.id),
+                        "lease_epoch": 1,
+                        "event_id": str(uuid4()),
+                        "sequence": sequence,
+                        "type": kind,
+                        "occurred_at": now().isoformat(),
+                        "payload": payload,
+                    }
+                ),
+            )
+
+        event("attempt.started", {"process_state": "active"})
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            override_settings(AGENT_ARTIFACT_ROOT=directory),
+        ):
+            content = b"A verified answer."
+            artifact = store_artifact(
+                self.runner,
+                job.id,
+                attempt.id,
+                1,
+                chunks=[content],
+                checksum=hashlib.sha256(content).hexdigest(),
+                kind="summary",
+                filename="answer.txt",
+                media_type="text/plain",
+            )
+            event(
+                "result.prepared",
+                {"artifact_ids": [str(artifact.id)], "summary": "A verified answer."},
+            )
+            event("attempt.stopped", {"process_state": "stopped", "stop_confirmed": True})
+            job.refresh_from_db()
+            self.assertEqual(job.status, "verifying")
+            attempt.refresh_from_db()
+            # Simulate a replan that moved the conversation's accepted audience
+            # on without this attempt: its own frozen copy is now stale.
+            tampered = {**attempt.audience_binding, "epoch": attempt.audience_binding["epoch"] + 1}
+            agents.AgentAttempt.objects.filter(id=attempt.id).update(audience_binding=tampered)
+            with self.assertRaisesRegex(ValueError, "Result audience changed"):
+                publish_result(job.id)
+            job.refresh_from_db()
+            self.assertEqual(job.status, "verifying")
+            self.assertEqual(job.blocked_reason, "audience_changed")
+            outbox = agents.AgentOutbox.objects.get(delivery_key=f"result:{job.id}")
+            self.assertEqual(outbox.status, "blocked")
+            reconcile_agents()
+            outbox.refresh_from_db()
+            self.assertEqual(outbox.status, "blocked")
+
+    def test_deliver_privately_posts_to_the_requester_once(self) -> None:
+        import hashlib
+        import tempfile
+
+        from django.test import override_settings
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib import agent_protocol as p
+        from zerver.lib.agent_results import (
+            deliver_result_privately,
+            publish_result,
+            store_artifact,
+        )
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+        sequence = 0
+
+        def event(kind: str, payload: dict[str, object]) -> None:
+            nonlocal sequence
+            sequence += 1
+            actions.record_event(
+                self.runner,
+                p.RunnerEvent.model_validate(
+                    {
+                        "schema_version": 1,
+                        "job_id": str(job.id),
+                        "attempt_id": str(attempt.id),
+                        "lease_epoch": 1,
+                        "event_id": str(uuid4()),
+                        "sequence": sequence,
+                        "type": kind,
+                        "occurred_at": now().isoformat(),
+                        "payload": payload,
+                    }
+                ),
+            )
+
+        event("attempt.started", {"process_state": "active"})
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            override_settings(AGENT_ARTIFACT_ROOT=directory),
+        ):
+            content = b"A verified answer."
+            artifact = store_artifact(
+                self.runner,
+                job.id,
+                attempt.id,
+                1,
+                chunks=[content],
+                checksum=hashlib.sha256(content).hexdigest(),
+                kind="summary",
+                filename="answer.txt",
+                media_type="text/plain",
+            )
+            event(
+                "result.prepared",
+                {"artifact_ids": [str(artifact.id)], "summary": "A verified answer."},
+            )
+            event("attempt.stopped", {"process_state": "stopped", "stop_confirmed": True})
+            # Simulate a replan that moved the conversation's accepted audience
+            # on without this attempt: its own frozen copy (and its artifacts,
+            # scoped to that same copy) are now stale, but only relative to
+            # the conversation, so a check_audience=False call still accepts
+            # them (contract 9.6 is the only caller that passes it).
+            conversation = job.conversation
+            tampered = {
+                **conversation.audience_binding,
+                "epoch": conversation.audience_binding["epoch"] + 1,
+            }
+            agents.AgentConversation.objects.filter(id=conversation.id).update(
+                audience_binding=tampered
+            )
+            with self.assertRaises(ValueError):
+                publish_result(job.id)
+            job.refresh_from_db()
+            self.assertEqual(job.blocked_reason, "audience_changed")
+
+            delivered = deliver_result_privately(self.owner, job.id, job.version)
+            self.assertEqual(delivered.status, "completed")
+            assert delivered.result_message_id is not None
+            message = Message.objects.get(id=delivered.result_message_id)
+            self.assertTrue(
+                message.content.startswith(
+                    "This result was sent here because the conversation changed."
+                )
+            )
+            self.assertIn("A verified answer.", message.content)
+            self.assertEqual(delivered.result_receipt["destination"], "direct")
+            outbox = agents.AgentOutbox.objects.get(delivery_key=f"result:{job.id}")
+            self.assertEqual(outbox.status, "delivered")
+
+            # A second call must not send a second message.
+            again = deliver_result_privately(self.owner, job.id, delivered.version)
+            self.assertEqual(again.result_message_id, delivered.result_message_id)
+            self.assertEqual(Message.objects.filter(id=delivered.result_message_id).count(), 1)
+
+    def test_deliver_privately_rejects_other_users_and_lost_source_access(self) -> None:
+        import hashlib
+        import tempfile
+
+        from django.test import override_settings
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.actions.streams import bulk_remove_subscriptions
+        from zerver.lib import agent_protocol as p
+        from zerver.lib.agent_results import (
+            deliver_result_privately,
+            publish_result,
+            store_artifact,
+        )
+        from zerver.lib.exceptions import JsonableError
+
+        channel = self.make_stream(
+            "private-delivery", invite_only=True, history_public_to_subscribers=False
+        )
+        self.subscribe(self.owner, channel.name)
+        self.subscribe(self.profile.bot_user, channel.name)
+        # No mention: this message only isolates manual create_job below from
+        # the real admission hook, the same reason setUp's message has none.
+        message = Message.objects.get(
+            id=self.send_stream_message(self.owner, channel.name, "Please answer")
+        )
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+        sequence = 0
+
+        def event(kind: str, payload: dict[str, object]) -> None:
+            nonlocal sequence
+            sequence += 1
+            actions.record_event(
+                self.runner,
+                p.RunnerEvent.model_validate(
+                    {
+                        "schema_version": 1,
+                        "job_id": str(job.id),
+                        "attempt_id": str(attempt.id),
+                        "lease_epoch": 1,
+                        "event_id": str(uuid4()),
+                        "sequence": sequence,
+                        "type": kind,
+                        "occurred_at": now().isoformat(),
+                        "payload": payload,
+                    }
+                ),
+            )
+
+        event("attempt.started", {"process_state": "active"})
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            override_settings(AGENT_ARTIFACT_ROOT=directory),
+        ):
+            content = b"A verified answer."
+            artifact = store_artifact(
+                self.runner,
+                job.id,
+                attempt.id,
+                1,
+                chunks=[content],
+                checksum=hashlib.sha256(content).hexdigest(),
+                kind="summary",
+                filename="answer.txt",
+                media_type="text/plain",
+            )
+            event(
+                "result.prepared",
+                {"artifact_ids": [str(artifact.id)], "summary": "A verified answer."},
+            )
+            event("attempt.stopped", {"process_state": "stopped", "stop_confirmed": True})
+            attempt.refresh_from_db()
+            tampered = {**attempt.audience_binding, "epoch": attempt.audience_binding["epoch"] + 1}
+            agents.AgentAttempt.objects.filter(id=attempt.id).update(audience_binding=tampered)
+            with self.assertRaises(ValueError):
+                publish_result(job.id)
+            job.refresh_from_db()
+
+            other = self.example_user("iago")
+            with self.assertRaises(ValueError):
+                deliver_result_privately(other, job.id, job.version)
+            self.assertIsNone(agents.AgentJob.objects.get(id=job.id).result_receipt)
+
+            bulk_remove_subscriptions(
+                self.owner.realm, [self.owner], [channel], acting_user=self.owner
+            )
+            with self.assertRaises(JsonableError):
+                deliver_result_privately(self.owner, job.id, job.version)
+            self.assertIsNone(agents.AgentJob.objects.get(id=job.id).result_receipt)
+
+    def test_deliver_privately_rechecks_the_requesters_profile_access(self) -> None:
+        """deliver_result_privately must recheck access the same way
+        _publish_result does: the requester can still read the source message
+        yet have lost their own access to the profile in the meantime."""
+        import hashlib
+        import tempfile
+
+        from django.test import override_settings
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib import agent_protocol as p
+        from zerver.lib.agent_policy import AgentAccessDenied
+        from zerver.lib.agent_results import (
+            deliver_result_privately,
+            publish_result,
+            store_artifact,
+        )
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+        sequence = 0
+
+        def event(kind: str, payload: dict[str, object]) -> None:
+            nonlocal sequence
+            sequence += 1
+            actions.record_event(
+                self.runner,
+                p.RunnerEvent.model_validate(
+                    {
+                        "schema_version": 1,
+                        "job_id": str(job.id),
+                        "attempt_id": str(attempt.id),
+                        "lease_epoch": 1,
+                        "event_id": str(uuid4()),
+                        "sequence": sequence,
+                        "type": kind,
+                        "occurred_at": now().isoformat(),
+                        "payload": payload,
+                    }
+                ),
+            )
+
+        event("attempt.started", {"process_state": "active"})
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            override_settings(AGENT_ARTIFACT_ROOT=directory),
+        ):
+            content = b"A verified answer."
+            artifact = store_artifact(
+                self.runner,
+                job.id,
+                attempt.id,
+                1,
+                chunks=[content],
+                checksum=hashlib.sha256(content).hexdigest(),
+                kind="summary",
+                filename="answer.txt",
+                media_type="text/plain",
+            )
+            event(
+                "result.prepared",
+                {"artifact_ids": [str(artifact.id)], "summary": "A verified answer."},
+            )
+            event("attempt.stopped", {"process_state": "stopped", "stop_confirmed": True})
+            conversation = job.conversation
+            tampered = {
+                **conversation.audience_binding,
+                "epoch": conversation.audience_binding["epoch"] + 1,
+            }
+            agents.AgentConversation.objects.filter(id=conversation.id).update(
+                audience_binding=tampered
+            )
+            with self.assertRaises(ValueError):
+                publish_result(job.id)
+            job.refresh_from_db()
+            self.assertEqual(job.blocked_reason, "audience_changed")
+
+            # The requester still owns the source message, but lost access to
+            # the profile itself while the result sat blocked.
+            agents.AgentProfile.objects.filter(id=self.profile.id).update(desired_state="archived")
+            with self.assertRaises(AgentAccessDenied):
+                deliver_result_privately(self.owner, job.id, job.version)
+            self.assertIsNone(agents.AgentJob.objects.get(id=job.id).result_receipt)
+
+    def test_code_result_ends_with_the_done_line(self) -> None:
+        import hashlib
+        import tempfile
+        from copy import deepcopy
+
+        from django.test import override_settings
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.actions.agent_approvals import consume_operation, propose_operation
+        from zerver.actions.agents import register_repository
+        from zerver.lib import agent_protocol as p
+        from zerver.lib.agent_results import publish_result, store_artifact
+
+        repository = register_repository(
+            self.owner,
+            self.runner,
+            workspace_alias="done-line",
+            canonical_origin="https://example.com/team/repo",
+            allowed_refs=["main"],
+            required_checks=[{"id": "required", "argv": ["true"]}],
+        )
+        policy = deepcopy(self.profile.policy)
+        policy["actions"] = [
+            "context.read",
+            "repository.read",
+            "repository.edit",
+            "checks.run",
+        ]
+        profile = create_profile(
+            self.owner,
+            name="DoneLine",
+            runner=self.runner,
+            adapter_id="acp",
+            adapter_version="1",
+            repository=repository,
+            policy=policy,
+            default_mode="code",
+            idempotency_key=uuid4(),
+        )
+        setup = agents.AgentSetupOperation.objects.get(profile=profile)
+        record_readiness(
+            self.runner,
+            setup,
+            {
+                "schema_version": 1,
+                "profile_id": str(profile.id),
+                "profile_revision": 1,
+                "runner_id": str(self.runner.id),
+                "descriptor_digest": setup.descriptor_digest,
+                "configuration_digest": setup.configuration_digest,
+                "state": "ready",
+                "capabilities": {
+                    "chat_ready": True,
+                    "code_ready": True,
+                    "tool_calling": "passed",
+                    "sandbox": "passed",
+                    "config_version": 1,
+                },
+            },
+        )
+        profile.refresh_from_db()
+        enable_profile(self.owner, profile, expected_revision=profile.revision)
+        message = Message.objects.get(
+            id=self.send_group_direct_message(
+                self.owner, [profile.bot_user, self.example_user("iago")], "Code task"
+            )
+        )
+        job = actions.create_job(
+            self.owner,
+            profile=profile,
+            source=message,
+            request="Fix it",
+            idempotency_key=uuid4(),
+            job_kind="code",
+            delivery_target="patch",
+            repository=repository,
+            base_ref="main",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+        sequence = 0
+
+        def event(kind: str, payload: dict[str, object]) -> None:
+            nonlocal sequence
+            sequence += 1
+            actions.record_event(
+                self.runner,
+                p.RunnerEvent.model_validate(
+                    {
+                        "schema_version": 1,
+                        "job_id": str(job.id),
+                        "attempt_id": str(attempt.id),
+                        "lease_epoch": 1,
+                        "event_id": str(uuid4()),
+                        "sequence": sequence,
+                        "type": kind,
+                        "occurred_at": now().isoformat(),
+                        "payload": payload,
+                    }
+                ),
+            )
+
+        event(
+            "workspace.prepared",
+            {
+                "repository_id": str(repository.id),
+                "workspace_reference": "fixture",
+                "base_ref": "main",
+                "base_commit": "a" * 40,
+                "tree_hash": "b" * 40,
+                "user_worktree_dirty": False,
+            },
+        )
+        event("attempt.started", {"process_state": "active"})
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            override_settings(AGENT_ARTIFACT_ROOT=directory),
+        ):
+            artifacts = []
+            for kind in ["summary", "diff", "verification"]:
+                content = kind.encode()
+                artifacts.append(
+                    store_artifact(
+                        self.runner,
+                        job.id,
+                        attempt.id,
+                        1,
+                        chunks=[content],
+                        checksum=hashlib.sha256(content).hexdigest(),
+                        kind=kind,
+                        filename=kind + ".txt",
+                        media_type="text/plain" if kind != "diff" else "text/x-diff",
+                    )
+                )
+            operation = propose_operation(
+                self.runner,
+                job.id,
+                attempt.id,
+                1,
+                operation_id=uuid4(),
+                arguments={
+                    "action": "checks.run",
+                    "repository_id": str(repository.id),
+                    "check_ids": ["required"],
+                    "tree_hash": "b" * 40,
+                },
+                tree_hash="b" * 40,
+                diff_artifact_id=None,
+            )
+            consume_operation(
+                self.runner,
+                job.id,
+                attempt.id,
+                1,
+                operation_id=operation.operation_id,
+                expected_version=operation.version,
+                operation_hash=operation.argument_digest,
+            )
+            event(
+                "verification.finished",
+                {
+                    "operation_id": str(operation.operation_id),
+                    "check_id": "required",
+                    "command": ["true"],
+                    "cwd": ".",
+                    "exit_code": 0,
+                    "started_at": now().isoformat(),
+                    "finished_at": now().isoformat(),
+                    "tree_hash": "b" * 40,
+                    "artifact_id": str(artifacts[2].id),
+                },
+            )
+            event(
+                "tool.finished",
+                {
+                    "operation_id": str(operation.operation_id),
+                    "argument_digest": operation.argument_digest,
+                    "tool_class": "checks.run",
+                    "status": "succeeded",
+                    "exit_code": 0,
+                },
+            )
+            event(
+                "result.prepared",
+                {
+                    "artifact_ids": [str(artifacts[0].id), str(artifacts[1].id)],
+                    "tree_hash": "b" * 40,
+                    "summary": "Fixed the bug.",
+                },
+            )
+            event("attempt.stopped", {"process_state": "stopped", "stop_confirmed": True})
+            receipt = publish_result(job.id)
+        message = Message.objects.get(id=receipt["message_id"])
+        self.assertIn("Fixed the bug.\n\nDone. The diff is ready for review.", message.content)
+
+    def test_reconcile_never_retries_a_parked_outbox_row(self) -> None:
+        from datetime import timedelta
+
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib.agent_reconcile import reconcile_agents
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        outbox = agents.AgentOutbox.objects.create(
+            realm=self.owner.realm,
+            job=job,
+            delivery_key=f"result:{job.id}",
+            event_type="result.publish",
+            status="blocked",
+            next_attempt_at=now() - timedelta(seconds=1),
+        )
+        reconcile_agents()
+        outbox.refresh_from_db()
+        self.assertEqual(outbox.status, "blocked")
+        self.assertEqual(outbox.attempt_count, 0)
 
     def test_revoked_daemon_posts_stop_with_old_descriptor_and_cannot_read_context(self) -> None:
         import json

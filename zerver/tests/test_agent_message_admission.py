@@ -459,7 +459,13 @@ class AgentMessageAdmissionTests(ZulipTestCase):
             (second.status, second.job_kind, second.delivery_target, second.base_ref),
             ("queued", "code", "patch", "main"),
         )
-        self.assertEqual(agents.AgentOutbox.objects.filter(job=second).count(), 1)
+        # One wake row plus one accepted-notice marker row (contract 9.7).
+        self.assertEqual(
+            agents.AgentOutbox.objects.filter(job=second, event_type="job.wake").count(), 1
+        )
+        self.assertEqual(
+            agents.AgentOutbox.objects.filter(job=second, event_type="status.notice").count(), 1
+        )
 
     def test_followup_uses_selected_job_and_ordinary_mention_is_new(self) -> None:
         self.send_personal_message(self.owner, self.profile.bot_user, "First task")
@@ -602,6 +608,50 @@ class AgentMessageAdmissionTests(ZulipTestCase):
         self.assertEqual(receipt.decision, "rejected")
         self.assertEqual(receipt.reason, "not_shared")
         self.assertIsNone(receipt.job)
+
+    def test_generic_rejection_stores_admission_denied(self) -> None:
+        # Any create_job rejection other than a full queue is a coded, generic
+        # "admission_denied" receipt (contract 9.9), never the raw exception text.
+        agents.AgentRealmSettings.objects.filter(realm=self.owner.realm).update(enabled=False)
+        message_id = self.send_personal_message(
+            self.owner, self.profile.bot_user, "Please answer while disabled"
+        )
+        receipt = agents.AgentDispatchReceipt.objects.get(source_message_id=message_id)
+        self.assertEqual(receipt.decision, "rejected")
+        self.assertEqual(receipt.reason, "admission_denied")
+        self.assertIsNone(receipt.job)
+
+    def test_incomplete_coding_stores_configuration_needed(self) -> None:
+        incomplete = create_profile(
+            self.owner,
+            name="Incomplete coding reason",
+            runner=self.runner,
+            adapter_id="acp",
+            adapter_version="1",
+            default_mode="code",
+            idempotency_key=uuid4(),
+        )
+        setup = agents.AgentSetupOperation.objects.get(profile=incomplete)
+        record_readiness(
+            self.runner,
+            setup,
+            {
+                "schema_version": 1,
+                "profile_id": str(incomplete.id),
+                "profile_revision": incomplete.revision,
+                "runner_id": str(self.runner.id),
+                "descriptor_digest": setup.descriptor_digest,
+                "configuration_digest": setup.configuration_digest,
+                "state": "ready",
+                "capabilities": {"chat_ready": True, "config_version": incomplete.revision},
+            },
+        )
+        incomplete.refresh_from_db()
+        incomplete = enable_profile(self.owner, incomplete, expected_revision=incomplete.revision)
+        message_id = self.send_personal_message(self.owner, incomplete.bot_user, "Fix this")
+        receipt = agents.AgentDispatchReceipt.objects.get(source_message_id=message_id)
+        self.assertEqual(receipt.decision, "needs_input")
+        self.assertEqual(receipt.reason, "configuration_needed")
 
     def test_enabled_runtime_repair_admits_blocked_without_wake(self) -> None:
         from zerver.actions import agent_jobs

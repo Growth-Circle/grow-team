@@ -1,11 +1,15 @@
 """Durable job transitions. The caller never receives model authority."""
 
 import hashlib
+import logging
+import time
 from collections.abc import Sequence
 from datetime import timedelta
 from typing import Any
 from uuid import UUID, uuid4
 
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.db.models import Max
 from django.utils.timezone import now
 from django.utils.translation import gettext as _
@@ -14,6 +18,7 @@ from django.utils.translation import override as override_language
 from zerver.actions.agents import current_execution_configuration, provider_config, validate_runtime
 from zerver.lib import agent_protocol as p
 from zerver.lib.agent_context import (
+    AgentBusy,
     agent_transaction,
     current_audience,
     require_audience,
@@ -27,10 +32,16 @@ from zerver.lib.agent_policy import (
     require_manage_command,
 )
 from zerver.lib.agent_presence import observed_runner_status
+from zerver.lib.exceptions import JsonableError
 from zerver.models import Message, UserProfile, agents
 
 TERMINAL = {"completed", "cancelled", "failed", "interrupted", "blocked"}
 EXECUTING = {"running", "waiting_for_input", "waiting_for_approval", "verifying"}
+
+logger = logging.getLogger(__name__)
+
+# RL-1: same backoff as agent_approvals._RECEIPT_RETRY_DELAYS (contract 9.1).
+_NOTICE_RETRY_DELAYS = (0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2)
 
 
 def digest(value: object) -> str:
@@ -88,14 +99,36 @@ def transition(job: agents.AgentJob, status: str, *, reason: str = "") -> None:
 def notify_conversation(
     job: agents.AgentJob, marker_key: str, sentence: str, *, mention_requester: bool = True
 ) -> None:
-    """Best-effort status notice. A send failure never undoes the caller's transition."""
-    import contextlib
+    """Best-effort status notice, sent only once the caller's transaction
+    commits (RL-4): a send failure can never undo the caller's transition,
+    because the notice has not run yet when that transition commits."""
+    job_id = job.id
+    # A plain closure, never functools.partial (RL-4): Django's robust=True
+    # reads the callback's __qualname__ to log a raised exception, a partial
+    # has none, and that lookup's own AttributeError used to escape the
+    # commit and skip every later on_commit hook in the same transaction.
+    transaction.on_commit(
+        lambda: _send_job_notice(job_id, marker_key, sentence, mention_requester), robust=True
+    )
 
+
+def _send_job_notice(job_id: UUID, marker_key: str, sentence: str, mention_requester: bool) -> None:
+    """Never raise: this runs from an on_commit hook, after the notice's own
+    caller has already committed, so nothing is left to unwind here."""
     from zerver.lib.agent_results import post_job_notice
 
-    # The state change already committed; the notice is a courtesy.
-    with contextlib.suppress(Exception):
-        post_job_notice(job, marker_key, sentence, mention_requester=mention_requester)
+    try:
+        for delay in _NOTICE_RETRY_DELAYS:
+            try:
+                post_job_notice(job_id, marker_key, sentence, mention_requester=mention_requester)
+                return
+            except AgentBusy:
+                time.sleep(delay)
+        # One last call without a catch: let a persistent lock failure reach
+        # the log below instead of silently dropping the notice forever.
+        post_job_notice(job_id, marker_key, sentence, mention_requester=mention_requester)
+    except Exception:
+        logger.exception("Could not send job notice %s for job %s.", marker_key, job_id)
 
 
 def _end_reason_sentence(reason: str) -> str:
@@ -109,6 +142,8 @@ def _end_reason_sentence(reason: str) -> str:
         return _("The runner could not start this task.")
     if reason == "result_invalid":
         return _("The agent ended the task without a usable result.")
+    if reason == "verification_failed":
+        return _("The required checks failed.")
     return _("The task ended without a result.")
 
 
@@ -398,6 +433,13 @@ def create_job(
                 realm=actor.realm, job=job, delivery_key=f"wake:{job.id}:1", event_type="job.wake"
             )
             audit(job, "job.queued", {"status": "queued", "reason": ""}, actor=control_actor)
+            with override_language(job.realm.default_language):
+                sentence = (
+                    _("This task is saved. It starts when the agent's device connects.")
+                    if observed_runner_status(profile.runner) in {"offline", "unknown"}
+                    else _("This task is queued.")
+                )
+            notify_conversation(job, f"status:accepted:{job.id}", sentence, mention_requester=False)
         return job
 
 
@@ -929,6 +971,8 @@ def job_reason_code(job: agents.AgentJob) -> str | None:
     reason = job.blocked_reason
     if not reason:
         return None
+    if reason == "audience_changed":
+        return reason
     attempt = agents.AgentAttempt.objects.filter(job=job).order_by("-number").first()
     if attempt is None:
         return reason
@@ -1314,15 +1358,28 @@ def record_event(
             "status": job.status,
         }
     if event.type == "attempt.stopped" and job.status == "verifying":
-        # A verifying job already staged its result and outbox row. Publish now
-        # instead of waiting for the reconcile timer, which stays as a fallback.
-        try:
-            from zerver.lib.agent_results import publish_result
-
-            publish_result(job.id)
-        except Exception:
-            pass
+        # A verifying job already staged its result and outbox row. Publish
+        # after commit instead of waiting for the reconcile timer, which
+        # stays as a fallback (RL-3): a call made from inside this open
+        # transaction could see stale data or race the transition it follows.
+        # A plain closure, never functools.partial: see notify_conversation.
+        transaction.on_commit(lambda: _publish_after_commit(job.id), robust=True)
     return result
+
+
+def _publish_after_commit(job_id: UUID) -> None:
+    """Never raise: this runs from an on_commit hook, after the transition it
+    follows has already committed, so nothing is left to unwind here."""
+    from zerver.lib.agent_results import publish_result
+
+    try:
+        publish_result(job_id)
+    except (ValueError, JsonableError, ObjectDoesNotExist, AgentBusy):
+        # Presumed transient or already handled: publish_result's own except
+        # blocks already parked the outbox row or blocked the job for these.
+        pass
+    except Exception:
+        logger.exception("Could not publish the result for job %s.", job_id)
 
 
 def deliver_inputs(

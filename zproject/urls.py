@@ -419,6 +419,7 @@ v1_api_and_json_patterns = [
         "agent/team-instructions", GET=get_team_instructions, PATCH=update_team_instructions
     ),
     rest_path("agent/pairings/preview", POST=preview_agent_pairing),
+    rest_path("agent/jobs/<uuid:job_id>/deliver-privately", POST=agent_job_views.deliver_privately),
     # realm-level calls
     rest_path("realm", PATCH=update_realm),
     rest_path("realm/user_settings_defaults", PATCH=update_realm_user_settings_defaults),

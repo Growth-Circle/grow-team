@@ -16,19 +16,21 @@ from zerver.lib.agent_context import (
     require_job_access,
 )
 from zerver.lib.agent_policy import AgentAccessDenied
-from zerver.lib.agent_results import download_artifact
+from zerver.lib.agent_results import deliver_result_privately, download_artifact
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.message import access_message
 from zerver.models import Message, UserProfile, agents
 from zerver.views.agents import _success, payload, safe_agent_endpoint
 
 JOB_LIST_VIEWS = {"mine", "waiting", "running", "all"}
-JOB_LIST_WAITING_STATUSES = {"waiting_for_approval", "waiting_for_input"}
+JOB_LIST_WAITING_STATUSES = {"waiting_for_approval", "waiting_for_input", "verifying"}
 JOB_LIST_RUNNING_STATUSES = {"running", "verifying", "cancel_requested"}
 
 
 def needs_my_action(actor: UserProfile, job: agents.AgentJob) -> bool:
     """Whether the reader can give this job the approval or input it waits for."""
+    if job.status == "verifying" and job.blocked_reason == "audience_changed":
+        return actor.id == job.requester_id
     if job.status == "waiting_for_input":
         try:
             agent_jobs.require_control(actor, job)
@@ -77,6 +79,12 @@ def job_data(actor: UserProfile, job: agents.AgentJob) -> dict[str, object]:
             actions.append("input")
     except AgentAccessDenied:
         pass
+    if (
+        actor.id == job.requester_id
+        and job.status == "verifying"
+        and job.blocked_reason == "audience_changed"
+    ):
+        actions.append("deliver_privately")
     return {
         "id": str(job.id),
         "profile_id": str(job.profile_id),
@@ -476,6 +484,15 @@ def cancel(request: HttpRequest, user_profile: UserProfile, job_id: UUID) -> Htt
 def resume(request: HttpRequest, user_profile: UserProfile, job_id: UUID) -> HttpResponse:
     data = payload(request, r.Resume)
     job = agent_jobs.resume_job(user_profile, job_id, data.expected_version, data.checkpoint_id)
+    return _success(request, {"job": job_data(user_profile, job)})
+
+
+@safe_agent_endpoint
+def deliver_privately(
+    request: HttpRequest, user_profile: UserProfile, job_id: UUID
+) -> HttpResponse:
+    data = payload(request, r.JobControl)
+    job = deliver_result_privately(user_profile, job_id, data.expected_version)
     return _success(request, {"job": job_data(user_profile, job)})
 
 

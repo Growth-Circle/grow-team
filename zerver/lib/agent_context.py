@@ -49,6 +49,10 @@ class AgentBusy(ValueError):  # noqa: N818
     pass
 
 
+class AudienceChanged(ValueError):  # noqa: N818
+    """The conversation's current audience no longer matches its accepted binding."""
+
+
 def log_agent_busy(request: HttpRequest, response: HttpResponse) -> None:
     # Clients wait for Retry-After and send the request again, so this
     # 503 is expected contention, not a server error. Log it as a
@@ -183,7 +187,7 @@ def require_audience(job: agents.AgentJob) -> p.AudienceBinding:
     accepted = p.AudienceBinding.model_validate(job.conversation.audience_binding)
     current = current_audience(job.conversation, job.requester, job.profile.bot_user)
     if current != accepted:
-        raise ValueError("Conversation audience changed. Explicit replan is required.")
+        raise AudienceChanged("Conversation audience changed. Explicit replan is required.")
     return current
 
 
