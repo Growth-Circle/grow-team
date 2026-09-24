@@ -1,5 +1,6 @@
 .task-board-container {
     display: flex;
+    box-sizing: border-box;
     min-height: 100vh;
     padding: var(--navbar-fixed-height) 0 0;
     background: var(--color-background);
@@ -87,13 +88,18 @@
     flex: 1 1 auto;
     align-items: flex-start;
     padding-bottom: 20px;
+    /* Keeps the horizontal scrollbar above the closed compose box,
+       which is fixed to the bottom of the viewport. */
+    margin-bottom: 2.75em;
     overflow-x: auto;
     gap: 16px;
 }
 
 .task-board-column {
     display: flex;
-    flex: 0 0 300px;
+    /* Columns share the pane width, so four columns fit beside the
+       right sidebar on a laptop screen before the board scrolls. */
+    flex: 1 0 12.5em;
     flex-direction: column;
     box-sizing: border-box;
     padding: 12px;
