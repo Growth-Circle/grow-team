@@ -106,6 +106,9 @@ SESSION_ENGINE = "django.contrib.sessions.backends.db"
 # Use production config from Webpack in tests
 if PUPPETEER_TESTS:
     WEBPACK_STATS_FILE = os.path.join(DEPLOY_ROOT, "webpack-stats-production.json")
+    # Private storage for the fake runner fixture (contract 15.1). The
+    # fixture creates this directory with mode 0700 before first use.
+    AGENT_ARTIFACT_ROOT = os.path.join(DEPLOY_ROOT, "var", "puppeteer", "agent-artifacts")
 else:
     WEBPACK_STATS_FILE = os.path.join(DEPLOY_ROOT, "var", "webpack-stats-test.json")
 WEBPACK_BUNDLES = "webpack-bundles/"
