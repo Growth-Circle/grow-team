@@ -23,6 +23,9 @@ const runner_schema = z.object({
         sandboxes: z.array(z.object({alias: z.string()})),
     }),
     allowed_actions: z.array(z.string()),
+    // Optional until the schema-settings release lane ships it: an older
+    // response omits it, and only the owner ever receives a value anyway.
+    fingerprint_prefix: z.optional(z.nullable(z.string())),
 });
 const provider_schema = z.object({
     id: z.string(),
@@ -43,6 +46,8 @@ const provider_schema = z.object({
     base_url: z.optional(z.string()),
     network: z.optional(z.unknown()),
     credential: z.optional(z.object({retained: z.boolean(), kind: z.nullable(z.string())})),
+    // Optional until the schema-settings release lane ships it.
+    model_location: z.optional(z.enum(["runner_local", "private_network", "external"])),
 });
 const repository_schema = z.object({
     id: z.string(),
@@ -78,6 +83,9 @@ const profile_schema = z.object({
     enabled_revision: z.nullable(z.number()),
     readiness_revision: z.nullable(z.number()),
     allowed_actions: z.array(z.string()),
+    // Optional until the schema-settings release lane ships it: an older
+    // response simply omits it, and the instructions field stays empty.
+    has_instructions: z.optional(z.boolean()),
     // Optional until the team-backend release lane ships it: an older
     // response simply omits it, and the owner-only share panel hides itself.
     shared_with: z.optional(
@@ -114,6 +122,8 @@ const profile_schema = z.object({
             budget: z.unknown(),
             scope_restricted: z.boolean(),
             network_retained: z.boolean(),
+            // Optional until the schema-settings release lane ships it.
+            instructions: z.optional(z.string()),
         }),
     ),
 });
@@ -749,4 +759,67 @@ export async function decide_approval(id: string, payload: Record<string, unknow
         payload,
         z.object({...version, approval_id: z.string(), decision: z.string(), version: z.number()}),
     );
+}
+
+// Settings-side functions (lane 5, contract 11).
+const team_instructions_schema = z.object({
+    text: z.string(),
+    revision: z.number(),
+    allowed_actions: z.array(z.string()),
+});
+export async function get_team_instructions() {
+    return get(
+        "/json/agent/team-instructions",
+        z.object({...version, team_instructions: team_instructions_schema}),
+    );
+}
+export async function update_team_instructions(payload: {expected_revision: number; text: string}) {
+    return mutate(
+        "patch",
+        "/json/agent/team-instructions",
+        payload,
+        z.object({...version, team_instructions: team_instructions_schema}),
+    );
+}
+export async function preview_pairing(pairing_id: string, user_code: string) {
+    return mutate(
+        "post",
+        "/json/agent/pairings/preview",
+        {pairing_id, user_code},
+        z.object({
+            ...version,
+            pairing: z.object({
+                device_name: z.string(),
+                fingerprint_prefix: z.string(),
+                realm_name: z.string(),
+                expires_at: z.string(),
+            }),
+        }),
+    );
+}
+export async function send_test_task(profile_id: string, payload: {idempotency_key: string}) {
+    return mutate(
+        "post",
+        `/json/agent/profiles/${profile_id}/test-task`,
+        payload,
+        z.object({...version, job: job_schema}),
+    );
+}
+// Reads the AgentUserError code a rejected mutation's JSON body carries
+// (contract 8.1), so a caller can show that code's own sentence instead of
+// a generic failure message. jQuery's ajax rejection exposes the parsed
+// body as responseJSON; a network failure or a plain Error has none.
+export function agent_error_code(error: unknown): string | undefined {
+    if (
+        error &&
+        typeof error === "object" &&
+        "responseJSON" in error &&
+        error.responseJSON &&
+        typeof error.responseJSON === "object" &&
+        "code" in error.responseJSON &&
+        typeof error.responseJSON.code === "string"
+    ) {
+        return error.responseJSON.code;
+    }
+    return undefined;
 }

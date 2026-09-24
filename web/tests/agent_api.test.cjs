@@ -282,6 +282,84 @@ run_test("lost acknowledgement resolves the original send key and tombstone", as
     assert.equal((await api.recover_send_intent("stable-key")).deleted, true);
 });
 
+run_test("team instructions are read and saved with an expected revision", async () => {
+    next_response = {
+        schema_version: 1,
+        team_instructions: {text: "Reply in English.", revision: 3, allowed_actions: ["edit"]},
+    };
+    const read = await api.get_team_instructions();
+    assert.equal(last_call.method, "GET");
+    assert.equal(read.team_instructions.revision, 3);
+    next_response = {
+        schema_version: 1,
+        team_instructions: {text: "Reply in English.", revision: 4, allowed_actions: ["edit"]},
+    };
+    const saved = await api.update_team_instructions({
+        expected_revision: 3,
+        text: "Reply in English.",
+    });
+    assert.equal(last_call.method, "PATCH");
+    assert.deepEqual(JSON.parse(last_call.data.payload), {
+        schema_version: 1,
+        expected_revision: 3,
+        text: "Reply in English.",
+    });
+    assert.equal(saved.team_instructions.revision, 4);
+});
+
+run_test("a pairing preview never approves the pairing", async () => {
+    next_response = {
+        schema_version: 1,
+        pairing: {
+            device_name: "Laptop",
+            fingerprint_prefix: "abcd1234abcd1234",
+            realm_name: "Acme",
+            expires_at: "2026-01-01T00:00:00Z",
+        },
+    };
+    const result = await api.preview_pairing("pairing-1", "123456");
+    assert.equal(last_call.url, "/json/agent/pairings/preview");
+    assert.deepEqual(JSON.parse(last_call.data.payload), {
+        schema_version: 1,
+        pairing_id: "pairing-1",
+        user_code: "123456",
+    });
+    assert.equal(result.pairing.device_name, "Laptop");
+});
+
+run_test("a test task is sent with an idempotency key", async () => {
+    next_response = {
+        schema_version: 1,
+        job: {
+            id: "job",
+            profile_id: "profile",
+            requester_id: 1,
+            source_message_id: null,
+            status: "queued",
+            phase: "run",
+            version: 1,
+            request: "Test task: reply with one short sentence.",
+            job_kind: "answer",
+            delivery_target: "answer",
+            blocked_reason: null,
+            result: null,
+            allowed_actions: [],
+        },
+    };
+    const result = await api.send_test_task("profile", {idempotency_key: "key-1"});
+    assert.equal(last_call.url, "/json/agent/profiles/profile/test-task");
+    assert.equal(result.job.id, "job");
+});
+
+run_test("the agent error code reads a rejected mutation's JSON body", () => {
+    assert.equal(
+        api.agent_error_code({responseJSON: {schema_version: 1, code: "instructions_rejected"}}),
+        "instructions_rejected",
+    );
+    assert.equal(api.agent_error_code(new Error("network failure")), undefined);
+    assert.equal(api.agent_error_code(undefined), undefined);
+});
+
 run_test("a busy server answer to a read waits and asks again", async () => {
     const busy = {status: 503, getResponseHeader: () => "0.001"};
     get_calls = 0;
