@@ -5,6 +5,47 @@
     </div>
     <div class="input-group">
         <label for="task-board-new-body" class="modal-field-label">{{t "Description"}}</label>
-        <textarea id="task-board-new-body" class="modal_text_input" rows="3"></textarea>
+        <textarea id="task-board-new-body" class="modal-textarea" rows="3"></textarea>
+    </div>
+    <div class="task-board-new-card-fields">
+        <div class="input-group">
+            <label for="task-board-new-column" class="modal-field-label">{{t "Column"}}</label>
+            <select id="task-board-new-column" class="modal_select bootstrap-focus-style">
+                {{#each columns}}
+                <option value="{{this.id}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>
+                {{/each}}
+            </select>
+        </div>
+        <div class="input-group">
+            <label for="task-board-new-due" class="modal-field-label">{{t "Due date"}}</label>
+            <input type="date" id="task-board-new-due" class="modal_text_input" />
+        </div>
+        <div class="input-group">
+            <label for="task-board-new-assignee" class="modal-field-label">{{t "Responsible"}}</label>
+            <select id="task-board-new-assignee" class="modal_select bootstrap-focus-style">
+                <option value="">{{t "Nobody yet"}}</option>
+                {{#each people}}
+                <option value="{{this.user_id}}">{{this.full_name}}</option>
+                {{/each}}
+            </select>
+        </div>
+        <div class="input-group">
+            <label for="task-board-new-reviewer" class="modal-field-label">{{t "Reviewer"}}</label>
+            <select id="task-board-new-reviewer" class="modal_select bootstrap-focus-style">
+                <option value="">{{t "No review"}}</option>
+                {{#each people}}
+                <option value="{{this.user_id}}">{{this.full_name}}</option>
+                {{/each}}
+            </select>
+        </div>
+    </div>
+    <div class="input-group">
+        <label for="task-board-new-channel" class="modal-field-label">{{t "Channel"}}</label>
+        <select id="task-board-new-channel" class="modal_select bootstrap-focus-style">
+            <option value="">{{t "No channel"}}</option>
+            {{#each channels}}
+            <option value="{{this.stream_id}}">{{this.name}}</option>
+            {{/each}}
+        </select>
     </div>
 </form>

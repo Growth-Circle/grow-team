@@ -15,11 +15,13 @@ import * as hash_util from "./hash_util.ts";
 import {$t, $t_html} from "./i18n.ts";
 import * as left_sidebar_navigation_area from "./left_sidebar_navigation_area.ts";
 import * as people from "./people.ts";
+import * as stream_data from "./stream_data.ts";
 import * as sub_store from "./sub_store.ts";
 import * as task_board_data from "./task_board_data.ts";
 import type {Task, TaskHistoryEntry} from "./task_board_data.ts";
 import * as timerender from "./timerender.ts";
 import * as ui_report from "./ui_report.ts";
+import * as util from "./util.ts";
 import * as views_util from "./views_util.ts";
 
 let hide_other_views_callback: (() => void) | undefined;
@@ -351,26 +353,68 @@ function drop_index($column_cards: JQuery, drop_y: number): number {
     return index;
 }
 
+function selected_id(selector: string): number | undefined {
+    const value = $<HTMLSelectElement>(selector).val();
+    return value ? Number(value) : undefined;
+}
+
 function launch_new_card_dialog(column_id: number): void {
+    const column_name = task_board_data.get_column(column_id)?.name ?? "";
     dialog_widget.launch({
-        modal_title_text: $t({defaultMessage: "New task"}),
-        modal_content_html: render_task_board_new_card_form(),
+        modal_title_text: $t({defaultMessage: "New task in {column}"}, {column: column_name}),
+        modal_content_html: render_task_board_new_card_form({
+            columns: task_board_data.get_columns().map((column) => ({
+                id: column.id,
+                name: column.name,
+                selected: column.id === column_id,
+            })),
+            people: people
+                .get_realm_active_human_users()
+                .toSorted(people.compare_by_name)
+                .map((person) => ({user_id: person.user_id, full_name: person.full_name})),
+            channels: stream_data
+                .subscribed_subs()
+                .toSorted((a, b) => util.strcmp(a.name, b.name))
+                .map((sub) => ({stream_id: sub.stream_id, name: sub.name})),
+        }),
         modal_submit_button_text: $t({defaultMessage: "Create"}),
         id: "task-board-new-card-modal",
         form_id: "task-board-new-card-form",
         focus_submit_on_open: false,
+        on_shown() {
+            $("#task-board-new-title").trigger("focus");
+        },
         on_click() {
             const title = $<HTMLInputElement>("#task-board-new-title").val()?.trim() ?? "";
             if (title === "") {
                 return;
             }
+            const data: Record<string, string | number> = {
+                title,
+                body: $<HTMLTextAreaElement>("#task-board-new-body").val() ?? "",
+                column_id: selected_id("#task-board-new-column") ?? column_id,
+            };
+            const assignee_id = selected_id("#task-board-new-assignee");
+            if (assignee_id !== undefined) {
+                data["assignee_id"] = assignee_id;
+            }
+            const reviewer_id = selected_id("#task-board-new-reviewer");
+            if (reviewer_id !== undefined) {
+                data["reviewer_id"] = reviewer_id;
+            }
+            const stream_id = selected_id("#task-board-new-channel");
+            if (stream_id !== undefined) {
+                data["stream_id"] = stream_id;
+            }
+            const due = $<HTMLInputElement>("#task-board-new-due").val() ?? "";
+            if (due !== "") {
+                // A card is due at the end of the chosen day in the
+                // reader's own time zone.
+                data["due_at"] = Math.floor(new Date(`${due}T23:59:59`).getTime() / 1000);
+            }
             void channel.post({
                 url: "/json/tasks",
-                data: {
-                    title,
-                    body: $<HTMLTextAreaElement>("#task-board-new-body").val() ?? "",
-                    column_id,
-                },
+                data,
                 error: report_error,
             });
         },
@@ -389,6 +433,9 @@ function launch_rename_dialog(): void {
         id: "task-board-rename-modal",
         form_id: "task-board-rename-form",
         focus_submit_on_open: false,
+        on_shown() {
+            $("#task-board-rename-input").trigger("focus");
+        },
         on_click() {
             const name = $<HTMLInputElement>("#task-board-rename-input").val()?.trim() ?? "";
             if (name === "") {

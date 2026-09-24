@@ -490,3 +490,18 @@
         border-left: none;
     }
 }
+
+#task-board-new-card-form {
+    /* .modal_text_input keeps its max-width, which subtracts its
+       padding and border from 100%. */
+    .modal_text_input,
+    .modal_select {
+        width: 100%;
+    }
+
+    .task-board-new-card-fields {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(12em, 1fr));
+        column-gap: 1em;
+    }
+}
