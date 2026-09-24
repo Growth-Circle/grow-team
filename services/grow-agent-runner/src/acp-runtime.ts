@@ -10,6 +10,10 @@ import type {Message} from "./codecs.js";
 import {ModelBroker, type ModelAuthority} from "./model-broker.js";
 import {RootlessSandbox} from "./sandbox.js";
 import {RuntimeTools, type Runtime} from "./runtime.js";
+// ponytail: a fixed grace window, not a real delivery acknowledgement. Raise it if
+// AT-17 flakes on a slower host; a future version could wait for the agent's own
+// stopReason instead of a timer.
+const CANCEL_DELIVERY_DELAY_MS = 100;
 export function permissionDecision(options: Data[]): Data {
     const deny = options.find((o) => o.kind === "reject_once");
     return deny
@@ -261,10 +265,15 @@ export class AcpRuntime implements Runtime {
         return false;
     }
     async cancel(): Promise<void> {
-        if (this.connection && this.session)
+        if (this.connection && this.session) {
             await this.connection.agent
                 .notify("session/cancel", {sessionId: this.session})
                 .catch(() => {});
+            // The write reaching the connection's outbound queue does not mean the agent
+            // process has read and acted on it yet (AT-17): give it one scheduling turn
+            // before close() tears down its stdio and kills it.
+            await new Promise((resolve) => setTimeout(resolve, CANCEL_DELIVERY_DELAY_MS));
+        }
         await this.close();
     }
     async close(): Promise<void> {
