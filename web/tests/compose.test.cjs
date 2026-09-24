@@ -43,6 +43,8 @@ const compose_pm_pill = mock_esm("../src/compose_pm_pill");
 const agent_message_send = mock_esm("../src/agent_message_send", {
     needs_target_lookup: () => false,
     report_dispatch: noop,
+    all_targets_rejected: () => false,
+    rejected_target_names: () => "",
 });
 const loading = mock_esm("../src/loading");
 const markdown = mock_esm("../src/markdown");
@@ -569,6 +571,150 @@ test_ui(
         await Promise.resolve();
         assert.equal(sent, 0);
         assert.equal(fake_compose_box.textarea_val(), "same text");
+    },
+);
+
+test_ui(
+    "contract 13.4: every target rejected blocks the send until the person decides",
+    async ({override, override_rewire}) => {
+        mock_banners();
+        initialize_handlers({override});
+        const fake_compose_box = new FakeComposeBox();
+        simulate_draft_ui_interactions();
+        override_rewire(drafts, "update_draft", () => 100);
+        override(current_user, "user_id", new_user.user_id);
+        override(compose_pm_pill, "get_emails", () => "bot@example.com");
+        override(compose_pm_pill, "get_user_ids", () => [bot.user_id]);
+        override(agent_message_send, "needs_target_lookup", () => true);
+        // Real local echo checks the direct-message permission setting
+        // group, which this test's realm fixture never builds; skip it, the
+        // same way the AF-21 test below does.
+        override_rewire(echo, "try_deliver_locally", noop);
+        override(sent_messages, "get_new_local_id", () => "loc-preflight-1");
+        override(server_events_state, "assert_get_events_running", noop);
+
+        // The preflight banner classname is new, so this test stubs it the
+        // same way mock_banners() stubs every other compose banner's class.
+        const preflight_selector = `.${compose.AGENT_PREFLIGHT_BANNER_CLASSNAME}`;
+        $(`#compose_banners ${preflight_selector}`)[0].remove = noop;
+        $("#compose_banners").set_find_results(
+            preflight_selector,
+            $.set_results("no-preflight-banner-yet", []),
+        );
+
+        const targets = {
+            profile_ids: ["profile-bot"],
+            metadata_safe: true,
+            decisions: [{profile_id: "profile-bot", decision: "rejected"}],
+            names: new Map([["profile-bot", "Helper"]]),
+        };
+        override(agent_message_send, "prepare", async () => targets);
+        override(agent_message_send, "all_targets_rejected", (value) => value === targets);
+        override(agent_message_send, "rejected_target_names", () => "Helper");
+        let sent = 0;
+        override(
+            transmit,
+            "send_message",
+            () => {
+                sent += 1;
+            },
+            {unused: false},
+        );
+
+        compose_state.set_message_type("private");
+        fake_compose_box.set_textarea_val("give this a task");
+
+        compose.send_message();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        // Blocked: the draft stays, and nothing was sent.
+        assert.equal(sent, 0);
+        assert.equal(fake_compose_box.textarea_val(), "give this a task");
+
+        compose.send_agent_preflight_anyway();
+        await Promise.resolve();
+        await Promise.resolve();
+        assert.equal(sent, 1);
+
+        // A second decision with no new blocked attempt sends nothing.
+        compose.send_agent_preflight_anyway();
+        await Promise.resolve();
+        assert.equal(sent, 1);
+    },
+);
+
+test_ui(
+    "AF-21: a lost send response recovers the message ID and sends no second message",
+    async ({override, override_rewire}) => {
+        mock_banners();
+        initialize_handlers({override});
+        const fake_compose_box = new FakeComposeBox();
+        simulate_draft_ui_interactions();
+        override_rewire(drafts, "update_draft", () => 100);
+        override_rewire(drafts, "update_compose_draft_count", noop);
+        override(current_user, "user_id", new_user.user_id);
+        override(compose_pm_pill, "get_emails", () => "bot@example.com");
+        override(compose_pm_pill, "get_user_ids", () => [bot.user_id]);
+        override(agent_message_send, "needs_target_lookup", () => true);
+        override(agent_message_send, "prepare", async () => ({
+            profile_ids: ["profile-bot"],
+            metadata_safe: true,
+            decisions: [{profile_id: "profile-bot", decision: "accepted"}],
+            names: new Map([["profile-bot", "Helper"]]),
+        }));
+        let reported_message_id;
+        override(agent_message_send, "report_dispatch", async (message_id) => {
+            reported_message_id = message_id;
+        });
+        override_rewire(echo, "try_deliver_locally", noop);
+        override_rewire(echo, "reify_message_id", noop);
+        override(sent_messages, "get_new_local_id", () => "loc-af21-1");
+        override(server_events_state, "assert_get_events_running", noop);
+        // The recovered send clears the compose box for real, which
+        // refocuses the textarea and fires its real focus handler; that
+        // handler's own real dependencies need these mocks too, the same
+        // way test_undo_markdown_preview_clicked further below does.
+        override(compose_fade, "do_update_all", noop);
+        override(narrow_state, "narrowed_by_reply", () => true);
+        override(
+            compose_notifications,
+            "maybe_show_one_time_non_interleaved_view_messages_fading_banner",
+            noop,
+        );
+
+        let send_calls = 0;
+        let error_callback;
+        override(transmit, "send_message", (_data, _success, error) => {
+            send_calls += 1;
+            error_callback = error;
+        });
+
+        let recovered_key;
+        override(channel, "get", async ({url}) => {
+            recovered_key = url;
+            return {schema_version: 1, source_message_id: 909, deleted: false};
+        });
+
+        compose_state.set_message_type("private");
+        fake_compose_box.set_textarea_val("hello agent");
+
+        compose.send_message();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        assert.equal(send_calls, 1);
+        assert.ok(error_callback);
+
+        error_callback("Service Unavailable", "unknown");
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        assert.match(recovered_key, /^\/json\/agent\/send-intents\//);
+        assert.equal(reported_message_id, 909);
+        // The lost response was recovered, not resent.
+        assert.equal(send_calls, 1);
     },
 );
 

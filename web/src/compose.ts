@@ -5,6 +5,7 @@ import $ from "jquery";
 import assert from "minimalistic-assert";
 import * as z from "zod/mini";
 
+import render_agent_preflight_banner from "../templates/compose_banner/agent_preflight_banner.hbs";
 import render_success_message_scheduled_banner from "../templates/compose_banner/success_message_scheduled_banner.hbs";
 import render_wildcard_mention_not_allowed_error from "../templates/compose_banner/wildcard_mention_not_allowed_error.hbs";
 
@@ -276,7 +277,8 @@ export let send_message = (): void => {
               };
     const agent_candidate = agent_message_send.needs_target_lookup(snapshot);
 
-    const publish = ({profile_ids, metadata_safe}: agent_message_send.PreparedTargets): void => {
+    const publish = (targets: agent_message_send.PreparedTargets): void => {
+        const {profile_ids, metadata_safe} = targets;
         if (
             !agent_send_intent.is_current(
                 intent,
@@ -290,7 +292,7 @@ export let send_message = (): void => {
         // A hidden agent profile needs the same retry key as a listed one.
         if (agent_candidate) {
             message_data.agent_send_authority = intent;
-            retry_intent = {authority: intent, targets: {profile_ids, metadata_safe}};
+            retry_intent = {authority: intent, targets};
             message_data.agent_send_key = intent.send_key;
             if (metadata_safe) {
                 message_data.agent_send_metadata = JSON.stringify({
@@ -448,16 +450,67 @@ export let send_message = (): void => {
         } else {
             void (async () => {
                 try {
-                    publish(await agent_message_send.prepare(snapshot));
+                    const targets = await agent_message_send.prepare(snapshot);
+                    if (agent_message_send.all_targets_rejected(targets)) {
+                        show_agent_preflight_banner(targets, () => {
+                            publish(targets);
+                        });
+                        return;
+                    }
+                    publish(targets);
                 } catch {
-                    publish({profile_ids: [], metadata_safe: false});
+                    publish({
+                        profile_ids: [],
+                        metadata_safe: false,
+                        decisions: [],
+                        names: new Map(),
+                    });
                 }
             })();
         }
     } else {
-        publish({profile_ids: [], metadata_safe: false});
+        publish({profile_ids: [], metadata_safe: false, decisions: [], names: new Map()});
     }
 };
+
+// Contract 13.4: every targeted agent was rejected, so the message stays a
+// draft until the person decides. compose_setup.ts binds the banner's two
+// buttons once, the same way it binds every other compose banner's button,
+// and calls send_agent_preflight_anyway/cancel_agent_preflight below; each
+// reads this one pending attempt rather than a per-banner closure, since a
+// person can only face one blocked send at a time.
+export const AGENT_PREFLIGHT_BANNER_CLASSNAME = "agent_preflight_banner";
+let pending_agent_preflight: {send_anyway: () => void} | undefined;
+
+function show_agent_preflight_banner(
+    targets: agent_message_send.PreparedTargets,
+    send_anyway: () => void,
+): void {
+    compose_ui.hide_compose_spinner();
+    pending_agent_preflight = {send_anyway};
+    const $banner = $(
+        render_agent_preflight_banner({
+            banner_type: compose_banner.WARNING,
+            classname: AGENT_PREFLIGHT_BANNER_CLASSNAME,
+            names: agent_message_send.rejected_target_names(targets),
+        }),
+    );
+    compose_banner.update_or_append_banner(
+        $banner,
+        AGENT_PREFLIGHT_BANNER_CLASSNAME,
+        $("#compose_banners"),
+    );
+}
+
+export function send_agent_preflight_anyway(): void {
+    const current = pending_agent_preflight;
+    pending_agent_preflight = undefined;
+    current?.send_anyway();
+}
+
+export function cancel_agent_preflight(): void {
+    pending_agent_preflight = undefined;
+}
 
 export function rewire_send_message(value: typeof send_message): void {
     send_message = value;

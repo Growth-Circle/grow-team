@@ -1,0 +1,16 @@
+<div class="main-view-banner {{banner_type}} {{classname}}">
+    <div class="main-view-banner-elements-wrapper">
+        <div class="banner_content">
+            {{#tr}}
+                You cannot give this task to {names}. You can still send it as a
+                normal message.
+            {{/tr}}
+        </div>
+        <button
+            class="main-view-banner-action-button agent-preflight-send-anyway"
+        >{{t "Send anyway"}}</button>
+        <button
+            class="main-view-banner-action-button agent-preflight-keep-editing secondary-button right_edge"
+        >{{t "Keep editing"}}</button>
+    </div>
+</div>

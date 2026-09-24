@@ -174,6 +174,74 @@ run_test(
     },
 );
 
+run_test("contract 12.1: accepted, needs_input, and admission_denied receipts", () => {
+    const names = new Map([["a", "Helper"]]);
+    const [offline] = send.receipt_rows(
+        [{profile_id: "a", decision: "accepted", reason: "runner_offline", job_id: null}],
+        names,
+    );
+    assert.match(offline.outcome, /starts when the agent's device connects/);
+    const [unknown_runner] = send.receipt_rows(
+        [{profile_id: "a", decision: "accepted", reason: "runner_unknown", job_id: null}],
+        names,
+    );
+    assert.match(unknown_runner.outcome, /starts when the agent's device connects/);
+    const [busy] = send.receipt_rows(
+        [{profile_id: "a", decision: "accepted", reason: "runner_busy", job_id: null}],
+        names,
+    );
+    assert.match(busy.outcome, /starts after the agent finishes its current task/);
+    const [blocked] = send.receipt_rows(
+        [{profile_id: "a", decision: "accepted", job_id: null, job_status: "blocked"}],
+        names,
+    );
+    assert.match(blocked.outcome, /needs a fix before it can start/);
+    const [needs_input] = send.receipt_rows(
+        [{profile_id: "a", decision: "needs_input", reason: "configuration_needed", job_id: null}],
+        names,
+    );
+    assert.match(needs_input.outcome, /Choose a repository or complete the task first/);
+    const [needs_input_no_reason] = send.receipt_rows(
+        [{profile_id: "a", decision: "needs_input", job_id: null}],
+        names,
+    );
+    assert.match(needs_input_no_reason.outcome, /Choose a repository or complete the task first/);
+    const [denied] = send.receipt_rows(
+        [{profile_id: "a", decision: "rejected", reason: "admission_denied", job_id: null}],
+        names,
+    );
+    assert.match(denied.outcome, /the task is not allowed/);
+});
+
+run_test("contract 13.4: every target rejected blocks the send", () => {
+    const rejected = {
+        profile_ids: ["a", "b"],
+        metadata_safe: false,
+        decisions: [
+            {profile_id: "a", decision: "rejected"},
+            {profile_id: "b", decision: "rejected"},
+        ],
+        names: new Map([
+            ["a", "Helper"],
+            ["b", "Coder"],
+        ]),
+    };
+    assert.equal(send.all_targets_rejected(rejected), true);
+    assert.equal(send.rejected_target_names(rejected), "Helper, Coder");
+
+    const mixed = {
+        ...rejected,
+        decisions: [
+            {profile_id: "a", decision: "accepted"},
+            {profile_id: "b", decision: "rejected"},
+        ],
+    };
+    assert.equal(send.all_targets_rejected(mixed), false);
+
+    const no_targets = {profile_ids: [], metadata_safe: false, decisions: [], names: new Map()};
+    assert.equal(send.all_targets_rejected(no_targets), false);
+});
+
 run_test("an unavailable receipt names a path that exists", async ({override, mock_template}) => {
     override(api, "message_dispatch", async () => {
         throw new Error("network");

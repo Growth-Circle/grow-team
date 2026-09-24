@@ -48,7 +48,17 @@ function destination(snapshot: MessageSnapshot): Destination {
     };
 }
 
-export type PreparedTargets = {profile_ids: string[]; metadata_safe: boolean};
+export type PreparedTargets = {
+    profile_ids: string[];
+    metadata_safe: boolean;
+    // The preflight decision for each targeted profile, in the same order as
+    // `profile_ids`. Empty when there were no targets or the preflight
+    // request failed; a failure never blocks the send (contract 13.4).
+    decisions: {profile_id: string; decision: string}[];
+    // Display names for the profiles in `decisions`, built from the same
+    // list `prepare` already fetched, for the preflight banner.
+    names: Map<string, string>;
+};
 
 async function list_all_profiles(): Promise<api.AgentProfile[]> {
     const profiles: api.AgentProfile[] = [];
@@ -75,16 +85,16 @@ export async function prepare(snapshot: MessageSnapshot): Promise<PreparedTarget
     );
     const recipients = new Set(snapshot.recipient_ids);
     const direct_bot = snapshot.type === "private" && recipients.size === 1;
-    const ids = profiles
-        .filter(
-            (profile) =>
-                mentioned.has(profile.bot_user_id) ||
-                (direct_bot && recipients.has(profile.bot_user_id)),
-        )
-        .map((profile) => profile.id);
+    const targeted = profiles.filter(
+        (profile) =>
+            mentioned.has(profile.bot_user_id) ||
+            (direct_bot && recipients.has(profile.bot_user_id)),
+    );
+    const ids = targeted.map((profile) => profile.id);
+    let decisions: {profile_id: string; decision: string}[] = [];
     if (ids.length > 0) {
         try {
-            await api.preflight_message(ids, destination(snapshot));
+            decisions = (await api.preflight_message(ids, destination(snapshot))).decisions;
         } catch {
             // The message server makes the final admission decision.
         }
@@ -94,7 +104,27 @@ export async function prepare(snapshot: MessageSnapshot): Promise<PreparedTarget
     return {
         profile_ids: ids,
         metadata_safe: direct_bot && mentioned.size === 0 && ids.length === 1,
+        decisions,
+        names: new Map(targeted.map((profile) => [profile.id, profile.name])),
     };
+}
+
+// Contract 13.4: every targeted agent was rejected, so the caller must not
+// send the task as one. An empty decision list (no targets, or a failed
+// preflight request) never counts as "every target rejected".
+export function all_targets_rejected(targets: PreparedTargets): boolean {
+    return (
+        targets.decisions.length > 0 &&
+        targets.decisions.every((item) => item.decision === "rejected")
+    );
+}
+
+// The names for the preflight banner's "You cannot give this task to
+// {names}." sentence, in decision order.
+export function rejected_target_names(targets: PreparedTargets): string {
+    return targets.decisions
+        .map((item) => targets.names.get(item.profile_id) ?? $t({defaultMessage: "an agent"}))
+        .join(", ");
 }
 
 // Best-effort display names for a dispatch receipt list, or undefined
@@ -109,8 +139,40 @@ async function profile_names(): Promise<Map<string, string> | undefined> {
 
 export type ReceiptRow = {name: string; outcome: string; job_url?: string | undefined};
 
+// Contract 12.1: an accepted receipt's sentence depends on why the runner
+// took the task, and whether the job it created already needs a fix.
+function accepted_receipt_sentence(
+    reason: string | undefined,
+    job_status: string | null | undefined,
+): string {
+    switch (reason) {
+        case "runner_offline":
+        case "runner_unknown":
+            return $t({
+                defaultMessage: "Task saved. It starts when the agent's device connects.",
+            });
+        case "runner_busy":
+            return $t({
+                defaultMessage: "Task saved. It starts after the agent finishes its current task.",
+            });
+        default:
+            return job_status === "blocked"
+                ? $t({
+                      defaultMessage:
+                          "Task saved, but this agent needs a fix before it can start. Ask its owner.",
+                  })
+                : $t({defaultMessage: "This agent started a task."});
+    }
+}
+
 export function receipt_rows(
-    receipts: {profile_id: string; decision: string; reason?: string; job_id: string | null}[],
+    receipts: {
+        profile_id: string;
+        decision: string;
+        reason?: string;
+        job_id: string | null;
+        job_status?: string | null;
+    }[],
     names: Map<string, string> | undefined,
 ): ReceiptRow[] {
     return receipts.map((receipt) => {
@@ -124,20 +186,23 @@ export function receipt_rows(
         let outcome;
         switch (receipt.decision) {
             case "accepted":
-                outcome = $t({defaultMessage: "This agent started a task."});
+                outcome = accepted_receipt_sentence(receipt.reason, receipt.job_status);
                 break;
             case "needs_input":
-                outcome = $t({
-                    defaultMessage: "This agent needs more information to start the task.",
-                });
+                outcome = $t({defaultMessage: "Choose a repository or complete the task first."});
                 break;
             case "rejected":
                 // A missing name already means "not shared with you"; that
                 // sentence outranks a server reason meant for other cases.
                 outcome = not_shared
                     ? $t({defaultMessage: "Ask its owner to share it with you."})
-                    : (dispatch_receipt_reason_label(receipt.reason ?? "") ??
-                      $t({defaultMessage: "This agent started no task."}));
+                    : receipt.reason === "admission_denied"
+                      ? $t({
+                            defaultMessage:
+                                "Your message was sent, but the task is not allowed. Check your access or choose another agent.",
+                        })
+                      : (dispatch_receipt_reason_label(receipt.reason ?? "") ??
+                        $t({defaultMessage: "This agent started no task."}));
                 break;
             default:
                 outcome = $t({defaultMessage: "The task status for this agent is unknown."});

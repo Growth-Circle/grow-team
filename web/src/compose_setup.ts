@@ -70,6 +70,26 @@ function setup_compose_actions_hooks(): void {
 
 export function initialize(): void {
     agent_task_composer.initialize();
+    // Contract 13.4: the preflight banner's two buttons, bound once like
+    // every other compose banner's button below.
+    $("body").on(
+        "click",
+        `.${CSS.escape(compose.AGENT_PREFLIGHT_BANNER_CLASSNAME)} .agent-preflight-send-anyway`,
+        (event) => {
+            event.preventDefault();
+            $(`.${CSS.escape(compose.AGENT_PREFLIGHT_BANNER_CLASSNAME)}`).remove();
+            compose.send_agent_preflight_anyway();
+        },
+    );
+    $("body").on(
+        "click",
+        `.${CSS.escape(compose.AGENT_PREFLIGHT_BANNER_CLASSNAME)} .agent-preflight-keep-editing`,
+        (event) => {
+            event.preventDefault();
+            $(`.${CSS.escape(compose.AGENT_PREFLIGHT_BANNER_CLASSNAME)}`).remove();
+            compose.cancel_agent_preflight();
+        },
+    );
     compose_quote_context.initialize();
     // Register hooks for compose_actions.
     setup_compose_actions_hooks();
