@@ -14,7 +14,7 @@
                 <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
             {{/each}}
         </select>
-        {{#if members}}
+        {{#if has_members}}
             <span class="task-board-members" aria-label="{{t 'People responsible for cards on this board'}}">
                 {{#each members}}
                     <span class="task-board-card-avatar" title="{{this.full_name}}">

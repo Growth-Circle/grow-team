@@ -203,6 +203,7 @@ export function complete_rerender(): void {
             summary: board_summary(),
             columns,
             filters: filter_options(),
+            has_members: members.length > 0,
             members,
             has_extra_members: member_ids.length > MAX_HEADER_MEMBERS,
             extra_member_count: member_ids.length - MAX_HEADER_MEMBERS,
