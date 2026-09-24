@@ -2,6 +2,18 @@
 import $ from "jquery";
 
 import * as api from "./agent_api.ts";
+import {
+    action_button_label,
+    default_mode_label,
+    desired_state_label,
+    grant_action_label,
+    host_kind_label,
+    presence_label,
+    readiness_label,
+    setup_phase_label,
+    sharing_label,
+    team_default_badge_label,
+} from "./agent_settings_labels.ts";
 import {derived_budget_defaults, new_client_key} from "./agent_ui_state.ts";
 import {$t} from "./i18n.ts";
 import * as people from "./people.ts";
@@ -56,6 +68,10 @@ let profiles: api.AgentProfile[] = [];
 let runners: api.AgentRunner[] = [];
 let providers: api.AgentProvider[] = [];
 let repositories: api.AgentRepository[] = [];
+// The directory highlights the team default profile with a badge; this is
+// only known by asking the team-default endpoint separately, since the
+// profile projection itself carries no such flag.
+let team_default_profile_id: string | undefined;
 let handlers_bound = false;
 let visible_tab: Tab = "directory";
 let refresh_timer: ReturnType<typeof setTimeout> | undefined;
@@ -107,28 +123,41 @@ function button(parent: JQuery, label: string, action: string, id: string): void
         .attr("data-agent-id", id)
         .appendTo(parent);
 }
+// Revisions, raw timestamps, and codes are evidence for a technical
+// audience, not normal reading text; a native <details> keeps them out of
+// the main card body without any JavaScript to open it.
+function technical_details(parent: JQuery, build: (box: JQuery) => void): void {
+    const details = $("<details class='agent-technical-details'>").appendTo(parent);
+    $("<summary>")
+        .text($t({defaultMessage: "Technical details"}))
+        .appendTo(details);
+    build(details);
+}
+function grant_action_option(id: string): {id: string; label: string} {
+    return {id, label: grant_action_label(id)};
+}
 const repository_grant_actions = [
-    {id: "repository.read", label: $t({defaultMessage: "Read repository"})},
-    {id: "repository.edit", label: $t({defaultMessage: "Edit repository"})},
-    {id: "checks.run", label: $t({defaultMessage: "Run checks"})},
-    {id: "shell.run", label: $t({defaultMessage: "Run shell"})},
-    {id: "dependencies.install", label: $t({defaultMessage: "Install dependencies"})},
-    {id: "git.commit", label: $t({defaultMessage: "Create commits"})},
-    {id: "git.push", label: $t({defaultMessage: "Push changes"})},
-    {id: "git.draft_pr", label: $t({defaultMessage: "Create draft pull requests"})},
-];
+    "repository.read",
+    "repository.edit",
+    "checks.run",
+    "shell.run",
+    "dependencies.install",
+    "git.commit",
+    "git.push",
+    "git.draft_pr",
+].map((id) => grant_action_option(id));
 // The server checks each job action against the profile grant as well as
 // the repository grant, so a profile grant must be able to carry them all.
 const grant_actions: Record<GrantKind, {id: string; label: string}[]> = {
     profile: [
-        {id: "profile.use", label: $t({defaultMessage: "Use profile"})},
-        {id: "context.read", label: $t({defaultMessage: "Read the conversation"})},
+        grant_action_option("profile.use"),
+        grant_action_option("context.read"),
         ...repository_grant_actions,
-        {id: "profile.manage", label: $t({defaultMessage: "Manage profile"})},
-        {id: "team.manage", label: $t({defaultMessage: "Give team management tasks"})},
+        grant_action_option("profile.manage"),
+        grant_action_option("team.manage"),
     ],
-    runner: [{id: "runner.use", label: $t({defaultMessage: "Use device"})}],
-    provider: [{id: "provider.use", label: $t({defaultMessage: "Use model connection"})}],
+    runner: [grant_action_option("runner.use")],
+    provider: [grant_action_option("provider.use")],
     repository: repository_grant_actions,
 };
 function grant_principal_label(principal: unknown): string {
@@ -234,7 +263,11 @@ function render_grants(box: JQuery, result: Awaited<ReturnType<typeof api.list_g
     for (const grant of result.grants) {
         const row = $("<div class='agent-card'>").appendTo(box);
         line(row, $t({defaultMessage: "Principal"}), grant_principal_label(grant.principal));
-        line(row, $t({defaultMessage: "Actions"}), grant.actions.join(", "));
+        line(
+            row,
+            $t({defaultMessage: "Actions"}),
+            grant.actions.map((action) => grant_action_label(action)).join(", "),
+        );
         line(
             row,
             $t({defaultMessage: "Conversation"}),
@@ -414,6 +447,23 @@ function open_grant_editor(kind: GrantKind, id: string, revision: number, label:
     void load_grants(kind, id, $("#agent-resource-grants"), editor);
     form.find("select").first().trigger("focus");
 }
+// Reads the AgentUserError code a rejected mutation carries in its JSON
+// body, so the caller can show its specific sentence instead of a generic
+// failure message. Returns undefined for a network failure or a response
+// with no such code.
+function error_code(error: unknown): string | undefined {
+    if (error && typeof error === "object" && "responseJSON" in error) {
+        const body = (error as {responseJSON?: unknown}).responseJSON;
+        if (
+            body &&
+            typeof body === "object" &&
+            typeof (body as {code?: unknown}).code === "string"
+        ) {
+            return (body as {code: string}).code;
+        }
+    }
+    return undefined;
+}
 function failed(token: number, message: string): () => void {
     return () => {
         if (current(token)) {
@@ -536,7 +586,13 @@ function runner_label(runner: api.AgentRunner | null): string {
     if (!runner) {
         return $t({defaultMessage: "Device unavailable"});
     }
-    return `${runner.name} · ${runner.host_kind} · ${runner.observed_presence}`;
+    return `${runner.name} · ${host_kind_label(runner.host_kind)} · ${presence_label(runner.observed_presence)}`;
+}
+function sharing_profile_label(profile: api.AgentProfile): string {
+    return sharing_label(
+        profile.owner.id === current_user.user_id,
+        profile.shared_with?.length ?? 0,
+    );
 }
 // Fills the token budget fields from the selected model connection, unless
 // the person already edited them by hand in this form.
@@ -577,18 +633,27 @@ function render_profiles(count: number): void {
     for (const profile of profiles) {
         const card = $("<article class='agent-card'>").appendTo(list);
         $("<h4>").text(profile.name).appendTo(card);
+        if (profile.id === team_default_profile_id) {
+            $("<p class='agent-badge'>").text(team_default_badge_label()).appendTo(card);
+        }
         line(card, $t({defaultMessage: "Owner"}), profile.owner.name);
-        line(card, $t({defaultMessage: "Profile state"}), profile.desired_state);
-        line(card, $t({defaultMessage: "Readiness"}), profile.readiness_state);
+        line(card, $t({defaultMessage: "Sharing"}), sharing_profile_label(profile));
+        line(card, $t({defaultMessage: "Mode"}), default_mode_label(profile.default_mode));
+        line(
+            card,
+            $t({defaultMessage: "Profile state"}),
+            desired_state_label(profile.desired_state),
+        );
+        line(card, $t({defaultMessage: "Readiness"}), readiness_label(profile.readiness_state));
         line(
             card,
             $t({defaultMessage: "Runner presence"}),
-            profile.runner?.observed_presence ?? $t({defaultMessage: "unknown"}),
+            presence_label(profile.runner?.observed_presence ?? "unknown"),
         );
         line(
             card,
             $t({defaultMessage: "Declared device category"}),
-            profile.runner?.host_kind ?? $t({defaultMessage: "unknown"}),
+            host_kind_label(profile.runner?.host_kind ?? "unknown"),
         );
         line(card, $t({defaultMessage: "Tool runner"}), runner_label(profile.runner));
         line(card, $t({defaultMessage: "Model location"}), provider_location(profile));
@@ -609,13 +674,13 @@ function render_profiles(count: number): void {
             button(controls, $t({defaultMessage: "Create task"}), "create-task", profile.id);
         }
         if (profile.allowed_actions.includes("edit")) {
-            button(controls, $t({defaultMessage: "Edit"}), "profile-edit", profile.id);
+            button(controls, action_button_label("edit"), "profile-edit", profile.id);
         }
         if (profile.allowed_actions.includes("pause") && profile.desired_state === "enabled") {
-            button(controls, $t({defaultMessage: "Pause"}), "profile-pause", profile.id);
+            button(controls, action_button_label("pause"), "profile-pause", profile.id);
         }
         if (profile.allowed_actions.includes("archive")) {
-            button(controls, $t({defaultMessage: "Archive"}), "profile-archive", profile.id);
+            button(controls, action_button_label("archive"), "profile-archive", profile.id);
         }
     }
 }
@@ -633,7 +698,12 @@ async function load_profiles(): Promise<void> {
         search: value("#agent-search"),
     };
     try {
-        const result = await api.list_profiles(filters);
+        const [result, default_result] = await Promise.all([
+            api.list_profiles(filters),
+            // The badge is a convenience, not required reading, so a failed
+            // lookup here must not fail the whole directory load.
+            api.get_team_default().catch(() => undefined),
+        ]);
         if (
             !current(token) ||
             filter_revision !== directory_revision ||
@@ -642,6 +712,7 @@ async function load_profiles(): Promise<void> {
             return;
         }
         profiles = result.profiles;
+        team_default_profile_id = default_result?.default.profile?.id;
         render_profiles(result.count);
     } catch {
         if (
@@ -730,7 +801,11 @@ function update_step(): void {
         line(box, $t({defaultMessage: "Adapter"}), value("#agent-profile-adapter"));
         line(box, $t({defaultMessage: "Sandbox"}), value("#agent-profile-sandbox"));
         line(box, $t({defaultMessage: "Runtime mode"}), value("#agent-profile-mode"));
-        line(box, $t({defaultMessage: "Default task"}), value("#agent-profile-default-mode"));
+        line(
+            box,
+            $t({defaultMessage: "Default task"}),
+            default_mode_label(value("#agent-profile-default-mode")),
+        );
         line(
             box,
             $t({defaultMessage: "Model"}),
@@ -1073,18 +1148,17 @@ function render_profile_detail(
     const detail = $("#agent-profile-detail").empty().prop("hidden", false);
     $("<h4>").text(profile.name).appendTo(detail);
     line(detail, $t({defaultMessage: "Owner"}), profile.owner.name);
-    line(detail, $t({defaultMessage: "Saved state"}), profile.desired_state);
-    line(
-        detail,
-        $t({defaultMessage: "Readiness"}),
-        $t(
-            {defaultMessage: "{state} at revision {revision}"},
-            {
-                state: profile.readiness_state,
-                revision: profile.readiness_revision ?? $t({defaultMessage: "none"}),
-            },
-        ),
-    );
+    line(detail, $t({defaultMessage: "Sharing"}), sharing_profile_label(profile));
+    line(detail, $t({defaultMessage: "Mode"}), default_mode_label(profile.default_mode));
+    line(detail, $t({defaultMessage: "Saved state"}), desired_state_label(profile.desired_state));
+    line(detail, $t({defaultMessage: "Readiness"}), readiness_label(profile.readiness_state));
+    technical_details(detail, (box) => {
+        line(
+            box,
+            $t({defaultMessage: "Readiness revision"}),
+            profile.readiness_revision ?? $t({defaultMessage: "None"}),
+        );
+    });
     line(detail, $t({defaultMessage: "Runner"}), runner_label(profile.runner));
     line(detail, $t({defaultMessage: "Model"}), provider_location(profile));
     line(
@@ -1093,19 +1167,19 @@ function render_profile_detail(
         profile.repository?.workspace_alias ?? $t({defaultMessage: "None"}),
     );
     if (setup) {
-        line(
-            detail,
-            $t({defaultMessage: "Setup"}),
-            $t(
-                {defaultMessage: "{phase} · profile revision {revision}"},
-                {phase: setup.phase, revision: setup.profile_revision},
-            ),
-        );
-        line(
-            detail,
-            $t({defaultMessage: "Provider test revision"}),
-            setup.provider_config_version ?? $t({defaultMessage: "None"}),
-        );
+        line(detail, $t({defaultMessage: "Setup"}), setup_phase_label(setup.phase));
+        technical_details(detail, (box) => {
+            line(
+                box,
+                $t({defaultMessage: "Setup tested profile revision"}),
+                setup.profile_revision,
+            );
+            line(
+                box,
+                $t({defaultMessage: "Provider test revision"}),
+                setup.provider_config_version ?? $t({defaultMessage: "None"}),
+            );
+        });
         if (setup.profile_revision !== profile.revision) {
             line(
                 detail,
@@ -1217,12 +1291,7 @@ function render_profile_detail(
             profile.allowed_actions.includes(action) &&
             (action !== "pause" || profile.desired_state === "enabled")
         ) {
-            button(
-                controls,
-                action[0]!.toUpperCase() + action.slice(1),
-                `profile-${action}`,
-                profile.id,
-            );
+            button(controls, action_button_label(action), `profile-${action}`, profile.id);
         }
     }
     if (profile.allowed_actions.includes("edit")) {
@@ -1377,10 +1446,21 @@ function render_runners(count: number): void {
     for (const runner of runners) {
         const card = $("<article class='agent-card'>").appendTo(list);
         $("<h4>").text(runner.name).appendTo(card);
-        line(card, $t({defaultMessage: "Declared category"}), runner.host_kind);
-        line(card, $t({defaultMessage: "Observed presence"}), runner.observed_presence);
-        line(card, $t({defaultMessage: "Observed at"}), runner.observed_at);
-        line(card, $t({defaultMessage: "Catalog revision"}), runner.catalog_revision);
+        line(card, $t({defaultMessage: "Declared category"}), host_kind_label(runner.host_kind));
+        line(
+            card,
+            $t({defaultMessage: "Observed presence"}),
+            presence_label(runner.observed_presence),
+        );
+        if (runner.observed_presence !== "online") {
+            $("<p class='agent-field-note'>")
+                .text($t({defaultMessage: "This device is not connected to Grow Team."}))
+                .appendTo(card);
+        }
+        technical_details(card, (box) => {
+            line(box, $t({defaultMessage: "Observed at"}), runner.observed_at);
+            line(box, $t({defaultMessage: "Catalog revision"}), runner.catalog_revision);
+        });
         const safe = catalog(runner);
         line(
             card,
@@ -1900,6 +1980,18 @@ async function load_default(): Promise<void> {
                             "The saved default agent is archived and cannot run tasks. Choose a replacement below.",
                     }),
                 );
+            } else if (
+                data.profile.desired_state === "paused" ||
+                data.profile.readiness_state !== "ready"
+            ) {
+                line(
+                    status,
+                    $t({defaultMessage: "Selection"}),
+                    $t({
+                        defaultMessage:
+                            "The saved default agent is paused or needs a new check. It cannot take new tasks. Choose a replacement below.",
+                    }),
+                );
             }
             line(
                 status,
@@ -1909,7 +2001,7 @@ async function load_default(): Promise<void> {
             line(
                 status,
                 $t({defaultMessage: "Runner presence"}),
-                data.profile.runner?.observed_presence ?? $t({defaultMessage: "unknown"}),
+                presence_label(data.profile.runner?.observed_presence ?? "unknown"),
             );
             line(
                 status,
@@ -1930,9 +2022,12 @@ async function load_default(): Promise<void> {
             line(
                 status,
                 $t({defaultMessage: "Selection"}),
-                data.has_default
-                    ? $t({defaultMessage: "A default exists but is not visible to you."})
-                    : $t({defaultMessage: "No team default."}),
+                data.has_default && current_user.is_admin
+                    ? $t({
+                          defaultMessage:
+                              "The team default agent is not visible to you. You can clear it.",
+                      })
+                    : $t({defaultMessage: "No team default agent is available to you."}),
             );
         }
         const form = $("#agent-default-form");
@@ -2029,13 +2124,18 @@ async function save_default(profile_id: string | null): Promise<void> {
             );
         }
         await load_default();
-    } catch {
+    } catch (error) {
         if (current(token) && draft === default_draft_revision) {
             announce(
-                $t({
-                    defaultMessage:
-                        "Team default changed or is unavailable. Your selection remains. Refresh before trying again.",
-                }),
+                error_code(error) === "audience_grant_required"
+                    ? $t({
+                          defaultMessage:
+                              "Share this agent with a group before you make it the team default.",
+                      })
+                    : $t({
+                          defaultMessage:
+                              "Team default changed or is unavailable. Your selection remains. Refresh before trying again.",
+                      }),
             );
         }
     }
@@ -2054,6 +2154,7 @@ export function reset(): void {
     runners = [];
     providers = [];
     repositories = [];
+    team_default_profile_id = undefined;
     selected_profile = undefined;
     selected_runner = undefined;
     selected_provider = undefined;

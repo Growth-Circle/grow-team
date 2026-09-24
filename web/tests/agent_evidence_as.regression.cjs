@@ -201,6 +201,23 @@ async function settings_scenarios() {
         get_provider: async (id) => ({provider: provider(id, "ra")}),
         recover_profile: async () => ({profile: profile("recovered")}),
     };
+    // agent_settings_labels.ts carries the full settings vocabulary (many
+    // more mappings than the two agent_ui_state.ts helpers stubbed above),
+    // so hand-duplicating it here would drift from the real labels; load
+    // the real module instead.
+    const settings_labels = {};
+    vm.runInNewContext(
+        transpile(fs.readFileSync(path.join(__dirname, "../src/agent_settings_labels.ts"), "utf8")),
+        {
+            exports: settings_labels,
+            require(name) {
+                if (name === "./i18n.ts") {
+                    return {$t: format_message};
+                }
+                throw new Error(name);
+            },
+        },
+    );
     const out = {};
     const source = fs.readFileSync(path.join(__dirname, "../src/settings_agents.ts"), "utf8");
     vm.runInNewContext(transpile(source), {
@@ -211,6 +228,9 @@ async function settings_scenarios() {
             }
             if (name === "./agent_api.ts") {
                 return api;
+            }
+            if (name === "./agent_settings_labels.ts") {
+                return settings_labels;
             }
             if (name === "./agent_ui_state.ts") {
                 return {
@@ -304,7 +324,7 @@ async function settings_scenarios() {
         profiles = [profile("a", {runner: runner_unknown})];
         runners = [runner_unknown];
         await fresh();
-        assert.match($("#agent-profile-list").text(), /Runner presence: unknown/);
+        assert.match($("#agent-profile-list").text(), /Runner presence: Status unknown/);
         api.list_profiles = async () => {
             throw new Error("directory unavailable");
         };

@@ -2550,6 +2550,11 @@ label.preferences-radio-choice-label {
 
     .agent-settings-tabs {
         margin: 0.75rem 0;
+        /* Four full-word tab labels do not fit one row at a 390px phone
+           width; wrapping to a second row keeps every tab reachable
+           without letting the row itself force page-wide horizontal
+           scroll. */
+        flex-wrap: wrap;
 
         /* The tab labels here are longer than the 90px the shared
            tab switcher reserves, so each tab takes the width of its
@@ -2557,6 +2562,7 @@ label.preferences-radio-choice-label {
            tab also needs the app font. */
         .ind-tab {
             width: auto;
+            min-width: 0;
             font-family: inherit;
             font-size: inherit;
             line-height: inherit;
@@ -2590,6 +2596,23 @@ label.preferences-radio-choice-label {
         margin-block: 0.25rem;
         font-size: 0.87em;
         color: var(--color-text-item);
+    }
+
+    /* No color of its own: it inherits the card's text color so it reads
+       correctly in both themes without a separate dark-mode rule. */
+    .agent-badge {
+        margin-block: 0.25rem;
+        font-weight: bold;
+    }
+
+    .agent-technical-details {
+        margin-block: 0.5rem;
+        font-size: 0.87em;
+
+        summary {
+            cursor: pointer;
+            color: var(--color-text-item);
+        }
     }
 
     /* The shared settings sections put each label above its control,

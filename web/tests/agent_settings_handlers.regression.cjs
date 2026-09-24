@@ -51,7 +51,7 @@ async function main() {
             sandboxes: [{alias: "safe"}],
         },
     });
-    const runners = [runner("ra"), runner("rb")];
+    let runners = [runner("ra"), runner("rb")];
     const profile = (id) => ({
         id,
         name: `Profile ${id}`,
@@ -76,7 +76,7 @@ async function main() {
         allowed_actions: ["edit"],
         configuration: null,
     });
-    const profiles = [profile("a"), profile("b")];
+    let profiles = [profile("a"), profile("b")];
     let default_server_revision = 1;
     const provider = (id) => ({
         id,
@@ -146,6 +146,19 @@ async function main() {
             },
         },
     );
+    const settings_labels = {};
+    vm.runInNewContext(
+        transpile(fs.readFileSync(path.join(__dirname, "../src/agent_settings_labels.ts"), "utf8")),
+        {
+            exports: settings_labels,
+            require(name) {
+                if (name === "./i18n.ts") {
+                    return i18n;
+                }
+                throw new Error(name);
+            },
+        },
+    );
     const out = {};
     const source = fs.readFileSync(path.join(__dirname, "../src/settings_agents.ts"), "utf8");
     vm.runInNewContext(transpile(source), {
@@ -165,6 +178,9 @@ async function main() {
                         return `key-${key_id}`;
                     },
                 };
+            }
+            if (name === "./agent_settings_labels.ts") {
+                return settings_labels;
             }
             if (name === "./i18n.ts") {
                 return i18n;
@@ -599,6 +615,191 @@ async function main() {
         await flush();
         assert.equal($("#agent-profile-default-mode-manage").prop("disabled"), false);
         assert.equal($("#agent-profile-manage-note").prop("hidden"), true);
+
+        // The directory card shows translated labels, the Mode line, a
+        // Team default badge for the profile that is the saved default,
+        // and a sharing label, never a raw state code.
+        current_user.is_admin = false;
+        const labeled = {
+            ...profile("labeled"),
+            default_mode: "code",
+            desired_state: "draft",
+            readiness_state: "needs_action",
+            runner: {...runners[0], host_kind: "server", observed_presence: "offline"},
+            shared_with: [{principal_kind: "user", principal_id: 7, complete: true}],
+        };
+        profiles = [labeled];
+        api.list_profiles = async () => ({profiles, count: profiles.length});
+        api.get_team_default = async () => ({
+            default: {
+                profile: labeled,
+                selection_revision: default_server_revision,
+                has_default: true,
+                allowed_actions: ["clear", "set"],
+            },
+        });
+        await fresh();
+        const card_text = $("#agent-profile-list").text();
+        assert.match(card_text, /Mode: Coding/);
+        assert.match(card_text, /Team default/);
+        assert.match(card_text, /Sharing: Shared by you/);
+        assert.match(card_text, /Profile state: Draft \(not taking tasks\)/);
+        assert.match(card_text, /Readiness: Needs a fix/);
+        assert.match(card_text, /Declared device category: Server/);
+        assert.match(card_text, /Runner presence: Offline/);
+        // Case-sensitive: the approved labels above are capitalized, so a
+        // literal lowercase enum value can only appear if a raw code leaked
+        // through untranslated.
+        assert.doesNotMatch(card_text, /\bdraft\b/);
+        assert.doesNotMatch(card_text, /\bneeds_action\b/);
+        assert.doesNotMatch(card_text, /\boffline\b/);
+        assert.doesNotMatch(card_text, /\bserver\b/);
+        assert.doesNotMatch(card_text, /\bcode\b/);
+        profiles = [profile("a"), profile("b")];
+        api.list_profiles = async () => ({profiles, count: profiles.length});
+        api.get_team_default = async () => ({
+            default: {
+                profile: profiles[0],
+                selection_revision: default_server_revision,
+                has_default: true,
+                allowed_actions: ["clear", "set"],
+            },
+        });
+
+        // A device card shows translated labels and the not-connected note
+        // only while it is not online.
+        const offline_runner = {...runner("ro"), observed_presence: "offline"};
+        runners = [runner("ra"), offline_runner];
+        api.list_runners = async () => ({runners, count: runners.length});
+        await fresh("devices");
+        const device_text = $("#agent-runner-list").text();
+        assert.match(device_text, /Declared category: Personal computer/);
+        assert.match(device_text, /Observed presence: Connected/);
+        assert.match(device_text, /Observed presence: Offline/);
+        assert.match(device_text, /This device is not connected to Grow Team\./);
+        assert.equal(
+            $("#agent-runner-list .agent-field-note").length,
+            1,
+            "only the offline device shows the not-connected note",
+        );
+        runners = [runner("ra"), runner("rb")];
+        api.list_runners = async () => ({runners, count: 2});
+
+        // Profile detail action buttons use the translated action labels,
+        // not the raw action name.
+        await fresh();
+        api.get_profile = async (id) => ({
+            profile: {
+                ...profile(id),
+                allowed_actions: ["edit", "probe", "enable", "pause", "archive"],
+            },
+            setup: null,
+            attachments: [],
+        });
+        click("profile-detail", "a");
+        await flush();
+        const detail_button = (action) =>
+            $(`#agent-profile-detail [data-agent-action='${action}']`).text();
+        assert.equal(detail_button("profile-edit"), "Edit");
+        assert.equal(detail_button("profile-probe"), "Run check");
+        assert.equal(detail_button("profile-enable"), "Turn on");
+        assert.equal(detail_button("profile-pause"), "Pause");
+        assert.equal(detail_button("profile-archive"), "Archive");
+        api.get_profile = async (id) => ({profile: profile(id), setup: null, attachments: []});
+
+        // AF-03: a rejected channel attach shows the failure message while
+        // the profile detail stays open, instead of only suppressing it
+        // once the editor has moved on.
+        await fresh();
+        click("profile-detail", "a");
+        await flush();
+        const rejected_attachment = deferred();
+        api.attach_channel = () => rejected_attachment.promise;
+        $("#agent-attach-stream").val("42");
+        $("#agent-attach-form").trigger("submit");
+        await flush();
+        rejected_attachment.reject(new Error("attachment failed"));
+        await flush();
+        assert.match($("#agent-settings-status").text(), /attachment failed/i);
+        assert.equal($("#agent-profile-detail").prop("hidden"), false);
+
+        // AS-22: a member sees the generic sentence for a hidden default;
+        // an administrator sees the clearable-hidden-target sentence.
+        current_user.is_admin = false;
+        api.get_team_default = async () => ({
+            default: {has_default: false, selection_revision: default_server_revision},
+        });
+        await fresh("default");
+        assert.match(
+            $("#agent-team-default").text(),
+            /No team default agent is available to you\./,
+        );
+        current_user.is_admin = true;
+        api.get_team_default = async () => ({
+            default: {
+                has_default: true,
+                selection_revision: default_server_revision,
+                allowed_actions: ["clear"],
+            },
+        });
+        await fresh("default");
+        assert.match(
+            $("#agent-team-default").text(),
+            /The team default agent is not visible to you\. You can clear it\./,
+        );
+
+        // AS-30: a paused or not-ready saved default shows the replacement
+        // sentence instead of letting the member pick it again.
+        api.get_team_default = async () => ({
+            default: {
+                profile: {...profile("a"), desired_state: "paused"},
+                selection_revision: default_server_revision,
+                has_default: true,
+                allowed_actions: ["clear", "set"],
+            },
+        });
+        await fresh("default");
+        assert.match(
+            $("#agent-team-default").text(),
+            /paused or needs a new check\. It cannot take new tasks\./,
+        );
+        api.get_team_default = async () => ({
+            default: {
+                profile: {...profile("a"), readiness_state: "needs_action"},
+                selection_revision: default_server_revision,
+                has_default: true,
+                allowed_actions: ["clear", "set"],
+            },
+        });
+        await fresh("default");
+        assert.match(
+            $("#agent-team-default").text(),
+            /paused or needs a new check\. It cannot take new tasks\./,
+        );
+
+        // A rejected save that carries the audience_grant_required code
+        // shows its own sentence, not the generic conflict sentence.
+        api.get_team_default = async () => ({
+            default: {
+                profile: profile("a"),
+                selection_revision: default_server_revision,
+                has_default: true,
+                allowed_actions: ["clear", "set"],
+            },
+        });
+        await fresh("default");
+        $("#agent-default-choice").val("b").trigger("change");
+        api.update_team_default = async () => {
+            const rejection = new Error("Agent request rejected.");
+            rejection.responseJSON = {schema_version: 1, code: "audience_grant_required"};
+            throw rejection;
+        };
+        $("#agent-default-form").trigger("submit");
+        await flush();
+        assert.match(
+            $("#agent-settings-status").text(),
+            /Share this agent with a group before you make it the team default\./,
+        );
     } finally {
         out.reset();
         dom.window.close();
