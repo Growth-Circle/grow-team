@@ -200,6 +200,17 @@ async function settings_scenarios() {
         get_profile: async (id) => ({profile: profile(id), setup: null, attachments: []}),
         get_provider: async (id) => ({provider: provider(id, "ra")}),
         recover_profile: async () => ({profile: profile("recovered")}),
+        // load_default() always calls this; a missing key here crashes the
+        // whole default-tab load (__importStar only forwards a name that
+        // exists on this object when the module first requires
+        // "./agent_api.ts", so it must be a key from the start).
+        get_team_instructions: async () => ({
+            team_instructions: {text: "", revision: 1, allowed_actions: []},
+        }),
+        agent_error_code: (error) =>
+            error && typeof error === "object" && typeof error.responseJSON?.code === "string"
+                ? error.responseJSON.code
+                : undefined,
     };
     // agent_settings_labels.ts carries the full settings vocabulary (many
     // more mappings than the two agent_ui_state.ts helpers stubbed above),
@@ -254,7 +265,10 @@ async function settings_scenarios() {
                 };
             }
             if (name === "./state_data.ts") {
-                return {current_user};
+                return {current_user, realm: {realm_url: "https://realm.test"}};
+            }
+            if (name === "./confirm_dialog.ts") {
+                return {launch: (config) => config.on_click()};
             }
             if (name === "./people.ts") {
                 return {

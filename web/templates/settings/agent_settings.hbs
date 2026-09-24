@@ -133,6 +133,19 @@
                     class="settings-textarea"
                     maxlength="2000"
                 ></textarea>
+                <p class="agent-field-note">{{t "The description helps people choose an
+                    agent. The agent does not read it."}}</p>
+                <label
+                    class="settings-field-label"
+                    for="agent-profile-instructions"
+                >{{t "Agent instructions"}}</label><textarea
+                    id="agent-profile-instructions"
+                    class="settings-textarea"
+                    maxlength="8000"
+                ></textarea>
+                <p class="agent-field-note">{{t "The agent reads these instructions at
+                    the start of each task. A change needs a new check before the agent
+                    takes tasks again."}}</p>
             </fieldset>
             <fieldset data-agent-step="1" hidden><legend>{{t "Runner"}}</legend>
                 <label
@@ -320,6 +333,8 @@
     >
         <h3 id="agent-devices-heading">{{t "Devices"}}</h3><p>{{t "Pair a workstation or
             server with the same code. The owner declares its category."}}</p>
+        <h4>{{t "Connect a device"}}</h4>
+        <ol id="agent-connect-steps"></ol>
         <form id="agent-pairing-form" class="agent-inline-form"><label
                 class="settings-field-label"
                 for="agent-pairing-id"
@@ -336,9 +351,23 @@
                 class="settings_text_input"
                 required
             /><button
+                type="button"
+                id="agent-pairing-check"
+                class="action-button action-button-subtle-neutral"
+            >{{t "Check code"}}</button>
+            <div id="agent-pairing-preview" class="agent-card" hidden></div>
+            <p id="agent-pairing-result" role="status"></p><button
                 type="submit"
+                id="agent-pairing-approve"
                 class="action-button action-button-solid-brand"
+                disabled
             >{{t "Approve pairing"}}</button></form>
+        <div id="agent-pairing-added" hidden><p>{{t "Device connected. You can add an agent
+                that runs on it."}}</p><button
+                type="button"
+                class="action-button action-button-solid-brand"
+                data-agent-action="profile-new-on-runner"
+            >{{t "Add agent on this device"}}</button></div>
         <p id="agent-device-count"></p><div
             id="agent-runner-list"
             class="agent-cards"
@@ -622,6 +651,29 @@
                     id="agent-default-clear"
                     class="action-button action-button-subtle-neutral"
                 >{{t "Clear default"}}</button></div></form>
+        <h4>{{t "Team instructions"}}</h4>
+        <p id="agent-team-instructions-readonly" hidden><span
+                id="agent-team-instructions-readonly-text"
+            ></span> {{t "Only organization administrators can change the team
+                instructions."}}</p>
+        <form id="agent-team-instructions-form" class="agent-inline-form" hidden>
+            <label
+                class="settings-field-label"
+                for="agent-team-instructions"
+            >{{t "Team instructions"}}</label><textarea
+                id="agent-team-instructions"
+                class="settings-textarea"
+                maxlength="8000"
+            ></textarea>
+            <p class="agent-field-note">{{t "Every agent in this organization reads
+                these instructions at the start of each new task. Running tasks keep
+                the instructions they started with."}}</p>
+            <button
+                type="submit"
+                class="action-button action-button-solid-brand"
+            >{{t "Save team instructions"}}</button>
+            <p id="agent-team-instructions-status" role="status"></p>
+        </form>
     </section>
     <div id="agent-grant-editor" class="agent-editor" hidden></div>
 </div>

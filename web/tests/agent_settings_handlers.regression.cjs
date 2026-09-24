@@ -120,6 +120,31 @@ async function main() {
         get_profile: async (id) => ({profile: profile(id), setup: null, attachments: []}),
         get_provider: async (id) => ({provider: provider(id)}),
         recover_profile: async () => ({profile: profile("recovered")}),
+        get_team_instructions: async () => ({
+            team_instructions: {text: "", revision: 1, allowed_actions: []},
+        }),
+        update_team_instructions: async () => ({
+            team_instructions: {text: "", revision: 2, allowed_actions: ["edit"]},
+        }),
+        preview_pairing: async () => ({
+            pairing: {
+                device_name: "Laptop",
+                fingerprint_prefix: "abcd1234abcd1234",
+                realm_name: "Realm",
+                expires_at: "2026-01-01T00:00:00Z",
+            },
+        }),
+        // __importStar's per-property getter only forwards a name that
+        // exists on this object when the module first requires
+        // "./agent_api.ts"; a later `api.approve_pairing = ...` reassignment
+        // for a name that was never a key here stays invisible to the
+        // module under test. Declare the key here so tests can override it.
+        approve_pairing: async () => ({}),
+        send_test_task: async () => ({job: {id: "test-task-job"}}),
+        agent_error_code: (error) =>
+            error && typeof error === "object" && typeof error.responseJSON?.code === "string"
+                ? error.responseJSON.code
+                : undefined,
     };
     const transpile = (source) =>
         ts.transpileModule(source, {
@@ -131,7 +156,10 @@ async function main() {
         }).outputText;
     // These fixed strings carry no interpolation values in this harness's
     // paths, so returning the default message matches the real $t().
-    const i18n = {$t: (descriptor) => descriptor.defaultMessage};
+    const i18n = {
+        $t: (descriptor) => descriptor.defaultMessage,
+        $t_html: (descriptor) => descriptor.defaultMessage,
+    };
     const ui_state = {};
     vm.runInNewContext(
         transpile(fs.readFileSync(path.join(__dirname, "../src/agent_ui_state.ts"), "utf8")),
@@ -186,7 +214,10 @@ async function main() {
                 return i18n;
             }
             if (name === "./state_data.ts") {
-                return {current_user};
+                return {current_user, realm: {realm_url: "https://realm.test"}};
+            }
+            if (name === "./confirm_dialog.ts") {
+                return {launch: (config) => config.on_click()};
             }
             if (name === "./people.ts") {
                 return {
@@ -800,6 +831,267 @@ async function main() {
             $("#agent-settings-status").text(),
             /Share this agent with a group before you make it the team default\./,
         );
+        api.update_team_default = async () => ({});
+
+        // Pairing: Approve pairing stays disabled until Check code succeeds
+        // for the identical ID and code; a mismatch or an edit afterward
+        // disables it again; success shows Add agent on this device.
+        await fresh("devices");
+        assert.equal($("#agent-pairing-approve").prop("disabled"), true);
+        $("#agent-pairing-id").val("pairing-1");
+        $("#agent-pairing-code").val("111111");
+        api.preview_pairing = async (pairing_id, user_code) => {
+            assert.equal(pairing_id, "pairing-1");
+            assert.equal(user_code, "111111");
+            return {
+                pairing: {
+                    device_name: "Laptop",
+                    fingerprint_prefix: "abcd1234abcd1234",
+                    realm_name: "Realm",
+                    expires_at: "2026-01-01T00:00:00Z",
+                },
+            };
+        };
+        $("#agent-pairing-check").trigger("click");
+        await flush();
+        assert.equal($("#agent-pairing-approve").prop("disabled"), false);
+        assert.match($("#agent-pairing-preview").text(), /Laptop/);
+        assert.match($("#agent-pairing-preview").text(), /abcd1234abcd1234/);
+        // Editing the code after a successful check disables Approve again.
+        $("#agent-pairing-code").val("222222").trigger("input");
+        assert.equal($("#agent-pairing-approve").prop("disabled"), true);
+        // A rejected check shows the shared mismatch sentence.
+        api.preview_pairing = async () => {
+            throw new Error("pairing unavailable");
+        };
+        $("#agent-pairing-check").trigger("click");
+        await flush();
+        assert.match(
+            $("#agent-pairing-result").text(),
+            /This pairing code does not match or has expired\. Start pairing again on the device\./,
+        );
+        assert.equal($("#agent-pairing-approve").prop("disabled"), true);
+        // A successful check followed by approval shows the connected
+        // message and the Add agent on this device button.
+        api.preview_pairing = async () => ({
+            pairing: {
+                device_name: "Laptop",
+                fingerprint_prefix: "abcd1234abcd1234",
+                realm_name: "Realm",
+                expires_at: "2026-01-01T00:00:00Z",
+            },
+        });
+        $("#agent-pairing-code").val("111111").trigger("input");
+        $("#agent-pairing-check").trigger("click");
+        await flush();
+        assert.equal($("#agent-pairing-approve").prop("disabled"), false);
+        api.approve_pairing = async () => ({pairing: {id: "pairing-1", state: "approved"}});
+        $("#agent-pairing-form").trigger("submit");
+        await flush();
+        assert.match(
+            $("#agent-settings-status").text(),
+            /Device connected\. You can add an agent that runs on it\./,
+        );
+        assert.equal($("#agent-pairing-added").prop("hidden"), false);
+        assert.match($("#agent-pairing-added").text(), /Add agent on this device/);
+
+        // Adapter options show sign-in labels, and a requirement row shows
+        // its contract 12.5 sentence with the raw code and surface moved
+        // into Technical details.
+        await fresh();
+        runners = [
+            {
+                ...runner("ra"),
+                catalog_summary: {
+                    revision: 1,
+                    reported_at: null,
+                    adapters: [{id: "grow", version: "1", auth_state: "login_required"}],
+                    sandboxes: [{alias: "safe"}],
+                },
+            },
+        ];
+        api.list_runners = async () => ({runners, count: runners.length});
+        $("#agent-new-profile").trigger("click");
+        await flush();
+        assert.match($("#agent-profile-adapter option").text(), /Sign-in needed/);
+        assert.doesNotMatch($("#agent-profile-adapter option").text(), /login_required/);
+        runners = [runner("ra"), runner("rb")];
+        api.list_runners = async () => ({runners, count: 2});
+        api.get_profile = async (id) => ({
+            profile: profile(id),
+            setup: {
+                id: "setup-1",
+                phase: "needs_action",
+                requirements: [
+                    {
+                        code: "runtime_missing",
+                        surface: "adapter",
+                        action: "install_adapter",
+                        diagnostic_id: null,
+                    },
+                ],
+                profile_revision: 1,
+                provider_config_version: null,
+                created_at: "2026-01-01T00:00:00Z",
+                finished_at: null,
+            },
+            attachments: [],
+        });
+        click("profile-detail", "a");
+        await flush();
+        // The card's own paragraphs (not its nested Technical details) hold
+        // the sentence; a native <details> keeps its content in the DOM
+        // even while collapsed, so the raw code is checked there instead.
+        const $requirement_row = $("#agent-profile-detail .agent-card").first();
+        assert.match(
+            $requirement_row.children("p").text(),
+            /The agent program is not installed on the device\. Install it on the device, then run the check again\./,
+        );
+        assert.doesNotMatch($requirement_row.children("p").text(), /runtime_missing/);
+        assert.match($requirement_row.find("details").text(), /runtime_missing/);
+        api.get_profile = async (id) => ({profile: profile(id), setup: null, attachments: []});
+
+        // Profile create and update payloads carry instructions, and the
+        // help sentence for the field is on the form.
+        await fresh();
+        $("#agent-new-profile").trigger("click");
+        await flush();
+        assert.match(
+            // The template wraps this sentence across source lines, so
+            // .text() carries the line break and its indentation at that
+            // point; match across it instead of a single literal space.
+            $("#agent-profile-form").text(),
+            /The agent reads these instructions at\s+the start of each task\./,
+        );
+        $("#agent-profile-name").val("Instructed").trigger("input");
+        $("#agent-profile-instructions").val("Reply in English.").trigger("input");
+        let create_payload;
+        api.create_profile = async (payload) => {
+            create_payload = payload;
+            return {profile: profile("instructed")};
+        };
+        $("#agent-profile-form").trigger("submit");
+        await flush();
+        assert.equal(create_payload.instructions, "Reply in English.");
+        api.get_profile = async (id) => ({
+            profile: {
+                ...profile(id),
+                configuration: {
+                    ...profile(id).configuration,
+                    instructions: "Existing instructions.",
+                },
+            },
+            setup: null,
+            attachments: [],
+        });
+        click("profile-edit", "a");
+        await flush();
+        assert.equal($("#agent-profile-instructions").val(), "Existing instructions.");
+        $("#agent-profile-instructions").val("Updated instructions.").trigger("input");
+        let update_payload;
+        api.update_profile = async (id, payload) => {
+            update_payload = payload;
+            return {profile: profile(id)};
+        };
+        $("#agent-profile-form").trigger("submit");
+        await flush();
+        assert.equal(update_payload.instructions, "Updated instructions.");
+        api.get_profile = async (id) => ({profile: profile(id), setup: null, attachments: []});
+        api.create_profile = async () => ({profile: profile("saved")});
+        api.update_profile = async (id, payload) => ({profile: {...profile(id), ...payload}});
+
+        // The team instructions editor saves with the loaded revision, shows
+        // its own sentence for a stale or rejected save, and a member sees
+        // read-only text instead of the editor.
+        current_user.is_admin = true;
+        api.get_team_instructions = async () => ({
+            team_instructions: {text: "Reply in English.", revision: 5, allowed_actions: ["edit"]},
+        });
+        await fresh("default");
+        assert.equal($("#agent-team-instructions-form").prop("hidden"), false);
+        assert.equal($("#agent-team-instructions").val(), "Reply in English.");
+        $("#agent-team-instructions").val("Reply in Indonesian.").trigger("input");
+        let saved_instructions;
+        api.update_team_instructions = async (payload) => {
+            saved_instructions = payload;
+            return {
+                team_instructions: {
+                    text: "Reply in Indonesian.",
+                    revision: 6,
+                    allowed_actions: ["edit"],
+                },
+            };
+        };
+        $("#agent-team-instructions-form").trigger("submit");
+        await flush();
+        // The captured payload is a vm sandbox object; clone it so deepEqual
+        // compares plain values, not cross-realm prototypes.
+        assert.deepEqual(structuredClone(saved_instructions), {
+            expected_revision: 5,
+            text: "Reply in Indonesian.",
+        });
+        assert.match($("#agent-team-instructions-status").text(), /Team instructions saved\./);
+        api.update_team_instructions = async () => {
+            const rejection = new Error("Agent request rejected.");
+            rejection.responseJSON = {schema_version: 1, code: "team_instructions_stale"};
+            throw rejection;
+        };
+        $("#agent-team-instructions-form").trigger("submit");
+        await flush();
+        assert.match(
+            $("#agent-team-instructions-status").text(),
+            /Someone else changed the team instructions\. Reload them before you save\./,
+        );
+        api.update_team_instructions = async () => {
+            const rejection = new Error("Agent request rejected.");
+            rejection.responseJSON = {schema_version: 1, code: "instructions_rejected"};
+            throw rejection;
+        };
+        $("#agent-team-instructions-form").trigger("submit");
+        await flush();
+        assert.match(
+            $("#agent-team-instructions-status").text(),
+            /Remove passwords, tokens, and keys from the instructions, then save again\./,
+        );
+        current_user.is_admin = false;
+        api.get_team_instructions = async () => ({
+            team_instructions: {text: "Reply in English.", revision: 5, allowed_actions: []},
+        });
+        await fresh("default");
+        assert.equal($("#agent-team-instructions-form").prop("hidden"), true);
+        assert.equal($("#agent-team-instructions-readonly").prop("hidden"), false);
+        assert.match($("#agent-team-instructions-readonly").text(), /Reply in English\./);
+        assert.match(
+            // Same source line wrap as the instructions field note above.
+            $("#agent-team-instructions-readonly").text(),
+            /Only organization administrators can change the team\s+instructions\./,
+        );
+        api.get_team_instructions = async () => ({
+            team_instructions: {text: "", revision: 1, allowed_actions: []},
+        });
+
+        // Send test task confirms first (the mocked dialog confirms
+        // immediately), calls send_test_task once, and opens the task.
+        await fresh();
+        api.get_profile = async (id) => ({
+            profile: {...profile(id), allowed_actions: ["edit", "test_task"]},
+            setup: null,
+            attachments: [],
+        });
+        click("profile-detail", "a");
+        await flush();
+        let test_task_calls = 0;
+        api.send_test_task = async (id) => {
+            test_task_calls += 1;
+            assert.equal(id, "a");
+            return {job: {id: "test-task-job"}};
+        };
+        $("#agent-profile-detail [data-agent-action='profile-test_task']").trigger("click");
+        await flush();
+        assert.equal(test_task_calls, 1);
+        assert.match($("#agent-settings-status").text(), /Test task sent\./);
+        assert.equal(dom.window.location.hash, "#agent-jobs/test-task-job");
+        api.get_profile = async (id) => ({profile: profile(id), setup: null, attachments: []});
     } finally {
         out.reset();
         dom.window.close();

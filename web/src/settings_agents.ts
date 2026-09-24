@@ -4,20 +4,25 @@ import $ from "jquery";
 import * as api from "./agent_api.ts";
 import {
     action_button_label,
+    auth_state_label,
+    data_scope_label,
     default_mode_label,
     desired_state_label,
     grant_action_label,
     host_kind_label,
+    model_location_label,
     presence_label,
     readiness_label,
+    requirement_sentence,
     setup_phase_label,
     sharing_label,
     team_default_badge_label,
 } from "./agent_settings_labels.ts";
 import {derived_budget_defaults, new_client_key} from "./agent_ui_state.ts";
-import {$t} from "./i18n.ts";
+import * as confirm_dialog from "./confirm_dialog.ts";
+import {$t, $t_html} from "./i18n.ts";
 import * as people from "./people.ts";
-import {current_user} from "./state_data.ts";
+import {current_user, realm} from "./state_data.ts";
 import * as stream_data from "./stream_data.ts";
 import * as user_groups from "./user_groups.ts";
 
@@ -72,6 +77,14 @@ let repositories: api.AgentRepository[] = [];
 // only known by asking the team-default endpoint separately, since the
 // profile projection itself carries no such flag.
 let team_default_profile_id: string | undefined;
+// The revision the team instructions editor last loaded, sent back as
+// expected_revision so a concurrent edit is caught as a stale save.
+let team_instructions_revision = 0;
+// Set right after a pairing approval to the one runner id that appeared in
+// the device list that the approval did not already know about, so "Add
+// agent on this device" can preselect it. Stays undefined when the device
+// has not exchanged its pairing for a runner yet.
+let pairing_runner_hint: string | undefined;
 let handlers_bound = false;
 let visible_tab: Tab = "directory";
 let refresh_timer: ReturnType<typeof setTimeout> | undefined;
@@ -447,23 +460,6 @@ function open_grant_editor(kind: GrantKind, id: string, revision: number, label:
     void load_grants(kind, id, $("#agent-resource-grants"), editor);
     form.find("select").first().trigger("focus");
 }
-// Reads the AgentUserError code a rejected mutation carries in its JSON
-// body, so the caller can show its specific sentence instead of a generic
-// failure message. Returns undefined for a network failure or a response
-// with no such code.
-function error_code(error: unknown): string | undefined {
-    if (error && typeof error === "object" && "responseJSON" in error) {
-        const body = (error as {responseJSON?: unknown}).responseJSON;
-        if (
-            body &&
-            typeof body === "object" &&
-            typeof (body as {code?: unknown}).code === "string"
-        ) {
-            return (body as {code: string}).code;
-        }
-    }
-    return undefined;
-}
 function failed(token: number, message: string): () => void {
     return () => {
         if (current(token)) {
@@ -611,9 +607,12 @@ function provider_location(profile: api.AgentProfile): string {
         return $t({defaultMessage: "No model connection"});
     }
     // A shared provider never discloses an owner endpoint.
-    return provider.base_url
+    const base = provider.base_url
         ? `${provider.name} · ${provider.base_url}`
         : $t({defaultMessage: "{name} · endpoint private"}, {name: provider.name});
+    return provider.model_location
+        ? `${base} · ${model_location_label(provider.model_location)}`
+        : base;
 }
 function render_profiles(count: number): void {
     const list = $("#agent-profile-list").empty();
@@ -741,7 +740,7 @@ function update_runtime_choices(clear = true): void {
         option(
             adapter,
             `${item.id}@${item.version}`,
-            `${item.id} ${item.version} · ${item.auth_state}`,
+            `${item.id} ${item.version} · ${auth_state_label(item.auth_state)}`,
         );
     }
     for (const item of catalog(runner).sandboxes) {
@@ -816,7 +815,9 @@ function update_step(): void {
         line(
             box,
             $t({defaultMessage: "Data sent to model"}),
-            provider?.data_scope.join(", ") ?? $t({defaultMessage: "No model data scope"}),
+            provider
+                ? provider.data_scope.map((scope) => data_scope_label(scope)).join(", ")
+                : $t({defaultMessage: "No model data scope"}),
         );
         line(
             box,
@@ -914,6 +915,7 @@ function open_profile(
     if (profile) {
         $("#agent-profile-name").val(profile.name);
         $("#agent-profile-description").val(profile.description);
+        $("#agent-profile-instructions").val(profile.configuration?.instructions ?? "");
         runner_select.val(profile.runner_id ?? "");
         runner_select.prop("disabled", true);
     } else {
@@ -988,6 +990,7 @@ function profile_payload(): Record<string, unknown> {
     return {
         name: value("#agent-profile-name"),
         description: value("#agent-profile-description"),
+        instructions: value("#agent-profile-instructions"),
         runner_id: value("#agent-profile-runner"),
         adapter_id,
         adapter_version,
@@ -1191,11 +1194,11 @@ function render_profile_detail(
         }
         for (const requirement of setup.requirements) {
             const row = $("<div class='agent-card'>").appendTo(detail);
-            line(
-                row,
-                $t({defaultMessage: "Requirement"}),
-                `${requirement.surface}: ${requirement.code.replaceAll("_", " ")}`,
-            );
+            line(row, $t({defaultMessage: "Requirement"}), requirement_sentence(requirement.code));
+            technical_details(row, (box) => {
+                line(box, $t({defaultMessage: "Surface"}), requirement.surface);
+                line(box, $t({defaultMessage: "Code"}), requirement.code);
+            });
             const repair = {
                 connect_runner: [$t({defaultMessage: "Open devices"}), "repair-devices"],
                 register_workspace: [$t({defaultMessage: "Open repositories"}), "repair-devices"],
@@ -1286,7 +1289,7 @@ function render_profile_detail(
     ) {
         button(controls, $t({defaultMessage: "Create task"}), "create-task", profile.id);
     }
-    for (const action of ["edit", "probe", "enable", "pause", "archive"] as const) {
+    for (const action of ["edit", "probe", "enable", "pause", "archive", "test_task"] as const) {
         if (
             profile.allowed_actions.includes(action) &&
             (action !== "pause" || profile.desired_state === "enabled")
@@ -1434,6 +1437,21 @@ async function profile_control(
         }
     }
 }
+async function submit_test_task(id: string): Promise<void> {
+    const token = visit;
+    try {
+        const result = await api.send_test_task(id, {idempotency_key: new_client_key()});
+        if (!current(token)) {
+            return;
+        }
+        announce($t({defaultMessage: "Test task sent."}));
+        window.location.hash = `#agent-jobs/${result.job.id}`;
+    } catch {
+        if (current(token)) {
+            announce($t({defaultMessage: "Test task was not sent. Check the agent and retry."}));
+        }
+    }
+}
 function render_runners(count: number): void {
     const list = $("#agent-runner-list").empty();
     $("#agent-device-count").text($t({defaultMessage: "{count} authorized devices"}, {count}));
@@ -1452,6 +1470,9 @@ function render_runners(count: number): void {
             $t({defaultMessage: "Observed presence"}),
             presence_label(runner.observed_presence),
         );
+        if (runner.fingerprint_prefix) {
+            line(card, $t({defaultMessage: "Device fingerprint"}), runner.fingerprint_prefix);
+        }
         if (runner.observed_presence !== "online") {
             $("<p class='agent-field-note'>")
                 .text($t({defaultMessage: "This device is not connected to Grow Team."}))
@@ -1617,11 +1638,71 @@ async function save_repository(): Promise<void> {
         }
     }
 }
+// The pairing id and code a preview last succeeded for; Approve pairing
+// stays disabled until the current form fields match this pair exactly.
+let pairing_preview: {pairing_id: string; user_code: string} | undefined;
+function update_pairing_approve(): void {
+    $("#agent-pairing-approve").prop(
+        "disabled",
+        !(
+            pairing_preview?.pairing_id === value("#agent-pairing-id") &&
+            pairing_preview?.user_code === value("#agent-pairing-code")
+        ),
+    );
+}
+const pairing_mismatch_sentence = (): string =>
+    $t({
+        defaultMessage:
+            "This pairing code does not match or has expired. Start pairing again on the device.",
+    });
+async function check_pairing(): Promise<void> {
+    const token = visit;
+    const editor = begin_editor("pairing");
+    const pairing_id = value("#agent-pairing-id");
+    const user_code = value("#agent-pairing-code");
+    if (!pairing_id || !user_code) {
+        return;
+    }
+    $("#agent-pairing-added").prop("hidden", true);
+    $("#agent-pairing-preview").empty().prop("hidden", true);
+    pairing_preview = undefined;
+    update_pairing_approve();
+    $("#agent-pairing-result").text($t({defaultMessage: "Checking pairing code…"}));
+    try {
+        const result = await api.preview_pairing(pairing_id, user_code);
+        if (
+            !owns_editor(token, editor, "pairing") ||
+            value("#agent-pairing-id") !== pairing_id ||
+            value("#agent-pairing-code") !== user_code
+        ) {
+            return;
+        }
+        const box = $("#agent-pairing-preview").empty().prop("hidden", false);
+        line(box, $t({defaultMessage: "Device name"}), result.pairing.device_name);
+        line(box, $t({defaultMessage: "Device fingerprint"}), result.pairing.fingerprint_prefix);
+        line(box, $t({defaultMessage: "Organization"}), result.pairing.realm_name);
+        $("<p>")
+            .text(
+                $t({
+                    defaultMessage: "Approve only if this matches the device you are setting up.",
+                }),
+            )
+            .appendTo(box);
+        $("#agent-pairing-result").text("");
+        pairing_preview = {pairing_id, user_code};
+        update_pairing_approve();
+    } catch {
+        if (owns_editor(token, editor, "pairing")) {
+            $("#agent-pairing-result").text(pairing_mismatch_sentence());
+        }
+    }
+}
 async function approve_pairing(): Promise<void> {
     const token = visit;
     const editor = begin_editor("pairing");
     const pairing_id = value("#agent-pairing-id");
     const code = value("#agent-pairing-code");
+    const known_runner_ids = new Set(runners.map((item) => item.id));
     try {
         await api.approve_pairing(pairing_id, code);
         if (
@@ -1632,16 +1713,39 @@ async function approve_pairing(): Promise<void> {
             return;
         }
         $("#agent-pairing-form").trigger("reset");
-        announce(
-            $t({defaultMessage: "Pairing approved. The device may report its catalog shortly."}),
-        );
+        pairing_preview = undefined;
+        update_pairing_approve();
+        $("#agent-pairing-preview").empty().prop("hidden", true);
+        announce($t({defaultMessage: "Device connected. You can add an agent that runs on it."}));
+        $("#agent-pairing-added").prop("hidden", false);
         await load_runners();
+        if (owns_editor(token, editor, "pairing")) {
+            // The device has not necessarily exchanged its pairing for a
+            // runner yet, so there may be no new id to find here; "Add
+            // agent on this device" then opens the wizard unselected.
+            pairing_runner_hint = runners.find((item) => !known_runner_ids.has(item.id))?.id;
+        }
     } catch {
         if (owns_editor(token, editor, "pairing")) {
-            announce(
-                $t({defaultMessage: "Pairing approval failed. Check the code and pairing state."}),
-            );
+            announce(pairing_mismatch_sentence());
         }
+    }
+}
+function render_connect_steps(): void {
+    const list = $("#agent-connect-steps").empty();
+    for (const text of [
+        $t({defaultMessage: "Install the Grow Agent runner on the device."}),
+        $t(
+            {defaultMessage: "On the device, run: grow-agent connect {realm_url}"},
+            {realm_url: realm.realm_url},
+        ),
+        $t({
+            defaultMessage:
+                "Enter the pairing ID and the code that the device shows, then choose Check code.",
+        }),
+        $t({defaultMessage: "After you approve, run on the device: grow-agent run"}),
+    ]) {
+        $("<li>").text(text).appendTo(list);
     }
 }
 function render_providers(count: number): void {
@@ -1667,7 +1771,18 @@ function render_providers(count: number): void {
             $t({defaultMessage: "Endpoint location"}),
             provider.base_url ?? $t({defaultMessage: "Private to owner"}),
         );
-        line(card, $t({defaultMessage: "Data scope"}), provider.data_scope.join(", "));
+        if (provider.model_location) {
+            line(
+                card,
+                $t({defaultMessage: "Model location"}),
+                model_location_label(provider.model_location),
+            );
+        }
+        line(
+            card,
+            $t({defaultMessage: "Data scope"}),
+            provider.data_scope.map((scope) => data_scope_label(scope)).join(", "),
+        );
         const capabilities = provider.capabilities;
         if (capabilities && typeof capabilities === "object") {
             const data = capabilities as Record<string, unknown>;
@@ -1954,18 +2069,37 @@ async function save_provider(): Promise<void> {
         }
     }
 }
+function render_team_instructions(
+    data: {text: string; revision: number; allowed_actions: string[]} | undefined,
+): void {
+    const can_edit = data?.allowed_actions.includes("edit") ?? false;
+    team_instructions_revision = data?.revision ?? 0;
+    $("#agent-team-instructions-form").prop("hidden", !can_edit);
+    $("#agent-team-instructions-readonly").prop("hidden", can_edit || !data);
+    if (can_edit) {
+        $("#agent-team-instructions").val(data?.text ?? "");
+    } else if (data) {
+        $("#agent-team-instructions-readonly-text").text(
+            data.text || $t({defaultMessage: "No team instructions are set."}),
+        );
+    }
+}
 async function load_default(): Promise<void> {
     const token = visit;
     default_request += 1;
     const request = default_request;
     try {
-        const [setting, candidates] = await Promise.all([
+        const [setting, candidates, instructions] = await Promise.all([
             api.get_team_default(),
             api.list_profiles({offset: 0, limit: 100, access: "complete"}),
+            // A member always has read access (contract 7.2); a failure here
+            // is a transient status, not a reason to fail the whole panel.
+            api.get_team_instructions().catch(() => undefined),
         ]);
         if (!current(token) || request !== default_request) {
             return;
         }
+        render_team_instructions(instructions?.team_instructions);
         const data = setting.default;
         const status = $("#agent-team-default").empty();
         if (data.profile) {
@@ -2098,6 +2232,10 @@ async function load_default(): Promise<void> {
                 $t({defaultMessage: "Team default status is unknown. Retry this panel."}),
             );
             $("#agent-default-form").prop("hidden", true);
+            $("#agent-team-instructions-form, #agent-team-instructions-readonly").prop(
+                "hidden",
+                true,
+            );
         }
     }
 }
@@ -2127,7 +2265,7 @@ async function save_default(profile_id: string | null): Promise<void> {
     } catch (error) {
         if (current(token) && draft === default_draft_revision) {
             announce(
-                error_code(error) === "audience_grant_required"
+                api.agent_error_code(error) === "audience_grant_required"
                     ? $t({
                           defaultMessage:
                               "Share this agent with a group before you make it the team default.",
@@ -2138,6 +2276,41 @@ async function save_default(profile_id: string | null): Promise<void> {
                       }),
             );
         }
+    }
+}
+async function save_team_instructions(): Promise<void> {
+    const token = visit;
+    const revision = team_instructions_revision;
+    const text = value("#agent-team-instructions");
+    $("#agent-team-instructions-status").text($t({defaultMessage: "Saving…"}));
+    try {
+        const result = await api.update_team_instructions({expected_revision: revision, text});
+        if (!current(token)) {
+            return;
+        }
+        render_team_instructions(result.team_instructions);
+        $("#agent-team-instructions-status").text($t({defaultMessage: "Team instructions saved."}));
+    } catch (error) {
+        if (!current(token)) {
+            return;
+        }
+        const code = api.agent_error_code(error);
+        $("#agent-team-instructions-status").text(
+            code === "team_instructions_stale"
+                ? $t({
+                      defaultMessage:
+                          "Someone else changed the team instructions. Reload them before you save.",
+                  })
+                : code === "instructions_rejected"
+                  ? $t({
+                        defaultMessage:
+                            "Remove passwords, tokens, and keys from the instructions, then save again.",
+                    })
+                  : $t({
+                        defaultMessage:
+                            "Team instructions were not saved. Check the text and retry.",
+                    }),
+        );
     }
 }
 export function reset(): void {
@@ -2155,6 +2328,8 @@ export function reset(): void {
     providers = [];
     repositories = [];
     team_default_profile_id = undefined;
+    team_instructions_revision = 0;
+    pairing_runner_hint = undefined;
     selected_profile = undefined;
     selected_runner = undefined;
     selected_provider = undefined;
@@ -2162,6 +2337,10 @@ export function reset(): void {
     hide_editors();
     announce("");
     $("#agent-provider-credential, #agent-provider-local-ref").val("");
+    $("#agent-pairing-preview").empty().prop("hidden", true);
+    $("#agent-pairing-added").prop("hidden", true);
+    $("#agent-pairing-approve").prop("disabled", true);
+    $("#agent-pairing-result").text("");
 }
 
 async function load_recent_jobs(): Promise<void> {
@@ -2224,6 +2403,7 @@ export function set_up(): void {
         bind_handlers();
         handlers_bound = true;
     }
+    render_connect_steps();
     show_tab("directory");
     const token = visit;
     void load_choices().then(() => {
@@ -2325,6 +2505,12 @@ function bind_handlers(): void {
         event.preventDefault();
         void approve_pairing();
     });
+    root.on("click", "#agent-pairing-check", () => {
+        void check_pairing();
+    });
+    root.on("input change", "#agent-pairing-id, #agent-pairing-code", () => {
+        update_pairing_approve();
+    });
     root.on("submit", "#agent-runner-form", (event) => {
         event.preventDefault();
         void save_runner();
@@ -2351,6 +2537,10 @@ function bind_handlers(): void {
     root.on("submit", "#agent-default-form", (event) => {
         event.preventDefault();
         void save_default(value("#agent-default-choice") || null);
+    });
+    root.on("submit", "#agent-team-instructions-form", (event) => {
+        event.preventDefault();
+        void save_team_instructions();
     });
     root.on("click", "#agent-default-clear", () => {
         $("#agent-default-choice").val("");
@@ -2634,6 +2824,37 @@ function bind_handlers(): void {
         }
         if (action === "profile-enable") {
             void profile_control(id, "enable");
+        }
+        if (action === "profile-test_task") {
+            const profile =
+                selected_profile?.id === id
+                    ? selected_profile
+                    : profiles.find((item) => item.id === id);
+            if (!profile?.allowed_actions.includes("test_task")) {
+                return;
+            }
+            confirm_dialog.launch({
+                modal_title_html: $t_html({defaultMessage: "Send a test task?"}),
+                modal_content_html: $t_html({
+                    defaultMessage:
+                        "The agent answers one short test message in a direct message with you. This uses its model connection and can cost money.",
+                }),
+                modal_submit_button_text: $t({defaultMessage: "Send test task"}),
+                is_compact: true,
+                on_click: () => void submit_test_task(profile.id),
+            });
+        }
+        if (action === "profile-new-on-runner") {
+            const token = visit;
+            const editor = begin_editor("profile");
+            void load_choices(editor).then(() => {
+                if (owns_editor(token, editor, "profile")) {
+                    open_profile(undefined, editor);
+                    if (pairing_runner_hint) {
+                        $("#agent-profile-runner").val(pairing_runner_hint);
+                    }
+                }
+            });
         }
         if (action === "create-task") {
             if (create_task_handler) {
