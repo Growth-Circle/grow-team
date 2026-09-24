@@ -183,8 +183,14 @@ class AgentProtocolTest(TestCase):
         self.assertEqual(
             protocol.configuration_digest(attempt), protocol.configuration_digest(probe)
         )
-        data["instructions"]["profile"]["text"] = "A different instruction body entirely."
+        new_text = "A different instruction body entirely."
+        data["instructions"]["profile"]["text"] = new_text
         data["instructions"]["profile"]["revision"] = data["profile_revision"]
+        # A real new attempt derives its tested configuration from its own
+        # instructions, so the fixture must carry the matching digest too.
+        data["tested_configuration"]["instructions_digest"] = protocol.instructions_digest(
+            new_text
+        )
         changed = protocol.parse_payload("attempt_descriptor", data)
         self.assertNotEqual(
             protocol.configuration_digest(attempt), protocol.configuration_digest(changed)
