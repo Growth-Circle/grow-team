@@ -384,18 +384,27 @@ def _result_message_content(job: agents.AgentJob, summary: str) -> str:
     return content
 
 
-def _edit_draft(job: agents.AgentJob, content: str) -> int | None:
-    """Replace the streamed draft of an answer with new content, or return
-    None when the job has no draft or the draft can no longer be edited."""
-    if job.result_message_id is None:
-        return None
+def _edit_draft_after_commit(
+    bot: UserProfile, message_id: int, content: str, *, draft_of: UUID | None = None
+) -> None:
+    """Replace the text of a streamed draft once the agent transaction has
+    committed. check_update_message is a durable transaction, so it cannot
+    run inside agent_transaction. A draft edit (`draft_of` set) is skipped
+    when the final result was published first, so it never covers it."""
+    from django.db import transaction
+
     from zerver.actions.message_edit import check_update_message
 
-    try:
-        check_update_message(job.profile.bot_user, job.result_message_id, content=content)
-    except JsonableError:
-        return None
-    return job.result_message_id
+    def edit() -> None:
+        if (
+            draft_of is not None
+            and agents.AgentJob.objects.filter(id=draft_of, result_receipt__isnull=False).exists()
+        ):
+            return
+        with contextlib.suppress(JsonableError):
+            check_update_message(bot, message_id, content=content)
+
+    transaction.on_commit(edit, robust=True)
 
 
 # Shown at the end of a streamed draft while the model is still writing.
@@ -420,7 +429,10 @@ def publish_draft(runner: agents.AgentRunner, data: Draft) -> None:
         check_attempt_access(job.requester, job, attempt, "profile.use")
         reject_secrets(job, data.text.encode())
         content = f"{silent_mention_syntax_for_user(job.requester)} {data.text}{DRAFT_WRITING_MARK}"
-        if _edit_draft(job, content) is not None:
+        if job.result_message_id is not None:
+            _edit_draft_after_commit(
+                job.profile.bot_user, job.result_message_id, content, draft_of=job.id
+            )
             return
         anchor = Message.objects.get(id=audience.anchor_message_id)
         addressee = (
@@ -488,8 +500,11 @@ def _publish_result(job_id: UUID) -> dict[str, object]:
             else Addressee.for_user_ids(audience.audience_user_ids, job.realm)
         )
         content = f"{silent_mention_syntax_for_user(job.requester)} {content} {job_task_link(job)}"
-        message_id = _edit_draft(job, content)
-        if message_id is None:
+        if job.result_message_id is not None:
+            # The streamed draft becomes the result message.
+            message_id = job.result_message_id
+            _edit_draft_after_commit(job.profile.bot_user, message_id, content)
+        else:
             message = check_message(
                 job.profile.bot_user,
                 client,

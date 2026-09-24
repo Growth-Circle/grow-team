@@ -347,6 +347,109 @@ class AgentLifecycleTests(ZulipTestCase):
             self.assertIsNone(job.result_message_id)
             self.assertEqual(results.publish_result(job.id), first)
 
+    def test_answer_drafts_edit_one_message_that_becomes_the_result(self) -> None:
+        import hashlib
+        import tempfile
+
+        from django.test import override_settings
+        from django.utils.timezone import now
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.lib import agent_job_requests as r
+        from zerver.lib import agent_protocol as p
+        from zerver.lib import agent_results as results
+
+        job = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        attempt = agents.AgentAttempt.objects.get(job=job)
+
+        def event(sequence: int, kind: str, payload: dict[str, object]) -> None:
+            actions.record_event(
+                self.runner,
+                p.RunnerEvent.model_validate(
+                    {
+                        "schema_version": 1,
+                        "job_id": str(job.id),
+                        "attempt_id": str(attempt.id),
+                        "lease_epoch": 1,
+                        "event_id": str(uuid4()),
+                        "sequence": sequence,
+                        "type": kind,
+                        "occurred_at": now().isoformat(),
+                        "payload": payload,
+                    }
+                ),
+            )
+
+        def draft(text: str) -> None:
+            job.refresh_from_db()
+            with self.captureOnCommitCallbacks(execute=True):
+                results.publish_draft(
+                    self.runner,
+                    r.Draft.model_validate(
+                        {
+                            "schema_version": 1,
+                            "job_id": str(job.id),
+                            "attempt_id": str(attempt.id),
+                            "lease_epoch": 1,
+                            "job_version": job.version,
+                            "text": text,
+                        }
+                    ),
+                )
+
+        event(1, "attempt.started", {"process_state": "active"})
+        draft("A first")
+        job.refresh_from_db()
+        draft_id = job.result_message_id
+        assert draft_id is not None
+        self.assertIn("A first", Message.objects.get(id=draft_id).content)
+        draft("A first draft, longer")
+        job.refresh_from_db()
+        self.assertEqual(job.result_message_id, draft_id)
+        self.assertIn("A first draft, longer", Message.objects.get(id=draft_id).content)
+        self.assertIn(results.DRAFT_WRITING_MARK, Message.objects.get(id=draft_id).content)
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            override_settings(AGENT_ARTIFACT_ROOT=directory),
+        ):
+            content = b"A final answer."
+            artifact = results.store_artifact(
+                self.runner,
+                job.id,
+                attempt.id,
+                1,
+                chunks=[content],
+                checksum=hashlib.sha256(content).hexdigest(),
+                kind="summary",
+                filename="answer.txt",
+                media_type="text/plain",
+            )
+            event(
+                2,
+                "result.prepared",
+                {"artifact_ids": [str(artifact.id)], "summary": "A final answer."},
+            )
+            with self.captureOnCommitCallbacks(execute=True):
+                event(3, "attempt.stopped", {"process_state": "stopped", "stop_confirmed": True})
+        job.refresh_from_db()
+        self.assertEqual(job.status, "completed")
+        self.assertEqual(job.result_message_id, draft_id)
+        final = Message.objects.get(id=draft_id).content
+        self.assertIn("A final answer.", final)
+        self.assertNotIn(results.DRAFT_WRITING_MARK, final)
+        self.assertEqual(
+            Message.objects.filter(sender=self.profile.bot_user, id__gte=draft_id).count(), 1
+        )
+
     def test_accepted_job_posts_one_queued_notice(self) -> None:
         from django.utils.timezone import now
 
