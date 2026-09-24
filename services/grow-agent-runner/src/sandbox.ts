@@ -24,6 +24,13 @@ import {
     type Installation,
     type ContainerRecord,
 } from "./containment.js";
+// The containment watchdog stops a container whose heartbeat lapses. A
+// one-second grace killed model containers whenever the runner's event
+// loop stalled for a moment (journal fsync, host load), so a mention got
+// no answer. The watchdog still stops at once when the runner process
+// itself is gone.
+const HEARTBEAT_GRACE_MS = 15_000;
+const HEARTBEAT_INTERVAL_MS = 1000;
 export {processIdentity, sameProcess} from "./containment.js";
 export interface ExecutionGuard {
     lease: LeaseGuard;
@@ -255,7 +262,7 @@ export class RootlessSandbox {
             kind,
             owner: processIdentity(process.pid),
             deadline: monotonic() + Math.max(0, authority.deadline - Date.now()),
-            heartbeat: monotonic() + 1000,
+            heartbeat: monotonic() + HEARTBEAT_GRACE_MS,
             processes: [],
             cgroups: [],
             state: "created",
@@ -303,12 +310,12 @@ export class RootlessSandbox {
             pulse = setInterval(() => {
                 try {
                     check();
-                    record.heartbeat = monotonic() + 1000;
+                    record.heartbeat = monotonic() + HEARTBEAT_GRACE_MS;
                     this.store.write(`container-${id}.json`, record);
                 } catch {
                     void close().catch(() => {});
                 }
-            }, 100);
+            }, HEARTBEAT_INTERVAL_MS);
             authority.signal.addEventListener(
                 "abort",
                 () => {
@@ -554,7 +561,7 @@ export class RootlessSandbox {
             kind,
             owner: processIdentity(process.pid),
             deadline: monotonic() + Math.max(0, Math.min(deadline - Date.now(), options.timeoutMs)),
-            heartbeat: monotonic() + 1000,
+            heartbeat: monotonic() + HEARTBEAT_GRACE_MS,
             processes: [],
             cgroups: [],
             state: "created",
@@ -567,14 +574,14 @@ export class RootlessSandbox {
             try {
                 check();
                 if (monotonic() >= r.deadline) throw new Error("Tool deadline");
-                r.heartbeat = monotonic() + 1000;
+                r.heartbeat = monotonic() + HEARTBEAT_GRACE_MS;
                 this.store.write(`container-${id}.json`, r);
             } catch {
                 expired = true;
                 abort.abort();
                 void this.stopScope(scope, kind);
             }
-        }, 100);
+        }, HEARTBEAT_INTERVAL_MS);
         const cancelled = () => {
             expired = true;
             abort.abort();
