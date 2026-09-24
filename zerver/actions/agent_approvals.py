@@ -1,5 +1,6 @@
 """Single-use operation authorization and uncertain-outcome reconciliation."""
 
+import time
 from datetime import timedelta
 from urllib.parse import urlsplit
 from uuid import UUID
@@ -19,9 +20,17 @@ from zerver.actions.agent_jobs import (
     transition,
 )
 from zerver.lib import agent_protocol as p
-from zerver.lib.agent_context import agent_transaction, require_audience, require_job_access
+from zerver.lib.agent_context import (
+    AgentBusy,
+    agent_transaction,
+    require_audience,
+    require_job_access,
+)
 from zerver.lib.agent_policy import AgentAccessDenied
 from zerver.models import UserProfile, agents
+
+# RL-1: delays between phase-3 retries on lock contention (contract 9.1).
+_RECEIPT_RETRY_DELAYS = (0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2)
 
 APPROVAL_ACTIONS = {"git.push", "git.draft_pr", "dependencies.install", "shell.run", "team.manage"}
 
@@ -500,6 +509,30 @@ def execute_operation(
 
     receipt = execute_team_tool(commander, profile, tool_input)
 
+    for delay in _RECEIPT_RETRY_DELAYS:
+        try:
+            return _store_team_receipt(
+                runner, job_id, attempt_id, epoch, operation_id=operation_id, receipt=receipt
+            )
+        except AgentBusy:
+            time.sleep(delay)
+    # One last call without a catch: let a persistent lock failure surface as
+    # AgentBusy instead of silently dropping the already-executed receipt.
+    return _store_team_receipt(
+        runner, job_id, attempt_id, epoch, operation_id=operation_id, receipt=receipt
+    )
+
+
+def _store_team_receipt(
+    runner: agents.AgentRunner,
+    job_id: UUID,
+    attempt_id: UUID,
+    epoch: int,
+    *,
+    operation_id: UUID,
+    receipt: dict[str, object],
+) -> dict[str, object]:
+    """Phase 3 of contract 2.6 item 3: record the receipt phase 2 already produced."""
     with agent_transaction():
         job, attempt = locked_attempt(runner, job_id, attempt_id, epoch, execution=False)
         operation = agents.AgentOperation.objects.select_for_update().get(

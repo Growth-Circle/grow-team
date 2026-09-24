@@ -222,9 +222,13 @@ def verify_result(
         job=job, delivery_state__in=["pending", "delivered", "delivery_uncertain"]
     ).exists():
         raise ValueError("Inputs remain unapplied.")
-    if agents.AgentOperation.objects.filter(
-        attempt__job=job, status__in=["started", "outcome_unknown"]
-    ).exists():
+    if (
+        agents.AgentOperation.objects.filter(
+            attempt__job=job, status__in=["started", "outcome_unknown"]
+        )
+        .exclude(tool_class="team.manage")
+        .exists()
+    ):
         raise ValueError("Operation outcomes remain unresolved.")
     if job.job_kind == "code":
         if (

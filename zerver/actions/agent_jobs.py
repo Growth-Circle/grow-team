@@ -976,9 +976,13 @@ def resume_job(
             raise ValueError("Job cannot resume.")
         if agents.AgentAttempt.objects.filter(job=job, active=True).exists():
             raise ValueError("Previous containment has not stopped.")
-        if agents.AgentOperation.objects.filter(
-            attempt__job=job, status__in=["started", "outcome_unknown"]
-        ).exists():
+        if (
+            agents.AgentOperation.objects.filter(
+                attempt__job=job, status__in=["started", "outcome_unknown"]
+            )
+            .exclude(tool_class="team.manage")
+            .exists()
+        ):
             raise ValueError("Operation reconciliation is required.")
         if agents.AgentInput.objects.filter(job=job, delivery_state="delivery_uncertain").exists():
             raise ValueError("Input reconciliation is required.")
@@ -1274,9 +1278,13 @@ def record_event(
                 )
                 if artifacts.count() != len(set(result.artifact_ids)):
                     raise ValueError("Result artifacts are unavailable.")
-                if agents.AgentOperation.objects.filter(
-                    attempt=attempt, status__in=["started", "outcome_unknown"]
-                ).exists():
+                if (
+                    agents.AgentOperation.objects.filter(
+                        attempt=attempt, status__in=["started", "outcome_unknown"]
+                    )
+                    .exclude(tool_class="team.manage")
+                    .exists()
+                ):
                     raise ValueError("Operation outcomes are unresolved.")
                 if job.job_kind == "code" and (
                     not result.tree_hash or attempt.workspace_prepared_at is None

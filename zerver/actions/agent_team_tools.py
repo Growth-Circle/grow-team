@@ -11,6 +11,7 @@ import re
 from collections.abc import Callable
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils.translation import gettext as _
 from django.utils.translation import override as override_language
 
@@ -626,22 +627,38 @@ def execute_team_tool(
 def team_manage_result_lines(job: "agents.AgentJob") -> list[str]:
     """The executed-steps list for a manage job's final reply (contract 2.6 item 7).
 
-    Built only from stored receipts, so the reply never claims a step that
-    did not happen.
+    Built from stored receipts and from steps whose outcome is still unknown
+    (consumed but not yet resolved), so the reply never claims a step that
+    did not happen and never hides one that may have (contract AD-24).
     """
     operations = agents.AgentOperation.objects.filter(
-        attempt__job=job, tool_class="team.manage", server_receipt__isnull=False
+        Q(server_receipt__isnull=False) | Q(status__in=["started", "outcome_unknown"]),
+        attempt__job=job,
+        tool_class="team.manage",
     ).order_by("created_at")
     with override_language(job.realm.default_language):
         lines = []
         for operation in operations:
-            receipt = operation.server_receipt
-            if receipt["outcome"] == "succeeded":
-                lines.append(f"- {receipt['summary']}")
-            else:
-                lines.append(
-                    _("- {summary} Failed: {error}").format(
-                        summary=receipt["summary"], error=receipt["error"] or ""
+            if operation.server_receipt is not None:
+                receipt = operation.server_receipt
+                if receipt["outcome"] == "succeeded":
+                    lines.append(f"- {receipt['summary']}")
+                else:
+                    lines.append(
+                        _("- {summary} Failed: {error}").format(
+                            summary=receipt["summary"], error=receipt["error"] or ""
+                        )
                     )
+            else:
+                summary = _sanitize_receipt_text(
+                    describe_team_tool_input(
+                        job.requester, p.TeamArguments.model_validate(operation.arguments).input
+                    )
+                )
+                lines.append(
+                    _(
+                        "- {summary} This step may have finished."
+                        " Check the channel before you try again."
+                    ).format(summary=summary)
                 )
         return lines

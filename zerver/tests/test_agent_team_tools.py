@@ -622,6 +622,47 @@ class AgentTeamToolsTests(ZulipTestCase):
             get_stream("once-only", self.realm).id, first["server_receipt"]["objects"]["channel_id"]
         )
 
+    def test_phase_three_retries_busy_and_stores_the_receipt(self) -> None:
+        """RL-1: phase 3 retries on lock contention instead of repeating phase 2."""
+        from unittest.mock import patch
+
+        from zerver.actions import agent_approvals
+        from zerver.lib.agent_context import AgentBusy
+
+        job = self._dispatch(self.owner, self.profile)
+        attempt = self._claim(job)
+        operation = self._propose(
+            job,
+            attempt,
+            {
+                "tool": "channel.create",
+                "name": "retry-once",
+                "description": "",
+                "is_private": False,
+                "subscriber_user_ids": [],
+            },
+        )
+        original = agent_approvals._store_team_receipt
+        attempts: list[object] = []
+
+        def flaky(*args: object, **kwargs: object) -> dict[str, object]:
+            attempts.append(None)
+            if len(attempts) <= 2:
+                raise AgentBusy("Agent authority is busy. Retry this request.")
+            return original(*args, **kwargs)
+
+        with (
+            patch.object(agent_approvals, "_store_team_receipt", side_effect=flaky),
+            patch("zerver.actions.agent_approvals.time.sleep") as sleep_mock,
+        ):
+            result = self._execute(job, attempt, operation)
+        self.assertEqual(len(attempts), 3)
+        self.assertEqual([call.args[0] for call in sleep_mock.call_args_list], [0.05, 0.1])
+        assert result["server_receipt"] is not None
+        self.assertEqual(result["server_receipt"]["outcome"], "succeeded")
+        # Phase 2 (the actual channel creation) never repeated across retries.
+        self.assertEqual(Stream.objects.filter(realm=self.realm, name="retry-once").count(), 1)
+
     def test_execute_with_started_operation_and_no_receipt_raises_outcome_unknown(self) -> None:
         job = self._dispatch(self.owner, self.profile)
         attempt = self._claim(job)
@@ -640,6 +681,112 @@ class AgentTeamToolsTests(ZulipTestCase):
         )
         with self.assertRaises(approvals.OutcomeUnknownError):
             self._execute(job, attempt, operation)
+
+    def test_manage_reply_lists_an_uncertain_step_and_publishes(self) -> None:
+        """AD-24: an uncertain team.manage step never blocks publication; the
+        reply lists it instead of silently dropping or falsely confirming it."""
+        job = self._dispatch(self.owner, self.profile)
+        attempt = self._claim(job)
+        operation = self._propose(
+            job,
+            attempt,
+            {
+                "tool": "channel.create",
+                "name": "uncertain-step",
+                "description": "",
+                "is_private": False,
+                "subscriber_user_ids": [],
+            },
+        )
+        # Simulate a crash between phase 1 (consume) and phase 3 (receipt): the
+        # operation is "started" with no server_receipt, so its outcome is unknown.
+        approvals.consume_operation(
+            job.runner,
+            job.id,
+            attempt.id,
+            attempt.lease_epoch,
+            operation_id=operation.operation_id,
+            expected_version=operation.version,
+            operation_hash=operation.argument_digest,
+        )
+        lines = team_manage_result_lines(job)
+        self.assertEqual(len(lines), 1)
+        self.assertIn("uncertain-step", lines[0])
+        self.assertIn(
+            "This step may have finished. Check the channel before you try again.", lines[0]
+        )
+
+        summary_bytes = b"Done."
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            override_settings(AGENT_ARTIFACT_ROOT=directory),
+        ):
+            artifact = store_artifact(
+                job.runner,
+                job.id,
+                attempt.id,
+                attempt.lease_epoch,
+                chunks=[summary_bytes],
+                checksum=hashlib.sha256(summary_bytes).hexdigest(),
+                kind="summary",
+                filename="summary.txt",
+                media_type="text/plain",
+            )
+            job.refresh_from_db()
+            job.result_proposal = serialize_payload(
+                ResultPayload(summary="Done.", artifact_ids=[artifact.id])
+            )
+            job.status = "verifying"
+            job.save(update_fields=["result_proposal", "status"])
+            attempt.refresh_from_db()
+            attempt.active = False
+            attempt.process_state = "stopped"
+            attempt.stopped_at = now()
+            attempt.ended_at = now()
+            attempt.save(update_fields=["active", "process_state", "stopped_at", "ended_at"])
+            # publish_result no longer blocks on this operation's unresolved outcome.
+            receipt = publish_result(job.id)
+        message = Message.objects.get(id=receipt["message_id"])
+        self.assertIn("uncertain-step", message.content)
+        self.assertIn(
+            "This step may have finished. Check the channel before you try again.",
+            message.content,
+        )
+
+    def test_uncertain_team_step_does_not_block_resume_of_a_manage_job(self) -> None:
+        job = self._dispatch(self.owner, self.profile)
+        attempt = self._claim(job)
+        operation = self._propose(
+            job,
+            attempt,
+            {
+                "tool": "channel.create",
+                "name": "resume-uncertain",
+                "description": "",
+                "is_private": False,
+                "subscriber_user_ids": [],
+            },
+        )
+        approvals.consume_operation(
+            job.runner,
+            job.id,
+            attempt.id,
+            attempt.lease_epoch,
+            operation_id=operation.operation_id,
+            expected_version=operation.version,
+            operation_hash=operation.argument_digest,
+        )
+        operation.refresh_from_db()
+        self.assertEqual(operation.status, "started")
+        agents.AgentJob.objects.filter(id=job.id).update(
+            status="interrupted", blocked_reason="stop_unconfirmed"
+        )
+        agents.AgentAttempt.objects.filter(id=attempt.id).update(
+            active=False, process_state="stopped", stopped_at=now(), ended_at=now()
+        )
+        job.refresh_from_db()
+        resumed = agent_jobs.resume_job(self.owner, job.id, job.version)
+        self.assertEqual(resumed.status, "queued")
 
     def test_execute_rejects_changed_operation_hash_after_approval(self) -> None:
         channel = self.subscribe(self.owner, "team-updates")
