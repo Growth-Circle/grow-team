@@ -47,6 +47,7 @@ from zerver.views.agents import (
     get_agent_runner,
     get_agent_setup,
     get_team_default,
+    get_team_instructions,
     list_agent_grants,
     list_agent_profiles,
     list_agent_providers,
@@ -54,6 +55,7 @@ from zerver.views.agents import (
     list_agent_runners,
     list_channel_agent_attachments,
     pause_agent_profile,
+    preview_agent_pairing,
     recover_agent_profile,
     resolve_team_agent_selection,
     retry_profile_setup,
@@ -65,6 +67,7 @@ from zerver.views.agents import (
     update_agent_provider,
     update_agent_runner_metadata,
     update_team_default,
+    update_team_instructions,
 )
 from zerver.views.alert_words import add_alert_words, list_alert_words, remove_alert_words
 from zerver.views.antispam import get_challenge
@@ -412,6 +415,10 @@ v1_api_and_json_patterns = [
     rest_path("agent/profiles/<uuid:profile_id>/attach-channel", POST=attach_agent_profile_stream),
     rest_path("agent/profiles/<uuid:profile_id>/share", POST=share_agent_profile_view),
     rest_path("agent/profiles/<uuid:profile_id>/unshare", POST=unshare_agent_profile_view),
+    rest_path(
+        "agent/team-instructions", GET=get_team_instructions, PATCH=update_team_instructions
+    ),
+    rest_path("agent/pairings/preview", POST=preview_agent_pairing),
     # realm-level calls
     rest_path("realm", PATCH=update_realm),
     rest_path("realm/user_settings_defaults", PATCH=update_realm_user_settings_defaults),

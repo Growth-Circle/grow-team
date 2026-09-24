@@ -8,7 +8,8 @@ from django.utils.timezone import now
 from typing_extensions import override
 
 from zerver.lib.test_classes import ZulipTestCase
-from zerver.models import Subscription, UserProfile, agents
+from zerver.models import RealmAuditLog, Subscription, UserProfile, agents
+from zerver.models.realm_audit_logs import AuditLogEventType
 from zerver.models.streams import get_stream
 
 
@@ -581,6 +582,275 @@ class AgentAPITests(ZulipTestCase):
         profile.bot_user.refresh_from_db()
         self.assertEqual((profile.name, profile.metadata_revision, profile.revision), original)
         self.assertEqual(profile.bot_user.full_name, original[0])
+
+    def test_profile_instructions_make_readiness_stale_and_stay_editor_only(self) -> None:
+        from zerver.actions.agents import share_agent_profile
+
+        created = self.post_agent("profiles", self.profile_payload())
+        profile = agents.AgentProfile.objects.get(id=created["profile"]["id"])
+        self.assertFalse(created["profile"]["has_instructions"])
+        self.assertEqual(created["profile"]["configuration"]["instructions"], "")
+        agents.AgentProfile.objects.filter(id=profile.id).update(
+            readiness_state="ready", readiness_revision=profile.revision
+        )
+        other = self.example_user("othello")
+        share_agent_profile(self.owner, profile, principal_user=other)
+
+        body = {**self.profile_edit_body(profile), "instructions": "Reply politely."}
+        result = self.assert_json_success(
+            self.client_patch(f"/json/agent/profiles/{profile.id}", {"payload": json.dumps(body)})
+        )
+        self.assertTrue(result["profile"]["has_instructions"])
+        self.assertEqual(result["profile"]["configuration"]["instructions"], "Reply politely.")
+        profile.refresh_from_db()
+        self.assertEqual(profile.instructions, "Reply politely.")
+        self.assertEqual(profile.readiness_state, "unchecked")
+
+        # A reader who may use the agent but not edit it never sees the text,
+        # even though has_instructions still tells them one exists.
+        self.login_user(other)
+        shared_view = self.assert_json_success(
+            self.client_get(f"/json/agent/profiles/{profile.id}")
+        )["profile"]
+        self.assertTrue(shared_view["has_instructions"])
+        self.assertIsNone(shared_view["configuration"])
+
+    def test_instructions_with_a_credential_return_instructions_rejected(self) -> None:
+        response = self.client_post(
+            "/json/agent/profiles",
+            {
+                "payload": json.dumps(
+                    {
+                        "schema_version": 1,
+                        **self.profile_payload(),
+                        "instructions": "Use Authorization: Bearer sk-secret-token to log in.",
+                    }
+                )
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "instructions_rejected")
+        self.assertFalse(agents.AgentProfile.objects.exists())
+
+        created = self.post_agent("profiles", self.profile_payload())
+        profile = agents.AgentProfile.objects.get(id=created["profile"]["id"])
+        body = {
+            **self.profile_edit_body(profile),
+            "instructions": "-----BEGIN RSA PRIVATE KEY-----\nabc\n-----END RSA PRIVATE KEY-----",
+        }
+        response = self.client_patch(
+            f"/json/agent/profiles/{profile.id}", {"payload": json.dumps(body)}
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "instructions_rejected")
+        profile.refresh_from_db()
+        self.assertEqual(profile.instructions, "")
+
+    def test_team_instructions_admin_cas_and_realm_audit_log(self) -> None:
+        self.owner.role = UserProfile.ROLE_REALM_ADMINISTRATOR
+        self.owner.save(update_fields=["role"])
+        initial = self.assert_json_success(self.client_get("/json/agent/team-instructions"))[
+            "team_instructions"
+        ]
+        self.assertEqual(initial, {"text": "", "revision": 1, "allowed_actions": ["edit"]})
+        response = self.client_patch(
+            "/json/agent/team-instructions",
+            {
+                "payload": json.dumps(
+                    {"schema_version": 1, "expected_revision": 1, "text": "Be concise."}
+                )
+            },
+        )
+        result = self.assert_json_success(response)["team_instructions"]
+        self.assertEqual(
+            result, {"text": "Be concise.", "revision": 2, "allowed_actions": ["edit"]}
+        )
+        stale = self.client_patch(
+            "/json/agent/team-instructions",
+            {
+                "payload": json.dumps(
+                    {"schema_version": 1, "expected_revision": 1, "text": "Stale write."}
+                )
+            },
+        )
+        self.assertEqual(stale.status_code, 400)
+        self.assertEqual(stale.json()["code"], "team_instructions_stale")
+        settings = agents.AgentRealmSettings.objects.get(realm=self.owner.realm)
+        self.assertEqual(settings.team_instructions, "Be concise.")
+        log = RealmAuditLog.objects.get(
+            realm=self.owner.realm, event_type=AuditLogEventType.AGENT_TEAM_INSTRUCTIONS_CHANGED
+        )
+        self.assertEqual(log.extra_data, {"old_revision": 1, "new_revision": 2})
+        self.assertEqual(log.acting_user_id, self.owner.id)
+
+    def test_team_instructions_member_can_read_but_not_edit(self) -> None:
+        member = self.example_user("othello")
+        self.login_user(member)
+        result = self.assert_json_success(self.client_get("/json/agent/team-instructions"))[
+            "team_instructions"
+        ]
+        self.assertEqual(result, {"text": "", "revision": 1, "allowed_actions": []})
+        response = self.client_patch(
+            "/json/agent/team-instructions",
+            {
+                "payload": json.dumps(
+                    {"schema_version": 1, "expected_revision": 1, "text": "Not allowed."}
+                )
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn("code", response.json())
+        settings = agents.AgentRealmSettings.objects.get(realm=self.owner.realm)
+        self.assertEqual(settings.team_instructions, "")
+
+    def test_pairing_preview_shows_identity_without_approving(self) -> None:
+        from zerver.actions.agents import start_pairing
+
+        pairing = start_pairing("My laptop", "f" * 64, "CODE1234", "s" * 40)
+        response = self.client_post(
+            "/json/agent/pairings/preview",
+            {
+                "payload": json.dumps(
+                    {"schema_version": 1, "pairing_id": str(pairing.id), "user_code": "CODE1234"}
+                )
+            },
+        )
+        result = self.assert_json_success(response)["pairing"]
+        self.assertEqual(result["device_name"], "My laptop")
+        self.assertEqual(result["fingerprint_prefix"], "f" * 16)
+        self.assertEqual(result["realm_name"], self.owner.realm.name)
+        pairing.refresh_from_db()
+        self.assertEqual(pairing.state, "pending")
+        self.assertIsNone(pairing.owner_id)
+        # Preview never approves: the same code still approves afterward.
+        approved = self.post_agent(
+            "pairings/approve", {"pairing_id": str(pairing.id), "user_code": "CODE1234"}
+        )
+        self.assertEqual(approved["pairing"]["state"], "approved")
+
+    def test_pairing_preview_counts_failed_codes_and_rejects_after_five(self) -> None:
+        from zerver.actions.agents import start_pairing
+
+        pairing = start_pairing("Device", "d" * 64, "RIGHTCODE", "s" * 40)
+        for _ in range(5):
+            response = self.client_post(
+                "/json/agent/pairings/preview",
+                {
+                    "payload": json.dumps(
+                        {
+                            "schema_version": 1,
+                            "pairing_id": str(pairing.id),
+                            "user_code": "WRONGCODE",
+                        }
+                    )
+                },
+            )
+            self.assertEqual(response.status_code, 400)
+        pairing.refresh_from_db()
+        self.assertEqual(pairing.failed_attempts, 5)
+        self.assertEqual(pairing.state, "rejected")
+        response = self.client_post(
+            "/json/agent/pairings/preview",
+            {
+                "payload": json.dumps(
+                    {"schema_version": 1, "pairing_id": str(pairing.id), "user_code": "RIGHTCODE"}
+                )
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_provider_model_location_labels(self) -> None:
+        def location(base_url: str, **extra: object) -> str:
+            created = self.post_agent(
+                "providers",
+                {
+                    "runner_id": str(self.runner.id),
+                    "name": "Provider",
+                    "base_url": base_url,
+                    "model_id": "model",
+                    "allowed_models": ["model"],
+                    "context_window_tokens": 1000,
+                    "max_output_tokens": 100,
+                    "local_credential_ref": "secret",
+                    **extra,
+                },
+            )
+            detail = self.assert_json_success(
+                self.client_get(f"/json/agent/providers/{created['provider']['id']}")
+            )["provider"]
+            return str(detail["model_location"])
+
+        self.assertEqual(location("http://localhost:11434"), "runner_local")
+        self.assertEqual(location("http://127.0.0.1:11434"), "runner_local")
+        self.assertEqual(location("http://10.0.0.5:8000"), "private_network")
+        self.assertEqual(location("https://api.openai.com"), "external")
+        self.assertEqual(
+            location(
+                "https://internal.example.com",
+                network={
+                    "targets": [
+                        {
+                            "hostname": "internal.example.com",
+                            "port": 443,
+                            "allow_private": True,
+                        }
+                    ]
+                },
+            ),
+            "private_network",
+        )
+
+    def test_runner_fingerprint_prefix_is_owner_only(self) -> None:
+        from zerver.actions.agents import share_agent_profile
+
+        created = self.post_agent("profiles", self.profile_payload())
+        profile = agents.AgentProfile.objects.get(id=created["profile"]["id"])
+        own_view = self.assert_json_success(
+            self.client_get(f"/json/agent/runners/{self.runner.id}")
+        )["runner"]
+        self.assertEqual(own_view["fingerprint_prefix"], self.runner.fingerprint[:16])
+
+        other = self.example_user("othello")
+        share_agent_profile(self.owner, profile, principal_user=other)
+        self.login_user(other)
+        shared_view = self.assert_json_success(
+            self.client_get(f"/json/agent/profiles/{profile.id}")
+        )["profile"]
+        self.assertIsNone(shared_view["runner"]["fingerprint_prefix"])
+
+    def test_profile_allowed_actions_include_test_task_only_when_ready(self) -> None:
+        from zerver.actions.agents import enable_profile, record_readiness
+
+        created = self.post_agent("profiles", self.profile_payload())
+        profile = agents.AgentProfile.objects.get(id=created["profile"]["id"])
+        self.assertNotIn("test_task", created["profile"]["allowed_actions"])
+
+        setup = agents.AgentSetupOperation.objects.get(profile=profile)
+        record_readiness(
+            self.runner,
+            setup,
+            {
+                "schema_version": 1,
+                "profile_id": str(profile.id),
+                "profile_revision": profile.revision,
+                "runner_id": str(self.runner.id),
+                "descriptor_digest": setup.descriptor_digest,
+                "configuration_digest": setup.configuration_digest,
+                "state": "ready",
+                "capabilities": {"chat_ready": True, "config_version": 1},
+            },
+        )
+        profile.refresh_from_db()
+        draft_view = self.assert_json_success(
+            self.client_get(f"/json/agent/profiles/{profile.id}")
+        )["profile"]
+        self.assertNotIn("test_task", draft_view["allowed_actions"])
+
+        enable_profile(self.owner, profile, expected_revision=profile.revision)
+        enabled_view = self.assert_json_success(
+            self.client_get(f"/json/agent/profiles/{profile.id}")
+        )["profile"]
+        self.assertIn("test_task", enabled_view["allowed_actions"])
 
     def test_identical_provider_edit_preserves_versions_and_probe_authority(self) -> None:
         created = self.post_agent(

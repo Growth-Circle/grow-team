@@ -5776,6 +5776,122 @@ paths:
                 contentType: application/json
       x-agent-payload-schema:
         $ref: "#/components/schemas/AgentSettingsPairingApprovalRequest"
+  /agent/pairings/preview:
+    post:
+      operationId: preview-agent-pairing
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsPairingPreviewResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsPairingPreviewRequest"
+                  description: Send one payload field with a JSON request object.
+                  example:
+                    {
+                      "schema_version": 1,
+                      "pairing_id": "00000000-0000-4000-8000-000000000001",
+                      "user_code": "ABCD1234",
+                    }
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsPairingPreviewRequest"
   /agent/runners:
     get:
       operationId: list-agent-runners
@@ -8809,6 +8925,212 @@ paths:
                 contentType: application/json
       x-agent-payload-schema:
         $ref: "#/components/schemas/AgentSettingsDefaultSelectionUpdateRequest"
+  /agent/team-instructions:
+    get:
+      operationId: get-agent-team-instructions
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsTeamInstructionsResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+    patch:
+      operationId: update-agent-team-instructions
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsTeamInstructionsResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsTeamInstructionsUpdateRequest"
+                  description: Send one payload field with a JSON request object.
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_revision": 1,
+                      "text": "Reply in the same language as the request.",
+                    }
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsTeamInstructionsUpdateRequest"
   /agent/selection/resolve:
     post:
       operationId: resolve-agent-selection
@@ -43074,6 +43396,29 @@ components:
         - user_code
       title: PairingApproval
       type: object
+    AgentSettingsPairingPreviewRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        pairing_id:
+          format: uuid
+          title: Pairing Id
+          type: string
+        user_code:
+          maxLength: 4096
+          minLength: 1
+          title: User Code
+          type: string
+      required:
+        - schema_version
+        - pairing_id
+        - user_code
+      title: PairingPreview
+      type: object
     AgentSettingsNetworkPolicy:
       additionalProperties: false
       properties:
@@ -43517,6 +43862,12 @@ components:
           maxLength: 2000
           title: Description
           type: string
+        instructions:
+          default: ""
+          maxLength: 8000
+          title: Instructions
+          type: string
+          description: The agent reads this text at the start of each task.
         adapter_id:
           maxLength: 80
           minLength: 1
@@ -43633,6 +43984,14 @@ components:
           maxLength: 2000
           title: Description
           type: string
+        instructions:
+          default: ""
+          maxLength: 8000
+          title: Instructions
+          type: string
+          description:
+            The agent reads this text at the start of each task. Changing it invalidates the
+            agent's readiness check and, if the agent was on, moves it to draft.
         adapter_id:
           maxLength: 80
           minLength: 1
@@ -43818,6 +44177,28 @@ components:
         - schema_version
         - expected_selection_revision
       title: DefaultSelectionUpdate
+      type: object
+    AgentSettingsTeamInstructionsUpdateRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        expected_revision:
+          minimum: 1
+          title: Expected Revision
+          type: integer
+        text:
+          default: ""
+          maxLength: 8000
+          title: Text
+          type: string
+      required:
+        - schema_version
+        - expected_revision
+      title: TeamInstructionsUpdate
       type: object
     AgentSettingsConversationScope:
       additionalProperties: false
@@ -44216,6 +44597,10 @@ components:
           type: string
           format: date-time
           nullable: true
+        fingerprint_prefix:
+          type: string
+          nullable: true
+          description: The first 16 characters of the device fingerprint, visible to its owner only.
         revision:
           type: integer
           minimum: 1
@@ -44288,6 +44673,7 @@ components:
         - last_heartbeat_at
         - observed_at
         - revoked_at
+        - fingerprint_prefix
         - revision
         - metadata_revision
         - catalog_revision
@@ -44333,6 +44719,15 @@ components:
         capabilities:
           type: object
           additionalProperties: true
+        model_location:
+          type: string
+          enum:
+            - runner_local
+            - private_network
+            - external
+          description:
+            Where the model connection's traffic goes, never the raw address. runner_local and
+            private_network never leave the runner's own network.
         disabled_at:
           type: string
           format: date-time
@@ -44383,6 +44778,7 @@ components:
         - max_output_tokens
         - data_scope
         - capabilities
+        - model_location
         - disabled_at
         - allowed_actions
         - config_version
@@ -44470,6 +44866,9 @@ components:
             - hard_cost_cap
         budget:
           $ref: "#/components/schemas/AgentRuntimeBudget"
+        instructions:
+          type: string
+          description: The agent instructions text, visible to an editor only.
         scope_restricted:
           type: boolean
         network_retained:
@@ -44477,6 +44876,7 @@ components:
       required:
         - policy
         - budget
+        - instructions
         - scope_restricted
         - network_retained
     AgentSettingsProfile:
@@ -44490,6 +44890,8 @@ components:
           type: string
         description:
           type: string
+        has_instructions:
+          type: boolean
         runner_id:
           type: string
           format: uuid
@@ -44574,6 +44976,7 @@ components:
               - probe
               - enable
               - archive
+              - test_task
         owner:
           type: object
           additionalProperties: false
@@ -44655,6 +45058,7 @@ components:
         - id
         - name
         - description
+        - has_instructions
         - runner_id
         - provider_id
         - repository_id
@@ -45354,6 +45758,46 @@ components:
         - msg
         - schema_version
         - pairing
+    AgentSettingsPairingPreviewResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        pairing:
+          type: object
+          additionalProperties: false
+          properties:
+            device_name:
+              type: string
+            fingerprint_prefix:
+              type: string
+              description: The first 16 characters of the device fingerprint.
+            realm_name:
+              type: string
+            expires_at:
+              type: string
+              format: date-time
+          required:
+            - device_name
+            - fingerprint_prefix
+            - realm_name
+            - expires_at
+      required:
+        - result
+        - msg
+        - schema_version
+        - pairing
     AgentSettingsSetupIdResponse:
       type: object
       additionalProperties: false
@@ -45612,6 +46056,46 @@ components:
         - schema_version
         - default
         - revision
+    AgentSettingsTeamInstructionsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        team_instructions:
+          type: object
+          additionalProperties: false
+          properties:
+            text:
+              type: string
+            revision:
+              type: integer
+              minimum: 1
+            allowed_actions:
+              type: array
+              items:
+                type: string
+                enum:
+                  - edit
+          required:
+            - text
+            - revision
+            - allowed_actions
+      required:
+        - result
+        - msg
+        - schema_version
+        - team_instructions
     AgentSettingsSelectionResponse:
       type: object
       additionalProperties: false

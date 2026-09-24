@@ -329,6 +329,29 @@ class AgentSelectionTests(ZulipTestCase):
             agents.AgentRealmSettings.objects.get(realm=self.owner.realm).default_profile_id
         )
 
+    def test_member_does_not_learn_that_a_hidden_default_exists(self) -> None:
+        profile = self.ready_profile()
+        self.grant(profile)
+        self.post(
+            self.owner,
+            "team-default",
+            {"expected_selection_revision": 1, "profile_id": str(profile.id)},
+        )
+        member_view = self.assert_json_success(
+            self.api_get(self.member, "/api/v1/agent/team-default")
+        )["default"]
+        self.assertFalse(member_view["has_default"])
+        self.assertNotIn("profile", member_view)
+        self.assertNotIn("selection_revision", member_view)
+        self.assertNotIn("allowed_actions", member_view)
+        # An administrator keeps the current behavior: the default's existence
+        # is reported even while the profile itself stays hidden.
+        admin_view = self.assert_json_success(
+            self.api_get(self.other_admin, "/api/v1/agent/team-default")
+        )["default"]
+        self.assertTrue(admin_view["has_default"])
+        self.assertNotIn("profile", admin_view)
+
     def test_source_destination_validation_and_revocation(self) -> None:
         profile = self.ready_profile()
         self.subscribe(profile.bot_user, "Denmark")

@@ -41,6 +41,24 @@ PAIRING_TTL = timedelta(minutes=10)
 ACCESS_TOKEN_TTL = timedelta(hours=24)
 REFRESH_TOKEN_TTL = timedelta(days=30)
 
+# A credential pasted into instructions text never reaches the model prompt.
+_INSTRUCTIONS_CREDENTIAL_PATTERN = re.compile(
+    r"(?i)(?:authorization\s*:\s*bearer\s+\S+|-----BEGIN [A-Z ]*PRIVATE KEY-----)"
+)
+
+
+class AgentUserError(ValueError):
+    """A user-facing rejection with a stable code the client can act on."""
+
+    def __init__(self, code: str) -> None:
+        super().__init__("Agent request rejected.")
+        self.code = code
+
+
+def _reject_credential_like_instructions(text: str) -> None:
+    if _INSTRUCTIONS_CREDENTIAL_PATTERN.search(text):
+        raise AgentUserError("instructions_rejected")
+
 
 @transaction.atomic()
 def start_pairing(
@@ -72,28 +90,51 @@ def _pairing_code_matches(pairing: agents.AgentPairing, user_code: str) -> bool:
     return credential_matches(user_code, pairing.user_code_hash)
 
 
+def _check_pairing_code(
+    pairing: agents.AgentPairing, user_code: str
+) -> tuple[agents.AgentPairing, bool]:
+    """Lock the pairing and apply the expiry and failed-code rules.
+
+    Must run inside the caller's transaction. Returns the locked pairing and
+    whether it is unavailable; the caller raises only after the transaction
+    commits, so a failed attempt is still recorded.
+    """
+    pairing = agents.AgentPairing.objects.select_for_update().get(id=pairing.id)
+    if pairing.state != "pending" or pairing.expires_at <= now():
+        pairing.state = "expired" if pairing.expires_at <= now() else pairing.state
+        pairing.save(update_fields=["state", "updated_at"])
+        return pairing, True
+    if not _pairing_code_matches(pairing, user_code):
+        pairing.failed_attempts += 1
+        if pairing.failed_attempts >= PAIRING_MAX_FAILURES:
+            pairing.state = "rejected"
+        pairing.save(update_fields=["failed_attempts", "state", "updated_at"])
+        return pairing, True
+    return pairing, False
+
+
 def approve_pairing(
     owner: UserProfile, pairing: agents.AgentPairing, user_code: str
 ) -> agents.AgentPairing:
-    unavailable = False
     with transaction.atomic():
-        pairing = agents.AgentPairing.objects.select_for_update().get(id=pairing.id)
-        if pairing.state != "pending" or pairing.expires_at <= now():
-            pairing.state = "expired" if pairing.expires_at <= now() else pairing.state
-            pairing.save(update_fields=["state", "updated_at"])
-            unavailable = True
-        elif not _pairing_code_matches(pairing, user_code):
-            pairing.failed_attempts += 1
-            if pairing.failed_attempts >= PAIRING_MAX_FAILURES:
-                pairing.state = "rejected"
-            pairing.save(update_fields=["failed_attempts", "state", "updated_at"])
-            unavailable = True
-        else:
+        pairing, unavailable = _check_pairing_code(pairing, user_code)
+        if not unavailable:
             pairing.realm = owner.realm
             pairing.owner = owner
             pairing.approved_at = now()
             pairing.state = "approved"
             pairing.save(update_fields=["realm", "owner", "approved_at", "state", "updated_at"])
+    if unavailable:
+        raise ValueError("Pairing is unavailable.")
+    return pairing
+
+
+def preview_pairing(
+    owner: UserProfile, pairing: agents.AgentPairing, user_code: str
+) -> agents.AgentPairing:
+    """Check a pairing code and return the pairing without approving it."""
+    with transaction.atomic():
+        pairing, unavailable = _check_pairing_code(pairing, user_code)
     if unavailable:
         raise ValueError("Pairing is unavailable.")
     return pairing
@@ -300,7 +341,7 @@ def update_team_default(
             and _readable_scope(actor, profile.bot_user, grant.scope)[0]
             for grant in group_grants
         ):
-            raise ValueError("Team default requires an audience grant.")
+            raise AgentUserError("audience_grant_required")
     settings.default_profile = profile
     settings.default_selected_by = actor
     settings.default_selected_at = now()
@@ -323,6 +364,34 @@ def update_team_default(
             "old_profile_id": str(old_profile_id) if old_profile_id else None,
             "new_profile_id": str(profile.id) if profile else None,
             "selection_revision": settings.default_selection_revision,
+        },
+    )
+    return settings
+
+
+@transaction.atomic()
+def update_team_instructions(
+    actor: UserProfile, *, expected_revision: int, text: str
+) -> agents.AgentRealmSettings:
+    actor = UserProfile.objects.select_for_update().get(id=actor.id, is_active=True)
+    if not actor.is_realm_admin:
+        raise ValueError("Team instructions are unavailable.")
+    settings = agents.AgentRealmSettings.objects.select_for_update().get(realm=actor.realm)
+    if settings.team_instructions_revision != expected_revision:
+        raise AgentUserError("team_instructions_stale")
+    _reject_credential_like_instructions(text)
+    old_revision = settings.team_instructions_revision
+    settings.team_instructions = text
+    settings.team_instructions_revision += 1
+    settings.save(update_fields=["team_instructions", "team_instructions_revision", "updated_at"])
+    RealmAuditLog.objects.create(
+        realm=actor.realm,
+        acting_user=actor,
+        event_type=AuditLogEventType.AGENT_TEAM_INSTRUCTIONS_CHANGED,
+        event_time=now(),
+        extra_data={
+            "old_revision": old_revision,
+            "new_revision": settings.team_instructions_revision,
         },
     )
     return settings
@@ -610,6 +679,7 @@ def update_profile(
     expected_revision: int,
     name: str,
     description: str,
+    instructions: str = "",
     provider: agents.AgentProvider | None,
     repository: agents.AgentRepository | None,
     adapter_id: str,
@@ -716,6 +786,7 @@ def update_profile(
     budget_source = dict(_default_budget(provider)) if budget is None else budget
     budget_data = protocol.serialize_payload(protocol.Budget.model_validate(budget_source))
     name = check_full_name(name, user_profile=None, realm=None)
+    _reject_credential_like_instructions(instructions)
     metadata_changed = profile.name != name or profile.description != description
     execution_changed = not (
         profile.adapter_id == adapter_id
@@ -726,6 +797,7 @@ def update_profile(
         and profile.default_repository_id == (repository.id if repository else None)
         and profile.policy == policy_data
         and profile.budget == budget_data
+        and profile.instructions == instructions
     )
     if not metadata_changed and not execution_changed:
         return profile
@@ -743,7 +815,7 @@ def update_profile(
         provider,
         repository,
     )
-    profile.policy, profile.budget = policy_data, budget_data
+    profile.policy, profile.budget, profile.instructions = policy_data, budget_data, instructions
     profile.revision += 1
     profile.readiness_state = "unchecked"
     profile.readiness_revision = None
@@ -1184,6 +1256,7 @@ def create_profile(
     repository: agents.AgentRepository | None = None,
     idempotency_key: uuid.UUID,
     description: str = "",
+    instructions: str = "",
     policy: dict[str, object] | None = None,
     budget: dict[str, object] | None = None,
     provider_network_version: int | None = None,
@@ -1245,11 +1318,13 @@ def create_profile(
     except Exception:
         raise ValueError("Invalid profile configuration.") from None
     name = check_full_name(name, user_profile=None, realm=None)
+    _reject_credential_like_instructions(instructions)
     payload_digest = hashlib.sha256(
         protocol.canonical_json(
             {
                 "name": name,
                 "description": description,
+                "instructions": instructions,
                 "default_mode": default_mode,
                 "runner": str(runner.id),
                 "adapter": [adapter_id, adapter_version, mode],
@@ -1293,6 +1368,7 @@ def create_profile(
         runner=runner,
         name=name,
         description=description,
+        instructions=instructions,
         mode=mode,
         default_mode=default_mode,
         adapter_id=adapter_id,

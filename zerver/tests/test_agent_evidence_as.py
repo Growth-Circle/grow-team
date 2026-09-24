@@ -6,10 +6,14 @@ that the release audit marked "code_done_needs_evidence": the behavior
 already exists, but no automated test asserted it before this file.
 """
 
+import base64
 import json
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
 
+from django.test import override_settings
 from typing_extensions import override
 
 from zerver.actions.agent_jobs import claim_work, create_job
@@ -18,11 +22,13 @@ from zerver.actions.agents import (
     create_profile,
     enable_profile,
     record_readiness,
+    register_provider,
     update_runner_metadata,
 )
 from zerver.actions.user_groups import check_add_user_group
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.models import Message, UserProfile, agents
+from zerver.models.streams import get_stream
 
 
 def _catalog_report() -> dict[str, object]:
@@ -504,3 +510,131 @@ class AgentEvidenceASTests(ZulipTestCase):
         self.assertEqual(data["profile_id"], str(profile.id))
         self.assertEqual(data["requester_id"], self.owner.id)
         self.assertEqual(agents.AgentProfile.objects.get(id=profile.id).desired_state, "archived")
+
+    def test_as_28_credential_replacement_never_returns_the_secret(self) -> None:
+        """AS-28: a changed credential invalidates readiness and never leaks.
+
+        proof_needed: replacing a provider's server-stored credential drops
+        the readiness of every profile that uses it, and the plaintext
+        secret, old or new, never appears in a profile or provider response,
+        even to the owner who is rotating it.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            key_file = Path(directory) / "agent-keys.json"
+            key_file.write_text(
+                '{"current":"v1","keys":{"v1":"' + base64.b64encode(b"a" * 32).decode() + '"}}'
+            )
+            with override_settings(AGENT_SECRET_MASTER_KEY_FILE=str(key_file)):
+                provider = register_provider(
+                    self.owner,
+                    self.runner,
+                    name="Evidence provider",
+                    base_url="https://example.com",
+                    model_id="model",
+                    allowed_models=["model"],
+                    context_window_tokens=1000,
+                    max_output_tokens=100,
+                    credential="sk-original-secret-value",
+                )
+                profile = create_profile(
+                    self.owner,
+                    name="AS-28 agent",
+                    runner=self.runner,
+                    adapter_id="acp",
+                    adapter_version="1",
+                    provider=provider,
+                    idempotency_key=uuid4(),
+                )
+                setup = agents.AgentSetupOperation.objects.get(profile=profile)
+                record_readiness(
+                    self.runner,
+                    setup,
+                    {
+                        "schema_version": 1,
+                        "profile_id": str(profile.id),
+                        "profile_revision": profile.revision,
+                        "runner_id": str(self.runner.id),
+                        "descriptor_digest": setup.descriptor_digest,
+                        "configuration_digest": setup.configuration_digest,
+                        "state": "ready",
+                        "capabilities": {"chat_ready": True, "config_version": 1},
+                    },
+                )
+                profile.refresh_from_db()
+                self.assertEqual(profile.readiness_state, "ready")
+
+                response = self.api_patch(
+                    self.owner,
+                    f"/api/v1/agent/providers/{provider.id}",
+                    {
+                        "payload": json.dumps(
+                            {
+                                "schema_version": 1,
+                                "expected_config_version": provider.config_version,
+                                "expected_metadata_revision": provider.metadata_revision,
+                                "name": provider.name,
+                                "base_url": provider.base_url,
+                                "model_id": provider.model_id,
+                                "allowed_models": provider.allowed_models,
+                                "context_window_tokens": provider.context_window_tokens,
+                                "max_output_tokens": provider.max_output_tokens,
+                                "credential_replacement": "sk-rotated-secret-value",
+                            }
+                        )
+                    },
+                )
+                self.assert_json_success(response)
+                self.assertNotIn("sk-original-secret-value", response.content.decode())
+                self.assertNotIn("sk-rotated-secret-value", response.content.decode())
+
+                profile.refresh_from_db()
+                self.assertEqual(profile.readiness_state, "unchecked")
+
+                for url in (
+                    f"/api/v1/agent/profiles/{profile.id}",
+                    f"/api/v1/agent/providers/{provider.id}",
+                ):
+                    detail = self.api_get(self.owner, url)
+                    self.assert_json_success(detail)
+                    self.assertNotIn("sk-original-secret-value", detail.content.decode())
+                    self.assertNotIn("sk-rotated-secret-value", detail.content.decode())
+
+    def test_as_30_archived_or_paused_default_is_reported_unavailable(self) -> None:
+        """AS-30: a paused or archived default says so, it does not hide.
+
+        proof_needed: pausing or archiving the team default profile reports
+        profile_unavailable through selection instead of silently looking
+        like no default exists, so the reader gets a real recovery path.
+        """
+        profile = self.ready_profile()
+        self.grant_audience(profile)
+        self.set_team_default(self.owner, 1, str(profile.id))
+        self.subscribe(self.owner, "Denmark")
+        self.subscribe(profile.bot_user, "Denmark")
+        stream = get_stream("Denmark", self.owner.realm)
+
+        def reason() -> str:
+            response = self.api_post(
+                self.owner,
+                "/api/v1/agent/selection/resolve",
+                {
+                    "payload": json.dumps(
+                        {
+                            "schema_version": 1,
+                            "destination": {
+                                "kind": "stream",
+                                "stream_id": stream.id,
+                                "topic": "AS-30",
+                            },
+                        }
+                    )
+                },
+            )
+            return str(self.assert_json_success(response)["selection"]["reason"])
+
+        before = reason()
+        self.assertNotIn(before, {"profile_unavailable", "no_eligible_default"})
+        agents.AgentProfile.objects.filter(id=profile.id).update(desired_state="paused")
+        self.assertEqual(reason(), "profile_unavailable")
+        agents.AgentProfile.objects.filter(id=profile.id).update(desired_state="archived")
+        self.assertEqual(reason(), "profile_unavailable")

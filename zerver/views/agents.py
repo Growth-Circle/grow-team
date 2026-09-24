@@ -1,8 +1,10 @@
 """Human connection APIs use Zulip authentication and form-encoded payload JSON."""
 
+import ipaddress
 from collections.abc import Callable
 from functools import wraps
 from typing import ParamSpec, TypeVar
+from urllib.parse import urlsplit
 from uuid import UUID
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
@@ -67,6 +69,13 @@ def safe_agent_endpoint(view: Callable[P, HttpResponse]) -> Callable[P, HttpResp
                 {"schema_version": 1, "code": "outcome_unknown"},
                 status=409,
             )
+        except actions.AgentUserError as error:
+            return json_response(
+                "error",
+                "Agent request rejected.",
+                {"schema_version": 1, "code": error.code},
+                status=400,
+            )
         except (ValueError, ValidationError, ObjectDoesNotExist, JsonableError, OSError):
             return json_response(
                 "error", "Agent request rejected.", {"schema_version": 1}, status=400
@@ -92,12 +101,14 @@ def _profile_data(
             check_agent_access(actor, profile, None, None, "profile.manage")
             if profile.desired_state != "archived":
                 allowed_actions = ["edit", "pause", "probe"]
-                if (
+                ready = (
                     profile.readiness_state == "ready"
                     and profile.readiness_revision == profile.revision
-                    and profile.readiness_configuration is not None
-                ):
+                )
+                if ready and profile.readiness_configuration is not None:
                     allowed_actions.append("enable")
+                if profile.desired_state == "enabled" and ready:
+                    allowed_actions.append("test_task")
                 if not agents.AgentAttempt.objects.filter(
                     job__profile=profile, active=True
                 ).exists():
@@ -144,6 +155,7 @@ def _profile_data(
                 "hard_cost_cap": profile.policy["hard_cost_cap"],
             },
             "budget": profile.budget,
+            "instructions": profile.instructions,
             "scope_restricted": not readable,
             "network_retained": not network_visible,
         }
@@ -151,6 +163,7 @@ def _profile_data(
         "id": str(profile.id),
         "name": profile.name,
         "description": profile.description,
+        "has_instructions": bool(profile.instructions),
         "runner_id": str(profile.runner_id) if runner_visible else None,
         "provider_id": str(profile.provider_id)
         if profile.provider_id and provider_visible
@@ -215,6 +228,7 @@ def _runner_data(runner: agents.AgentRunner, actor: UserProfile | None = None) -
         else None,
         "observed_at": runner.last_heartbeat_at.isoformat() if runner.last_heartbeat_at else None,
         "revoked_at": runner.revoked_at.isoformat() if runner.revoked_at else None,
+        "fingerprint_prefix": runner.fingerprint[:16] if owner else None,
         "revision": runner.policy_version,
         "metadata_revision": runner.metadata_revision,
         "catalog_revision": runner.catalog_revision,
@@ -236,6 +250,32 @@ def _runner_data(runner: agents.AgentRunner, actor: UserProfile | None = None) -
     }
 
 
+def _model_location(provider: agents.AgentProvider) -> str:
+    """Classify where the model provider's traffic actually goes.
+
+    "runner_local" and "private_network" never leave the runner's own
+    network, so every reader may see the label even when the raw URL and
+    network policy stay owner-only.
+    """
+    hostname = urlsplit(provider.base_url).hostname or ""
+    try:
+        address: ipaddress.IPv4Address | ipaddress.IPv6Address | None = ipaddress.ip_address(
+            hostname
+        )
+    except ValueError:
+        address = None
+    if hostname == "localhost" or (address is not None and address.is_loopback):
+        return "runner_local"
+    if address is not None and address.is_private:
+        return "private_network"
+    if any(
+        target.get("hostname") == hostname and target.get("allow_private")
+        for target in provider.network_policy.get("targets", [])
+    ):
+        return "private_network"
+    return "external"
+
+
 def _provider_data(
     provider: agents.AgentProvider, actor: UserProfile | None = None
 ) -> dict[str, object]:
@@ -253,6 +293,7 @@ def _provider_data(
         "data_scope": provider.data_scope,
         "capabilities": provider.capability_report,
         "config_version": provider.config_version,
+        "model_location": _model_location(provider),
         "disabled_at": provider.disabled_at.isoformat() if provider.disabled_at else None,
         "allowed_actions": ["edit", "probe"]
         if owner and actor and actor.is_active and provider.disabled_at is None
@@ -322,7 +363,15 @@ def _success(request: HttpRequest, data: dict[str, object] | None = None) -> Htt
 
 def _default_data(user_profile: UserProfile) -> dict[str, object]:
     settings = agents.AgentRealmSettings.objects.get(realm=user_profile.realm)
-    data: dict[str, object] = {"has_default": settings.default_profile_id is not None}
+    # A non-administrator must never learn that a hidden default exists: their
+    # has_default only turns true once "profile" is actually in the response.
+    # An administrator keeps the prior behavior, which reports the default's
+    # existence regardless of whether the group grant makes it visible.
+    data: dict[str, object] = {
+        "has_default": settings.default_profile_id is not None
+        if user_profile.is_realm_admin
+        else False
+    }
     if user_profile.is_realm_admin:
         data["selection_revision"] = settings.default_selection_revision
         data["allowed_actions"] = ["clear"]
@@ -333,6 +382,8 @@ def _default_data(user_profile: UserProfile) -> dict[str, object]:
     except ObjectDoesNotExist:
         return data
     data["profile"] = _profile_data(profile, user_profile)
+    if not user_profile.is_realm_admin:
+        data["has_default"] = True
     return data
 
 
@@ -744,6 +795,28 @@ def approve_agent_pairing(request: HttpRequest, user_profile: UserProfile) -> Ht
 
 
 @safe_agent_endpoint
+def preview_agent_pairing(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
+    data = payload(request, r.PairingPreview)
+    if not agents.AgentRealmSettings.objects.filter(
+        realm=user_profile.realm, enabled=True
+    ).exists():
+        raise ValueError
+    pairing = agents.AgentPairing.objects.get(id=data.pairing_id, realm__isnull=True)
+    pairing = actions.preview_pairing(user_profile, pairing, data.user_code)
+    return _success(
+        request,
+        {
+            "pairing": {
+                "device_name": pairing.device_name,
+                "fingerprint_prefix": pairing.fingerprint[:16],
+                "realm_name": user_profile.realm.name,
+                "expires_at": pairing.expires_at.isoformat(),
+            }
+        },
+    )
+
+
+@safe_agent_endpoint
 def create_agent_provider(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
     data = payload(request, r.ProviderCreate)
     runner = agents.AgentRunner.objects.get(
@@ -824,6 +897,7 @@ def update_agent_profile(
         expected_revision=data.expected_revision,
         name=data.name,
         description=data.description,
+        instructions=data.instructions,
         provider=provider,
         repository=repository,
         adapter_id=data.adapter_id,
@@ -904,6 +978,7 @@ def create_agent_profile(request: HttpRequest, user_profile: UserProfile) -> Htt
         user_profile,
         name=data.name,
         description=data.description,
+        instructions=data.instructions,
         runner=runner,
         adapter_id=data.adapter_id,
         adapter_version=data.adapter_version,
@@ -1055,6 +1130,35 @@ def update_team_default(request: HttpRequest, user_profile: UserProfile) -> Http
     )
     return _success(
         request, {"default": _default_data(user_profile), "revision": settings.revision}
+    )
+
+
+def _team_instructions_data(
+    settings: agents.AgentRealmSettings, user_profile: UserProfile
+) -> dict[str, object]:
+    return {
+        "text": settings.team_instructions,
+        "revision": settings.team_instructions_revision,
+        "allowed_actions": ["edit"] if user_profile.is_realm_admin else [],
+    }
+
+
+@safe_agent_endpoint
+def get_team_instructions(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
+    settings = agents.AgentRealmSettings.objects.get(realm=user_profile.realm)
+    return _success(
+        request, {"team_instructions": _team_instructions_data(settings, user_profile)}
+    )
+
+
+@safe_agent_endpoint
+def update_team_instructions(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
+    data = payload(request, r.TeamInstructionsUpdate)
+    settings = actions.update_team_instructions(
+        user_profile, expected_revision=data.expected_revision, text=data.text
+    )
+    return _success(
+        request, {"team_instructions": _team_instructions_data(settings, user_profile)}
     )
 
 

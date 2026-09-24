@@ -17,6 +17,16 @@ class PairingApproval(Request):
     user_code: p.Text
 
 
+class PairingPreview(Request):
+    pairing_id: UUID
+    user_code: p.Text
+
+
+class TeamInstructionsUpdate(Request):
+    expected_revision: p.Positive
+    text: Annotated[str, Field(max_length=p.INSTRUCTIONS_MAX_CHARS)] = ""
+
+
 ProviderStoredText = Annotated[str, Field(min_length=1, max_length=200)]
 ProviderURL = Annotated[str, Field(min_length=1, max_length=2048)]
 ProviderTokenCount = Annotated[int, Field(strict=True, ge=1, le=2147483647)]
@@ -51,6 +61,7 @@ class ProfileCreate(Request):
     runner_id: UUID
     name: p.Text
     description: Annotated[str, Field(max_length=2000)] = ""
+    instructions: Annotated[str, Field(max_length=p.INSTRUCTIONS_MAX_CHARS)] = ""
     adapter_id: Annotated[str, Field(min_length=1, max_length=80)]
     adapter_version: Annotated[str, Field(min_length=1, max_length=100)]
     mode: Literal["acp", "endpoint"] = "acp"
@@ -120,6 +131,7 @@ class ProfileUpdate(Request):
     expected_revision: p.Positive
     name: p.Text
     description: Annotated[str, Field(max_length=2000)] = ""
+    instructions: Annotated[str, Field(max_length=p.INSTRUCTIONS_MAX_CHARS)] = ""
     adapter_id: Annotated[str, Field(min_length=1, max_length=80)]
     adapter_version: Annotated[str, Field(min_length=1, max_length=100)]
     mode: Literal["acp", "endpoint"] = "acp"
