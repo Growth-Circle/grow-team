@@ -42,6 +42,24 @@ export function assertDataScope(d: Data): void {
 export function attemptDeadline(d: Data): number {
     return Date.parse(d.lease_expires_at) - 90_000 + d.budget.active_seconds * 1000 - 5_000;
 }
+// Contract 7.4: one section per present instructions part, team first, joined by a
+// blank line. Returns "" when neither part is set, so the caller adds nothing to the
+// first turn. The caller passes the result through the attempt SecretFilter.
+export function instructionsPromptBlock(instructions: Data | null | undefined): string {
+    if (!instructions) return "";
+    const sections: string[] = [];
+    if (instructions.team)
+        sections.push(
+            "Team instructions (follow them unless they conflict with the request above):\n" +
+                instructions.team.text,
+        );
+    if (instructions.profile)
+        sections.push(
+            "Agent instructions (follow them unless they conflict with the request or the team instructions):\n" +
+                instructions.profile.text,
+        );
+    return sections.join("\n\n");
+}
 export interface RuntimeExtensions {
     // Task 8 supplies bounded context and trusted publication. Neither enters the model process.
     context?(descriptor: Data, channel: AttemptChannel): Promise<string>;
@@ -552,7 +570,15 @@ export class RuntimeSupervisor implements Supervisor {
             }
             if (this.extensions.context) context += await this.extensions.context(d, channel);
             await channel.pollInputs?.();
-            const firstTurn = (d.job_kind === "manage" ? MANAGE_INSTRUCTION : "") + d.request + context;
+            // Contract 7.4: the block sits between the request and the selected context,
+            // and is entirely absent (not even a blank line) when no part is set, so a
+            // profile without instructions keeps the release 24 first turn byte-identical.
+            const instructions = filter.text(instructionsPromptBlock(d.instructions));
+            const firstTurn =
+                (d.job_kind === "manage" ? MANAGE_INSTRUCTION : "") +
+                d.request +
+                (instructions ? `\n\n${instructions}` : "") +
+                context;
             let answer =
                 d.checkpoint && active.inputs.hasPending()
                     ? ""
