@@ -473,6 +473,12 @@ export function show(filter: task_board_data.TaskFilter = task_board_data.FILTER
     task_board_data.set_filter(filter);
 
     const was_already_visible = is_visible();
+    if (was_already_visible) {
+        // views_util.show does nothing for a view that is already
+        // open, so a switch between the Work rows moves the highlight
+        // here.
+        left_sidebar_navigation_area.highlight_task_board_view(filter);
+    }
     views_util.show({
         highlight_view_in_left_sidebar() {
             views_util.handle_message_view_deactivated(() => {
