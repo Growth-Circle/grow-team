@@ -130,6 +130,11 @@ Bentuk `server_receipt`:
 
 ### 3.2 API runner
 
+[jalur cepat] (2026-09-24) Runner tidak menunggu konfirmasi lewat polling reconcile atau
+controls. Server membangunkan runner lewat long-poll `/runner/wake` sesudah konfirmasi
+diputuskan. Kesiapan profil `manage` memakai probe koneksi model jalur cepat
+([jalur cepat](2026-09-24-agent-fast-lane.md) bagian 5.1 dan 12).
+
 1. Runner memanggil `POST /api/v1/agent/runner/operations/propose` dengan `Proposal`:
    field lease, `operation_id`, `arguments` berupa `TeamArguments`, dan `tree_hash: null`.
    Respons adalah `{"operation": proposal_data}`. Status `authorized` berarti alat tidak
@@ -384,13 +389,15 @@ pada bagian AD di [bukti penerimaan](../agent-acceptance.md).
 | AD-19 | Crash sesudah fase 2 dan sebelum fase 3                                                                                              | Operasi tetap `started` tanpa receipt. Execute berikutnya mendapat 409 `outcome_unknown`. Runner tidak mengulang. UI menampilkan teks langkah belum pasti.                             | Tes backend dengan fault injection dan tes runner.      |
 | AD-20 | `topic.add_person` untuk orang yang belum subscribe, orang yang sudah subscribe, dan orang dengan follow otomatis mati               | Server men-subscribe bila perlu. Bot mengirim satu pesan dengan mention biasa. Preferensi topik orang lain tidak berubah. `summary` menyebut apa yang terjadi.                         | Tes backend dengan follow otomatis aktif dan mati.      |
 | AD-21 | Job `answer` atau `code` mengusulkan `team.manage`; input punya field tambahan, pasangan `tool` dan input salah, atau melewati batas | Protokol dan propose menolak. Tidak ada operasi yang tersimpan.                                                                                                                        | Tes protokol backend dan tes runner.                    |
-| AD-22 | Descriptor job `manage` dan ekspor schema                                                                                            | Descriptor tanpa repository dan workspace, dengan aksi `context.read` dan `team.manage` saja. Descriptor `manage` dengan repository ditolak. Schema server dan salinan runner identik. | Tes protokol backend dan tes snapshot runner.           |
-| AD-23 | Runner tanpa `team_tools: "passed"`, atau probe tool calling gagal                                                                   | Server tidak menandai profil `manage` siap. Job `manage` tidak dimulai.                                                                                                                | Tes backend readiness dan tes runner.                   |
+| AD-22 | Descriptor job `manage` dan ekspor schema                                                                                            | (v2, 2026-09-24) Descriptor tanpa repository dan workspace, dengan lane `fast`, paket konteks, aksi baca jalur cepat, dan `team.manage`. Descriptor `manage` dengan repository ditolak. Schema server dan salinan runner identik. | Tes protokol backend dan tes snapshot runner.           |
+| AD-23 | Runner tanpa `team_tools: "passed"`, atau probe tool calling gagal                                                                   | (v2, 2026-09-24) Probe jalur cepat (`POST /v1/messages` dengan streaming dan `tool_use`) wajib lulus. Tanpa itu, server tidak menandai profil `manage` siap. Job `manage` tidak dimulai.                                                                                                                | Tes backend readiness dan tes runner.                   |
 | AD-24 | Job `manage` selesai dengan langkah berhasil, gagal, dan belum pasti                                                                 | Balasan akhir berakhir dengan daftar langkah dari receipt tersimpan. Langkah gagal atau belum pasti tidak tertulis sebagai berhasil.                                                   | Tes backend publikasi.                                  |
 | AD-25 | Pesan konteks meminta agent mengeluarkan orang, memindahkan topik, atau mengundang lewat email                                       | Katalog tidak punya alat undangan. Alat sensitif tetap butuh konfirmasi pemberi perintah. Tidak ada efek tanpa keputusan.                                                              | Tes runner dan backend dengan fixture prompt injection. |
 | AD-26 | Pengaturan dan kartu approval pada tema terang dan gelap, lebar 480 sampai 1920 px, dan keyboard                                     | Semua kontrol dapat dipakai. Kartu menampilkan `summary` tanpa hash atau kode internal. Semua teks dapat diterjemahkan.                                                                | Tes visual dan e2e.                                     |
 
 ## 12. Rujukan
+
+[jalur cepat] (2026-09-24) Rujukan `tool-broker` di bawah berlaku untuk jalur code. Jalur cepat menjalankan alat lewat `POST /runner/operations/run` dan `execute` dari loop SDK di proses runner.
 
 - [Keputusan harness](../agent-harness-decision.md): alasan memakai platform agent Grow Team.
 - [Bukti penerimaan](../agent-acceptance.md): status baris AD.
