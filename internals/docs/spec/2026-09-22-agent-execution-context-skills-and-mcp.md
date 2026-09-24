@@ -51,7 +51,11 @@ Keputusan pengguna yang dipertahankan:
 
 - Semua pengaturan, tugas, review, dan pemulihan tersedia di web Grow Team.
 - Runner berjalan pada laptop atau server milik pengguna. Tidak perlu aplikasi desktop.
-- Agent terpasang melalui adapter dan runtime endpoint OpenAI-compatible tetap tersedia sesuai kemampuan yang diuji.
+- Job `code` memakai jalur code: agent terpasang melalui adapter dan runtime
+  endpoint OpenAI-compatible tetap tersedia sesuai kemampuan yang diuji
+  [jalur code]. Job `answer` dan `manage` memakai jalur cepat: loop
+  `@anthropic-ai/sdk` di proses runner, tanpa container
+  ([jalur cepat](2026-09-24-agent-fast-lane.md)) [jalur cepat].
 - Default tim hanya menjadi pilihan awal pada tugas baru; anggota dapat memilih agent lain.
 - Default hasil coding adalah `patch`. Push dan draft PR membutuhkan otorisasi tindakan terkait. Merge dan deploy belum masuk cakupan.
 - Pekerjaan implementasi sebelumnya sedang berjalan. Perubahan pada turn penelitian ini hanya berupa spec baru.
@@ -114,8 +118,8 @@ yang memakai pelajaran Buzz, bukan klaim fitur Buzz yang tinggal diaktifkan.
 | Attempt         | Satu usaha eksekusi job dengan lease epoch tertentu.                  |
 | Claim           | Transaksi server yang menyerahkan attempt kepada runner.              |
 | Fetch Git       | Mengambil objek/ref repository untuk menentukan base commit.          |
-| Runtime session | Sesi adapter atau loop model dalam satu attempt.                      |
-| Container model | Lingkungan proses native agent tanpa checkout project.                |
+| Runtime session | Sesi adapter (jalur code) atau conversation object loop SDK (jalur cepat, tanpa handshake sesi) dalam satu attempt. |
+| Container model | Lingkungan proses native agent tanpa checkout project [jalur code]. Jalur cepat tidak memakai container model; loop berjalan di proses runner. |
 | Container tool  | Lingkungan untuk operasi repository dan pemeriksaan.                  |
 | Checkpoint      | Paket data pemulihan yang terikat input, tree, artifact, dan operasi. |
 | Skill           | Instruksi/prosedur beserta resource yang dimuat sesuai kebutuhan.     |
@@ -163,10 +167,17 @@ sequenceDiagram
     C-->>U: Diff siap ditinjau atau blocker yang jelas
 ```
 
-Push/draft PR menambah tahap broker Git setelah verifikasi dan approval. Diagram
-tidak memberi model akses langsung ke database job, Docker socket, atau credential.
-Target `answer` menggunakan jalur baca dengan gate hasil yang sesuai, tanpa edit
-atau commit.
+Diagram di atas berlaku untuk jalur code (job `code`) [jalur code]. Push/draft
+PR menambah tahap broker Git setelah verifikasi dan approval. Diagram tidak
+memberi model akses langsung ke database job, Docker socket, atau credential.
+Publikasi sesudah bukti stop (tree dibekukan, pemeriksaan wajib, artifact)
+berlaku untuk jalur code saja [jalur code].
+
+Job `answer` dan `manage` memakai jalur cepat: tanpa Git broker, tanpa
+container, publikasi segera sesudah `result.prepared` tanpa menunggu
+`attempt.stopped`. Lihat [jalur cepat](2026-09-24-agent-fast-lane.md) bagian
+4 dan 8 [jalur cepat]. Target `answer` menggunakan jalur baca dengan gate
+hasil yang sesuai, tanpa edit atau commit.
 
 ## 5. Claim tugas, antrean, dan pekerjaan bersamaan
 
@@ -176,8 +187,9 @@ atau commit.
 2. Runner memeriksa kapasitas lokal, kesehatan journal, disk, serta kemampuan sandbox.
 3. Runner melakukan request outbound dengan credential perangkat, versi protokol, dan request ID stabil.
 4. Server memilih job yang cocok dengan runner, profil, revision, repository, izin, serta deadline.
-5. Transaksi server mengunci kapasitas runner/realm dan job, lalu menerbitkan satu attempt aktif beserta epoch.
-6. Runner menyimpan descriptor dan lease dalam journal sebelum menyiapkan resource.
+5. Transaksi server mengunci kapasitas runner/realm dan job, lalu menerbitkan satu attempt aktif beserta epoch. Untuk lane fast, respons claim membawa
+   paket konteks (v2, 2026-09-24) [jalur cepat].
+6. Runner menyimpan descriptor dan lease dalam journal sebelum menyiapkan resource [jalur code]. Jalur cepat tidak menyiapkan resource/workspace [jalur cepat].
 7. Runner merekonsiliasi respons claim yang hilang melalui request ID dan lease aktif.
 8. Poll berikutnya menunggu kapasitas; backoff memakai jitter dan batas yang dapat dikonfigurasi.
 
@@ -278,6 +290,12 @@ container model/tool biasa hanya karena dependency gagal.
 
 ### 7.1 Ikuti keputusan containment aktif
 
+Bagian ini berlaku untuk jalur code [jalur code]. Dipensiunkan 2026-09-24
+untuk lane fast: job `answer` dan `manage` tidak memakai container model,
+container tool, atau broker Git. Lihat
+[keputusan SDK agent](../agent-sdk-decision.md) bagian 4 dan
+[jalur cepat](2026-09-24-agent-fast-lane.md).
+
 Snapshot implementasi menetapkan rootless Linux, container model tanpa repository,
 container tool terpisah, dan broker di luar keduanya. Model terpasang melalui ACP
 serta runtime endpoint TypeScript memakai batas kebijakan yang sama.
@@ -288,7 +306,7 @@ Bagian 17 memuat cara membaca snapshot tanpa menyentuh worktree aktif.
 | ------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------- |
 | Supervisor dan watchdog   | Lease, journal, identitas container, API kontrol terbatas.         | Berjalan sebagai layanan runner; watchdog tetap berguna bila runtime crash. |
 | Broker model              | Tujuan provider tetap, credential model, batas token/biaya.        | Kemampuan per attempt dicabut saat lease/cancel.                            |
-| Container model native    | Home sementara, adapter yang dipatok, socket model khusus attempt. | Tidak mempunyai checkout, Docker socket, host home, atau MCP native bebas.  |
+| Container model native [jalur code] | Home sementara, adapter yang dipatok, socket model khusus attempt. | Tidak mempunyai checkout, Docker socket, host home, atau MCP native bebas.  |
 | Runtime endpoint terbatas | Codec provider dan katalog tool Grow.                              | Tidak mengeksekusi shell langsung dari output model.                        |
 | Container tool            | Checkout disposable, dependency yang disetujui, output terbatas.   | Tidak mempunyai socket model atau credential kontrol/Git/provider.          |
 | Broker Git                | Fetch, commit lokal, serta tindakan remote yang diberi izin.       | Memakai ledger dan identitas repository, tree, parent, serta target.        |
@@ -322,7 +340,10 @@ adalah activity/subphase pada `inspect` dengan status job existing. Jangan
 menambah state terminal baru hanya untuk spinner UI.
 
 Jika runtime tidak tersedia atau conformance sandbox gagal, task berhenti dengan
-alasan spesifik. Tidak ada fallback otomatis menjalankan native agent pada host.
+alasan spesifik. Tidak ada fallback otomatis menjalankan native agent pada host
+[jalur code]. Jalur cepat bukan fallback dari jalur code: server memilih jalur
+dari `job_kind` saat claim, dan tidak ada job yang pindah jalur otomatis saat
+jalur lain gagal ([jalur cepat](2026-09-24-agent-fast-lane.md) bagian 3).
 Windows/macOS memerlukan backend yang lulus contract yang sama; label OS saja
 tidak membuatnya `code_ready`. Server Linux terhubung tetap dapat dipakai dari
 browser pada perangkat lain.
@@ -360,6 +381,11 @@ harus diperiksa sebelum diintegrasikan parent. Ini gate lanjutan, bukan fitur
 yang diasumsikan sudah tersedia dari tombol Tambah agent.
 
 ## 8. Edit, pemeriksaan kualitas, dan commit
+
+Bagian 8 berlaku untuk jalur code (job `code`) [jalur code]. Job `answer` dan
+`manage` di jalur cepat tidak mengedit, tidak commit, dan tidak memakai
+verifier/Git broker di sini; publikasi hasil mengikuti
+[jalur cepat](2026-09-24-agent-fast-lane.md) bagian 8 [jalur cepat].
 
 ### 8.1 Kontrak kerja sebelum edit
 
@@ -518,6 +544,11 @@ Urutan penyusunan konteks:
 5. Metadata skills yang tersedia, lalu isi skills yang diaktifkan.
 6. Referensi percakapan, bukti kerja, dan ringkasan checkpoint.
 
+Untuk lane fast, urutan ini menjadi urutan susunan prompt dan prefix cache di
+[jalur cepat](2026-09-24-agent-fast-lane.md) bagian 6.4: `tools`, lalu blok
+`system` identitas dan instruksi/skill dengan `cache_control`, lalu paket
+konteks sebagai `messages[0]` [jalur cepat].
+
 Urutan ini mengatur penyampaian instruksi, bukan peningkatan hak. Semua teks
 repository, pesan, skill, MCP, dan ringkasan tetap tidak dapat memperluas grant.
 Aturan project yang lebih spesifik berlaku pada path terkait selama tidak
@@ -554,9 +585,12 @@ serta retensi yang sama dengan konteks privat.
 
 ### 9.4 Konsistensi checkpoint
 
-Checkpoint dibentuk setelah mutasi tool selesai, sebelum compaction, sebelum
-waiting/stop yang terkontrol, setelah verifikasi, dan sebelum delivery. Journal
-operasi tetap ditulis pada setiap tindakan; checkpoint tidak menggantikannya.
+Bagian ini berlaku untuk jalur code [jalur code]. Checkpoint dibentuk setelah
+mutasi tool selesai, sebelum compaction, sebelum waiting/stop yang terkontrol,
+setelah verifikasi, dan sebelum delivery. Journal operasi tetap ditulis pada
+setiap tindakan; checkpoint tidak menggantikannya. Jalur cepat tidak membuat
+checkpoint workspace; attempt baru menerima paket konteks baru sesuai
+[jalur cepat](2026-09-24-agent-fast-lane.md) bagian 9 [jalur cepat].
 
 Supervisor mengambil mutation lock, mencatat sequence cut, lalu membuat snapshot
 workspace dan manifest. Simpan berkas secara atomic dengan checksum dan fsync.
@@ -599,7 +633,10 @@ tool dan sequence menjaga identitas input.
 3. Buat attempt baru dan epoch baru; jangan membuka attempt terminal lama.
 4. Rekonstruksi checkout dari base dan snapshot yang cocok.
 5. Periksa hash tree, versi extensions, serta konteks yang masih boleh dibaca.
-6. Load native session hanya bila capability, versi, dan batas aksesnya cocok.
+6. Jalur code: load native session hanya bila capability, versi, dan batas
+   aksesnya cocok [jalur code]. Jalur cepat tidak memiliki native session
+   untuk di-load; setiap attempt baru menerima paket konteks baru
+   [jalur cepat].
 7. Jika load tidak tersedia, mulai sesi baru dari manifest, bukti, dan ringkasan.
 8. Berikan input yang belum diterapkan beserta identitasnya secara terkontrol.
 9. Jalankan langkah berikutnya dan verifikasi ulang sesuai perubahan.
@@ -671,6 +708,10 @@ menampilkan `tim/nama-skill` dan source untuk mencegah benturan. Dua paket berna
 sama harus dipilih eksplisit; jangan memakai prinsip file pertama menang.
 
 Saat runtime mulai, kirim hanya metadata skill yang relevan dan diizinkan.
+Jalur code: metadata masuk lewat prompt sesi adapter [jalur code]. Jalur
+cepat: indeks skill masuk paket konteks bagian `instructions`, dengan batas
+8.000 token ([jalur cepat](2026-09-24-agent-fast-lane.md) bagian 5.3)
+[jalur cepat].
 Tool broker `skills.load` membaca manifest yang dibekukan dan memeriksa grant
 kembali. Supporting file harus terdaftar, berada dalam root paket, cocok hash,
 dan mempunyai batas output. Native agent menerima hasil melalui dynamic tools
@@ -704,10 +745,14 @@ masih diizinkan, tanpa menimpa isi versi immutable.
 
 ### 11.1 MCP berbeda dari model dan adapter
 
-Endpoint OpenAI-compatible menyediakan inferensi. ACP menghubungkan client dengan
-agent runtime. MCP menyediakan tools/resource melalui koneksi tersendiri.
-Mengisi URL model tidak otomatis menghubungkan MCP. Agent yang terpasang juga
-tidak otomatis mewarisi seluruh server MCP pribadi pemilik runner.
+Endpoint OpenAI-compatible menyediakan inferensi. Jalur code menghubungkan
+client dengan agent runtime lewat protokol tersendiri [jalur code]; jalur
+cepat menghubungkan runner dengan model lewat Messages API
+([keputusan SDK agent](../agent-sdk-decision.md)) [jalur cepat]. MCP
+menyediakan tools/resource melalui koneksi tersendiri, terpisah dari kedua
+jalur itu. Mengisi URL model tidak otomatis menghubungkan MCP. Agent yang
+terpasang juga tidak otomatis mewarisi seluruh server MCP pribadi pemilik
+runner.
 
 Jalur yang diperiksa pada `buzz-agent` memakai subprocess stdio dan lifecycle
 `initialize` melalui `rmcp`. Ada namespace tool, timeout init/list, pembersihan
@@ -769,10 +814,15 @@ universal hanya karena server mengirim metadata.
 ### 11.4 Tempat eksekusi dan credential
 
 Stdio MCP berjalan pada container extension terpisah, bukan supervisor, proses
-model, atau server Zulip. Default mount repository read-only dan network none.
-Paket tidak dapat membaca home host, config model, Docker socket, atau credential.
-Program server tetap kode yang berjalan saat startup; probe memakai containment
-yang sama dengan penggunaan normal.
+model, atau server Zulip [jalur code]. Default mount repository read-only dan
+network none. Paket tidak dapat membaca home host, config model, Docker socket,
+atau credential. Program server tetap kode yang berjalan saat startup; probe
+memakai containment yang sama dengan penggunaan normal.
+
+Jalur cepat tidak memiliki container extension. Job `answer` dan `manage`
+hanya boleh memakai MCP Streamable HTTP lewat broker transport bagian 11.4,
+atau tidak memakai MCP sama sekali [jalur cepat]. Stdio MCP tidak tersedia
+untuk lane fast.
 
 Untuk server stdio yang memerlukan layanan eksternal, gunakan konektor dan
 transport broker dengan tujuan tetap serta credential injection yang telah
@@ -899,6 +949,12 @@ Angka di atas adalah ilustrasi. Badge berasal dari data server, bukan string
 yang diparse dari jawaban agent. Tidak ada persentase kemajuan buatan. Untuk
 runtime yang belum memberi usage, tampilkan **Pemakaian belum diketahui**.
 
+Untuk job jalur cepat, panel tugas menampilkan pesan draft yang sedang ditulis
+dan fase real-time (menunggu, membaca konteks, menulis, memakai alat, selesai)
+tanpa polling, sesuai
+[spesifikasi streaming](2026-09-24-agent-streaming-delivery.md) bagian 4
+[jalur cepat].
+
 Tab Aktivitas berisi ringkasan tindakan, perintah yang boleh terlihat, hasil, dan
 tautan bukti. Jangan menampilkan chain of thought, raw protocol dump, header auth,
 atau seluruh log sebagai pengalaman utama. Detail teknis tersedia bagi pengguna
@@ -1012,9 +1068,15 @@ baru mengikuti ledger existing, bukan modal izin milik model.
 ### 13.4 Evolusi versi dan kontrak API
 
 Usulan integrasi: protokol execution v2 untuk profil dengan instruksi/extensions
-baru. Runner mengiklankan versi yang didukung saat pairing/heartbeat/catalog.
+baru. Protokol v2 (2026-09-24) juga membawa kontrak jalur cepat: `lane` pada
+`ClaimResponse.attempt`, `attempt.context_bundle` (paket konteks),
+`attempt.model_policy`, dan event `RunnerEvent` tipe `result.draft`
+([jalur cepat](2026-09-24-agent-fast-lane.md) bagian 5.4) [jalur cepat].
+Runner mengiklankan versi yang didukung saat pairing/heartbeat/catalog.
 Server hanya mengirim descriptor yang dapat divalidasi runner. Record v1 tetap
-dapat dipakai untuk fitur dasar tanpa extensions selama masa transisi.
+dapat dipakai untuk fitur dasar tanpa extensions selama masa transisi. Runner
+v1 tetap bekerja untuk jalur code; server tidak memberi job jalur cepat ke
+runner v1 (EX-51).
 
 Jangan mengabaikan field unknown, menurunkan v2 ke v1 sambil membuang policy, atau
 menandai probe v1 sebagai readiness v2. Digest mencakup field baru dan versi
@@ -1044,14 +1106,17 @@ Semua mutasi memakai expected revision dan idempotency key sesuai scope.
 - `zerver/lib/agent_policy.py`: grant/resource intersection dan visibility, dipakai semua endpoint.
 - Actions job/approval/result existing: claim, perubahan state, ledger, serta publication gate.
 - Context broker existing: instruksi dan refs berizin; tidak mengambil seluruh history.
-- `services/grow-agent-runner/`: journal, workspace, sandbox driver, Git broker, verifier, runtime, dan extension broker.
+- `services/grow-agent-runner/`: journal, workspace, sandbox driver, Git broker, verifier, runtime, dan extension broker [jalur code]; loop `@anthropic-ai/sdk`, `operations/run`, dan publisher snapshot draft [jalur cepat].
 - UI agent existing: tabs settings, manifest efektif, activity, diff/checks, dan eligibility pemulihan.
 
-Nama submodul runner mengikuti implementasi aktif. Interface minimal adalah
-prepare workspace, spawn/observe/stop environment, execute authorized operation,
-checkpoint, restore, verify candidate, commit candidate, dan close attempt.
-Masing-masing menerima descriptor serta lease guard; model tidak memanggil
-driver Docker/Git langsung.
+Nama submodul runner mengikuti implementasi aktif. Interface minimal jalur
+code adalah prepare workspace, spawn/observe/stop environment, execute
+authorized operation, checkpoint, restore, verify candidate, commit
+candidate, dan close attempt [jalur code]. Interface minimal jalur cepat
+adalah claim dengan paket konteks, jalankan loop model, jalankan alat baca
+lewat `operations/run`, kirim snapshot draft, dan kirim `result.prepared`
+[jalur cepat]. Masing-masing menerima descriptor serta lease guard; model
+tidak memanggil driver Docker/Git langsung.
 
 ## 14. Integrasi dengan pekerjaan yang sedang berjalan
 
@@ -1077,6 +1142,13 @@ inti yang sedang diuji. Tulis contract v2 dan fixture-nya dalam perubahan
 terpisah, lalu integrasikan setelah boundary disepakati melalui source/tests.
 
 ### 14.2 Urutan adopsi yang disarankan
+
+0. Jalur cepat lebih dulu: jalankan fase F0–F5 di
+   [jalur cepat](2026-09-24-agent-fast-lane.md) bagian 12 untuk `answer` dan
+   `manage` sebelum item 1–8 di bawah [jalur cepat]. Jalur cepat tidak
+   bergantung pada sandbox, Git broker, atau verifier jalur code.
+
+Item berikut untuk jalur code [jalur code]:
 
 1. Selesaikan satu job code sampai patch melalui claim, sandbox, cancel, checkpoint, dan verifier existing.
 2. Tambahkan receipt workspace/commit serta pemulihan crash pada batas operasi yang sudah ada.
@@ -1145,13 +1217,14 @@ dan Git. Fixture model/MCP sintetis tidak memerlukan data pengguna atau key nyat
 | EX-10 | Worktree common-dir, Git hooks/filter/helper berbahaya        | Host/common metadata tidak writable atau dieksekusi; checkout mandiri terbukti.                 |
 | EX-11 | Submodule/LFS/dependency butuh akses baru                     | Kebutuhan eksplisit; egress/credential tidak diperluas otomatis.                                |
 | EX-12 | Shared cache diracuni job lain                                | Cache tidak dipakai sebagai input tepercaya tanpa binding/validasi.                             |
-| EX-13 | Create container berhasil, respons hilang                     | Resource ditemukan dari intent/ID; tidak spawn dua executor.                                    |
-| EX-14 | PID/nama container digunakan ulang                            | Cleanup tidak menghentikan resource yang bukan milik attempt.                                   |
-| EX-15 | Image tag mutable atau containment tidak cocok                | Start ditolak; tidak fallback ke host.                                                          |
-| EX-16 | Native agent mencoba tool bawaan/MCP/subagent bypass          | Tool tidak terdaftar/ditolak; repository dan secret tidak dapat dijangkau langsung.             |
-| EX-17 | Child double-fork/setsid dan ignores TERM                     | Seluruh container/cgroup stopped sebelum cancelled.                                             |
-| EX-18 | Supervisor crash, kontrol putus, atau reboot                  | Watchdog/broker berhenti menerima efek; startup merekonsiliasi sebelum claim.                   |
-| EX-19 | Model container mencoba socket/tool workspace atau sebaliknya | Mount/network/credential separation tetap berlaku.                                              |
+| EX-13 [jalur code] | Create container berhasil, respons hilang                     | Resource ditemukan dari intent/ID; tidak spawn dua executor.                                    |
+| EX-14 [jalur code] | PID/nama container digunakan ulang                            | Cleanup tidak menghentikan resource yang bukan milik attempt.                                   |
+| EX-15 [jalur code] | Image tag mutable atau containment tidak cocok                | Start ditolak; tidak fallback ke host.                                                          |
+| EX-16 [jalur code] | Native agent mencoba tool bawaan/MCP/subagent bypass          | Tool tidak terdaftar/ditolak; repository dan secret tidak dapat dijangkau langsung.             |
+| EX-16b (v2, 2026-09-24) [jalur cepat] | `tool_use` dengan nama asing dari model           | Nama tidak dikenal ditolak sebelum dispatch, sebelum eksekusi apa pun (FL-13).                  |
+| EX-17 [jalur code] | Child double-fork/setsid dan ignores TERM                     | Seluruh container/cgroup stopped sebelum cancelled.                                             |
+| EX-18 [jalur code] | Supervisor crash, kontrol putus, atau reboot                  | Watchdog/broker berhenti menerima efek; startup merekonsiliasi sebelum claim.                   |
+| EX-19 [jalur code] | Model container mencoba socket/tool workspace atau sebaliknya | Mount/network/credential separation tetap berlaku.                                              |
 | EX-20 | Tool selesai setelah cancel atau lease habis                  | Receipt dicatat sesuai epoch; tidak melanjutkan langkah baru atau klaim sukses palsu.           |
 | EX-21 | Model berkata selesai tanpa check                             | Completion ditolak oleh verifier.                                                               |
 | EX-22 | Edit terjadi sesudah tes lulus                                | Bukti stale; tree akhir diperiksa lagi.                                                         |
@@ -1167,7 +1240,7 @@ dan Git. Fixture model/MCP sintetis tidak memerlukan data pengguna atau key nyat
 | EX-32 | Checkpoint tree/cursor/ledger cut tidak konsisten             | Restore ditolak dengan alasan; tidak melanjutkan dari gabungan state yang salah.                |
 | EX-33 | Compaction gagal/kosong/overflow berulang                     | Input aktif dan bukti tidak hilang; retry dibatasi.                                             |
 | EX-34 | Follow-up ack hilang saat turn/cancel                         | Sequence/input ID tetap; delivery uncertain tidak otomatis menjadi applied.                     |
-| EX-35 | Native loadSession tidak didukung                             | Sesi baru memakai manifest/checkpoint; mutation tidak diputar ulang buta.                       |
+| EX-35 | Dipensiunkan 2026-09-24: jalur cepat tidak memiliki native session untuk di-load; setiap attempt menerima paket konteks baru. Berlaku untuk jalur code lewat aturan 9.6 langkah 6-7. Lihat [jalur cepat](2026-09-24-agent-fast-lane.md) bagian 9.3. | — |
 | EX-36 | Runner hilang dan snapshot hanya lokal                        | UI tidak menawarkan resume pada server lain sebagai opsi siap.                                  |
 | EX-37 | ACL sumber konteks dicabut sebelum resume                     | Data tidak dibaca ulang dari cache; scope/recovery diperiksa kembali.                           |
 | EX-38 | Instruksi profil/nested AGENTS berubah                        | Revision efektif jelas; instruksi baru tidak memperluas hak attempt aktif.                      |
@@ -1192,7 +1265,7 @@ dan Git. Fixture model/MCP sintetis tidak memerlukan data pengguna atau key nyat
 | EX-57 | Keyboard, screen reader, layar kecil, dark/light              | Alur setup, kontrol, diff, dan pemulihan dapat dipakai tanpa kehilangan draft.                  |
 | EX-58 | Backup/restore job dengan skill/MCP/checkpoint                | Reference, checksum, keyring, versi schema, dan grant dapat diverifikasi di target terpisah.    |
 | EX-59 | Flag extensions dimatikan saat tugas aktif                    | Admission berhenti, cleanup terkonfirmasi, artifact/journal tetap tersedia.                     |
-| EX-60 | Satu tugas dengan dua mode runtime                            | Native ACP dan endpoint melewati broker/gate yang sama; masing-masing punya bukti conformance.  |
+| EX-60 (v2, 2026-09-24) | Satu tugas, dua jalur: `job_kind` yang sama diuji lewat lane fast dan lane code | Kedua jalur melewati admission, grant, dan publisher yang sama; masing-masing punya bukti conformance sendiri (FL untuk lane fast, AT/EX untuk lane code). |
 
 Kasus pure schema/policy memakai unit test. Race/transaksi memakai database
 sebenarnya. Stop, mount, network, Git, dan recovery memakai fixture proses serta
@@ -1214,10 +1287,19 @@ Walkthrough pertama memakai repository fixture dan agent pada server pengguna:
 9. Verifikasi tree akhir, buat commit jika diizinkan, dan kirim satu hasil.
 10. Tinjau diff/checks/commit dari browser; pastikan checkout pengguna tetap utuh.
 
-Walkthrough kedua mengulang kontrak dengan endpoint OpenAI-compatible dan tanpa
-dukungan native session resume. Gunakan satu kasus context compaction serta satu
-MCP timeout. Walkthrough publikasi Git terpisah memeriksa approval, remote ref,
-dan rekonsiliasi respons hilang.
+Walkthrough kedua [jalur code] mengulang kontrak dengan endpoint
+OpenAI-compatible dan tanpa dukungan native session resume. Gunakan satu
+kasus context compaction serta satu MCP timeout. Walkthrough publikasi Git
+terpisah memeriksa approval, remote ref, dan rekonsiliasi respons hilang.
+
+Walkthrough jalur cepat (v2, 2026-09-24) [jalur cepat]: buat job `answer`
+lewat mention biasa dan verifikasi paket konteks, pesan draft, snapshot
+streaming, serta publikasi segera sesudah `result.prepared` tanpa menunggu
+`attempt.stopped`. Ulangi untuk job `manage` dengan satu alat tim dan satu
+alat baca lewat `operations/run`. Lihat walkthrough lengkap di
+[spesifikasi jalur cepat](2026-09-24-agent-fast-lane.md) dan
+[spesifikasi siklus hidup](2026-09-21-agent-lifecycle-and-mention-flow.md)
+bagian 19.
 
 Status **siap pilot coding** mengikuti gate dasar AT/AF/AS dan kasus EX yang
 relevan dengan fitur yang diaktifkan. Skills/MCP boleh tetap off saat fondasi
@@ -1236,7 +1318,10 @@ Semua tautan Buzz di bawah memakai commit yang sama. Source GitHub diunduh pada
 pin tersebut; manifest penelitian lokal mencatat path, jumlah baris, dan SHA-256.
 Riset membaca implementasi serta tes yang relevan tanpa menjalankan suite Buzz.
 
-Artefak sementara pada mesin penelitian:
+Dipensiunkan 2026-09-24: path artefak `/tmp` di bawah adalah artefak sementara
+pada mesin penelitian, tidak dijamin tersedia sesudah sesi berakhir. Gunakan
+pin Git dan tautan source di bawah untuk mengambil ulang bahan; jangan
+bergantung pada path `/tmp`.
 
 - Source Buzz: `/tmp/buzz-execution-study-d38gghar/`.
 - Daftar berkas/checksum: `/tmp/buzz-execution-study-d38gghar/source-manifest.json`.

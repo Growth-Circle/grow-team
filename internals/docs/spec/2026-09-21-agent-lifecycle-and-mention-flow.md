@@ -41,7 +41,10 @@ Fondasi tetap mengikuti [spesifikasi koneksi dan coding harness](2026-09-21-agen
 - Grow Team memakai Zulip sebagai aplikasi web.
 - Pengguna berinteraksi melalui browser tanpa aplikasi desktop.
 - Runner berjalan pada laptop/server milik pengguna sebagai layanan latar.
-- Runtime mendukung agent terpasang melalui ACP dan model dari endpoint OpenAI-compatible.
+- Job `answer` dan `manage` berjalan di jalur cepat: loop `@anthropic-ai/sdk`
+  di dalam proses runner, tanpa container [jalur cepat]. Job `code` berjalan
+  di jalur code: agent terpasang melalui ACP dan model dari endpoint
+  OpenAI-compatible [jalur code].
 - Perubahan kode berlangsung pada workspace terpisah, dengan izin dan bukti pemeriksaan.
 
 Spesifikasi sebelumnya menjadi acuan untuk sandbox, credential, lease, budget,
@@ -79,7 +82,7 @@ atas. Graf tersebut bukan inventaris lengkap source terbaru.
 | B06 | [Filter event][buzz-filter], [admission loop][buzz-ingress]                 | Author gate dan subscription filter mendahului antrean; mention memakai identitas terstruktur.                      | Gunakan parser Zulip dan grant, bukan pencarian teks nama agent.                                                      |
 | B07 | [SessionScope][buzz-scope]                                                  | Scope ditentukan sekali saat admission. Channel adalah default; thread merupakan pilihan eksplisit.                 | Turunkan `AgentConversation` stabil sekali; jangan memakai judul topik sebagai identitas sesi.                        |
 | B08 | [EventQueue][buzz-queue]                                                    | Antrean dipartisi menurut scope; kapasitas dan pekerjaan aktif dibatasi.                                            | Satu eksekutor per attempt; antrean tahan restart dan penolakan kapasitas yang terlihat.                              |
-| B09 | [ACP client][buzz-acp], [agent loop][buzz-agent]                            | Harness mengendalikan sesi; runtime memanggil model dan tools.                                                      | Grow Runner menjadi ACP client; provider model tidak merangkap pengelola job.                                         |
+| B09 | [ACP client][buzz-acp], [agent loop][buzz-agent]                            | Harness mengendalikan sesi; runtime memanggil model dan tools.                                                      | Grow Runner menjadi ACP client; provider model tidak merangkap pengelola job. Usang untuk jalur cepat 2026-09-24: loop Anthropic SDK menggantikan ACP client untuk `answer` dan `manage` [jalur cepat]. Baris ini tetap berlaku untuk jalur code [jalur code]. |
 | B10 | [Context handoff][buzz-handoff], [regresi agent][buzz-regressions]          | Ada pemulihan konteks dan pemeriksaan pasangan tool/result saat cancel.                                             | Pertahankan input aktif, referensi, dan checkpoint; batasi recovery.                                                  |
 | B11 | [Availability][buzz-availability], [management provenance][buzz-provenance] | Presence, catatan proses, kepemilikan, dan hak lifecycle merupakan fakta berbeda.                                   | Pisahkan runner online, runtime ready, profil enabled, dan status tugas.                                              |
 | B12 | [Catatan kickoff][buzz-kickoff]                                             | Balasan pengakuan antaragent pernah membentuk loop; agent gagal start tidak dapat menjelaskan kegagalannya sendiri. | Pesan bot tidak memicu coding otomatis; aplikasi menampilkan error dari supervisor.                                   |
@@ -106,13 +109,16 @@ runtime yang diuji, bukan diagram vision.
 | Pilihan                                                          | Dampak                                                               | Keputusan                                                      |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------- |
 | Menjalankan seluruh `buzz-acp` dan relay Buzz di belakang Zulip  | Menambah identitas, routing, serta sinkronisasi dua sistem chat.     | Tidak dipilih untuk MVP.                                       |
-| Grow Runner menjadi ACP client dan memakai runtime yang tersedia | Memakai loop agent existing; Django tetap mengatur tugas dan izin.   | Jalur yang direkomendasikan.                                   |
-| Menulis loop model/tools baru                                    | Memberi kontrol penuh, tetapi harus mengulang banyak kasus recovery. | Pilihan cadangan bila runtime existing gagal memenuhi kontrak. |
+| Grow Runner menjadi ACP client dan memakai runtime yang tersedia | Memakai loop agent existing; Django tetap mengatur tugas dan izin.   | Dipakai untuk `code` [jalur code].                              |
+| Menulis loop model/tools baru                                    | Memberi kontrol penuh, tetapi harus mengulang banyak kasus recovery. | Dipilih untuk `answer` dan `manage` sejak 2026-09-24: loop `@anthropic-ai/sdk` di proses runner [jalur cepat]. Lihat [keputusan SDK agent](../agent-sdk-decision.md). |
 
-Untuk mode endpoint, prioritaskan probe `buzz-agent` sebagai subprocess ACP.
-Jika mode API, tool broker, isolasi secret, atau kontrol lifecycle yang dibutuhkan
-tidak dapat dipenuhi, gunakan loop minimal yang melewati suite konformansi yang
-sama. Jangan memelihara dua runtime endpoint secara paralel sebelum ada kebutuhan.
+Untuk mode endpoint pada jalur code, prioritaskan probe `buzz-agent` sebagai
+subprocess ACP [jalur code]. Jika mode API, tool broker, isolasi secret, atau
+kontrol lifecycle yang dibutuhkan tidak dapat dipenuhi, gunakan loop minimal
+yang melewati suite konformansi yang sama. Jangan memelihara dua runtime
+endpoint secara paralel sebelum ada kebutuhan. Loop Anthropic SDK jalur cepat
+memenuhi aturan ini: ia melewati suite konformansi yang sama sebelum aktif
+(gerbang F0, [jalur cepat](2026-09-24-agent-fast-lane.md) bagian 6.2).
 
 Runtime provider pada Buzz dapat berarti penyedia lokasi eksekusi. Pada Grow
 Team, **Koneksi model** selalu berarti endpoint inferensi; **Runner** selalu
@@ -127,9 +133,10 @@ berarti perangkat yang mengeksekusi pekerjaan. Label UI harus mengikuti arti ini
 | Profil agent   | `agent_profile_id`              | Reviewer Grow                      | Runtime sedang berjalan.                      |
 | Identitas chat | `bot_user_id` dalam realm       | Akun yang muncul pada mention      | Peminta boleh memakai runner pemilik bot.     |
 | Runner         | `runner_id`                     | Server pengembangan Rama           | Provider model dapat dipakai.                 |
-| Runtime        | `adapter_id` dan versi          | Agent ACP terpasang                | Semua tools aman atau diizinkan.              |
+| Runtime        | `adapter_id` dan versi          | Agent ACP terpasang                | Semua tools aman atau diizinkan. [jalur code]; jalur cepat tidak memakai `adapter_id` (bagian 3). |
+| Jalur (lane)   | Nilai `fast` atau `code` pada `AgentAttempt` | Job `answer` memakai `fast`        | Runner memilih jalur; server menetapkannya saat claim ([jalur cepat](2026-09-24-agent-fast-lane.md) bagian 3). |
 | Provider model | `provider_id`, `config_version` | Endpoint kompatibel milik pengguna | Agent dapat mengedit repository tanpa runner. |
-| Job            | `job_id`                        | Perbaiki formulir login            | ACP session ID atau judul topik.              |
+| Job            | `job_id`                        | Perbaiki formulir login            | ACP session ID atau judul topik. [jalur code]     |
 | Attempt        | `attempt_id`, `lease_epoch`     | Usaha kedua setelah putus koneksi  | Job baru atau izin mengulang efek eksternal.  |
 
 V1 memakai satu profil untuk satu bot user dan satu runner yang dipilih.
@@ -156,12 +163,15 @@ ke secret, raw transcript, atau repository lain.
 | Runner              | `online`, `offline`, `unknown`, `revoked`                 | Heartbeat sah, umur heartbeat, hasil query, dan revocation. |
 | Konfigurasi runtime | `unchecked`, `checking`, `ready`, `needs_action`, `error` | Probe terhadap revision yang tepat.                         |
 | Kemampuan           | `chat_ready`, `code_ready`, kemampuan opsional            | Hasil handshake/probe/sandbox.                              |
-| Proses attempt      | `starting`, `active`, `stopping`, `stopped`, `unknown`    | Event supervisor dan lease.                                 |
+| Proses attempt      | `starting`, `active`, `stopping`, `stopped`, `unknown`    | Event supervisor dan lease untuk jalur code. Jalur cepat memakai loop dalam proses runner yang ada; bagian 6.6 spesifikasi jalur cepat mengatur isolasi antar job, bukan lifecycle proses baru per attempt [jalur cepat]. |
 | Job                 | State machine pada spec awal                              | Record job dan transisi server.                             |
 
 Query status yang gagal menghasilkan `unknown`, bukan `offline`. PID yang masih
-tercatat tidak membuat kemampuan menjadi ready. Profil enabled boleh idle tanpa
-proses model: runner melakukan cold start ketika ada job yang sah.
+tercatat tidak membuat kemampuan menjadi ready. Untuk jalur code, profil enabled
+boleh idle tanpa proses model: runner melakukan cold start ketika ada job yang
+sah [jalur code]. Untuk jalur cepat, runner mengklaim job lewat event
+`agent_job_ready` tanpa cold start proses; loop model berjalan langsung di
+proses runner yang sudah aktif [jalur cepat].
 
 ## 5. F01 — Menambah agent
 
@@ -171,7 +181,9 @@ proses model: runner melakukan cold start ketika ada job yang sah.
 2. Pengguna mengisi nama dan deskripsi peran singkat.
 3. Pengguna memilih runner yang dimiliki atau dibagikan kepadanya.
 4. Jika belum ada runner, UI membuka pairing dari spec awal dan mempertahankan draft.
-5. Pengguna memilih **Agent terpasang** atau **Endpoint model**.
+5. Mode **Diskusi** memilih satu **koneksi model** (jalur cepat, bagian 6.2
+   [spesifikasi jalur cepat](2026-09-24-agent-fast-lane.md)) [jalur cepat]. Mode
+   **Coding** memilih **Agent terpasang** atau **Endpoint model** [jalur code].
 6. Mode terpasang menampilkan katalog adapter yang dilaporkan runner beserta status login.
 7. Mode endpoint memilih koneksi model existing atau membuka form koneksi baru.
 8. Pengguna memilih repository, kemampuan, dan siapa yang boleh memberi tugas.
@@ -195,14 +207,14 @@ sequenceDiagram
     participant W as Browser
     participant C as Grow Team
     participant R as Grow Runner
-    participant A as Adapter atau runtime endpoint
+    participant A as Adapter, runtime endpoint, atau koneksi model
     U->>W: Simpan profil dengan scope
     W->>C: Create profile + idempotency key
     C->>C: Validasi hak, bot identity, revision, setup record
     C-->>W: Profil tersimpan + setup operation ID
     R->>C: Claim pemeriksaan konfigurasi
     C-->>R: Descriptor terikat revision + grant probe
-    R->>A: Probe versi, auth, ACP atau tool round-trip
+    R->>A: Probe jalur code (ACP/tool round-trip) atau jalur cepat (gerbang F0, POST /v1/messages)
     A-->>R: Kemampuan atau requirement yang kurang
     R->>C: Laporan probe terstruktur
     C-->>W: Ready atau needs_action dengan tindakan perbaikan
@@ -234,7 +246,7 @@ credential login ke chat.
 | ----------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------- |
 | Simpan profil gagal                       | Tidak ada profil parsial yang diumumkan berhasil | Draft tetap ada; perbaiki field atau ulangi request.          |
 | Profil tersimpan, runner offline          | Profil draft dan setup pending                   | “Profil tersimpan. Runner belum terhubung.”                   |
-| Adapter tidak ditemukan                   | Profil tetap ada, `needs_action`                 | Petunjuk pemasangan lokal; probe ulang pada profil yang sama. |
+| Adapter tidak ditemukan [jalur code], atau koneksi model gagal probe F0 [jalur cepat] | Profil tetap ada, `needs_action`                 | Petunjuk pemasangan lokal; probe ulang pada profil yang sama. |
 | Login/provider invalid                    | Profil tetap ada, requirement spesifik           | Perbaiki koneksi; jangan mengirim ulang tugas pengguna.       |
 | Probe selesai setelah konfigurasi berubah | Laporan revision lama menjadi stale              | Jalankan probe revision baru sebelum enable.                  |
 | Profil ready, akses kanal gagal           | Profil tetap ready                               | Ulangi penambahan akses kanal, bukan create agent.            |
@@ -322,7 +334,7 @@ sequenceDiagram
     W->>W: Bersihkan hanya draft yang benar-benar dikirim
     R->>C: Claim pekerjaan
     C->>D: Lease atomik dan recheck izin
-    C-->>R: Attempt terikat scope dan revision
+    C-->>R: Attempt terikat scope dan revision, plus paket konteks untuk lane fast
     R->>C: Event starting, started, dan progres
     C-->>W: Panel status dari record tersimpan
 ```
@@ -365,8 +377,9 @@ Zulip tidak diasumsikan sebagai jaminan idempotensi penyimpanan.
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | Mention personal agent enabled, grant sah, konfigurasi lengkap        | Buat satu job dan satu receipt accepted.                                                          |
 | Agent diulang beberapa kali dalam satu pesan                          | Satu target, bukan beberapa job.                                                                  |
-| Mention profil Diskusi                                                | Job `answer`; tools mutasi tidak disediakan.                                                      |
-| Mention profil Coding dengan repository dan mandat lengkap            | Job `code`; target default patch.                                                                 |
+| Mention profil Diskusi, pertanyaan biasa                              | Job `answer`, jalur cepat; tools mutasi tidak disediakan [jalur cepat].                           |
+| Mention profil Diskusi, perintah alat tim (11 alat administrator)     | Job `manage`, jalur cepat; alat baca dan alat tim sesuai grant [jalur cepat].                     |
+| Mention profil Coding dengan repository dan mandat lengkap            | Job `code`, jalur code; target default patch [jalur code].                                        |
 | Mention Coding tetapi repository atau kriteria wajib belum ditentukan | Job draft; peminta mendapat form pelengkap tanpa panggilan model.                                 |
 | Runner offline                                                        | Job queued dengan alasan `runner_offline`; tidak ada klaim sedang bekerja.                        |
 | Runner sibuk                                                          | Job queued; tampilkan antrean tanpa janji waktu selesai palsu.                                    |
@@ -389,21 +402,33 @@ multi-target, task ID tetap berbeda; keduanya tidak berbagi workspace writable.
 ## 8. F04 — Cara agent mengerjakan tugas
 
 1. Dispatcher memilih pekerjaan berdasarkan runner, grant, kemampuan, dan kapasitas.
-2. Runner melakukan claim; server membuat attempt dan lease secara atomik.
+2. Runner melakukan claim; server membuat attempt dan lease secara atomik. Untuk
+   lane fast, respons claim membawa paket konteks langsung [jalur cepat].
 3. Runner memeriksa revision, deadline, akses repository, dan identitas checkout.
-4. Supervisor menyiapkan workspace terpisah serta resource dan network policy.
+4. Jalur code: supervisor menyiapkan workspace terpisah serta resource dan
+   network policy [jalur code]. Jalur cepat tidak menyiapkan workspace atau
+   container; tidak ada checkout repository [jalur cepat].
 5. Context broker menyusun tugas, input aktif, aturan proyek, dan referensi yang masih boleh dibaca.
-6. Runner memulai adapter dan melakukan handshake ACP; session ID disimpan pada attempt.
+6. Jalur code: runner memulai adapter dan melakukan handshake ACP; session ID
+   disimpan pada attempt [jalur code]. Jalur cepat: runner memanggil
+   `client.messages.stream` lewat `@anthropic-ai/sdk` di proses runner, tanpa
+   handshake sesi terpisah [jalur cepat].
 7. Runtime menerima prompt dan daftar tools yang sesuai grant.
 8. Model mengusulkan tool call; broker memeriksa nama, argumen, scope, dan budget sebelum eksekusi.
 9. Hasil tool kembali dengan call ID yang sesuai; progres terstruktur disimpan sebelum diakui diterima.
 10. Bila diperlukan, job menunggu input atau approval melalui panel browser.
-11. Setelah turn selesai, verifier memeriksa diff, tree akhir, tes wajib, dan artifact.
+11. Jalur code: setelah turn selesai, verifier memeriksa diff, tree akhir, tes
+    wajib, dan artifact [jalur code]. Jalur cepat: server menerbitkan hasil
+    segera sesudah `result.prepared`, tanpa diff, tree, atau artifact
+    [jalur cepat].
 12. Result broker mempublikasikan hasil ke audiens yang sah dan menyimpan receipt publikasi.
 
-Mode agent terpasang dan mode endpoint memakai lifecycle job yang sama.
-Perbedaan hanya berada pada adapter: agent native menyediakan loopnya; mode
-endpoint memakai runtime ACP yang memanggil provider/model yang dipilih.
+Jalur code memakai lifecycle job yang sama untuk mode agent terpasang dan mode
+endpoint. Perbedaan hanya berada pada adapter: agent native menyediakan
+loopnya; mode endpoint memakai runtime ACP yang memanggil provider/model yang
+dipilih [jalur code]. Jalur cepat memakai loop Anthropic SDK yang sama untuk
+`answer` dan `manage`; tidak ada pilihan adapter atau endpoint
+([jalur cepat](2026-09-24-agent-fast-lane.md) bagian 6).
 
 `session/update` merupakan event runtime, bukan instruksi kepada server. Field
 yang menjadi status produk harus berasal dari schema yang dikenal. Teks model
@@ -422,11 +447,18 @@ audience_epoch)` dan ikat sesi eksekusi ke attempt. Conversation mempunyai ID
 internal serta anchor message. Stream/topik hanya metadata rute. Rename topik
 tidak membuka sesi baru secara kebetulan; pemindahan audiens dapat mewajibkannya.
 
-Dalam MVP, satu attempt mempunyai satu proses/sesi kerja yang dapat dibuktikan
+Jalur code: satu attempt mempunyai satu proses/sesi kerja yang dapat dibuktikan
 isolasinya. Jangan menggunakan ulang proses yang pernah menerima konteks privat
 untuk audiens yang lebih luas. Session resume native hanya digunakan jika
 adapter mendukungnya dan scope tetap cocok. Jika tidak, buat sesi baru dari
-checkpoint terstruktur dan checkout yang diperiksa.
+checkpoint terstruktur dan checkout yang diperiksa [jalur code].
+
+Jalur cepat: beberapa job berjalan dalam satu proses runner. Aturan pengganti
+"satu proses per attempt" adalah isolasi per attempt dari
+[spesifikasi jalur cepat](2026-09-24-agent-fast-lane.md) bagian 6.6: setiap
+attempt punya objek percakapan, `AbortController`, jurnal, dan batas sendiri;
+tidak ada riwayat atau hasil alat yang dipakai bersama antar attempt
+[jalur cepat].
 
 Pemadatan konteks mempertahankan tujuan, input terbaru, status tool, file/hash,
 batas izin, serta langkah tersisa. Ringkasan tidak menggantikan bukti tes atau
@@ -469,7 +501,12 @@ Ambil pola queue per scope dari Buzz, tetapi simpan job/input/outbox Grow Team
 dalam database. Reaction, timer frontend, koneksi WebSocket, serta map di browser
 bukan bukti durabilitas. Satu scope tidak dapat diproses dua executor aktif.
 
-Default pilot tetap satu job aktif per runner dan dua per realm dari spec awal.
+Default pilot satu job aktif per runner dan dua per realm dari spec awal tetap
+berlaku untuk jalur code [jalur code]. Jalur cepat memakai kapasitas per jalur:
+default 4 job `fast` aktif per runner, batas realm 8 job jalur cepat aktif dan
+2 job jalur code aktif ([jalur cepat](2026-09-24-agent-fast-lane.md) bagian
+5.2). Satu job jalur code aktif tidak memblokir job jalur cepat.
+
 Tambahan batas antrean: paling banyak 20 job queued per profil dan 100 per realm.
 Angka ini adalah konfigurasi awal yang harus diuji, bukan kemampuan terukur.
 Saat penuh, admission baru ditolak dengan `queue_full`; tugas existing tidak
@@ -480,10 +517,15 @@ yang kembali online boleh melanjutkan claim dalam mandat yang masih berlaku.
 Setelah deadline, job masuk blocked dengan alasan `start_deadline_expired` dan
 memerlukan tindakan lanjut. UI menjelaskan deadline saat antrean dibuat.
 
-Cold start tidak perlu menyalakan semua runtime yang terdaftar. Runner memulai
-proses saat ada claim dan menutupnya sesuai lifecycle attempt. Penggabungan wake
-harus dilakukan server/runner dengan key scope yang tepat, bukan hanya map lokal
-satu tab. Dua browser dan dua worker tetap harus menghasilkan satu attempt aktif.
+Jalur code: cold start tidak perlu menyalakan semua runtime yang terdaftar.
+Runner memulai proses saat ada claim dan menutupnya sesuai lifecycle attempt
+[jalur code]. Jalur cepat: tidak ada proses per claim. Event `agent_job_ready`
+membangunkan runner yang sudah aktif; runner memanggil `POST /runner/claims`
+langsung sesudah menerima event
+([jalur cepat](2026-09-24-agent-fast-lane.md) bagian 5.1) [jalur cepat].
+Penggabungan wake harus dilakukan server/runner dengan key scope yang tepat,
+bukan hanya map lokal satu tab. Dua browser dan dua worker tetap harus
+menghasilkan satu attempt aktif.
 
 Job yang efek eksternalnya belum pasti tidak boleh mendapat attempt pengganti
 hanya karena heartbeat hilang. Lease dan fencing mengikuti spec awal; status
@@ -518,22 +560,32 @@ ditahan. Menyimpan artifact berhasil bukan bukti pesan hasil sudah terkirim.
 
 ### 12.1 Approval
 
-Permintaan permission ACP dipetakan ke grant terlebih dahulu. Operasi dalam
-mandat berjalan tanpa pertanyaan berulang. Operasi di luar mandat menghasilkan
+Jalur code: permintaan permission ACP dipetakan ke grant terlebih dahulu
+[jalur code]. Jalur cepat: alat tim memakai propose, konfirmasi, dan `execute`
+dari [spesifikasi administrator](2026-09-23-agent-administrator.md) bagian
+3.2, tanpa permintaan permission ACP [jalur cepat]. Operasi dalam mandat
+berjalan tanpa pertanyaan berulang. Operasi di luar mandat menghasilkan
 proposal yang dapat ditinjau: tindakan, repository/remote, branch, diff/commit,
 argumen, budget, serta expiry. Pengguna memberi keputusan lewat panel browser.
 
 Keputusan diikat ke attempt, operation hash, dan versi policy. Server memeriksa
 ulang hak approver ketika keputusan dipakai. Perubahan diff atau tujuan membuat
-approval lama kedaluwarsa. Adapter memakai `optionId` yang benar-benar ditawarkan;
-tidak boleh mengarang opsi izin atau otomatis mengizinkan saat timeout.
+approval lama kedaluwarsa. Jalur code: adapter memakai `optionId` yang
+benar-benar ditawarkan [jalur code]. Jalur cepat: setiap `tool_use` alat tim
+memakai nama dan argumen dari katalog jalur, divalidasi server sebelum
+dispatch [jalur cepat]. Tidak boleh mengarang opsi izin atau otomatis
+mengizinkan saat timeout.
 
 ### 12.2 Cancel
 
 Cancel bukan pesan natural-language kepada model. UI memakai endpoint kontrol
 job dengan optimistic concurrency. Server menahan tool/claim baru, membatalkan
-approval pending, dan mengirim perintah supervisor. Supervisor meneruskan cancel
-ACP serta menghentikan process tree sesuai deadline.
+approval pending, dan mengirim perintah supervisor. Jalur code: supervisor
+meneruskan cancel ACP serta menghentikan process tree sesuai deadline
+[jalur code]. Jalur cepat: server menulis `cancel_requested`; runner
+membatalkan stream lewat `AbortController`, menunggu loop berakhir, lalu
+mengirim `attempt.stopped`
+([jalur cepat](2026-09-24-agent-fast-lane.md) bagian 9) [jalur cepat].
 
 Job menjadi cancelled hanya setelah penghentian terkonfirmasi. Jika runner
 tidak dapat dihubungi, tampilkan interrupted dan “penghentian belum terkonfirmasi”.
@@ -574,13 +626,17 @@ tanggung jawab, bukan klaim model database sudah tersedia.
 | `AgentSendIntent`       | Realm, sender, client key, payload digest, source message ID                     | Satu logical send menghasilkan satu pesan untuk client key yang sama.                           |
 | `AgentDispatchReceipt`  | Source message, target profile, requester, decision, reason, job ID opsional     | Unique `(realm, source_message, profile, trigger_kind)`; rejection tidak mendapat job eksekusi. |
 | `AgentInput`            | Job, author, source reference, sequence, input type, content ref, delivery state | Input hanya diterapkan sekali pada batas penerimaan yang dapat dibuktikan.                      |
-| `AgentJob` tambahan     | `job_kind`, `start_deadline`, admission revision                                 | `answer` dan `code` mempunyai kriteria selesai berbeda.                                         |
-| `AgentAttempt` tambahan | Descriptor digest, runtime session reference, input cursor                       | Session/runtime reference tidak menjadi grant.                                                  |
+| `AgentJob` tambahan     | `job_kind`, `start_deadline`, admission revision                                 | `answer`, `manage`, dan `code` mempunyai kriteria selesai berbeda (v2, 2026-09-24). |
+| `AgentAttempt` tambahan | Descriptor digest, runtime session reference, input cursor, `lane`, `model_policy.effort` | Session/runtime reference tidak menjadi grant. `lane` ditulis server saat claim, runner tidak memilihnya (v2, 2026-09-24). |
 
-`job_kind` bernilai `answer` atau `code`. `delivery_target=answer` adalah
+`job_kind` bernilai `answer`, `manage`, atau `code` (v2, 2026-09-24). `answer`
+dan `manage` berjalan di lane `fast`; `code` berjalan di lane `code`. Lihat
+[jalur cepat](2026-09-24-agent-fast-lane.md) bagian 3 untuk pemilihan jalur dan
+`model_policy.effort` per jenis job. `delivery_target=answer` adalah
 tambahan terhadap `patch` dan `draft_pr` pada spec awal. `answer` tidak membuka
-tools mutasi. Review kode tanpa mengedit dapat menjadi job answer dengan grant
-baca repository yang terpisah dari akses chat.
+tools mutasi; `manage` membuka alat baca dan alat tim sesuai grant. Review kode
+tanpa mengedit dapat menjadi job answer dengan grant baca repository yang
+terpisah dari akses chat.
 
 Tidak diperlukan tabel persona/marketplace atau state presence baru untuk setiap
 baris UI. Query status dibagikan oleh panel induk dan dibatasi frekuensinya.
@@ -675,6 +731,9 @@ sequence, dan waktu pada spec awal. Event yang relevan untuk UI meliputi:
 - `tool.started`, `tool.finished`, `verification.finished`.
 - `input.requested`, `approval.requested`, `approval.resolved`.
 - `attempt.stop_requested`, `attempt.stopped`, `attempt.interrupted`.
+- `result.draft` (v2, 2026-09-24, lane fast saja): snapshot draft dengan
+  `draft_seq`, dipakai server untuk mengedit pesan draft
+  ([spesifikasi jalur cepat](2026-09-24-agent-fast-lane.md) bagian 8.2).
 - `result.prepared`, `result.published`, `publication.blocked`.
 
 Authority berbeda per event: server membuat admission dan keputusan approval;
@@ -716,7 +775,8 @@ Service harus terpisah menurut tanggung jawab:
 | Admission service         | Pesan tersimpan, provenance mention, grant | Receipt serta job/input/outbox      | Tidak memanggil LLM atau endpoint runner.                |
 | Scheduler                 | Job queued dan kapasitas                   | Attempt/lease                       | Tidak menentukan izin dari teks prompt.                  |
 | Runner supervisor         | Descriptor dan lease                       | Lifecycle proses, checkpoint, event | Tidak memegang credential admin Grow Team.               |
-| Runtime adapter           | Session/prompt/tools terbatas              | Event ACP dan stop reason           | Tidak menetapkan job completed.                          |
+| Runtime adapter [jalur code] | Session/prompt/tools terbatas           | Event ACP dan stop reason           | Tidak menetapkan job completed.                          |
+| Loop Anthropic SDK [jalur cepat] | Prompt, alat baca, paket konteks       | Delta streaming, `result.draft`, `result.prepared`, `attempt.stopped` | Tidak menetapkan job completed; tidak menjalankan kode. |
 | Context/tool broker       | Permintaan dengan principal job            | Data/tool result sesuai scope       | Tidak menyediakan API key bot atau unrestricted signing. |
 | Verifier/result publisher | Artifact, bukti pemeriksaan, tujuan        | Gate hasil dan publikasi idempotent | Recheck audiens dan tidak menebak keberhasilan tes.      |
 
@@ -726,8 +786,8 @@ Service harus terpisah menurut tanggung jawab:
 | -------------------------- | ------------------------------------------------------------ | ------------------------------------------------- |
 | `runner_offline`           | Tugas tersimpan. Menunggu runner terhubung.                  | Lihat perangkat atau batalkan tugas.              |
 | `runner_unknown`           | Status runner belum dapat diperiksa.                         | Muat ulang status; jangan spawn duplikat.         |
-| `runtime_missing`          | Adapter belum tersedia pada runner.                          | Buka petunjuk setup perangkat.                    |
-| `auth_required`            | Agent perlu login ulang pada runner.                         | Buka langkah autentikasi yang sesuai adapter.     |
+| `runtime_missing`          | Adapter belum tersedia pada runner [jalur code], atau koneksi model belum lulus probe [jalur cepat]. | Buka petunjuk setup perangkat.                    |
+| `auth_required`            | Agent perlu login ulang pada runner [jalur code], atau kunci koneksi model tidak sah [jalur cepat]. | Buka langkah autentikasi yang sesuai jalur.       |
 | `provider_probe_failed`    | Koneksi model belum siap dipakai.                            | Lihat penyebab aman dan uji ulang.                |
 | `workspace_not_registered` | Repository belum didaftarkan pada runner.                    | Pemilik mendaftarkan repository.                  |
 | `profile_paused`           | Agent sedang dijeda.                                         | Pemilik dapat mengaktifkan kembali.               |
@@ -765,7 +825,8 @@ metadata render dari perubahan admission agar regresi chat mudah dilacak.
 | Job/input        | Model/action agent pada spec awal                                                                                                                                     | Tambahkan records dan field pada bagian 13.                                      |
 | Event/results    | [queue.py](../../../zerver/lib/queue.py), worker/publisher agent baru                                                                                                 | Outbox scan, event dedupe, progress, dan hasil atomik.                           |
 | Panel browser    | `web/src/settings_agents.ts`, `web/src/agent_jobs.ts` — baru                                                                                                          | Readiness, status multi-sumbu, receipt, review, approval, recovery.              |
-| Runner           | `services/grow-agent-runner/` — baru                                                                                                                                  | Descriptor, adapter ACP, process supervisor, broker, checkpoint.                 |
+| Runner [jalur code] | `services/grow-agent-runner/` — baru                                                                                                                               | Descriptor, adapter ACP, process supervisor, broker, checkpoint.                 |
+| Runner [jalur cepat] | `services/grow-agent-runner/` — baru                                                                                                                              | Loop `@anthropic-ai/sdk`, `operations/run`, snapshot draft ([jalur cepat](2026-09-24-agent-fast-lane.md) bagian 6). |
 | Dokumentasi API  | [Panduan API](../../../docs/documentation/api.md)                                                                                                                     | OpenAPI dan changelog untuk field/route baru.                                    |
 
 Simpan snapshot scope pada batas async, bukan mengambil realm/topik/profil aktif
@@ -774,10 +835,13 @@ snapshot mencegah salah tujuan; backend ACL mencegah tindakan tanpa hak.
 
 ## 17. Paket regresi yang dipindahkan dari Buzz
 
-Gunakan fake ACP process, fake HTTP provider, deferred promise, clock yang dapat
-dikendalikan, serta repository fixture. Tes harus mengamati efek nyata pada
-database, jumlah spawn, proses anak, dan artifact. Assertion tidak cukup hanya
-memeriksa status string yang diisi mock.
+Jalur code: gunakan fake ACP process, fake HTTP provider, deferred promise,
+clock yang dapat dikendalikan, serta repository fixture [jalur code]. Jalur
+cepat: gunakan fake Anthropic Messages endpoint dengan streaming dan
+`tool_use` terkendali, deferred promise, dan clock yang sama; tidak perlu fake
+process karena tidak ada proses/container per attempt [jalur cepat]. Tes harus
+mengamati efek nyata pada database, jumlah spawn, proses anak, dan artifact.
+Assertion tidak cukup hanya memeriksa status string yang diisi mock.
 
 ### 17.1 Sumber fixture upstream
 
@@ -828,19 +892,22 @@ provider tingkat rendah tetap mengikuti matriks AT existing.
 | AF-23 | Group DM tanpa mention versus DM satu agent                            | Hanya trigger yang didefinisikan pada bagian 6 diterima.                           |
 | AF-24 | Dua job pada topik yang sama                                           | Tombol follow-up menulis input ke job yang dipilih saja.                           |
 | AF-25 | Input datang saat job berjalan                                         | Input durable dan terlihat pending; diterapkan pada batas turn yang sah.           |
+| AF-25b (v2, 2026-09-24) | Input susulan pada job jalur cepat aktif [jalur cepat]      | Input masuk di batas giliran alat berikutnya (maks 8 untuk `answer`, 20 untuk `manage`); input sesudah job selesai membuat job baru dengan `follows_job_id`. |
 | AF-26 | Ack input hilang atau runtime restart                                  | Input tidak ditandai delivered tanpa bukti; recovery tidak menggandakan efek tool. |
 | AF-27 | Mode Diskusi mendapat instruksi mengedit/push                          | Tools mutasi tidak tersedia; pengguna diarahkan membuat tugas coding.              |
-| AF-28 | Native agent menyelesaikan turn tanpa hasil valid                      | Job tidak completed; UI memberikan sebab dan tindakan lanjut.                      |
+| AF-28 | Turn selesai tanpa hasil valid: native agent [jalur code] atau `stop_reason` `max_tokens`/`refusal`/`end_turn` tanpa teks [jalur cepat] | Job tidak completed di kedua jalur; UI memberikan sebab dan tindakan lanjut. |
 | AF-29 | Runner gagal sebelum dapat membalas                                    | UI/sistem melaporkan start failure dari record, tanpa membutuhkan output model.    |
-| AF-30 | Cancel saat permission request menunggu                                | Approval tidak dapat dipakai; proses berhenti atau tampil belum terkonfirmasi.     |
+| AF-30 | Cancel saat permission request menunggu [jalur code]                   | Approval tidak dapat dipakai; proses berhenti atau tampil belum terkonfirmasi.     |
+| AF-30b (v2, 2026-09-24) | Cancel saat alat tim menunggu konfirmasi [jalur cepat]       | Approval server saja: tidak ada permission request ACP; propose ditahan, stream dibatalkan lewat `AbortController`. |
 | AF-31 | Cancel bersamaan dengan completion                                     | Transisi memakai versi; hanya hasil sah yang menang dan tersimpan.                 |
 | AF-32 | Resume setelah operasi remote tidak pasti                              | Rekonsiliasi dilakukan sebelum retry; approval lama tidak diaktifkan ulang.        |
 | AF-33 | Profil pause saat ada tugas aktif                                      | Kerja baru tertahan; UI tidak mengklaim tugas aktif otomatis berhenti.             |
 | AF-34 | Profil arsip/rename dan pesan lama dibuka                              | Identitas historis tetap tepat; tidak dialihkan ke agent lain.                     |
 | AF-35 | Pindah/ubah audiens ketika hasil akan terbit                           | Result broker menahan publikasi yang memperluas akses.                             |
 | AF-36 | Tab ditutup lalu dibuka dari browser lain                              | Job tetap berjalan; status, inputs, approval, dan hasil dipulihkan dari server.    |
-| AF-37 | Provider/mode runtime berbeda untuk tugas identik                      | Kedua mode melewati admission, policy, verifier, dan publisher yang sama.          |
-| AF-38 | JSON tool terpotong atau context overflow                              | Tidak ada mutasi parsial; input aktif tetap ada dan recovery dibatasi.             |
+| AF-37 | Provider/mode runtime berbeda untuk tugas identik, dan jalur berbeda untuk job_kind berbeda | Kedua mode jalur code melewati admission, policy, verifier, dan publisher yang sama [jalur code]; jalur cepat dan jalur code melewati admission, grant, dan publisher yang sama sesuai job_kind [paritas jalur]. |
+| AF-38 | JSON tool terpotong atau context overflow [jalur code]                 | Tidak ada mutasi parsial; input aktif tetap ada dan recovery dibatasi.             |
+| AF-38b (v2, 2026-09-24) | Delta `input_json` alat baca terpotong dari Anthropic SDK [jalur cepat] | Runner menyusun respons lengkap sebelum menjalankan alat; delta sebagian tidak pernah menjalankan alat (FL-14). |
 
 Setiap fixture mencatat expected message count, job count, spawn count, status,
 dan tindakan eksternal. Untuk state yang ditolak, nol efek merupakan assertion
@@ -858,15 +925,22 @@ urutan tidak menghapus gate tersebut. Cancel dasar dan penghentian proses dari
 P1 harus tersedia sebelum fixture coding berjalan; S5 melengkapi recovery dan
 alur approval, bukan menunda kontrol penghentian sampai tahap akhir.
 
+Untuk lane fast, S3 (job Diskusi/`answer` dan `manage`) mengikuti fase F0–F5 di
+[jalur cepat](2026-09-24-agent-fast-lane.md) bagian 12: F0 probe koneksi
+model, F1 perbaikan cepat harness lama, F2 protokol v2 dan loop SDK di balik
+flag, F3 pesan draft dan snapshot streaming, F4 katalog alat baca v2, F5 flag
+aktif untuk semua profil [jalur cepat]. S4–S5 tetap memakai gate AF/AT untuk
+lane code [jalur code].
+
 | Urutan | Keluaran yang dapat ditinjau                                                       | Dependensi                                  | Gate                                                              |
 | ------ | ---------------------------------------------------------------------------------- | ------------------------------------------- | ----------------------------------------------------------------- |
-| S0     | Paket konformansi ACP dan endpoint; keputusan runtime existing versus loop minimal | Runner fixture dan source Buzz yang dipatok | Dua mode dapat round-trip; batas permission dan cancel diketahui. |
+| S0     | Paket konformansi ACP dan endpoint untuk lane code; gerbang F0 koneksi model untuk lane fast | Runner fixture dan source Buzz yang dipatok | Dua mode lane code dapat round-trip; probe F0 lane fast lulus; batas permission dan cancel diketahui. |
 | S1     | Profil, setup operation, pairing/readiness, enable/pause, dan panel perangkat      | Model dasar P1 spec awal                    | AF-01–AF-06; perubahan revision terlihat.                         |
 | S2     | Provenance mention, receipt, send intent, admission, job/input/outbox              | S1 dan helper chat existing                 | AF-07–AF-13, AF-19–AF-23; fake runner cukup.                      |
-| S3     | Claim, cold start, antrean, job Diskusi, progres dan jawaban melalui browser       | S0–S2                                       | AF-14–AF-18, AF-24–AF-29, AF-36.                                  |
-| S4     | Workspace coding, tools, verification, diff, dan result broker                     | S3 serta sandbox spec awal                  | AT coding relevan, AF-35–AF-38.                                   |
+| S3     | Claim, event `agent_job_ready`, antrean, job Diskusi/`manage` lane fast (F0–F5), progres dan jawaban melalui browser | S0–S2 | AF-14–AF-18, AF-24–AF-29, AF-36; FL-01–FL-30. |
+| S4     | Workspace coding, tools, verification, diff, dan result broker [jalur code]        | S3 serta sandbox spec awal                  | AT coding relevan, AF-35–AF-38.                                   |
 | S5     | Approval, cancel/resume, input delivery recovery, dan lifecycle arsip              | S3–S4                                       | AF-30–AF-34 serta AT approval/recovery.                           |
-| S6     | Pilot tim, restore/rollback, uji dua browser dan dua mode agent                    | Semua gate sebelumnya                       | Seluruh AF dan AT yang relevan lulus dengan bukti runtime.        |
+| S6     | Pilot tim, restore/rollback, uji dua browser, dua mode agent, dan dua jalur        | Semua gate sebelumnya                       | Seluruh AF, AT, dan FL yang relevan lulus dengan bukti runtime.   |
 
 S0 hanya perlu menutup gap integrasi, bukan mengulang penelitian arsitektur dari
 nol. Gunakan sumber dan kasus regresi di dokumen ini sebagai daftar awal. Semua
@@ -883,6 +957,8 @@ Gunakan pengguna pemilik runner, anggota berizin, anggota tanpa izin, satu
 repository fixture, serta satu kanal privat. Jalankan pada browser tanpa Buzz
 Desktop atau Grow Team Desktop.
 
+Walkthrough jalur code [jalur code]:
+
 1. Pemilik memasangkan runner server dan membuat profil Coding dengan endpoint yang diuji.
 2. Pemilik memberi anggota akses profil/repository; pengelola kanal menambahkan bot ke kanal privat.
 3. Anggota menyebut agent untuk mengubah validasi kecil dan menjalankan pemeriksaan fixture.
@@ -893,8 +969,21 @@ Desktop atau Grow Team Desktop.
 8. Pemilik menguji cancel saat proses anak berjalan dan memeriksa bahwa turunannya berhenti.
 9. Runner diputus sebelum job berikutnya mulai; UI menampilkan antrean dan memulihkannya setelah terhubung.
 10. Anggota tanpa izin mencoba trigger; tidak ada spawn atau kebocoran artifact.
-11. Profil dipindah ke mode agent ACP terpasang melalui revision baru yang diuji.
+11. Profil dipindah ke mode runtime lain (agent ACP terpasang atau endpoint) melalui revision baru yang diuji, tetap pada jalur code.
 12. Ulangi jalur inti dan pastikan perilaku admission, status, review, serta cancel sama.
+
+Walkthrough jalur cepat (v2, 2026-09-24) [jalur cepat]:
+
+1. Pemilik membuat profil Diskusi dengan koneksi model yang lulus probe F0.
+2. Anggota me-mention agent dengan pertanyaan sepele di topik kanal.
+3. Indikator mengetik tampil dalam 1 detik; pesan draft muncul dan bertambah
+   sedikit demi sedikit sampai hasil final, tanpa menunggu `attempt.stopped`.
+4. Anggota me-mention agent dengan perintah alat tim untuk job `manage`;
+   panel menunjukkan alat baca dan alat tim yang dipakai lewat `operations/run`.
+5. Pemilik membatalkan job jalur cepat yang sedang streaming; pesan draft
+   berubah menjadi teks batal dan job menjadi `cancelled`.
+6. Runner offline saat mention; peminta langsung menerima teks "offline" dan
+   job berjalan begitu runner kembali.
 
 Sukses berarti bukti teknis dan perilaku browser sesuai kontrak. Animasi selesai,
 pesan “done”, atau proses yang tercatat running tidak menggantikan bukti tersebut.
@@ -907,8 +996,10 @@ permission, dan recovery; membaca kasus regresi serta catatan desain/insiden.
 
 Yang belum dibuktikan: build Buzz pada mesin ini, kelulusan suite upstream,
 kompatibilitas provider pengguna, isolasi setiap adapter, dan latency end-to-end.
-Draft remote lifecycle dan information-flow Buzz tetap diperlakukan sebagai
-proposal, bukan bukti fitur selesai atau keamanan produksi.
+Target latensi dan keandalan sekarang ada di
+[spesifikasi latensi dan keandalan](2026-09-24-agent-latency-and-reliability.md),
+bukan di dokumen ini. Draft remote lifecycle dan information-flow Buzz tetap
+diperlakukan sebagai proposal, bukan bukti fitur selesai atau keamanan produksi.
 
 Implementor mulai dari spec awal untuk fondasi, dokumen ini untuk flow dan
 regresi, lalu menutup gap runtime S0. Perubahan scope baru harus dicatat secara
