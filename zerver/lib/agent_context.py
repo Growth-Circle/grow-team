@@ -78,17 +78,25 @@ def ensure_budget() -> None:
 
 
 @contextmanager
-def agent_transaction(*, retain_nested_limits: bool = False) -> Iterator[None]:
-    """Use bounded rollback on contention; this is not a deadlock-free lock order."""
+def agent_transaction(
+    *, retain_nested_limits: bool = False, read_only: bool = False
+) -> Iterator[None]:
+    """Use bounded rollback on contention; this is not a deadlock-free lock order.
+
+    A read-only caller keeps the time limits but takes neither the realm-wide
+    advisory lock nor the ACL table locks. Those locks serialize every agent
+    write, so a slow task list page held them for 10 seconds and every runner
+    request in that window failed as busy."""
     outermost = not connection.in_atomic_block
     token = _deadline.set(_deadline.get() or monotonic() + 5)
     try:
         with transaction.atomic():
             with connection.cursor() as cursor:
-                cursor.execute("SELECT pg_try_advisory_xact_lock(174621, 3)")
-                if not cursor.fetchone()[0]:
-                    raise AgentBusy("Agent authority is busy. Retry this request.")
-                cursor.execute("LOCK TABLE " + ", ".join(ACL_TABLES) + " IN SHARE MODE NOWAIT")
+                if not read_only:
+                    cursor.execute("SELECT pg_try_advisory_xact_lock(174621, 3)")
+                    if not cursor.fetchone()[0]:
+                        raise AgentBusy("Agent authority is busy. Retry this request.")
+                    cursor.execute("LOCK TABLE " + ", ".join(ACL_TABLES) + " IN SHARE MODE NOWAIT")
                 cursor.execute(
                     "SELECT name, setting FROM pg_settings WHERE name IN ('lock_timeout', 'statement_timeout')"
                 )

@@ -369,7 +369,7 @@ def list_jobs(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
     view = request.GET.get("view", "all")
     if view not in JOB_LIST_VIEWS:
         raise ValueError("Invalid task view.")
-    with agent_transaction():
+    with agent_transaction(read_only=True):
         candidates = agents.AgentJob.objects.filter(realm=user_profile.realm)
         if view == "mine":
             candidates = candidates.filter(requester=user_profile)
@@ -398,7 +398,7 @@ def list_jobs(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
 
 @safe_agent_endpoint
 def get_job(request: HttpRequest, user_profile: UserProfile, job_id: UUID) -> HttpResponse:
-    with agent_transaction():
+    with agent_transaction(read_only=True):
         job = agents.AgentJob.objects.get(id=job_id, realm=user_profile.realm)
         require_job_access(user_profile, job)
         attempt_models = list(agents.AgentAttempt.objects.filter(job=job).order_by("number"))
@@ -469,7 +469,7 @@ def get_events(request: HttpRequest, user_profile: UserProfile, job_id: UUID) ->
     after = int(request.GET.get("after", "0"))
     if after < 0:
         raise ValueError
-    with agent_transaction():
+    with agent_transaction(read_only=True):
         job = agents.AgentJob.objects.get(id=job_id, realm=user_profile.realm)
         require_job_access(user_profile, job)
         events = [
