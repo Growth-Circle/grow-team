@@ -1,3 +1,7 @@
+#task-board-view {
+    display: none;
+}
+
 .task-board-container {
     display: flex;
     box-sizing: border-box;
