@@ -420,6 +420,7 @@ v1_api_and_json_patterns = [
     ),
     rest_path("agent/pairings/preview", POST=preview_agent_pairing),
     rest_path("agent/jobs/<uuid:job_id>/deliver-privately", POST=agent_job_views.deliver_privately),
+    rest_path("agent/profiles/<uuid:profile_id>/test-task", POST=agent_job_views.send_test_task),
     # realm-level calls
     rest_path("realm", PATCH=update_realm),
     rest_path("realm/user_settings_defaults", PATCH=update_realm_user_settings_defaults),

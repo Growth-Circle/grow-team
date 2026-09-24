@@ -23,6 +23,7 @@ class CreateJob(Request):
     base_ref: Annotated[str, Field(max_length=200)] = ""
     context_message_ids: list[p.Positive] = Field(default_factory=list, max_length=100)
     context_attachment_ids: list[p.Positive] = Field(default_factory=list, max_length=20)
+    follows_job_id: UUID | None = None
 
 
 class SendMetadata(Request):
@@ -46,6 +47,10 @@ class MessagePreflight(Request):
         ):
             raise ValueError("Preflight destination cannot contain a message anchor.")
         return self
+
+
+class TestTask(Request):
+    idempotency_key: UUID
 
 
 class JobControl(Request):

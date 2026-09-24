@@ -15,7 +15,12 @@ from django.utils.timezone import now
 from django.utils.translation import gettext as _
 from django.utils.translation import override as override_language
 
-from zerver.actions.agents import current_execution_configuration, provider_config, validate_runtime
+from zerver.actions.agents import (
+    current_execution_configuration,
+    descriptor_instructions,
+    provider_config,
+    validate_runtime,
+)
 from zerver.lib import agent_protocol as p
 from zerver.lib.agent_context import (
     AgentBusy,
@@ -225,6 +230,7 @@ def create_job(
     draft: bool = False,
     completing: agents.AgentJob | None = None,
     allow_blocked: bool = False,
+    follows_job: agents.AgentJob | None = None,
 ) -> agents.AgentJob:
     if not request or len(request) > 20000:
         raise ValueError("Invalid request.")
@@ -236,6 +242,12 @@ def create_job(
         raise ValueError("Invalid delivery target.")
     if job_kind == "manage" and repository is not None:
         raise ValueError("Manage tasks cannot use a repository.")
+    if follows_job is not None:
+        if follows_job.realm_id != actor.realm_id:
+            raise ValueError("Followed task is unavailable.")
+        require_job_access(actor, follows_job)
+        if follows_job.status not in TERMINAL:
+            raise ValueError("Followed task has not ended.")
     ids = sorted({source.id, *(context_message_ids or [])})
     attachment_ids = sorted(set(context_attachment_ids or []))
     if len(attachment_ids) > 20:
@@ -254,6 +266,7 @@ def create_job(
             "context": ids,
             "attachments": attachment_ids,
             "trigger": trigger_kind,
+            **({"follows": str(follows_job.id)} if follows_job is not None else {}),
         }
     )
     with agent_transaction():
@@ -353,6 +366,7 @@ def create_job(
             repository=repository,
             source_message=source,
             conversation=conversation,
+            follows_job=follows_job,
             request=request,
             job_kind=job_kind,
             delivery_target=delivery_target,
@@ -441,6 +455,50 @@ def create_job(
                 )
             notify_conversation(job, f"status:accepted:{job.id}", sentence, mention_requester=False)
         return job
+
+
+def send_test_task(
+    actor: UserProfile, profile: agents.AgentProfile, idempotency_key: UUID
+) -> agents.AgentJob:
+    """Contract 9.12: a one-off answer task that proves the agent can read a
+    real message, without the owner writing a throwaway task by hand."""
+    from zerver.actions.message_send import check_message, do_send_messages
+    from zerver.lib.addressee import Addressee
+    from zerver.lib.agent_policy import check_agent_access
+    from zerver.models.clients import get_client
+
+    profile = agents.AgentProfile.objects.get(id=profile.id, realm=actor.realm)
+    check_agent_access(actor, profile, None, None, "profile.manage")
+    with agent_transaction():
+        require_ready(profile)
+        prior = agents.AgentJob.objects.filter(
+            realm=actor.realm, requester=actor, idempotency_key=idempotency_key
+        ).first()
+        if prior is not None:
+            return prior
+        with override_language(actor.realm.default_language):
+            text = _(
+                "Test task: reply with one short sentence that confirms you can read this message."
+            )
+        message = check_message(
+            profile.bot_user,
+            get_client("Grow Agent"),
+            Addressee.for_user_ids([actor.id], actor.realm),
+            text,
+            realm=actor.realm,
+            no_previews=True,
+        )
+        source = Message.objects.get(id=do_send_messages([message])[0].message_id)
+        return create_job(
+            actor,
+            profile=profile,
+            source=source,
+            request=text,
+            idempotency_key=idempotency_key,
+            job_kind="answer",
+            delivery_target="answer",
+            trigger_kind="manual",
+        )
 
 
 def complete_draft(
@@ -545,6 +603,7 @@ def build_descriptor(job: agents.AgentJob, attempt: agents.AgentAttempt) -> dict
         "provider": provider_config(profile.provider) if profile.provider else None,
         "repository": repository,
         "policy": p.serialize_payload(policy),
+        "instructions": descriptor_instructions(profile),
         "budget": job.budget,
         "context_refs": [
             {

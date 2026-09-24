@@ -4968,6 +4968,124 @@ paths:
           schema:
             type: string
             format: uuid
+  /agent/profiles/{profile_id}/test-task:
+    post:
+      operationId: send-agent-profile-test-task
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanJobResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentHumanTestTaskRequest"
+                  description:
+                    Send exactly one form field named payload. Its value is the serialized JSON
+                    request object.
+                  example: {"schema_version": 1, "idempotency_key": "5e8f1620-3e29-4b7e-9a1d-2c6b8f0a7d11"}
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      parameters:
+        - name: profile_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
   /agent/approvals/{approval_id}/decision:
     post:
       operationId: decide-agent-approval
@@ -42432,6 +42550,7 @@ components:
           enum:
             - answer
             - code
+            - manage
           title: Job Kind
           type: string
         delivery_target:
@@ -42461,6 +42580,12 @@ components:
           maxItems: 20
           title: Context Attachment Ids
           type: array
+        follows_job_id:
+          default: null
+          title: Follows Job Id
+          format: uuid
+          type: string
+          nullable: true
       required:
         - schema_version
         - profile_id
@@ -42562,6 +42687,23 @@ components:
         - schema_version
         - expected_version
       title: JobControl
+      type: object
+    AgentHumanTestTaskRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        idempotency_key:
+          format: uuid
+          title: Idempotency Key
+          type: string
+      required:
+        - schema_version
+        - idempotency_key
+      title: TestTask
       type: object
     AgentHumanResumeRequest:
       additionalProperties: false
@@ -42699,6 +42841,7 @@ components:
           enum:
             - answer
             - code
+            - manage
         delivery_target:
           type: string
           enum:
@@ -42716,8 +42859,8 @@ components:
           description:
             A stable code for why a blocked, interrupted, failed, or blocked-verifying
             job stopped, such as queue_full, start_failed, stop_unconfirmed,
-            result_invalid, verification_failed, budget_exhausted, or lease_lost.
-            Null when the status carries no such reason.
+            result_invalid, verification_failed, audience_changed, budget_exhausted,
+            or lease_lost. Null when the status carries no such reason.
         resume_available:
           type: boolean
           description: The Resume action shows only when this is true.
@@ -42757,6 +42900,64 @@ components:
           type: object
           nullable: true
           additionalProperties: true
+        repository:
+          type: object
+          nullable: true
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+              format: uuid
+            alias:
+              type: string
+          required:
+            - id
+            - alias
+        base_ref:
+          type: string
+        budget:
+          type: object
+          additionalProperties: false
+          properties:
+            active_seconds:
+              type: integer
+              minimum: 1
+            tool_rounds:
+              type: integer
+              minimum: 1
+            input_tokens:
+              type: integer
+              minimum: 1
+            output_tokens:
+              type: integer
+              minimum: 1
+          required:
+            - active_seconds
+            - tool_rounds
+            - input_tokens
+            - output_tokens
+        instructions:
+          type: object
+          nullable: true
+          additionalProperties: false
+          description: Instruction revisions the latest attempt started with. Null
+            without an attempt, or without any instructions.
+          properties:
+            team_revision:
+              type: integer
+              minimum: 1
+              nullable: true
+            profile_revision:
+              type: integer
+              minimum: 1
+              nullable: true
+          required:
+            - team_revision
+            - profile_revision
+        follows_job_id:
+          type: string
+          format: uuid
+          nullable: true
         allowed_actions:
           type: array
           items:
@@ -42767,6 +42968,7 @@ components:
               - resume
               - input
               - deliver_privately
+              - follow_up
           description: The server calculates these actions for the current caller.
       required:
         - id
@@ -42788,6 +42990,11 @@ components:
         - requirements
         - start_deadline
         - result
+        - repository
+        - base_ref
+        - budget
+        - instructions
+        - follows_job_id
         - allowed_actions
     AgentHumanAttempt:
       type: object

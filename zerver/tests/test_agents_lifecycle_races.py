@@ -34,6 +34,7 @@ class AgentLifecycleRaceTests(ZulipTransactionTestCase):
     @override
     def setUp(self) -> None:
         super().setUp()
+        self.extra_runners: list[tuple[agents.AgentRunner, agents.AgentProfile]] = []
         self.owner = self.example_user("hamlet")
         self.stream = Stream.objects.get(realm=self.owner.realm, name="Denmark")
         self.stream_before = Stream.objects.filter(id=self.stream.id).values().get()
@@ -165,6 +166,13 @@ class AgentLifecycleRaceTests(ZulipTransactionTestCase):
         agents.AgentCheckpoint.objects.filter(realm=self.owner.realm).delete()
         agents.AgentArtifact.objects.filter(realm=self.owner.realm).delete()
         agents.AgentContextRef.objects.filter(realm=self.owner.realm).delete()
+        for runner, profile in self.extra_runners:
+            agents.AgentAttempt.objects.filter(runner=runner).update(source_checkpoint=None)
+            agents.AgentAttempt.objects.filter(runner=runner).delete()
+            agents.AgentJob.objects.filter(runner=runner).delete()
+            agents.AgentConversation.objects.filter(profile=profile).delete()
+            profile.delete()
+            runner.delete()
         agents.AgentAttempt.objects.filter(runner=self.runner).delete()
         agents.AgentJob.objects.filter(runner=self.runner).delete()
         agents.AgentConversation.objects.filter(profile=self.profile).delete()
@@ -237,6 +245,98 @@ class AgentLifecycleRaceTests(ZulipTransactionTestCase):
         self.assertEqual(sum(item is not None for item in values), 1)
         self.assertEqual(
             agents.AgentAttempt.objects.filter(runner=self.runner, active=True).count(), 1
+        )
+
+    def second_runner_and_profile(self) -> tuple[agents.AgentRunner, agents.AgentProfile]:
+        """A second runner and profile in the same realm, ready the same way
+        setUp built self.runner and self.profile (EX-02 needs two runners)."""
+        fixture = json.loads(
+            (Path(__file__).parent / "fixtures/agents/protocol-v1.json").read_text()
+        )["valid"][0]["payload"]
+        runner = agents.AgentRunner.objects.create(
+            realm=self.owner.realm,
+            owner=self.owner,
+            name="Race Two",
+            fingerprint="w" * 64,
+            catalog_report={
+                "revision": 1,
+                "adapters": [
+                    {
+                        "id": "acp",
+                        "version": "1",
+                        "auth_state": "ready",
+                        "capabilities": {"config_version": 1},
+                    }
+                ],
+                "sandboxes": [self.policy["sandbox"]],
+            },
+        )
+        configuration = deepcopy(fixture["tested_configuration"])
+        configuration.update(
+            runner_id=str(runner.id),
+            profile_revision=1,
+            adapter={"id": "acp", "version": "1", "mode": "acp"},
+            provider=None,
+            workspace_binding=None,
+            actions=["context.read"],
+            policy_version=self.policy["version"],
+            network=self.policy["network"],
+            sandbox=self.policy["sandbox"],
+            hard_cost_cap=self.policy["hard_cost_cap"],
+            budget=fixture["budget"],
+        )
+        bot_user = self.example_user("webhook_bot")
+        self.subscribe(bot_user, self.stream.name)
+        profile = agents.AgentProfile.objects.create(
+            realm=self.owner.realm,
+            owner=self.owner,
+            bot_user=bot_user,
+            runner=runner,
+            name="Race Two",
+            adapter_id="acp",
+            adapter_version="1",
+            revision=1,
+            enabled_revision=1,
+            readiness_revision=1,
+            desired_state="enabled",
+            readiness_state="ready",
+            readiness_configuration=configuration,
+            readiness_configuration_digest=jobs.digest(configuration),
+            policy=self.policy,
+            budget=fixture["budget"],
+        )
+
+        # tearDown deletes these rows; its row check runs before addCleanup.
+        self.extra_runners.append((runner, profile))
+        return runner, profile
+
+    def test_two_runners_cannot_exceed_the_realm_active_limit(self) -> None:
+        """EX-02: the realm active-job limit holds across runners, not just
+        within one runner's own capacity."""
+        self.realm_settings.active_job_limit = 1
+        self.realm_settings.save(update_fields=["active_job_limit"])
+        self.create_job()
+        runner_two, profile_two = self.second_runner_and_profile()
+        second_source = Message.objects.get(
+            id=self.send_stream_message(self.owner, "Denmark", "Second runner task")
+        )
+        jobs.create_job(
+            self.owner,
+            profile=profile_two,
+            source=second_source,
+            request="Race",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        values = self.race(
+            lambda: jobs.claim_work(self.runner, claim_key=uuid4()),
+            lambda: jobs.claim_work(runner_two, claim_key=uuid4()),
+        )
+        self.assertEqual(sum(item is not None for item in values), 1)
+        self.assertEqual(
+            agents.AgentAttempt.objects.filter(realm=self.owner.realm, active=True).count(),
+            1,
         )
 
     def prepare_answer(self) -> tuple[agents.AgentJob, agents.AgentAttempt]:

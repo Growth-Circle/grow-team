@@ -15,7 +15,7 @@ from zerver.lib.agent_context import (
     require_audience,
     require_job_access,
 )
-from zerver.lib.agent_policy import AgentAccessDenied
+from zerver.lib.agent_policy import AgentAccessDenied, check_agent_access
 from zerver.lib.agent_results import deliver_result_privately, download_artifact
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.message import access_message
@@ -55,6 +55,22 @@ def needs_my_action(actor: UserProfile, job: agents.AgentJob) -> bool:
     return True
 
 
+def _job_instructions(job: agents.AgentJob) -> dict[str, object] | None:
+    """Instruction revisions the latest attempt started with (contract 7.5),
+    read from its own descriptor so a later instructions edit never relabels
+    a running attempt's facts."""
+    attempt = agents.AgentAttempt.objects.filter(job=job).order_by("-number").first()
+    if attempt is None:
+        return None
+    instructions = p.AttemptDescriptor.model_validate(attempt.descriptor).instructions
+    if instructions is None:
+        return None
+    return {
+        "team_revision": instructions.team.revision if instructions.team else None,
+        "profile_revision": instructions.profile.revision if instructions.profile else None,
+    }
+
+
 def job_data(actor: UserProfile, job: agents.AgentJob) -> dict[str, object]:
     actions = []
     resumable_status = job.status in {"cancelled", "failed", "interrupted", "blocked"}
@@ -85,6 +101,14 @@ def job_data(actor: UserProfile, job: agents.AgentJob) -> dict[str, object]:
         and job.blocked_reason == "audience_changed"
     ):
         actions.append("deliver_privately")
+    if job.status in agent_jobs.TERMINAL:
+        try:
+            check_agent_access(
+                actor, job.profile, job.repository, job.source_message, "profile.use"
+            )
+            actions.append("follow_up")
+        except AgentAccessDenied:
+            pass
     return {
         "id": str(job.id),
         "profile_id": str(job.profile_id),
@@ -109,6 +133,20 @@ def job_data(actor: UserProfile, job: agents.AgentJob) -> dict[str, object]:
         ),
         "start_deadline": job.start_deadline.isoformat() if job.start_deadline else None,
         "result": job.result_receipt,
+        "repository": (
+            {"id": str(job.repository_id), "alias": job.repository.workspace_alias}
+            if job.repository_id
+            else None
+        ),
+        "base_ref": job.base_ref,
+        "budget": {
+            "active_seconds": job.budget["active_seconds"],
+            "tool_rounds": job.budget["tool_rounds"],
+            "input_tokens": job.budget["input_tokens"],
+            "output_tokens": job.budget["output_tokens"],
+        },
+        "instructions": _job_instructions(job),
+        "follows_job_id": str(job.follows_job_id) if job.follows_job_id else None,
         "allowed_actions": actions,
     }
 
@@ -249,6 +287,11 @@ def create_job(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
         base_ref=data.base_ref,
         context_message_ids=data.context_message_ids,
         context_attachment_ids=data.context_attachment_ids,
+        follows_job=(
+            agents.AgentJob.objects.get(id=data.follows_job_id, realm=user_profile.realm)
+            if data.follows_job_id
+            else None
+        ),
     )
     return _success(request, {"job": job_data(user_profile, job)})
 
@@ -538,5 +581,18 @@ def complete_draft(request: HttpRequest, user_profile: UserProfile, job_id: UUID
         expected_version=data.expected_version,
         repository_id=data.repository_id,
         base_ref=data.base_ref,
+    )
+    return _success(request, {"job": job_data(user_profile, job)})
+
+
+@safe_agent_endpoint
+def send_test_task(
+    request: HttpRequest, user_profile: UserProfile, profile_id: UUID
+) -> HttpResponse:
+    data = payload(request, r.TestTask)
+    job = agent_jobs.send_test_task(
+        user_profile,
+        agents.AgentProfile.objects.get(id=profile_id, realm=user_profile.realm),
+        data.idempotency_key,
     )
     return _success(request, {"job": job_data(user_profile, job)})

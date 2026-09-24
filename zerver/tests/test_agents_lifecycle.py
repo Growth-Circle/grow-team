@@ -4048,3 +4048,219 @@ class AgentLifecycleTests(ZulipTestCase):
         self.assertFalse(second.active)
         self.assertEqual(second.process_state, "stopped")
         self.assertEqual(agents.AgentAttempt.objects.filter(job=job).count(), 2)
+
+    def test_descriptor_carries_team_and_profile_instructions(self) -> None:
+        """Contract 7.3: build_descriptor assembles both instruction texts."""
+        from zerver.actions import agent_jobs as actions
+        from zerver.actions.agents import retry_profile_setup
+
+        agents.AgentRealmSettings.objects.filter(realm=self.owner.realm).update(
+            team_instructions="Reply in Bahasa Indonesia.", team_instructions_revision=3
+        )
+        profile = create_profile(
+            self.owner,
+            name="Instructed",
+            runner=self.runner,
+            adapter_id="acp",
+            adapter_version="1",
+            idempotency_key=uuid4(),
+        )
+        agents.AgentProfile.objects.filter(id=profile.id).update(
+            instructions="Always confirm the ticket number first."
+        )
+        profile.refresh_from_db()
+        retry_profile_setup(
+            self.owner, profile, retry_key=uuid4(), expected_revision=profile.revision
+        )
+        setup = agents.AgentSetupOperation.objects.filter(profile=profile).latest("created_at")
+        record_readiness(
+            self.runner,
+            setup,
+            {
+                "schema_version": 1,
+                "profile_id": str(profile.id),
+                "profile_revision": profile.revision,
+                "runner_id": str(self.runner.id),
+                "descriptor_digest": setup.descriptor_digest,
+                "configuration_digest": setup.configuration_digest,
+                "state": "ready",
+                "capabilities": {"chat_ready": True, "config_version": profile.revision},
+            },
+        )
+        profile.refresh_from_db()
+        enable_profile(self.owner, profile, expected_revision=profile.revision)
+        message_id = self.send_group_direct_message(
+            self.owner, [profile.bot_user, self.example_user("iago")], "Please answer"
+        )
+        actions.create_job(
+            self.owner,
+            profile=profile,
+            source=Message.objects.get(id=message_id),
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        descriptor = actions.claim_work(self.runner, claim_key=uuid4())
+        assert descriptor is not None
+        self.assertEqual(
+            descriptor["instructions"],
+            {
+                "team": {"revision": 3, "text": "Reply in Bahasa Indonesia."},
+                "profile": {
+                    "revision": profile.revision,
+                    "text": "Always confirm the ticket number first.",
+                },
+            },
+        )
+
+    def test_follow_up_job_records_its_origin_and_needs_a_terminal_origin(self) -> None:
+        """Contract 9.10: follows_job_id needs a same-realm, terminal origin,
+        and a terminal job's own detail offers the follow_up action."""
+        from zerver.actions import agent_jobs as actions
+        from zerver.views.agent_jobs import job_data
+
+        origin = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=self.message,
+            request="First task",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        with self.assertRaisesRegex(ValueError, "has not ended"):
+            actions.create_job(
+                self.owner,
+                profile=self.profile,
+                source=self.message,
+                request="Follow up too soon",
+                idempotency_key=uuid4(),
+                job_kind="answer",
+                delivery_target="answer",
+                follows_job=origin,
+            )
+        agents.AgentJob.objects.filter(id=origin.id).update(status="completed")
+        origin.refresh_from_db()
+        self.assertIn("follow_up", job_data(self.owner, origin)["allowed_actions"])
+        second_message_id = self.send_group_direct_message(
+            self.owner, [self.profile.bot_user, self.example_user("iago")], "Follow up"
+        )
+        follow_up = actions.create_job(
+            self.owner,
+            profile=self.profile,
+            source=Message.objects.get(id=second_message_id),
+            request="Follow up",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+            follows_job=origin,
+        )
+        self.assertEqual(follow_up.follows_job_id, origin.id)
+        self.assertEqual(job_data(self.owner, follow_up)["follows_job_id"], str(origin.id))
+
+    def test_job_detail_lists_repository_base_budget_and_instructions(self) -> None:
+        """Contract 9.11 and 7.5: job detail projects the repository, base
+        branch, budget ceiling, and the attempt's own instruction revisions."""
+        from copy import deepcopy
+
+        from zerver.actions import agent_jobs as actions
+        from zerver.actions.agents import register_repository, retry_profile_setup
+        from zerver.views.agent_jobs import job_data
+
+        repository = register_repository(
+            self.owner,
+            self.runner,
+            workspace_alias="detail-repo",
+            canonical_origin=None,
+            allowed_refs=["main"],
+            required_checks=[{"id": "test", "argv": ["true"]}],
+        )
+        policy = deepcopy(self.profile.policy)
+        policy["actions"] = ["context.read", "repository.read", "repository.edit", "checks.run"]
+        profile = create_profile(
+            self.owner,
+            name="Detail",
+            runner=self.runner,
+            adapter_id="acp",
+            adapter_version="1",
+            repository=repository,
+            policy=policy,
+            default_mode="code",
+            idempotency_key=uuid4(),
+        )
+        agents.AgentProfile.objects.filter(id=profile.id).update(instructions="Write small diffs.")
+        profile.refresh_from_db()
+        retry_profile_setup(
+            self.owner, profile, retry_key=uuid4(), expected_revision=profile.revision
+        )
+        setup = agents.AgentSetupOperation.objects.filter(profile=profile).latest("created_at")
+        record_readiness(
+            self.runner,
+            setup,
+            {
+                "schema_version": 1,
+                "profile_id": str(profile.id),
+                "profile_revision": profile.revision,
+                "runner_id": str(self.runner.id),
+                "descriptor_digest": setup.descriptor_digest,
+                "configuration_digest": setup.configuration_digest,
+                "state": "ready",
+                "capabilities": {
+                    "chat_ready": True,
+                    "code_ready": True,
+                    "tool_calling": "passed",
+                    "sandbox": "passed",
+                    "config_version": profile.revision,
+                },
+            },
+        )
+        profile.refresh_from_db()
+        enable_profile(self.owner, profile, expected_revision=profile.revision)
+        message_id = self.send_group_direct_message(
+            self.owner, [profile.bot_user, self.example_user("iago")], "Fix the bug"
+        )
+        job = actions.create_job(
+            self.owner,
+            profile=profile,
+            source=Message.objects.get(id=message_id),
+            request="Fix the bug",
+            idempotency_key=uuid4(),
+            job_kind="code",
+            delivery_target="patch",
+            repository=repository,
+            base_ref="main",
+        )
+        actions.claim_work(self.runner, claim_key=uuid4())
+        data = job_data(self.owner, job)
+        self.assertEqual(data["repository"], {"id": str(repository.id), "alias": "detail-repo"})
+        self.assertEqual(data["base_ref"], "main")
+        self.assertEqual(
+            data["budget"],
+            {
+                "active_seconds": job.budget["active_seconds"],
+                "tool_rounds": job.budget["tool_rounds"],
+                "input_tokens": job.budget["input_tokens"],
+                "output_tokens": job.budget["output_tokens"],
+            },
+        )
+        self.assertEqual(
+            data["instructions"], {"team_revision": None, "profile_revision": profile.revision}
+        )
+
+    def test_test_task_sends_one_bot_message_and_one_answer_job(self) -> None:
+        """Contract 9.12: one bot message, one answer job, idempotent replay."""
+        from zerver.actions import agent_jobs as actions
+
+        key = uuid4()
+        job = actions.send_test_task(self.owner, self.profile, key)
+        self.assertEqual(job.job_kind, "answer")
+        self.assertEqual(job.delivery_target, "answer")
+        self.assertEqual(job.requester_id, self.owner.id)
+        message = Message.objects.get(sender=self.profile.bot_user)
+        self.assertIn("Test task:", message.content)
+        self.assertEqual(agents.AgentJob.objects.filter(profile=self.profile).count(), 1)
+        # A replay with the same key returns the same job and sends no second message.
+        again = actions.send_test_task(self.owner, self.profile, key)
+        self.assertEqual(again.id, job.id)
+        self.assertEqual(Message.objects.filter(sender=self.profile.bot_user).count(), 1)
