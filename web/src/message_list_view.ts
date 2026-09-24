@@ -117,6 +117,7 @@ export type MessageGroup = {
           user_can_resolve_topic: boolean;
           visibility_policy: number | false;
           always_display_date: boolean;
+          has_participants?: boolean;
           participant_count?: number;
           participant_avatar_urls?: string[];
       }
@@ -184,7 +185,9 @@ function clear_group_date(group: MessageGroup): void {
 
 function get_recipient_row_participants(
     message_containers: MessageContainer[],
-): {participant_count: number; participant_avatar_urls: string[]} | Record<string, never> {
+):
+    | {has_participants: true; participant_count: number; participant_avatar_urls: string[]}
+    | Record<string, never> {
     // Participants are the distinct, displayable human senders of the
     // messages currently loaded for this topic, reusing the same
     // definition of "participant" as the buddy list sort order.
@@ -196,6 +199,7 @@ function get_recipient_row_participants(
         return {};
     }
     return {
+        has_participants: true,
         participant_count: participant_ids.length,
         participant_avatar_urls: participant_ids
             .slice(0, 3)
