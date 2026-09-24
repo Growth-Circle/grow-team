@@ -159,7 +159,20 @@ export function complete_rerender(): void {
             name: column.name,
             work_limit: column.work_limit,
             has_work_limit: column.work_limit !== null && column.work_limit > 0,
+            work_limit_tooltip: $t({
+                defaultMessage: "Cards in this column / the most cards the team works on at once",
+            }),
             has_done_window: column.done_window_days !== null,
+            done_window_tooltip:
+                column.done_window_days === null
+                    ? ""
+                    : $t(
+                          {
+                              defaultMessage:
+                                  "Cards finished more than {days} days ago are folded away",
+                          },
+                          {days: column.done_window_days},
+                      ),
             done_window_label:
                 column.done_window_days === null
                     ? ""
@@ -193,6 +206,7 @@ export function complete_rerender(): void {
             members,
             has_extra_members: member_ids.length > MAX_HEADER_MEMBERS,
             extra_member_count: member_ids.length - MAX_HEADER_MEMBERS,
+            is_empty: task_board_data.total_task_count() === 0,
         }),
     );
 

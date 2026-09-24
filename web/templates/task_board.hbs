@@ -32,6 +32,9 @@
         </button>
     </div>
     <p class="task-board-summary">{{summary}}</p>
+    {{#if is_empty}}
+        <p class="task-board-empty">{{t "No tasks yet. Use New task, or Add card in a column."}}</p>
+    {{/if}}
 </div>
 <div class="task-board-columns" role="list">
     {{#each columns}}
@@ -39,14 +42,14 @@
             <header class="task-board-column-header">
                 <h2 class="task-board-column-name" id="task-board-column-heading-{{this.id}}">{{this.name}}</h2>
                 {{#if this.has_work_limit}}
-                    <span class="task-board-column-count{{#if this.at_work_limit}} task-board-column-count-warning{{/if}}">
+                    <span class="task-board-column-count{{#if this.at_work_limit}} task-board-column-count-warning{{/if}}" title="{{this.work_limit_tooltip}}">
                         {{this.card_count}} / {{this.work_limit}}
                     </span>
                 {{else}}
                     <span class="task-board-column-count">{{this.card_count}}</span>
                 {{/if}}
                 {{#if this.has_done_window}}
-                    <span class="task-board-column-window">{{this.done_window_label}}</span>
+                    <span class="task-board-column-window" title="{{this.done_window_tooltip}}">{{this.done_window_label}}</span>
                 {{/if}}
             </header>
             <div class="task-board-column-cards" data-column-id="{{this.id}}">

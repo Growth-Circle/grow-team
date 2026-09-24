@@ -76,7 +76,8 @@
     }
 }
 
-.task-board-summary {
+.task-board-summary,
+.task-board-empty {
     flex: 1 0 100%;
     margin: 0;
     color: var(--color-text-item);
