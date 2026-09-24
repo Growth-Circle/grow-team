@@ -17,6 +17,7 @@ import {ContainedEndpointRuntime} from "./contained-endpoint.js";
 import {RuntimeTools, toolCatalog, type Runtime} from "./runtime.js";
 import {teamToolCatalog, teamToolExecutor, validateTeamToolCall} from "./team-tools.js";
 import {AcpRuntime} from "./acp-runtime.js";
+import {AnthropicRuntime} from "./anthropic-runtime.js";
 import type {AttemptChannel, ProbeChannel, ProcessHandle, Supervisor} from "./supervisor.js";
 import {type Data, parse} from "./protocol.js";
 // Prepended to the first turn of a manage job only (contract: "manage-mode system
@@ -494,26 +495,33 @@ export class RuntimeSupervisor implements Supervisor {
                               return result.result.output.toString("utf8");
                           },
                       );
+            // With `fast_lane` in runtime.json, an answer takes the fast lane: the
+            // Anthropic SDK loop in this process, without a model container,
+            // streaming drafts to the conversation.
             const runtime: Runtime =
-                d.adapter.mode === "endpoint"
-                    ? new ContainedEndpointRuntime(
-                          d,
-                          model,
-                          tools,
-                          authority,
-                          this.sandbox,
-                          this.config.model_image,
-                          this.store.root,
-                      )
-                    : new AcpRuntime(
-                          d,
-                          model,
-                          tools,
-                          authority,
-                          this.sandbox,
-                          this.config.model_image,
-                          this.store.root,
-                      );
+                d.job_kind === "answer" && this.config.fast_lane === true
+                    ? new AnthropicRuntime(d, credential, tools, authority, filter, async (text) => {
+                          await request("/runner/drafts", {text});
+                      })
+                    : d.adapter.mode === "endpoint"
+                      ? new ContainedEndpointRuntime(
+                            d,
+                            model,
+                            tools,
+                            authority,
+                            this.sandbox,
+                            this.config.model_image,
+                            this.store.root,
+                        )
+                      : new AcpRuntime(
+                            d,
+                            model,
+                            tools,
+                            authority,
+                            this.sandbox,
+                            this.config.model_image,
+                            this.store.root,
+                        );
             active.runtime = runtime;
             await runtime.startSession();
             if (d.checkpoint) await runtime.resume({...d.checkpoint, current_request: d.request});

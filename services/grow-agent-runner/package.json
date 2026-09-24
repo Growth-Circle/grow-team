@@ -19,14 +19,15 @@
     "test:runtime": "npm run build && node --test test/runtime.integration.ts"
   },
   "dependencies": {
-    "@agentclientprotocol/sdk": "1.5.0",
     "@agentclientprotocol/codex-acp": "1.12.0",
+    "@agentclientprotocol/sdk": "1.5.0",
+    "@anthropic-ai/sdk": "0.128.0",
     "@openai/codex": "0.154.0",
     "@openai/codex-linux-x64": "npm:@openai/codex@0.154.0-linux-x64",
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "typescript": "5.9.3",
-    "@types/node": "24.10.1"
+    "@types/node": "24.10.1",
+    "typescript": "5.9.3"
   }
 }
