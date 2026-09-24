@@ -29,6 +29,7 @@ const routes = new Set([
     "/runner/events",
     "/runner/checkpoints",
     "/runner/context",
+    "/runner/drafts",
     "/runner/operations/propose",
     "/runner/operations/consume",
     "/runner/operations/execute",
