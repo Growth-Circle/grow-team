@@ -5,7 +5,7 @@ import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {Journal} from "../dist/journal.js";
 import {Coordinator, OperationBoundary} from "../dist/supervisor.js";
-import {digest} from "../dist/protocol.js";
+import {digest, effectiveConfiguration} from "../dist/protocol.js";
 const root = () => mkdtempSync(join(tmpdir(), "grow-supervisor-test-"));
 const fixtures = JSON.parse(
     readFileSync(
@@ -17,6 +17,17 @@ function descriptor() {
     const d = structuredClone(fixtures.valid[0].payload);
     d.lease_expires_at = new Date(Date.now() + 60000).toISOString();
     d.configuration_digest = digest(d.tested_configuration);
+    d.descriptor_digest = digest(
+        Object.fromEntries(Object.entries(d).filter(([k]) => k !== "descriptor_digest")),
+    );
+    return d;
+}
+function probeDescriptor() {
+    const d = structuredClone(
+        fixtures.valid.find((c: any) => c.schema === "probe_descriptor").payload,
+    );
+    d.grant.expires_at = new Date(Date.now() + 60000).toISOString();
+    d.configuration_digest = digest(effectiveConfiguration(d));
     d.descriptor_digest = digest(
         Object.fromEntries(Object.entries(d).filter(([k]) => k !== "descriptor_digest")),
     );
@@ -239,5 +250,93 @@ test("expired lease stops a process without waiting for the next poll", async ()
     await c.claim();
     await new Promise((r) => setTimeout(r, 130));
     assert.equal(stops, 1);
+    j.close();
+});
+test("setup() reaches probe for an unapproved runtime instead of failing before it runs", async () => {
+    const d = probeDescriptor(),
+        j = new Journal(root());
+    const claimed = {
+        descriptor: d,
+        claim_key: "claim-key",
+        lease_epoch: 1,
+        lease_expires_at: new Date(Date.now() + 60000).toISOString(),
+    };
+    const posted: any[] = [];
+    let assertRuntimeCalls = 0;
+    const t: any = {
+        request: async (route: string, body: any) => {
+            if (route === "/runner/leases") return {leases: []};
+            if (route === "/runner/setup-authority")
+                return {...body, grant_id: d.grant.id, expires_at: d.grant.expires_at};
+            return {};
+        },
+        mutate: async (kind: string, _id: string, _route: string, body: any) => {
+            if (kind === "setup_claim") return claimed;
+            if (kind === "setup_result") posted.push(body);
+            return {};
+        },
+    };
+    const s: any = {
+        inspect: async () => [],
+        canExecute: () => true,
+        probe: async () => ({
+            state: "needs_action",
+            capabilities: {},
+            requirements: [
+                {code: "auth_required", surface: "adapter", action: "login_vendor", diagnostic_id: null},
+            ],
+        }),
+    };
+    const c = new Coordinator(j, t, s, d.runner_id, {
+        assertRuntime: () => {
+            assertRuntimeCalls++;
+            throw new Error("Unapproved workspace");
+        },
+    });
+    await c.recover();
+    await c.setup("setup-1");
+    // The requirement never reached probe() in the old code: Coordinator.setup()
+    // threw registry.assertRuntime's error first, and nothing was ever posted.
+    assert.equal(assertRuntimeCalls, 0);
+    assert.equal(posted.length, 1);
+    assert.equal(posted[0].state, "needs_action");
+    assert.equal(posted[0].requirements[0].code, "auth_required");
+    j.close();
+});
+test("setup() reports a thrown probe error as a failed result instead of dropping it", async () => {
+    const d = probeDescriptor(),
+        j = new Journal(root());
+    const claimed = {
+        descriptor: d,
+        claim_key: "claim-key",
+        lease_epoch: 1,
+        lease_expires_at: new Date(Date.now() + 60000).toISOString(),
+    };
+    const posted: any[] = [];
+    const t: any = {
+        request: async (route: string, body: any) => {
+            if (route === "/runner/leases") return {leases: []};
+            if (route === "/runner/setup-authority")
+                return {...body, grant_id: d.grant.id, expires_at: d.grant.expires_at};
+            return {};
+        },
+        mutate: async (kind: string, _id: string, _route: string, body: any) => {
+            if (kind === "setup_claim") return claimed;
+            if (kind === "setup_result") posted.push(body);
+            return {};
+        },
+    };
+    const s: any = {
+        inspect: async () => [],
+        canExecute: () => true,
+        probe: async () => {
+            throw new Error("boom");
+        },
+    };
+    const c = new Coordinator(j, t, s, d.runner_id, {assertRuntime: () => {}});
+    await c.recover();
+    await c.setup("setup-1");
+    assert.equal(posted.length, 1);
+    assert.equal(posted[0].state, "failed");
     j.close();
 });

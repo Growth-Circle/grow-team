@@ -202,7 +202,6 @@ export class Coordinator {
     private stopFailure: Error | null = null;
     private probeAbort: AbortController | null = null;
     private probing: Promise<void> | null = null;
-    private probeError: Error | null = null;
     constructor(
         journal: Journal,
         private transport: Transport,
@@ -838,15 +837,15 @@ export class Coordinator {
         }
     }
     async pollSetups(): Promise<void> {
-        if (this.probeError) throw this.probeError;
         if (this.active || this.probing || !this.reconciled) return;
         const response = await this.transport.request("/runner/setups");
         const next = response.setups[0];
         if (!next) return;
+        // A failure this early (before a claim exists to report against, or a
+        // stale generation) is transient and self-heals on the next poll; do
+        // not park it, or every later setup attempt would fail before it runs.
         this.probing = this.setup(next.setup_id)
-            .catch((error) => {
-                this.probeError = error;
-            })
+            .catch(() => {})
             .finally(() => {
                 this.probing = null;
             });
@@ -870,7 +869,9 @@ export class Coordinator {
         if (generation !== this.generation)
             throw new Error("Setup claim belongs to a retired supervisor");
         const d = validateDescriptor(claimed.descriptor, this.runnerId, true);
-        this.registry.assertRuntime(d);
+        // probe() (below) already checks this, after its own requirement
+        // checks (missing adapter, auth not ready, sandbox not approved): an
+        // early check here threw past those and the runner reported nothing.
         if (
             Date.parse(claimed.lease_expires_at) <= Date.now() ||
             Date.parse(d.grant.expires_at) <= Date.now()
@@ -951,7 +952,11 @@ export class Coordinator {
                 lease_epoch: claimed.lease_epoch,
                 descriptor_digest: d.descriptor_digest,
                 configuration_digest: d.configuration_digest,
-                ...(await this.supervisor.probe(d, authority)),
+                // A thrown probe error still reaches the owner as a failed
+                // result, instead of leaving this setup attempt unreported.
+                ...(await this.supervisor
+                    .probe(d, authority)
+                    .catch(() => ({state: "failed" as const, capabilities: {}, requirements: []}))),
             };
             this.assertScope();
             await validate();
