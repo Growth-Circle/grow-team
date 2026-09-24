@@ -161,6 +161,29 @@ export class Transport {
         payload: Data,
         bytes?: Buffer,
     ): Promise<Data | Buffer> {
+        for (let attempt = 0; ; attempt += 1) {
+            try {
+                return await this.binaryOnce(route, payload, bytes);
+            } catch (error) {
+                // A busy server rejects the request before it stores anything, so
+                // the same upload can go again, as request() does. Without this, a
+                // finished answer was lost whenever its upload met another agent
+                // transaction.
+                if (
+                    !(error instanceof TransportError) ||
+                    error.kind !== "contention" ||
+                    attempt >= CONTENTION_RETRIES
+                )
+                    throw error;
+                await sleep(error.retryAfter * 1000 + Math.floor(Math.random() * 250));
+            }
+        }
+    }
+    private async binaryOnce(
+        route: "/runner/artifacts" | "/runner/context-file",
+        payload: Data,
+        bytes?: Buffer,
+    ): Promise<Data | Buffer> {
         const scope = this.currentScope(),
             token = this.token();
         if (!token) throw new TransportError("credential");
@@ -191,6 +214,12 @@ export class Transport {
                 redirect: "manual",
                 signal: abort.signal,
             });
+            if ([429, 503].includes(response.status))
+                throw new TransportError(
+                    "contention",
+                    "",
+                    Math.min(60, Math.max(1, Number(response.headers.get("retry-after")) || 1)),
+                );
             if (!response.ok)
                 throw new TransportError(
                     response.status === 401 ? "credential" : "policy",

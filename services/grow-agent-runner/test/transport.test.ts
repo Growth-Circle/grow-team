@@ -263,3 +263,26 @@ test("rotation cannot change the connected runner identity", async () => {
     j.close();
     await s.close();
 });
+test("an artifact upload retries after a busy server answer", async () => {
+    let calls = 0;
+    const s = await server(async (req: any, res: any) => {
+        for await (const _ of req);
+        calls++;
+        if (calls === 1) {
+            res.statusCode = 503;
+            res.setHeader("retry-after", "1");
+            res.setHeader("content-type", "application/json");
+            res.end(JSON.stringify({result: "error", msg: "busy", schema_version: 1}));
+            return;
+        }
+        ok(res, {artifact_id: "a1", checksum: "c", size: 1});
+    });
+    const j = new Journal(root());
+    const t = new Transport(s.origin, j, () => "access");
+    const payload = {checksum: "c", kind: "summary", filename: "s.txt", media_type: "text/plain"};
+    const data: any = await t.binary("/runner/artifacts", payload, Buffer.from("x"));
+    assert.equal(calls, 2);
+    assert.equal(data.artifact_id, "a1");
+    j.close();
+    await s.close();
+});
