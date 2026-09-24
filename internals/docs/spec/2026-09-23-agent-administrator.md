@@ -1,10 +1,15 @@
 # Spesifikasi Agent Administrator Grow Team
 
-Tanggal: 2026-09-23, Asia/Jakarta.
+Tanggal: 2026-09-23, Asia/Jakarta. Diperbarui 2026-09-24.
 
 Status: **kontrak rilis 23; implementasi berjalan dan semua [baris AD](../agent-acceptance.md) belum diuji.**
 
-Baseline source: `83b1a57b9e4` (image `12.2-grow-team.22`). Pilihan platform ada di
+**Pembaruan 2026-09-24 (v2):** job `manage` berjalan pada jalur cepat. Jalur
+cepat diatur [spesifikasi jalur cepat](2026-09-24-agent-fast-lane.md). Bagian
+yang berubah: 3.2 (tunggu konfirmasi lewat event), 6 (paket konteks, pesan
+draft, publikasi segera), dan 11 (AD-22, AD-23 versi baru).
+
+Baseline source: `8217d765a19` (image `12.2-grow-team.25`). Pilihan platform ada di
 [keputusan harness](../agent-harness-decision.md).
 
 ## 1. Tujuan dan keputusan pengguna
@@ -239,6 +244,7 @@ sequenceDiagram
   Z->>Z: Admission: setting, role pemilik, grant, dan kesiapan
   Z-->>P: Receipt dispatch
   R->>Z: Claim job manage
+  Z-->>R: Paket konteks (jalur cepat)
   R->>R: Model memilih alat tim
   R->>Z: Propose TeamArguments
   Z-->>R: authorized atau proposed
@@ -246,8 +252,10 @@ sequenceDiagram
   R->>Z: Execute
   Z->>Z: Fase 1 consume, fase 2 aksi Zulip, fase 3 receipt
   Z-->>R: server_receipt
+  R->>Z: result.draft (snapshot)
+  Z-->>P: Pesan draft dibuat/diedit
   R->>Z: result.prepared
-  Z-->>P: Balasan akhir dengan daftar langkah
+  Z-->>P: Publikasi segera: balasan akhir dengan daftar langkah
 ```
 
 1. Pemberi perintah menulis di topik atau DM, misalnya: "@**Agen Admin** buat channel
@@ -257,8 +265,12 @@ sequenceDiagram
    alasan `command_not_allowed`.
 3. Server membuat job `manage` dengan target `answer` dan aksi `context.read` serta
    `team.manage`.
-4. Runner mengklaim job. Descriptor tidak memuat repository atau workspace.
-5. Runner membaca konteks lewat operasi `context.read`. Model mendapat katalog 11 alat tim.
+4. Runner mengklaim job. Descriptor tidak memuat repository atau workspace. Server
+   menyertakan **paket konteks** pada respons claim, sesuai
+   [spesifikasi jalur cepat](2026-09-24-agent-fast-lane.md) bagian 5.3. (v2, 2026-09-24)
+5. Model mendapat konteks awal dari paket konteks, bukan dari operasi `context.read`.
+   Alat `context.read` tetap tersedia untuk referensi tambahan di luar paket, dan
+   model mendapat katalog 11 alat tim. (v2, 2026-09-24)
 6. Untuk setiap panggilan alat, runner memvalidasi argumen dengan schema, lalu memanggil propose.
 7. Server memeriksa izin dan aturan konfirmasi. Bila alat perlu konfirmasi, job menjadi
    `waiting_for_approval`. Bot mengirim satu pesan di percakapan sumber: mention biasa ke
@@ -266,10 +278,14 @@ sequenceDiagram
 8. Pemberi perintah membuka drawer tugas. Kartu approval menampilkan `summary` dari
    server. Hanya pemberi perintah melihat tombol Approve dan Reject.
 9. Runner memanggil execute. Server menjalankan tiga fase dan mengembalikan `server_receipt`.
-10. Runner memberi `summary` receipt kepada model sebagai hasil alat.
-11. Sesudah model selesai, server menerbitkan balasan akhir. Balasan dimulai dengan
-    silent mention ke pemberi perintah, lalu berakhir dengan daftar langkah dari receipt
-    dan tautan tugas.
+10. Runner memberi `summary` receipt kepada model sebagai hasil alat, lalu mengirim
+    snapshot lewat `result.draft`. Server membuat atau mengedit **pesan draft** di
+    percakapan sumber selama model menulis. (v2, 2026-09-24)
+11. Sesudah model selesai, server menerbitkan balasan akhir segera sesudah
+    `result.prepared`, tanpa menunggu `attempt.stopped`. Server mengedit pesan draft
+    menjadi hasil final. Balasan dimulai dengan silent mention ke pemberi perintah,
+    lalu berakhir dengan daftar langkah dari receipt dan tautan tugas.
+    (v2, 2026-09-24; lihat [spesifikasi streaming](2026-09-24-agent-streaming-delivery.md))
 
 ## 7. Menambah orang ke topik
 

@@ -1,8 +1,14 @@
 # Spesifikasi Pengaturan Agent, Koneksi Runner, dan Default Tim
 
-Tanggal: 2026-09-22, Asia/Jakarta.
+Tanggal: 2026-09-22, Asia/Jakarta. Diperbarui 2026-09-24.
 
 Status: **sebagian sudah diimplementasikan; image `12.2-grow-team.22` (`83b1a57b9e4`) memuat default tim, resolver, metadata runner, dan UI pengaturan, tetapi [baris AS](../agent-acceptance.md) belum lulus.**
+
+**Pembaruan 2026-09-24 (v2):** koneksi model sekarang terbagi dua jalur. Jalur
+cepat mengatur job `answer` dan `manage` lewat
+[spesifikasi jalur cepat](2026-09-24-agent-fast-lane.md); jalur code tidak
+berubah. Bagian yang berubah: 1, 2, 3.1, 3.2, 7 (satu baris), 8.1, 8.2, 8.3, 9
+(satu baris), 9.2, 15.1, 15.3, 16 (satu baris), 17, dan 19.
 
 Baseline dokumentasi Grow Team: `de318427be97a527decc10bc792a638ae8e2c8c1`.
 Snapshot implementasi paralel: `3469f2f39de4d3487ab9ffeda0a8f3e661bec57c`, branch `feat/grow-team-agents`.
@@ -18,7 +24,9 @@ Keputusan pengguna yang menjadi kontrak:
 
 - Grow Team tetap aplikasi web. Pengguna tidak memerlukan aplikasi desktop.
 - Runner berjalan pada laptop atau server milik pengguna.
-- Agent terpasang dan endpoint OpenAI-compatible tetap didukung.
+- Agent terpasang dan endpoint OpenAI-compatible tetap didukung untuk jalur code.
+  Jalur cepat memakai koneksi model Anthropic Messages; lihat
+  [spesifikasi jalur cepat](2026-09-24-agent-fast-lane.md).
 - **Default tim menjadi pilihan awal ketika anggota membuat tugas. Anggota dapat memilih agent lain.**
 - Implementasi spec sebelumnya sedang berjalan paralel. Penelitian ini menghasilkan dokumen baru, tanpa mengubah kode atau spec yang sedang dikerjakan.
 
@@ -37,34 +45,9 @@ atau proyek belum masuk versi awal ini.
 
 ## 2. Apa yang ditemukan pada Buzz
 
-Penelitian membaca source dan tes pada commit yang dipatok. Graf parsial riset
-sebelumnya hanya membantu navigasi; source pengaturan terbaru diperiksa langsung.
-Tes upstream dibaca sebagai contoh regresi, bukan dijalankan sebagai bukti lulus.
-
-| ID    | Bukti primer Buzz                                                               | Temuan                                                                                                                                                | Penerapan pada Grow Team                                                                                                                |
-| ----- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| BS-01 | [Pilihan koneksi][buzz-connect], [pengelompokan runtime][buzz-methods]          | Onboarding memisahkan login subscription dan API key. Daftar runtime pada helper memakai ID yang ditentukan source.                                   | Pisahkan agent terpasang dan endpoint; tawarkan metode auth yang dilaporkan adapter, bukan menganggap semua CLI mendukung subscription. |
-| BS-02 | [Readiness onboarding][buzz-ready]                                              | Runtime terpasang, status login, provider, model, dan credential merupakan pemeriksaan berbeda. Sebagian readiness merupakan pemeriksaan konfigurasi. | Tampilkan kebutuhan yang belum terpenuhi. Coding ready tetap membutuhkan probe dan sandbox dari fondasi Grow Team.                      |
-| BS-03 | [AgentDialog][buzz-dialog], [lokasi eksekusi][buzz-run]                         | Dialog membedakan definisi, instance, dan lokasi menjalankan agent. Backend eksekusi berbeda dari provider inferensi.                                 | Profil, runner, dan koneksi model memiliki pilihan serta identitas sendiri.                                                             |
-| BS-04 | [Draft lokasi][buzz-run-intent], [tes draft][buzz-run-tests]                    | Probe lambat tidak boleh menghapus isian pengguna, termasuk field yang sengaja dikosongkan.                                                           | Terapkan revision dan pembatalan hasil lama pada wizard koneksi.                                                                        |
-| BS-05 | [Default konfigurasi][buzz-defaults], [sumber nilai][buzz-inherited]            | Urutan konfigurasi adalah build, global, persona, lalu instance. UI menjelaskan asal nilai.                                                           | Jelaskan nilai efektif pada profil, tetapi jangan membawa global environment desktop ke pengaturan tim.                                 |
-| BS-06 | [Simpan konfigurasi global][buzz-global-save]                                   | Simpan dapat memulai ulang agent lokal yang konfigurasi efektifnya berubah. Hasil mencatat restart yang berhasil dan gagal.                           | Pisahkan konfigurasi tersimpan dari kesiapan runtime. Mengubah default pilihan tim tidak me-restart agent.                              |
-| BS-07 | [Ranking saran agent][buzz-ranking]                                             | Saran default memperhitungkan mention terbaru, keaktifan, membership, dan persona.                                                                    | Kebijakan default tim Grow Team memakai pilihan admin yang tersimpan; urutan daftar atau recents tidak menentukan penerima tugas.       |
-| BS-08 | [Management provenance][buzz-provenance], [predicate penanda][buzz-other-setup] | Penanda cloud berarti identitas milik pengguna tidak dikelola pada perangkat ini. Itu bukan bukti lokasi server.                                      | Label workstation/server berasal dari metadata runner yang dinyatakan pemilik, terpisah dari kepemilikan dan status.                    |
-| BS-09 | [Availability][buzz-availability]                                               | Presence, proses, dan hak lifecycle berbeda. Query gagal berarti unknown.                                                                             | Jangan menyimpulkan agent siap dari status online saja; jangan menebak lokasi dari availability.                                        |
-| BS-10 | [Discovery agent milik pengguna][buzz-discovery]                                | Agent dapat ditemukan tanpa record runtime lokal atau membership kanal. Discovery tidak memberikan izin mengirim.                                     | Direktori, izin memakai, akses kanal, dan hak mengelola diperiksa terpisah.                                                             |
-| BS-11 | [Resolver team][buzz-team], [tambah team ke kanal][buzz-team-add]               | Team pada jalur ini adalah kumpulan persona. Deployment membuat instance per persona dan memakai fallback runtime.                                    | Jangan menyamakan team Buzz dengan realm Grow Team. Satu default tim tidak membuat sekelompok agent atau mengganti runtime diam-diam.   |
-| BS-12 | [Tambah agent ke kanal][buzz-channel-add]                                       | Penambahan kanal merupakan aksi sendiri, memakai identitas agent tertentu.                                                                            | Memakai profil bersama tidak membuat bot baru. Membership kanal tetap terpisah dari grant eksekusi.                                     |
-| BS-13 | [Penyimpanan default UI][buzz-default-tests], [edit instance][buzz-edit-tests]  | Tes memeriksa save/reread, cancel tanpa update, dan konfigurasi efektif saat perubahan inheritance.                                                   | Port skenario tersebut ke UI web dan API Grow Team yang sesungguhnya.                                                                   |
-| BS-14 | [Pengaturan percakapan][buzz-settings]                                          | Ada preferensi otomatis menyebut agent pada balasan thread. Ini terpisah dari konfigurasi runtime.                                                    | Default tim tidak mengaktifkan auto-mention atau trigger pada seluruh pesan.                                                            |
-
-Pada jalur yang diperiksa, konfigurasi global Buzz dan ranking saran mention
-bukan kontrak admin realm untuk memilih satu agent default. Resolver pada bagian
-11 adalah rancangan Grow Team berdasarkan kebutuhan pengguna.
-
-Proposal remote agent Buzz masih memiliki bagian draft. Dokumen ini mengambil
-bukti UI dan fungsi yang dibaca; tidak menganggap semua rancangan remote Buzz
-sudah berfungsi atau sudah diuji dalam produksi.
+Dipensiunkan 2026-09-24: riset pola Buzz ini sudah dipakai untuk menyusun aturan
+konkret. Aturan tersebut ada sekarang di bagian 10 (menghubungkan koneksi) dan
+11 (kontrak pemilihan default), bukan di ringkasan riset ini.
 
 ## 3. Pilihan desain dan istilah yang dipakai
 
@@ -80,10 +63,10 @@ sudah berfungsi atau sudah diuji dalam produksi.
 | ------------------ | ------------------------------------------ | ------------------------------------------------------------- |
 | Agent              | `AgentProfile` dan `bot_user_id`           | Identitas yang menerima tugas.                                |
 | Perangkat / Runner | `AgentRunner`                              | Mesin yang menjalankan proses dan tools.                      |
-| Agent terpasang    | Adapter dan katalog runner                 | Program agent yang tersedia pada runner terpilih.             |
+| Agent terpasang **[jalur code]** | Adapter dan katalog runner            | Program agent berbasis adapter yang tersedia pada runner terpilih. |
 | Koneksi model      | `AgentProvider`                            | Endpoint, model, dan referensi credential inferensi.          |
 | Default tim        | Referensi profil pada `AgentRealmSettings` | Pilihan awal pada form tugas baru.                            |
-| Mode awal profil   | `AgentProfile.default_mode`                | Diskusi atau Coding ketika tugas tidak menetapkan jenis lain. |
+| Mode awal profil   | `AgentProfile.default_mode`                | Jenis job `answer`, `code`, atau `manage` ketika tugas tidak menetapkan jenis lain. (v2, 2026-09-24) |
 | Akses bersama      | `AgentGrant`                               | Siapa yang boleh memakai resource, pada scope tertentu.       |
 
 Default tim tidak sama dengan model default atau `default_mode`. Mengubah salah
@@ -97,8 +80,10 @@ flowchart LR
     D[Default tim: profil terpilih] --> P[Profil agent dan identitas chat]
     U[Anggota memilih agent lain] --> P
     P --> R[Runner: laptop atau server]
-    P --> C[Koneksi: agent terpasang atau endpoint]
+    P --> C["Koneksi model [jalur code]: agent terpasang atau endpoint"]
+    P --> FC["Koneksi Anthropic Messages [jalur cepat]"]
     C --> M[Model lokal atau layanan model eksternal]
+    FC --> AM[API Anthropic Messages]
     R --> W[Workspace dan tools yang diizinkan]
     G[Grant profil, runner, model, repository] --> J[Admission tugas existing]
     P --> J
@@ -213,7 +198,7 @@ Permintaan baru menghasilkan job baru, bukan bot atau profil baru per pengguna.
 4. Runner memulai pairing dan menampilkan kode pendek dari kontrak fondasi.
 5. Pemilik membuka form pairing melalui browser pada realm yang benar dan memasukkan kode.
 6. UI menampilkan nama perangkat, fingerprint, pemilik, dan realm; pemilik memeriksa lalu menyetujui.
-7. Runner menukar credential, mengirim heartbeat, lalu melaporkan katalog adapter dan workspace alias yang diizinkan.
+7. Runner menukar credential, mengirim heartbeat, lalu melaporkan katalog adapter **[jalur code]** dan workspace alias yang diizinkan.
 8. UI menawarkan tambah agent pada nama runner yang sudah terikat.
 
 Pairing yang berhasil hanya berarti perangkat terhubung. Ia belum membuktikan
@@ -240,7 +225,7 @@ profil. Registrasi lintas realm tetap terpisah; tidak berbagi token secara impli
 
 ## 8. Menghubungkan agent terpasang atau koneksi model
 
-### 8.1 Agent terpasang pada runner
+### 8.1 Agent terpasang pada runner **[jalur code]**
 
 Katalog berasal dari runner terpilih, bukan dari mesin Grow Team atau browser.
 Setiap pilihan memuat ID adapter, versi, availability, metode auth yang
@@ -257,12 +242,16 @@ diizinkan, kemudian membuat sesi kerja baru sesuai attempt. Ini tidak berarti
 menempel ke PID, terminal, atau percakapan CLI pribadi yang sedang berjalan.
 UI tidak menerima arbitrary executable path dari anggota tim.
 
-### 8.2 Endpoint OpenAI-compatible
+### 8.2 Endpoint OpenAI-compatible dan koneksi jalur cepat
 
 Form mengikuti `ProviderCreate` pada implementasi fondasi. Field utama adalah
-nama koneksi, runner, base URL, mode API, model, referensi credential, scope data,
-dan batas konteks/output yang diketahui. Field jaringan lanjutan mengikuti
-policy pemilik, bukan override bebas dari anggota.
+nama koneksi, runner, base URL, mode API (`chat_completions` atau `responses`
+untuk jalur code, `anthropic_messages` untuk jalur cepat), model, referensi
+credential, scope data, dan batas konteks/output yang diketahui. Field jaringan
+lanjutan mengikuti policy pemilik, bukan override bebas dari anggota. Kunci
+mode `anthropic_messages` tinggal di berkas privat host runner, bukan di
+server; lihat [spesifikasi jalur cepat](2026-09-24-agent-fast-lane.md) bagian
+6.2.
 
 Alur:
 
@@ -287,16 +276,17 @@ path workspace runner lama pada runner baru.
 | Maksud pengguna                      | Aksi yang tersedia                    | Efek                                                           |
 | ------------------------------------ | ------------------------------------- | -------------------------------------------------------------- |
 | Memakai agent yang sudah dibagikan   | Pilih agent dari direktori.           | Tidak ada pairing atau profil baru.                            |
-| Memakai agent CLI pada mesin sendiri | Hubungkan runner, lalu pilih adapter. | Profil memakai runtime dan auth yang diizinkan pada mesin itu. |
-| Memakai API model                    | Pilih runner dan koneksi model.       | Runtime endpoint Grow Runner menyediakan loop dan tools.       |
+| Memakai agent CLI pada mesin sendiri **[jalur code]** | Hubungkan runner, lalu pilih adapter. | Profil memakai runtime dan auth yang diizinkan pada mesin itu. |
+| Memakai API model **[jalur code]**   | Pilih runner dan koneksi model.       | Runtime endpoint Grow Runner menyediakan loop dan tools.       |
+| Memakai jalur cepat **[jalur cepat]** | Pilih runner dan koneksi Anthropic Messages. | Loop `@anthropic-ai/sdk` di proses runner menjawab `answer`/`manage`. |
 
-Hindari satu tombol “Connect” yang dapat berarti ketiganya tanpa penjelasan.
+Hindari satu tombol “Connect” yang dapat berarti keempatnya tanpa penjelasan.
 
 ## 9. Menambah dan mengatur profil agent
 
 Wizard memakai alur simpan → probe → enable dari spec lifecycle, dengan tahap:
 
-1. **Identitas:** nama, deskripsi, dan mode awal Diskusi atau preset Coding.
+1. **Identitas:** nama, deskripsi, dan mode awal `answer`, `code`, atau `manage`. (v2, 2026-09-24)
 2. **Perangkat:** runner yang boleh dipakai dan label lokasi yang jelas.
 3. **Koneksi:** adapter terpasang atau koneksi model yang sesuai runner.
 4. **Pekerjaan:** repository alias, pemeriksaan, budget, dan tools dalam mandat pemilik.
@@ -339,20 +329,20 @@ Aturan nilai efektif:
 
 ### 9.2 Pengaturan lanjutan dan batas dukungan
 
-Buzz juga menyediakan [instruksi persona][buzz-definition] dan [panel konfigurasi
-efektif][buzz-config-panel] untuk model, mode, effort, batas token, dan MCP.
-Ambil pola penjelasan nilainya; kontrol Grow Team hanya muncul jika kontrak
-backend dan adapter benar-benar mendukung pengaturan itu.
+Kontrol Grow Team hanya muncul jika kontrak backend dan adapter benar-benar
+mendukung pengaturan itu.
 
 | Pengaturan                                     | Perlakuan Grow Team                                                                                                             |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | Nama dan deskripsi                             | Metadata profil. Deskripsi tidak diam-diam menjadi system prompt.                                                               |
-| Model pada mode endpoint                       | Berasal dari `AgentProvider.model_id`. Versi awal tidak menambah override model tersembunyi pada profil.                        |
-| Model/config agent terpasang                   | Ditampilkan dari kemampuan/config yang dilaporkan dan diuji. Field yang belum bisa disimpan tampil sebagai informasi.           |
+| Model pada mode endpoint **[jalur code]**      | Berasal dari `AgentProvider.model_id`. Versi awal tidak menambah override model tersembunyi pada profil.                        |
+| Model/config agent terpasang **[jalur code]**  | Ditampilkan dari kemampuan/config yang dilaporkan dan diuji. Field yang belum bisa disimpan tampil sebagai informasi.           |
 | Budget, batas konteks, output, dan pemeriksaan | Memakai field typed fondasi dan batas policy; nilai unknown tidak ditampilkan sebagai angka kemampuan terukur.                  |
-| Thinking effort                                | Hanya dapat diedit bila adapter/provider mendukung nilai dan persistensinya; jangan menyamakan vocabulary semua model.          |
+| Effort **[jalur cepat]** (v2, 2026-09-24)      | Server menetapkan `effort` lewat `model_policy` per jenis job: `answer` = `low`, `manage` = `medium`. Pemilik profil boleh menaikkan effort `answer` ke `medium`. Pemilik tidak dapat menurunkan effort `manage`. |
+| Prompt caching **[jalur cepat]** (v2, 2026-09-24) | Aktif otomatis untuk jalur cepat; UI menampilkan rasio cache dari metrik, tanpa kontrol tersendiri.                          |
+| Thinking effort **[jalur code]**               | Hanya dapat diedit bila adapter/provider mendukung nilai dan persistensinya; jangan menyamakan vocabulary semua model.          |
 | Tools                                          | Tampilkan kemampuan dan scope grant. Tidak ada toggle yang membuka seluruh filesystem atau host shell.                          |
-| MCP tambahan                                   | Konfigurasi server/tool baru tetap mengikuti broker dan sandbox. Editor MCP bebas bukan syarat MVP pengaturan ini.              |
+| MCP tambahan **[jalur code]**                  | Konfigurasi server/tool baru tetap mengikuti broker dan sandbox. Editor MCP bebas bukan syarat MVP pengaturan ini.              |
 | Instruksi peran persisten                      | Memerlukan kontrak tersendiri pada profil, context broker, dan descriptor. Tidak tersedia pada payload snapshot yang diperiksa. |
 
 Instruksi peran dapat ditambahkan setelah jalur fondasi stabil. Implementasinya
@@ -663,30 +653,9 @@ tidak menjadi HTML, command, atau prompt sistem tepercaya.
 
 ### 15.1 Fakta snapshot implementasi
 
-Pembacaan memakai `git show` pada commit implementasi yang dicantumkan di awal,
-bukan menganggap worktree paralel tetap diam. Temuan berikut adalah bukti source
-pada snapshot, bukan klaim hasil pengujian atau fitur produksi.
-
-| Source pada commit `3469f2f`                                    | Yang ditemukan                                                                                                          | Konsekuensi bagi spec baru                                                                                    |
-| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `zerver/models/agents.py`                                       | `AgentRealmSettings`, runner, provider, profil, grant, setup, dan records job sudah didefinisikan.                      | Tambahkan field default/lokasi secara aditif; jangan membuat subsystem kedua.                                 |
-| `zerver/lib/agent_requests.py`                                  | Payload typed untuk provider, repository, profil, revision, grant, dan setup.                                           | Form memakai kontrak ini; tambahan schema harus mengikuti validasi version 1 yang ketat.                      |
-| `zerver/lib/agent_policy.py`                                    | `accessible_profiles`, pemeriksaan owner/grant, scope, resource, serta realm.                                           | Gunakan sebagai batas direktori dan resolver; jangan menggandakan logika ACL di browser.                      |
-| `zerver/views/agents.py`                                        | List/create profil, runner, pairing approval, setup/retry, lifecycle, grant, dan attachment kanal.                      | Pengaturan memakai endpoint fondasi; tambah proyeksi dan endpoint yang belum ada saja.                        |
-| `zerver/actions/agents.py`                                      | `record_setup_result` dapat mengubah draft menjadi enabled ketika probe ready; `enable_profile` juga tersedia.          | Ada perbedaan dengan alur aktivasi eksplisit pada kedua spec. Selaraskan sebelum wizard dinyatakan selesai.   |
-| `internals/docs/agent-runtime-decision.md`                      | Rencana aktif memilih runtime endpoint TypeScript terbatas dan adapter ACP yang dipatok, berdasarkan source/probe awal. | Spec ini mengikuti arah tersebut; tidak membuka ulang pemilihan runtime hanya untuk meniru pengaturan Buzz.   |
-| `docs/superpowers/plans/2026-09-21-grow-team-agent-platform.md` | Task koneksi dan Task 9 UI pengaturan sudah mempunyai tanggung jawab.                                                   | Perlakukan dokumen ini sebagai detail tambahan task UI dan default; pertahankan urutan fondasi yang berjalan. |
-
-Pada snapshot, `AgentRealmSettings` belum memiliki default profile dan runner
-belum memiliki kategori lokasi. Ini adalah delta nyata, bukan permintaan
-mengulang pairing atau lifecycle. Adapter handshake pada laporan runtime belum
-membuktikan auth, coding, sandbox, atau browser end-to-end.
-
-Snapshot branch implementasi belum memuat perapian dokumentasi `de31842` tentang
-urutan save/probe dan hubungan S0–S6 dengan P0–P6. Bawa perapian tersebut ke
-baseline dokumentasi integrasi bersama spec baru ini, setelah memeriksa perubahan
-yang mungkin sudah masuk. Jangan menganggap perbedaan snapshot sebagai perubahan
-produk yang telah disetujui.
+Dipensiunkan 2026-09-24: snapshot commit `3469f2f` sudah usang. Baca source
+terkini di `zerver/models/agents.py`, `zerver/lib/agent_policy.py`, dan
+`zerver/views/agents.py` untuk keadaan implementasi sekarang.
 
 ### 15.2 Penyesuaian aktivasi yang perlu disepakati pada integrasi
 
@@ -695,35 +664,11 @@ menerima tugas. Untuk wizard ini, hasil setup tidak boleh mengaktifkan draft
 secara implisit. Pakai `enable_profile` dengan revision yang lulus dan pemeriksaan
 hak terkini. Retry probe juga tidak boleh membuka profil yang dipause.
 
-Catat perubahan terbatas tersebut pada pekerjaan fondasi yang memiliki action
-setup. Jangan menambahkan workaround frontend yang langsung mempause profil
-setelah backend mengaktifkannya; celah admission tetap ada selama jeda tersebut.
-Periksa ulang source terbaru sebelum membuat patch karena implementasi paralel
-dapat sudah menutup perbedaan ini.
-
 ### 15.3 Batas kepemilikan pekerjaan
 
-| Paket pekerjaan                | Ketergantungan                                  | Keluaran                                                                     | Batas perubahan                                                  |
-| ------------------------------ | ----------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| G1 — Direktori dan label       | Serializer/policy profil dan runner fondasi     | Proyeksi aman, filter, label owner/lokasi/status, empty state anggota.       | Tidak mengubah proses claim atau scheduler.                      |
-| G2 — Wizard koneksi dan profil | Pairing, catalog, provider probe, setup, enable | Form browser, partial recovery, petunjuk runner, konfigurasi efektif.        | Memakai action fondasi dan kontrak activation yang diselaraskan. |
-| G3 — Default tim               | G1, grant, model settings, admission/preflight  | Field aditif, admin setting, resolver, preselection form.                    | Tidak mengubah aturan mention biasa atau job existing.           |
-| G4 — Perubahan dan recovery    | G2–G3 serta lifecycle fondasi                   | Edit, pencabutan, default unavailable, pemindahan penggunaan ke profil baru. | Tidak memindahkan proses atau credential antarhost otomatis.     |
-| G5 — Pilot dan bukti           | Gate fondasi serta G1–G4                        | Walkthrough dua pengguna, laptop/server, two-browser, dan checks AS.         | Bukan pengganti gate coding/cancel/isolasi dari AT/AF.           |
-
-G1 dapat dirancang dengan fixture API ketika runner belum selesai. G2 tetap
-membutuhkan kontrak pairing/setup yang stabil. G3 tidak menahan penyelesaian
-eksekusi agent pada spec awal; tugas dengan pilihan eksplisit tetap dapat diuji.
-
-Perubahan bersama pada `models/agents.py`, `actions/agents.py`, schema, route,
-dan settings frontend harus dimiliki satu pekerjaan integrasi pada suatu waktu.
-Jangan mengedit worktree implementasi lain, menetapkan nomor migrasi di spec,
-atau mengganti plan aktif dari penelitian ini.
-
-Lokasi tambahan yang disarankan adalah `zerver/lib/agent_selection.py` untuk
-resolver dan action settings yang kecil untuk CAS default. Nama file menyesuaikan
-pemisahan modul saat integrasi; jangan memindahkan action existing hanya untuk
-menyamakan nama usulan dokumen.
+Dipensiunkan 2026-09-24: paket pekerjaan G1-G5 mengacu rencana implementasi
+paralel yang sudah usang. Lihat [bukti penerimaan](../agent-acceptance.md)
+untuk pembagian pekerjaan yang berlaku sekarang.
 
 ## 16. Keadaan gagal dan pesan yang dapat ditindaklanjuti
 
@@ -732,8 +677,8 @@ menyamakan nama usulan dokumen.
 | Belum ada agent yang dapat dipakai            | Belum ada agent untuk tugas ini.                                        | Pilih yang dibagikan atau lihat petunjuk meminta akses.                  |
 | Runner belum terhubung                        | Perangkat belum terhubung ke Grow Team.                                 | Pemilik memeriksa layanan runner atau melanjutkan pairing.               |
 | Agent terpasang tetapi belum login            | Agent ditemukan; login masih diperlukan pada runner.                    | Tampilkan metode adapter yang benar-benar didukung.                      |
-| Adapter terpasang belum sesuai versi          | Versi adapter belum didukung untuk konfigurasi ini.                     | Tampilkan versi yang diuji dan petunjuk pemilik.                         |
-| API model hanya mendukung teks                | Koneksi dapat dipakai untuk Diskusi; tools belum lulus pemeriksaan.     | Pilih Diskusi atau perbaiki koneksi untuk Coding.                        |
+| Adapter terpasang belum sesuai versi **[jalur code]** | Versi adapter belum didukung untuk konfigurasi ini.              | Tampilkan versi yang diuji dan petunjuk pemilik.                         |
+| API model hanya mendukung teks **[jalur code]** | Koneksi dapat dipakai untuk Diskusi; tools belum lulus pemeriksaan.    | Pilih Diskusi atau perbaiki koneksi untuk Coding.                        |
 | Profil tersimpan, probe gagal                 | Profil tersimpan. Pemeriksaan belum berhasil.                           | Perbaiki requirement; uji ulang profil yang sama.                        |
 | Akses profil ada, resource lain belum lengkap | Akses untuk menjalankan tugas ini belum lengkap.                        | Tampilkan resource yang boleh diketahui dan pihak pengelolanya.          |
 | Default offline                               | Tugas akan mengantre sampai runner terhubung atau batas mulai tercapai. | Tunggu atau pilih agent lain sebelum mengirim.                           |
@@ -749,18 +694,11 @@ dapat memperbaiki masalah, bukan meminta setiap anggota menginstal ulang agent.
 
 ## 17. Paket pengujian dan kriteria penerimaan
 
-Port perilaku dari tes Buzz berikut, dengan wire contract Grow Team:
-
-- `whereToRunIntent.test.mjs`: probe tertunda, field wajib, nilai pengguna menang, serta field kosong tetap kosong.
-- `agentDefaultsEditor.test.mjs`: interaksi kontrol nyata, save, dan pembacaan ulang melalui parent pengaturan/onboarding.
-- `agentInstanceEditPinning.test.mjs`: konfigurasi yang divalidasi sama dengan yang dikirim; cancel tidak melakukan update.
-- `agentReadiness.test.mjs`: status auth unknown dan runtime lain tidak dianggap kesiapan runtime yang dipilih.
-- Catatan provenance/availability: inventory gagal tidak menjadi bukti lokasi atau offline; jumlah query tidak bertambah per kartu.
-
-Tes UI Buzz dengan mock IPC tidak membuktikan integrasi Grow Team. Uji UI dengan
-API Django, database fixture, dan runner fixture sesuai tahap. Untuk platform
-yang akan dirilis, pairing, install/autostart, dan kedua mode koneksi memerlukan
-bukti runtime sebenarnya dari gate fondasi.
+Dipensiunkan 2026-09-24: daftar port tes Buzz (`whereToRunIntent.test.mjs` dan
+sejenisnya) sudah dipakai untuk menyusun tabel AS di bawah dan tidak lagi
+diacu langsung. Uji UI dengan API Django, database fixture, dan runner fixture
+sesuai tahap. Untuk platform yang akan dirilis, pairing, install/autostart, dan
+kedua mode koneksi memerlukan bukti runtime sebenarnya dari gate fondasi.
 
 | ID    | Skenario                                                        | Hasil yang harus dibuktikan                                                                                         |
 | ----- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -769,9 +707,10 @@ bukti runtime sebenarnya dari gate fondasi.
 | AS-03 | Browser berbeda, termasuk ponsel                                | Nama/lokasi runner tetap tepat; tidak ada tebakan “perangkat ini”.                                                  |
 | AS-04 | Empat kombinasi lokasi runner dan model                         | Label membedakan eksekusi tools dari lokasi inferensi; localhost merujuk runner.                                    |
 | AS-05 | Kategori atau status belum diketahui                            | Unknown tetap terlihat; tidak berubah menjadi server atau offline berdasarkan fallback.                             |
-| AS-06 | Katalog adapter runner A dan B berbeda                          | Form hanya menawarkan hasil runner terpilih; callback lama tidak mengganti hasil runner baru.                       |
-| AS-07 | Adapter terpasang tetapi auth unknown/logout                    | UI meminta tindakan yang tepat; tidak mengumumkan code_ready.                                                       |
-| AS-08 | Endpoint tanpa discovery model atau tools                       | Model manual dapat diprobe; kegagalan tools tidak disamarkan sebagai Coding siap.                                   |
+| AS-06 | Katalog adapter runner A dan B berbeda **[jalur code]**         | Form hanya menawarkan hasil runner terpilih; callback lama tidak mengganti hasil runner baru.                       |
+| AS-07 | Adapter terpasang tetapi auth unknown/logout **[jalur code]**   | UI meminta tindakan yang tepat; tidak mengumumkan code_ready.                                                       |
+| AS-08 | Endpoint tanpa discovery model atau tools **[jalur code]**      | Model manual dapat diprobe; kegagalan tools tidak disamarkan sebagai Coding siap.                                   |
+| AS-08 (v2, 2026-09-24) | Probe koneksi Anthropic Messages **[jalur cepat]**    | Gerbang F0: `POST /v1/messages` streaming dan satu `tool_use` lulus sebelum profil `answer`/`manage` aktif.         |
 | AS-09 | Runner diubah saat form koneksi terbuka                         | Provider/repository yang tidak cocok dibatalkan; secret/path tidak berpindah otomatis.                              |
 | AS-10 | Endpoint localhost/private                                      | Request probe berasal dari runner berizin; browser dan server web tidak melakukan probe ke host tersebut.           |
 | AS-11 | Create/retry profil setelah respons hilang                      | Satu identitas profil dan bot; status setup dapat ditemukan kembali.                                                |
@@ -830,29 +769,6 @@ oleh spec pengaturan ini.
 
 ## 19. Rujukan primer yang dipatok
 
-Semua rujukan Buzz berikut memakai commit yang sama. Path dan isi source serta
-tes dibaca; definisi tes bukan laporan hasil eksekusinya.
-
-[buzz-connect]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/onboarding/ui/ConnectionMethodSection.tsx
-[buzz-methods]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/onboarding/ui/harnessConnectionOptions.ts
-[buzz-ready]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/onboarding/ui/agentReadiness.ts
-[buzz-dialog]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/agents/ui/AgentDialog.tsx
-[buzz-run]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/agents/ui/WhereToRunSection.tsx
-[buzz-run-intent]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/agents/ui/whereToRunIntent.ts
-[buzz-run-tests]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/agents/ui/whereToRunIntent.test.mjs
-[buzz-defaults]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/agents/ui/AgentDefaultsEditor.tsx
-[buzz-inherited]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/agents/ui/bakedEnvHelpers.ts
-[buzz-global-save]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src-tauri/src/commands/global_agent_config.rs
-[buzz-ranking]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/messages/lib/mentionRanking.ts
-[buzz-provenance]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/docs/agent-management-provenance.md
-[buzz-other-setup]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/agents/lib/otherSetupAgent.ts
-[buzz-availability]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/docs/agent-availability.md
-[buzz-discovery]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/docs/owned-agent-discovery.md
-[buzz-team]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/agents/lib/teamPersonas.ts
-[buzz-team-add]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/agents/ui/AddTeamToChannelDialog.tsx
-[buzz-channel-add]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/agents/ui/AddAgentToChannelDialog.tsx
-[buzz-default-tests]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/agents/ui/agentDefaultsEditor.test.mjs
-[buzz-edit-tests]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/agents/ui/agentInstanceEditPinning.test.mjs
-[buzz-settings]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/settings/ui/AgentsSettingsPanel.tsx
-[buzz-definition]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/agents/ui/AgentDefinitionDialog.tsx
-[buzz-config-panel]: https://github.com/block/buzz/blob/a3117a4762e3349054474e221c2e9cc5fea60dd9/desktop/src/features/agents/ui/AgentConfigPanel.tsx
+Dipensiunkan 2026-09-24: tautan source Buzz di bawah ini tidak lagi menjadi
+rujukan aktif. Pemilik sudah memutuskan platform Zulip. Lihat
+[keputusan SDK agent](../agent-sdk-decision.md).
