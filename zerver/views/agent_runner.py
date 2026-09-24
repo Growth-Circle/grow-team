@@ -20,7 +20,7 @@ from zerver.lib import agent_job_requests as r
 from zerver.lib import agent_protocol as p
 from zerver.lib.agent_context import agent_transaction, selected_context
 from zerver.lib.agent_requests import RunnerMetadataUpdate
-from zerver.lib.agent_results import store_artifact
+from zerver.lib.agent_results import publish_draft, store_artifact
 from zerver.lib.agent_secrets import decrypt_agent_secret
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.response import json_response
@@ -217,6 +217,13 @@ def context(request: HttpRequest) -> HttpResponse:
             expected_version=data.job_version,
         )
         return _success(request, {"references": selected_context(job, data.reference_ids)})
+
+
+@endpoint("POST")
+def draft(request: HttpRequest) -> HttpResponse:
+    data = r.Draft.model_validate_json(request.body)
+    publish_draft(runner(request), data)
+    return _success(request, {})
 
 
 @endpoint("POST")

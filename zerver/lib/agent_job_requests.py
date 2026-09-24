@@ -96,6 +96,10 @@ class Context(LeaseRequest):
     reference_ids: list[UUID] = Field(min_length=1, max_length=100)
 
 
+class Draft(LeaseRequest):
+    text: str = Field(min_length=1, max_length=10000)
+
+
 class ContextFile(LeaseRequest):
     reference_id: UUID
 

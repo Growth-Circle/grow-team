@@ -25,6 +25,7 @@ from zerver.lib.agent_context import (
     require_audience,
     require_job_access,
 )
+from zerver.lib.agent_job_requests import Draft
 from zerver.lib.exceptions import JsonableError
 from zerver.models import Message, UserProfile, agents
 
@@ -383,6 +384,62 @@ def _result_message_content(job: agents.AgentJob, summary: str) -> str:
     return content
 
 
+def _edit_draft(job: agents.AgentJob, content: str) -> int | None:
+    """Replace the streamed draft of an answer with new content, or return
+    None when the job has no draft or the draft can no longer be edited."""
+    if job.result_message_id is None:
+        return None
+    from zerver.actions.message_edit import check_update_message
+
+    try:
+        check_update_message(job.profile.bot_user, job.result_message_id, content=content)
+    except JsonableError:
+        return None
+    return job.result_message_id
+
+
+# Shown at the end of a streamed draft while the model is still writing.
+DRAFT_WRITING_MARK = " \u258d"
+
+
+def publish_draft(runner: agents.AgentRunner, data: Draft) -> None:
+    """Show the answer as it is written: the first draft sends one bot
+    message in the conversation, and later drafts edit that message. The
+    final result replaces it (_publish_result), so a job still ends with one
+    message. Drafts are best effort; the caller drops a rejected draft."""
+    from zerver.actions.message_send import check_message, do_send_messages
+    from zerver.lib.addressee import Addressee
+    from zerver.lib.mention import silent_mention_syntax_for_user
+    from zerver.models.clients import get_client
+
+    with agent_transaction():
+        job, attempt = locked_attempt(runner, data.job_id, data.attempt_id, data.lease_epoch)
+        if job.job_kind != "answer" or job.result_receipt is not None:
+            return
+        audience = require_audience(job)
+        check_attempt_access(job.requester, job, attempt, "profile.use")
+        reject_secrets(job, data.text.encode())
+        content = f"{silent_mention_syntax_for_user(job.requester)} {data.text}{DRAFT_WRITING_MARK}"
+        if _edit_draft(job, content) is not None:
+            return
+        anchor = Message.objects.get(id=audience.anchor_message_id)
+        addressee = (
+            Addressee.for_stream_id(audience.stream_id, anchor.topic_name())
+            if audience.stream_id is not None
+            else Addressee.for_user_ids(audience.audience_user_ids, job.realm)
+        )
+        message = check_message(
+            job.profile.bot_user,
+            get_client("Grow Agent"),
+            addressee,
+            content,
+            realm=job.realm,
+            no_previews=True,
+        )
+        job.result_message_id = do_send_messages([message])[0].message_id
+        job.save(update_fields=["result_message"])
+
+
 def _publish_result(job_id: UUID) -> dict[str, object]:
     job = agents.AgentJob.objects.get(id=job_id)
     if job.result_receipt is not None:
@@ -431,15 +488,17 @@ def _publish_result(job_id: UUID) -> dict[str, object]:
             else Addressee.for_user_ids(audience.audience_user_ids, job.realm)
         )
         content = f"{silent_mention_syntax_for_user(job.requester)} {content} {job_task_link(job)}"
-        message = check_message(
-            job.profile.bot_user,
-            client,
-            addressee,
-            content,
-            realm=job.realm,
-            no_previews=True,
-        )
-        message_id = do_send_messages([message])[0].message_id
+        message_id = _edit_draft(job, content)
+        if message_id is None:
+            message = check_message(
+                job.profile.bot_user,
+                client,
+                addressee,
+                content,
+                realm=job.realm,
+                no_previews=True,
+            )
+            message_id = do_send_messages([message])[0].message_id
         receipt = {
             "delivery_key": f"result:{job.id}",
             "message_id": message_id,

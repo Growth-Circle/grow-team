@@ -897,6 +897,7 @@ urls += [
     path("api/v1/agent/runner/events", agent_runner_views.events),
     path("api/v1/agent/runner/stop-evidence", agent_runner_views.stopped),
     path("api/v1/agent/runner/context", agent_runner_views.context),
+    path("api/v1/agent/runner/drafts", agent_runner_views.draft),
     path("api/v1/agent/runner/context-file", agent_runner_views.context_file),
     path("api/v1/agent/runner/inputs", agent_runner_views.inputs),
     path("api/v1/agent/runner/inputs/reconcile", agent_runner_views.reconcile_input),
