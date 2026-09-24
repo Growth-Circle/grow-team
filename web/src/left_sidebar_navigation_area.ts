@@ -405,6 +405,7 @@ function toggle_work_section(): void {
     const collapsed = !$("#left-sidebar-work-area").hasClass("collapsed");
     set_work_section_collapsed(collapsed);
     ls.set(work_collapsed_ls_key, collapsed);
+    resize.resize_stream_filters_container();
 }
 
 export function initialize(): void {
