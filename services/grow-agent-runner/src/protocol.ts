@@ -392,10 +392,30 @@ function eventSemantics(v: Data): void {
     if (v.attempt_id === null) requireThat(v.lease_epoch === null, "Missing attempt epoch");
     if (v.lease_epoch === null) requireThat(v.attempt_id === null, "Missing attempt identity");
 }
+const OMITTABLE_KEYS = ["instructions_digest", "instructions"];
+// z.fromJSONSchema fills a JSON Schema "default" for a key a payload omits,
+// even outside "required". instructions_digest and instructions (contract 6)
+// are the protocol's only omit-when-unset fields, so an old descriptor
+// without them would otherwise parse with an injected null and hash
+// differently than the server's own omitted-key digest. Walk the parsed
+// tree next to the raw input and drop back out any key the input omitted.
+function restoreOmittedKeys(parsed: unknown, original: unknown): void {
+    if (Array.isArray(parsed) || Array.isArray(original)) {
+        if (!Array.isArray(parsed) || !Array.isArray(original)) return;
+        parsed.forEach((item, index) => restoreOmittedKeys(item, original[index]));
+        return;
+    }
+    if (!parsed || !original || typeof parsed !== "object" || typeof original !== "object") return;
+    const p = parsed as Data,
+        o = original as Data;
+    for (const key of OMITTABLE_KEYS) if (key in p && !(key in o)) delete p[key];
+    for (const key of Object.keys(p)) restoreOmittedKeys(p[key], o[key]);
+}
 export function parse(name: string, value: unknown): Data {
     const validator = validators.get(name);
     requireThat(validator, "Unknown schema");
     const parsed = validator.parse(value) as Data;
+    restoreOmittedKeys(parsed, value);
     semantics(parsed);
     if (name === "runner_event" || name === "authority_event")
         requireThat(Buffer.byteLength(canonical(value)) <= 65536, "Event exceeds 64 KiB");
