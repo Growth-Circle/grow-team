@@ -1,0 +1,12 @@
+{
+  "frontend": {
+    "Today": "Hari ini",
+    "Needs you": "Perlu kamu",
+    "Agents": "Agen",
+    "Add agent": "Tambah agen",
+    "Drive": "Drive",
+    "Runners": "Runner",
+    "Add runner": "Tambah runner",
+    "MCP connections": "Koneksi MCP"
+  }
+}
