@@ -1,7 +1,11 @@
 :root {
-    /* Lets `light-dark()` in --sj-* tokens (brand_tokens.css) follow
-       the OS preference on portico, which has no dark-theme class. */
-    color-scheme: light dark;
+    /* Portico pages keep a plain light background regardless of the OS
+       theme, so `light-dark()` in --sj-* tokens (brand_tokens.css) must
+       stay on its light branch here too. The login card opts back into
+       `light dark` on its own page wrapper (portico_signin.css
+       .login-split-page), since it is the one portico surface built to
+       follow the OS theme. */
+    color-scheme: light;
 
     --color-background-gradient-start: var(--sj-kaki);
     --color-background-gradient-end: var(--sj-kuning);

@@ -1841,20 +1841,21 @@ button#register_auth_button_gitlab {
     --login-split-surface: var(--sj-surface);
     --login-split-border: var(--sj-divider);
     --login-split-shadow:
-        0 1px 2px rgb(22 22 29 / 6%), 0 18px 44px rgb(22 22 29 / 7%);
+        0 1px 2px hsl(240deg 13.73% 10% / 6%),
+        0 18px 44px hsl(240deg 13.73% 10% / 7%);
     --login-split-brand-bg: var(--sj-malam);
     --login-split-brand-text: var(--sj-kertas);
     --login-split-brand-url: var(--sj-kaki);
     --login-split-brand-body: var(--sj-garis-gelap);
     --login-split-brand-fine: var(--sj-garis-gelap);
-    --login-split-brand-rule: rgb(255 250 240 / 12%);
+    --login-split-brand-rule: hsl(40deg 100% 97.06% / 12%);
     --login-split-heading: var(--sj-text);
     --login-split-body: var(--sj-text-2);
     --login-split-muted: var(--sj-text-muted);
-    --login-split-field-border: var(--sj-divider);
+    --login-split-field-border: var(--sj-outline);
     --login-split-field-ring: var(--sj-kuning);
     --login-split-rule: var(--sj-divider);
-    --login-split-sso-border: var(--sj-divider);
+    --login-split-sso-border: var(--sj-outline);
     --login-split-sso-text: var(--sj-text);
     --login-split-sso-hover: var(--sj-krem);
     --login-split-separator: var(--sj-divider);
@@ -1862,24 +1863,17 @@ button#register_auth_button_gitlab {
     --login-split-sso-active: var(--sj-pasir);
     --login-split-sso-border-hover: var(--sj-divider);
 
+    /* Only the login card follows the OS theme; the rest of portico is
+       fixed light (portico_variables.css :root). */
+    color-scheme: light dark;
     padding: 2.5rem 0 4rem; /* 40px 0 64px */
     background-color: var(--login-split-page-bg);
 }
 
-@media (prefers-color-scheme: dark) {
-    /* The portico header stays paper-colored on every other page (it
-       shares a logo file with all of them), so darken it only where a
-       login card is present. :has() degrades safely: unsupported
-       browsers keep the light header and the page still reads fine. */
-    .portico-wrap:has(.login-split) .header {
-        background-color: var(--sj-malam);
-        color: var(--sj-kertas);
-    }
-
-    .portico-wrap:has(.login-split) .header .top-links a {
-        color: var(--sj-kertas);
-    }
-}
+/* The login header stays paper-colored, like every other portico page:
+   it shares zulip-org-logo.svg with them, and that logo's wordmark is
+   dark, so it disappears on a dark header. A dark login header comes
+   back together with a night logo asset (WP07 asset, WP08 template). */
 
 .login-split {
     display: grid;
@@ -2244,8 +2238,12 @@ button#register_auth_button_gitlab {
     padding: 0.75rem 1rem;
     border: none;
     border-radius: 8px;
-    background-color: var(--color-action-button);
-    color: var(--sj-kertas);
+    /* The login card can be a dark surface (color-scheme: light dark
+       above), so the button follows suit here instead of the fixed
+       ink/paper pair .new-style button uses on the always-light rest
+       of portico. */
+    background-color: var(--sj-ink);
+    color: var(--sj-on-ink);
     font-family: inherit;
     font-size: 1.0625rem; /* 17px */
     font-weight: 600;
@@ -2429,8 +2427,8 @@ button#register_auth_button_gitlab {
     padding: 0.75rem 1rem;
     border: none;
     border-radius: 8px;
-    background-color: var(--color-action-button);
-    color: var(--sj-kertas);
+    background-color: var(--sj-ink);
+    color: var(--sj-on-ink);
     font-family: inherit;
     font-size: 1rem; /* 16px */
     font-weight: 600;
