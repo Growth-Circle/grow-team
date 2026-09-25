@@ -33,8 +33,8 @@ Baseline riset Buzz: `5079c770fe30bb3d8204822ce6c2431eacac6d4b`.
 
 Dokumen ini menjelaskan cara pengguna menambah agent, memanggilnya dari chat,
 mengikuti pekerjaannya, dan memulihkan tugas yang terhenti. Tujuannya adalah
-memindahkan pelajaran dari source, catatan desain, dan tes Buzz ke kontrak Grow
-Team yang dapat langsung dipecah menjadi pekerjaan implementasi.
+memindahkan pelajaran dari source, catatan desain, dan tes Buzz ke kontrak Sanji
+yang dapat langsung dipecah menjadi pekerjaan implementasi.
 
 Fondasi tetap mengikuti [spesifikasi koneksi dan coding harness](2026-09-21-agent-connections-and-coding-harness.md):
 
@@ -120,8 +120,8 @@ endpoint secara paralel sebelum ada kebutuhan. Loop Anthropic SDK jalur cepat
 memenuhi aturan ini: ia melewati suite konformansi yang sama sebelum aktif
 (gerbang F0, [jalur cepat](2026-09-24-agent-fast-lane.md) bagian 6.2).
 
-Runtime provider pada Buzz dapat berarti penyedia lokasi eksekusi. Pada Grow
-Team, **Koneksi model** selalu berarti endpoint inferensi; **Runner** selalu
+Runtime provider pada Buzz dapat berarti penyedia lokasi eksekusi. Pada Sanji,
+**Koneksi model** selalu berarti endpoint inferensi; **Runner** selalu
 berarti perangkat yang mengeksekusi pekerjaan. Label UI harus mengikuti arti ini.
 
 ## 4. Identitas, hak, dan status yang terlihat
@@ -283,7 +283,7 @@ Aturan DM:
 - Penambahan anggota DM mengubah audiens; context dan sesi lama tidak diwariskan otomatis.
 - DM dengan beberapa bot tidak membuat semua bot bekerja hanya karena menjadi penerima.
 
-## 7. F03 — Mention menjadi tugas
+## 7. F03 — Mention menjadi job
 
 ### 7.1 Identitas mention dan integrasi parser Zulip
 
@@ -400,7 +400,7 @@ MVP tidak menafsirkan emosi, kata kunci “bug”, atau potongan kode sebagai iz
 menulis. Mode dan scope berasal dari konfigurasi yang dipilih pengguna. Untuk
 multi-target, task ID tetap berbeda; keduanya tidak berbagi workspace writable.
 
-## 8. F04 — Cara agent mengerjakan tugas
+## 8. F04 — Cara agent mengerjakan job
 
 1. Dispatcher memilih pekerjaan berdasarkan runner, grant, kemampuan, dan kapasitas.
 2. Runner melakukan claim; server membuat attempt dan lease secara atomik. Untuk
@@ -438,8 +438,8 @@ identitas pengguna. Raw reasoning tidak dikirim ke chat atau panel publik.
 
 Tool progress boleh diperbarui pada panel. Jangan memposting satu pesan chat
 untuk setiap token, pembacaan file, atau heartbeat. Default chat menerima satu
-pesan status awal dengan tautan tugas, keputusan yang memerlukan pengguna,
-serta hasil akhir. Pembaruan status tidak boleh memicu agent lain.
+pesan agen per job: kartu ANTRE dibuat saat admission, lalu pesan yang sama
+menjadi draft dan hasil akhir. Pembaruan status tidak boleh memicu agent lain.
 
 ### 8.1 Kontrak session dan context
 
@@ -465,7 +465,7 @@ Pemadatan konteks mempertahankan tujuan, input terbaru, status tool, file/hash,
 batas izin, serta langkah tersisa. Ringkasan tidak menggantikan bukti tes atau
 menjadi instruksi sistem tepercaya. Terapkan batas recovery dari spec awal.
 
-## 9. F05 — Instruksi lanjutan dan banyak tugas
+## 9. F05 — Instruksi lanjutan dan banyak job
 
 Tombol **Lanjutkan percakapan tugas** membuka composer dengan target job yang
 terlihat. Pengguna juga dapat menyebut job ID melalui kontrol yang dikenali
@@ -480,15 +480,15 @@ Instruksi lanjutan disimpan sebagai `AgentInput`, dengan peminta, message ID,
 sequence, target job, dan scope. Periksa bahwa penulis boleh memberi input pada
 job itu. Menambahkan input tidak memberi izin baru untuk repository atau provider.
 
-| Keadaan job                            | Perlakuan input                                                                                             |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Draft                                  | Lengkapi konfigurasi atau tujuan; belum menjalankan model.                                                  |
-| Queued                                 | Tambahkan input menurut urutan commit sebelum claim.                                                        |
-| Running                                | Simpan input untuk turn berikutnya; UI menyatakan belum diterapkan.                                         |
-| Waiting for input                      | Jawaban dipetakan ke pertanyaan yang tepat dan memerlukan recheck izin.                                     |
-| Waiting for approval                   | Instruksi tidak dianggap approval; perubahan operasi membatalkan proposal lama.                             |
-| Verifying                              | Perubahan kode yang diminta mengembalikan fase edit dan membatalkan bukti terkait.                          |
-| Completed/cancelled/failed/interrupted | Tampilkan **Buat tugas lanjutan** atau **Lanjutkan attempt** sesuai state; jangan membuka attempt terminal. |
+| Keadaan job                            | Perlakuan input                                                                                           |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Draft                                  | Lengkapi konfigurasi atau tujuan; belum menjalankan model.                                                |
+| Queued                                 | Tambahkan input menurut urutan commit sebelum claim.                                                      |
+| Running                                | Simpan input untuk turn berikutnya; UI menyatakan belum diterapkan.                                       |
+| Waiting for input                      | Jawaban dipetakan ke pertanyaan yang tepat dan memerlukan recheck izin.                                   |
+| Waiting for approval                   | Instruksi tidak dianggap approval; perubahan operasi membatalkan proposal lama.                           |
+| Verifying                              | Perubahan kode yang diminta mengembalikan fase edit dan membatalkan bukti terkait.                        |
+| Completed/cancelled/failed/interrupted | Tampilkan **Buat job lanjutan** atau **Lanjutkan attempt** sesuai state; jangan membuka attempt terminal. |
 
 MVP memakai antrean input antar-turn. Native steering merupakan kemampuan
 opsional yang diaktifkan setelah diuji. Input hanya ditandai delivered setelah
@@ -532,7 +532,7 @@ Job yang efek eksternalnya belum pasti tidak boleh mendapat attempt pengganti
 hanya karena heartbeat hilang. Lease dan fencing mengikuti spec awal; status
 penghentian proses tetap dibedakan dari status koneksi.
 
-## 11. F07 — Review, hasil, dan tugas yang tidak menghasilkan balasan
+## 11. F07 — Review, hasil, dan job yang tidak menghasilkan balasan
 
 Panel menyediakan tiga tindakan terpisah: **Lihat perubahan**, **Lihat pemeriksaan**,
 dan **Lihat keputusan**. Diff berasal dari artifact workspace; status tes berasal
@@ -785,23 +785,23 @@ Service harus terpisah menurut tanggung jawab:
 
 | Kode/keadaan               | Pesan utama                                                                                          | Tindakan yang ditawarkan                                 |
 | -------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `runner_offline`           | Tugas tersimpan. Menunggu runner terhubung.                                                          | Lihat perangkat atau batalkan tugas.                     |
+| `runner_offline`           | Job tersimpan. Menunggu runner terhubung.                                                            | Lihat perangkat atau batalkan job.                       |
 | `runner_unknown`           | Status runner belum dapat diperiksa.                                                                 | Muat ulang status; jangan spawn duplikat.                |
 | `runtime_missing`          | Adapter belum tersedia pada runner [jalur code], atau koneksi model belum lulus probe [jalur cepat]. | Buka petunjuk setup perangkat.                           |
 | `auth_required`            | Agent perlu login ulang pada runner [jalur code], atau kunci koneksi model tidak sah [jalur cepat].  | Buka langkah autentikasi yang sesuai jalur.              |
 | `provider_probe_failed`    | Koneksi model belum siap dipakai.                                                                    | Lihat penyebab aman dan uji ulang.                       |
 | `workspace_not_registered` | Repository belum didaftarkan pada runner.                                                            | Pemilik mendaftarkan repository.                         |
 | `profile_paused`           | Agent sedang dijeda.                                                                                 | Pemilik dapat mengaktifkan kembali.                      |
-| `admission_denied`         | Pesan terkirim, tetapi tugas tidak diizinkan.                                                        | Periksa akses atau pilih profil lain.                    |
-| `configuration_needed`     | Pilih repository atau lengkapi tugas terlebih dahulu.                                                | Buka form job draft.                                     |
-| `queue_full`               | Antrean agent penuh. Tugas belum diterima.                                                           | Coba setelah kapasitas tersedia.                         |
-| `start_deadline_expired`   | Tugas belum mulai sampai batas waktunya.                                                             | Tinjau lalu lanjutkan atau batalkan.                     |
-| `start_failed`             | Tugas diterima, tetapi proses agent gagal dimulai.                                                   | Retry tahap start setelah requirement diperbaiki.        |
-| `approval_pending`         | Tugas menunggu keputusan untuk tindakan ini.                                                         | Tinjau proposal, setujui, atau tolak.                    |
+| `admission_denied`         | Pesan terkirim, tetapi job tidak diizinkan.                                                          | Periksa akses atau pilih profil lain.                    |
+| `configuration_needed`     | Pilih repository atau lengkapi job terlebih dahulu.                                                  | Buka form job draft.                                     |
+| `queue_full`               | Antrean agent penuh. Job belum diterima.                                                             | Coba setelah kapasitas tersedia.                         |
+| `start_deadline_expired`   | Job belum mulai sampai batas waktunya.                                                               | Tinjau lalu lanjutkan atau batalkan.                     |
+| `start_failed`             | Job diterima, tetapi proses agent gagal dimulai.                                                     | Retry tahap start setelah requirement diperbaiki.        |
+| `approval_pending`         | Job menunggu keputusan untuk tindakan ini.                                                           | Tinjau proposal, setujui, atau tolak.                    |
 | `stop_unconfirmed`         | Koneksi terputus. Penghentian proses belum terkonfirmasi.                                            | Periksa runner dan rekonsiliasi.                         |
 | `publication_blocked`      | Hasil tersimpan, tetapi belum dapat diposting ke percakapan.                                         | Tinjau tujuan yang masih sah.                            |
 | `budget_exceeded`          | Batas biaya bulanan sudah tercapai.                                                                  | Pemilik menambah batas atau menunggu periode berikutnya. |
-| `role_not_allowed`         | Peran ini tidak boleh memberi tugas ke agen ini.                                                     | Minta pemilik memberi akses, atau pilih agen lain.       |
+| `role_not_allowed`         | Peran ini tidak boleh memberi job ke agen ini.                                                       | Minta pemilik memberi akses, atau pilih agen lain.       |
 
 Kegagalan provider tidak langsung berarti credential salah. Bedakan auth,
 network, rate limit, quota, dan schema incompatibility. Error detail harus

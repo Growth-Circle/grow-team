@@ -5,7 +5,7 @@ Tanggal: 2026-09-24, Asia/Jakarta.
 Status: **kontrak baru; belum diimplementasikan. Semua baris SD belum diuji.**
 
 Spesifikasi induk: [jalur cepat](2026-09-24-agent-fast-lane.md). Spesifikasi ini
-mengatur apa yang orang lihat di chat dan di panel tugas selama agent bekerja.
+mengatur apa yang orang lihat di chat dan di panel job selama agent bekerja.
 
 ## 1. Tujuan
 
@@ -16,15 +16,14 @@ mengatur apa yang orang lihat di chat dan di panel tugas selama agent bekerja.
 
 ## 2. Urutan tampilan
 
-| Waktu                         | Yang orang lihat di topik                                                    | Yang terjadi di server                                              |
-| ----------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Admission menerima job        | Reaksi 👀 dari bot pada pesan mention, dan indikator "Agent sedang mengetik" | Server menambah reaksi dan mengirim notifikasi typing atas nama bot |
-| Setiap 10 s sebelum draft ada | Indikator tetap tampil                                                       | Server memperbarui notifikasi typing                                |
-| ±0,6 s sesudah admission      | Pesan bot baru dengan kartu ANTRE                                            | Server membuat pesan draft (kartu ANTRE)                            |
-| Snapshot draft pertama        | Kartu ANTRE berubah menjadi teks awal dan penanda menulis                    | Server mengedit pesan draft yang sudah ada                          |
-| Snapshot berikutnya           | Teks pesan bertambah                                                         | Server mengedit pesan draft, maks 1 kali per detik                  |
-| `result.prepared`             | Teks final, penanda menulis hilang                                           | Server mengedit pesan draft menjadi hasil final                     |
-| Gagal atau batal              | Teks penjelasan di pesan yang sama, atau pesan baru bila draft belum ada     | Server menulis teks kegagalan                                       |
+| Waktu                    | Yang orang lihat di topik                                                    | Yang terjadi di server                                              |
+| ------------------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Admission menerima job   | Reaksi 👀 dari bot pada pesan mention, dan indikator "Agent sedang mengetik" | Server menambah reaksi dan mengirim notifikasi typing atas nama bot |
+| ±0,6 s sesudah admission | Pesan bot baru dengan kartu ANTRE                                            | Server membuat pesan draft (kartu ANTRE)                            |
+| Snapshot draft pertama   | Kartu ANTRE berubah menjadi teks awal dan penanda menulis                    | Server mengedit pesan draft yang sudah ada                          |
+| Snapshot berikutnya      | Teks pesan bertambah                                                         | Server mengedit pesan draft, maks 1 kali per detik                  |
+| `result.prepared`        | Teks final, penanda menulis hilang                                           | Server mengedit pesan draft menjadi hasil final                     |
+| Gagal atau batal         | Teks penjelasan di pesan yang sama, atau pesan baru bila draft belum ada     | Server menulis teks kegagalan                                       |
 
 ## 3. Pesan draft
 
@@ -33,7 +32,8 @@ mengatur apa yang orang lihat di chat dan di panel tugas selama agent bekerja.
 1. Server membuat pesan draft (kartu ANTRE) saat admission menerima job, sebelum snapshot
    mana pun ada. Cek audiens berjalan sebelum pesan ini dibuat.
 2. Pengirim adalah bot profil. Tujuan adalah topik asal, atau DM asal.
-3. Isi pesan adalah teks snapshot, lalu penanda menulis di baris terakhir.
+3. Isi awal pesan adalah kartu ANTRE. Sesudah snapshot pertama, isi pesan adalah
+   teks snapshot, lalu penanda menulis di baris terakhir.
 4. Server mencatat `result_message_id` pada job saat pesan draft dibuat. Kunci
    pengiriman tetap `result:{job_id}`. Tidak ada pesan hasil kedua.
 5. Bila `result.prepared` datang sebelum snapshot mana pun, server langsung mengedit
@@ -65,12 +65,12 @@ mengatur apa yang orang lihat di chat dan di panel tugas selama agent bekerja.
 1. Server mengedit pesan draft dengan teks final dan menghapus penanda menulis.
 2. Server menjalankan cek audiens, cek rahasia, dan batas panjang pesan sebelum edit final.
 3. Bila teks final lebih panjang dari batas pesan, server memotong dengan penanda
-   potong dan menaruh teks lengkap sebagai artefak di panel tugas.
+   potong dan menaruh teks lengkap sebagai artefak di panel job.
 4. Sesudah edit final, job menjadi `completed`.
 
-## 4. Panel tugas
+## 4. Panel job
 
-1. Panel tugas menerima status lewat event server secara real-time, bukan polling 5 s.
+1. Panel job menerima status lewat event server secara real-time, bukan polling 5 s.
 2. Panel menampilkan fase: menunggu, membaca konteks, menulis, memakai alat, selesai.
    Fase berasal dari event, bukan dari timer.
 3. Panel menampilkan teks draft terakhir untuk orang yang boleh melihat job.
@@ -101,7 +101,7 @@ Aturan:
 2. Bila pesan draft sudah ada, teks kegagalan menjadi baris terakhir pesan itu.
    Bila belum ada, server mengirim satu pesan bot baru.
 3. Teks tidak menyebut endpoint, kode error, model, runner, container, atau kunci.
-4. Detail teknis hanya ada di panel tugas untuk pemilik profil dan admin.
+4. Detail teknis hanya ada di panel job untuk pemilik profil dan admin.
 5. Tombol Retry memanggil `POST /json/agent/jobs/{id}/resume` bila state job
    mengizinkan. Bila tidak, server membuat job baru dengan `follows_job_id` dan
    memperbarui kartu yang sama. Tombol hanya tampil untuk pemberi perintah.
@@ -110,7 +110,7 @@ Aturan:
 
 1. Penanda menulis adalah satu baris miring di akhir pesan: "_{agent} is writing…_".
 2. Penanda tidak masuk ke teks hasil, salinan, atau kutipan.
-3. Klien tanpa frontend Grow tetap melihat penanda sebagai teks biasa. Hasil final
+3. Klien tanpa frontend Sanji tetap melihat penanda sebagai teks biasa. Hasil final
    menghapusnya.
 
 ## 7. Kriteria penerimaan (SD)
@@ -127,6 +127,6 @@ Aturan:
 | SD-08 | Markdown yang belum lengkap di draft tidak merusak tampilan pesan lain.                             |
 | SD-09 | Setiap keadaan pada tabel bagian 5 menghasilkan teksnya dalam 30 s.                                 |
 | SD-10 | Teks kegagalan tidak memuat detail internal (tes grep salinan).                                     |
-| SD-11 | Panel tugas memperbarui fase tanpa polling.                                                         |
-| SD-12 | Panel tugas tidak menampilkan thinking, argumen alat mentah, atau isi paket konteks.                |
+| SD-11 | Panel job memperbarui fase tanpa polling.                                                           |
+| SD-12 | Panel job tidak menampilkan thinking, argumen alat mentah, atau isi paket konteks.                  |
 | SD-13 | Mention saat runner offline langsung mendapat teks "offline", dan job berjalan saat runner kembali. |

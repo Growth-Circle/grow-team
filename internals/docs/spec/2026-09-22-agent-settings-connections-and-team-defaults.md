@@ -105,10 +105,11 @@ dan pola aksesibilitas Sanji existing.
 | Koneksi model | Koneksi yang boleh dikelola atau dipakai; model dan hasil probe yang relevan.        | Tambah koneksi; uji ulang; ganti credential jika berwenang.                        |
 | Default tim   | Pilihan saat ini dan cakupan ketersediaannya.                                        | Admin menetapkan atau menghapus default; anggota membaca hasil yang aman untuknya. |
 
-Di halaman Pengaturan bermockup (`internals/docs/pages/10-pengaturan-dan-peran.md`),
-area di atas menjadi tab: **Agent** dan **Default tim** masuk tab **Agen & runner**;
-**Perangkat** juga masuk **Agen & runner**; **Koneksi model** menjadi tab **Model &
-API key**. Tabel ini tetap menjelaskan isi dan aksi tiap area.
+Di halaman Pengaturan bermockup, **Default tim** masuk tab **Agen & runner** dan
+**Koneksi model** masuk tab **Model & API key** (Owner dan Admin). **Agent** ada
+di halaman Agen ([06](../pages/06-agen.md), [12](../pages/12-tambah-agen.md)).
+**Perangkat** ada di halaman Runner ([14](../pages/14-runner.md)). Keduanya
+terbuka untuk semua anggota. Tabel ini tetap menjelaskan isi dan aksi tiap area.
 
 Filter direktori: **Semua yang bisa saya pakai**, **Milik saya**, **Dibagikan kepada
 saya**, serta lokasi workstation/server. Filter hanya menyaring hasil yang sudah
@@ -116,7 +117,7 @@ diizinkan server. Filter, count, pencarian, pagination, dan detail harus memilik
 batas ACL yang sama.
 
 Tombol utama untuk anggota yang sudah memiliki agent bersama adalah **Buat
-tugas**. Mereka tidak harus melewati onboarding perangkat. Pemilik resource
+job**. Mereka tidak harus melewati onboarding perangkat. Pemilik resource
 mendapat **Tambah agent** dan **Hubungkan perangkat** sesuai izin.
 
 Tidak ada query atau polling status per kartu. Halaman mengambil ringkasan
@@ -164,7 +165,7 @@ Berjalan di: Server Pengembangan · Server
 Pemilik: Rama · Akses: Tim Engineering
 Runner: Terhubung · Konfigurasi: Siap coding
 Model: Koneksi Engineering / model yang dikonfigurasi
-[Buat tugas] [Detail]
+[Buat job] [Detail]
 ```
 
 Contoh di atas adalah isi rancangan, bukan tangkapan aplikasi. Pengguna tanpa
@@ -179,7 +180,7 @@ kedaluwarsa tidak menghilangkan konfigurasi atau identitas yang masih sah.
 
 Alur untuk anggota tim yang hanya memakai browser:
 
-1. Anggota membuka aksi **Buat tugas** pada percakapan yang dapat diakses.
+1. Anggota membuka aksi **Buat job** pada percakapan yang dapat diakses.
 2. Server memeriksa default tim dalam konteks anggota dan tujuan tugas.
 3. Form menampilkan agent terpilih, runner, mode, dan repository yang relevan.
 4. Anggota dapat mengganti agent dengan kandidat lain yang diizinkan.
@@ -416,7 +417,7 @@ kepada tim** tidak menciptakan entitas pemilik tim atau akun layanan tersembunyi
 Alih kepemilikan perangkat merupakan pekerjaan terpisah; bagian 12 menetapkan
 pemulihan yang tidak mengambil alih credential akun lama.
 
-## 11. Kontrak pemilihan default pada tugas
+## 11. Kontrak pemilihan default pada job
 
 ### 11.1 Urutan keputusan
 
@@ -499,7 +500,7 @@ payload, mengikuti spec lifecycle.
 - Default tidak menyisipkan mention tambahan pada pesan biasa.
 - Default tidak membuat pesan grup atau bot menjadi trigger baru.
 - DM satu manusia dengan satu agent tetap mengikuti identitas DM dan aturan spec lifecycle.
-- Tombol **Buat tugas** memakai pemilihan default, kemudian melalui jalur job/admission existing.
+- Tombol **Buat job** memakai pemilihan default, kemudian melalui jalur job/admission existing.
 
 ## 12. Mengedit, mencabut, dan memindahkan penggunaan agent
 

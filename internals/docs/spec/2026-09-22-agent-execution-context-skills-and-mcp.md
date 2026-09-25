@@ -74,7 +74,7 @@ ini**. Pembacaan ini juga tidak membuktikan konfigurasi produksi Buzz.
 
 | ID    | Bukti Buzz                                                        | Temuan pada jalur yang diperiksa                                                                                                                                               | Konsekuensi untuk Sanji                                                                                                             |
 | ----- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| BX-01 | [Listener][buzz-listener], [antrean][buzz-queue]                  | Pesan melewati pemeriksaan pengirim, filter, scope sesi, lalu antrean. Antrean mempunyai batas dan jalur pembuangan event.                                                     | Ambil pemisahan admission dan eksekusi; gunakan job/outbox durable Grow, tanpa membuang tugas yang sudah diterima.                  |
+| BX-01 | [Listener][buzz-listener], [antrean][buzz-queue]                  | Pesan melewati pemeriksaan pengirim, filter, scope sesi, lalu antrean. Antrean mempunyai batas dan jalur pembuangan event.                                                     | Ambil pemisahan admission dan eksekusi; gunakan job/outbox durable Sanji, tanpa membuang tugas yang sudah diterima.                 |
 | BX-02 | [Antrean][buzz-queue], [scope][buzz-scope]                        | Satu scope yang sedang berjalan tidak diproses sebagai turn paralel biasa; batching dan kebijakan sesi memengaruhi urutan.                                                     | Satu writer per attempt; follow-up memakai input berurutan, bukan sesi baru tanpa hubungan.                                         |
 | BX-03 | [Pemulihan relay][buzz-relay-recovery]                            | Replay overflow merupakan upaya pengiriman ulang, bukan receipt bahwa consumer sudah menerapkan input.                                                                         | Bedakan diterima server, diterima runner, dan diterapkan runtime.                                                                   |
 | BX-04 | [Spawn lokal][buzz-runtime], [proses][buzz-process]               | Desktop menjalankan program harness dengan working directory, konfigurasi spawn, nonce, dan process group.                                                                     | Jangan menganggap semua agent Buzz berjalan dalam container. Grow tetap memakai containment yang sudah dipilih.                     |
@@ -139,7 +139,7 @@ sequenceDiagram
     participant G as Broker Git
     participant A as Runtime agent
     participant T as Broker tools dan container
-    U->>C: Buat tugas atau mention yang sah
+    U->>C: Buat job atau mention yang sah
     C->>C: Simpan job, input, dan outbox
     C-->>U: Job diterima dan masih antre
     R->>C: Claim dengan kapasitas dan versi
@@ -914,9 +914,9 @@ binding; jangan membuat salinan secret untuk setiap agent.
 
 | Layar                   | Informasi utama                                                             | Aksi                                                             |
 | ----------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Buat tugas              | Tujuan, agent terpilih, runner/lokasi, repository/base, hasil yang diminta. | Buat tugas; ganti agent; buka opsi lanjutan.                     |
+| Buat job                | Tujuan, agent terpilih, runner/lokasi, repository/base, hasil yang diminta. | Buat job; ganti agent; buka opsi lanjutan.                       |
 | Ringkasan sebelum jalan | Scope, checks, extensions efektif, kebutuhan akses, estimasi batas.         | Jalankan bila sudah siap; perbaiki prasyarat.                    |
-| Panel tugas             | Status nyata, aktivitas saat ini, input, diff, pemeriksaan, hasil.          | Beri instruksi; batalkan; buka detail.                           |
+| Panel job               | Status nyata, aktivitas saat ini, input, diff, pemeriksaan, hasil.          | Beri instruksi; batalkan; buka detail.                           |
 | Pemulihan               | Alasan terhenti, checkpoint, pekerjaan tersimpan, efek belum pasti.         | Lanjutkan bila layak; selesaikan blocker; mulai ulang dari base. |
 | Review hasil            | Diff, checks, commit lokal/remote, batas yang belum diperiksa.              | Unduh patch; beri masukan; otorisasi publikasi bila diperlukan.  |
 | Skills/MCP              | Source/version, akses, hasil probe, profil yang memakai.                    | Tambah; uji; ubah binding; cabut.                                |
