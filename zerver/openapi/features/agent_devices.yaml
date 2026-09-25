@@ -3101,6 +3101,7 @@ paths:
       parameters:
         - name: offset
           in: query
+          description: Number of results to skip.
           required: false
           schema:
             type: integer
@@ -3440,6 +3441,7 @@ paths:
       operationId: approve-agent-pairing
       tags:
         - agents
+      summary: Approve an agent runner pairing
       responses:
         "200":
           description: Success.
@@ -3556,6 +3558,7 @@ paths:
       operationId: preview-agent-pairing
       tags:
         - agents
+      summary: Preview an agent runner pairing
       responses:
         "200":
           description: Success.
@@ -3672,6 +3675,7 @@ paths:
       operationId: list-agent-runners
       tags:
         - agents
+      summary: List agent runners
       responses:
         "200":
           description: Success.
@@ -3761,17 +3765,20 @@ paths:
       parameters:
         - name: offset
           in: query
+          description: Number of results to skip.
           schema:
             type: integer
             minimum: 0
         - name: limit
           in: query
+          description: Maximum number of results to return.
           schema:
             type: integer
             minimum: 1
             maximum: 100
         - name: ownership
           in: query
+          description: Filter by ownership. One of `all`, `mine`, or `shared`.
           schema:
             type: string
             enum:
@@ -3780,6 +3787,7 @@ paths:
               - shared
         - name: access
           in: query
+          description: Filter by access level. One of `all`, `complete`, or `partial`.
           schema:
             type: string
             enum:
@@ -3788,6 +3796,7 @@ paths:
               - partial
         - name: host_kind
           in: query
+          description: Filter by host kind. One of `all`, `workstation`, `server`, or `unknown`.
           schema:
             type: string
             enum:
@@ -3797,6 +3806,7 @@ paths:
               - unknown
         - name: search
           in: query
+          description: Search text to filter by name.
           schema:
             type: string
             maxLength: 100
@@ -3805,6 +3815,7 @@ paths:
       operationId: get-agent-runner
       tags:
         - agents
+      summary: Get an agent runner
       responses:
         "200":
           description: Success.
@@ -3894,6 +3905,7 @@ paths:
       parameters:
         - name: runner_id
           in: path
+          description: The ID of the agent runner.
           required: true
           schema:
             type: string
@@ -3903,6 +3915,7 @@ paths:
       operationId: update-agent-runner-metadata
       tags:
         - agents
+      summary: Update an agent runner's metadata
       responses:
         "200":
           description: Success.
@@ -4018,6 +4031,7 @@ paths:
       parameters:
         - name: runner_id
           in: path
+          description: The ID of the agent runner.
           required: true
           schema:
             type: string
@@ -4027,6 +4041,7 @@ paths:
       operationId: revoke-agent-runner
       tags:
         - agents
+      summary: Revoke an agent runner
       responses:
         "200":
           description: Success.
@@ -4136,6 +4151,7 @@ paths:
       parameters:
         - name: runner_id
           in: path
+          description: The ID of the agent runner.
           required: true
           schema:
             type: string
@@ -4557,12 +4573,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentRunnerCatalogResponse"
+              example:
+                result: success
+                msg: ""
+                schema_version: 1
+                catalog_revision: 1
         "400":
           description: The envelope, catalog, sandbox revision, or revision ordering is invalid.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentDeviceError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
         "401":
           description: The runner bearer credential is missing, invalid, expired, or revoked.
           content:
@@ -4571,6 +4596,18 @@ paths:
                 oneOf:
                   - $ref: "#/components/schemas/AgentDeviceError"
                   - $ref: "#/components/schemas/AgentRunnerCredentialError"
+              examples:
+                missing:
+                  value:
+                    result: error
+                    msg: Runner authentication is required.
+                    schema_version: 1
+                rejected:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: credential_invalid
         "405":
           description: Only POST is supported.
   /agent/runner/drafts:
@@ -4593,7 +4630,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/JsonSuccessBase"
+                $ref: "#/components/schemas/JsonSuccess"
               example:
                 result: success
                 msg: ""
