@@ -12,6 +12,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentHumanJobsResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                count: 0
+                jobs: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -129,6 +135,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentHumanJobResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                job:
+                  id: 00000000-0000-4000-8000-000000000010
+                  profile_id: 00000000-0000-4000-8000-000000000011
+                  requester_id: 1
+                  source_message_id: 1
+                  status: draft
+                  phase: inspect
+                  version: 1
+                  request: Request
+                  title: Title
+                  job_kind: answer
+                  delivery_target: answer
+                  blocked_reason: Blocked reason
+                  reason_code: Reason code
+                  resume_available: true
+                  resume_unavailable_reason: attempt_active
+                  needs_my_action: true
+                  requirements: []
+                  start_deadline: '2026-09-25T09:00:00Z'
+                  result: {}
+                  repository:
+                    id: 00000000-0000-4000-8000-000000000012
+                    alias: Alias
+                  base_ref: Base ref
+                  budget:
+                    active_seconds: 1
+                    tool_rounds: 1
+                    input_tokens: 1
+                    output_tokens: 1
+                  instructions:
+                    team_revision: 1
+                    profile_revision: 1
+                  follows_job_id: 00000000-0000-4000-8000-000000000013
+                  allowed_actions: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -254,6 +298,11 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentHumanPreflightResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                decisions: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -372,6 +421,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentHumanDispatchResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                source_message_id: 1
+                dispatch_receipts: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -472,6 +527,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentHumanSendIntentResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                source_message_id: 1
+                deleted: true
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -572,6 +633,56 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentHumanJobDetailResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                job:
+                  id: 00000000-0000-4000-8000-000000000014
+                  profile_id: 00000000-0000-4000-8000-000000000015
+                  requester_id: 1
+                  source_message_id: 1
+                  status: draft
+                  phase: inspect
+                  version: 1
+                  request: Request
+                  title: Title
+                  job_kind: answer
+                  delivery_target: answer
+                  blocked_reason: Blocked reason
+                  reason_code: Reason code
+                  resume_available: true
+                  resume_unavailable_reason: attempt_active
+                  needs_my_action: true
+                  requirements: []
+                  start_deadline: '2026-09-25T09:00:00Z'
+                  result: {}
+                  repository:
+                    id: 00000000-0000-4000-8000-000000000016
+                    alias: Alias
+                  base_ref: Base ref
+                  budget:
+                    active_seconds: 1
+                    tool_rounds: 1
+                    input_tokens: 1
+                    output_tokens: 1
+                  instructions:
+                    team_revision: 1
+                    profile_revision: 1
+                  follows_job_id: 00000000-0000-4000-8000-000000000017
+                  allowed_actions: []
+                attempts: []
+                operations: []
+                artifacts: []
+                required_checks: []
+                operations_cursor:
+                  offset: 0
+                  next_offset: 0
+                  truncated: true
+                artifacts_cursor:
+                  offset: 0
+                  next_offset: 0
+                  truncated: true
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -698,6 +809,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentHumanEventsResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                events: []
+                job_version: 1
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -804,6 +921,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentHumanInputsResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                count: 0
+                inputs: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -916,6 +1039,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentHumanInputResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                input:
+                  id: 00000000-0000-4000-8000-000000000018
+                  sequence: 1
+                  input_type: steering
+                  text: Text
+                  delivery_state: pending
+                  source_message_id: 1
+                  created_at: '2026-09-25T09:00:00Z'
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -1044,6 +1179,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentHumanJobResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                job:
+                  id: 00000000-0000-4000-8000-000000000019
+                  profile_id: 00000000-0000-4000-8000-000000000020
+                  requester_id: 1
+                  source_message_id: 1
+                  status: draft
+                  phase: inspect
+                  version: 1
+                  request: Request
+                  title: Title
+                  job_kind: answer
+                  delivery_target: answer
+                  blocked_reason: Blocked reason
+                  reason_code: Reason code
+                  resume_available: true
+                  resume_unavailable_reason: attempt_active
+                  needs_my_action: true
+                  requirements: []
+                  start_deadline: '2026-09-25T09:00:00Z'
+                  result: {}
+                  repository:
+                    id: 00000000-0000-4000-8000-000000000021
+                    alias: Alias
+                  base_ref: Base ref
+                  budget:
+                    active_seconds: 1
+                    tool_rounds: 1
+                    input_tokens: 1
+                    output_tokens: 1
+                  instructions:
+                    team_revision: 1
+                    profile_revision: 1
+                  follows_job_id: 00000000-0000-4000-8000-000000000022
+                  allowed_actions: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -1170,6 +1343,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentHumanJobResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                job:
+                  id: 00000000-0000-4000-8000-000000000023
+                  profile_id: 00000000-0000-4000-8000-000000000024
+                  requester_id: 1
+                  source_message_id: 1
+                  status: draft
+                  phase: inspect
+                  version: 1
+                  request: Request
+                  title: Title
+                  job_kind: answer
+                  delivery_target: answer
+                  blocked_reason: Blocked reason
+                  reason_code: Reason code
+                  resume_available: true
+                  resume_unavailable_reason: attempt_active
+                  needs_my_action: true
+                  requirements: []
+                  start_deadline: '2026-09-25T09:00:00Z'
+                  result: {}
+                  repository:
+                    id: 00000000-0000-4000-8000-000000000025
+                    alias: Alias
+                  base_ref: Base ref
+                  budget:
+                    active_seconds: 1
+                    tool_rounds: 1
+                    input_tokens: 1
+                    output_tokens: 1
+                  instructions:
+                    team_revision: 1
+                    profile_revision: 1
+                  follows_job_id: 00000000-0000-4000-8000-000000000026
+                  allowed_actions: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -1290,6 +1501,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentHumanJobResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                job:
+                  id: 00000000-0000-4000-8000-000000000027
+                  profile_id: 00000000-0000-4000-8000-000000000028
+                  requester_id: 1
+                  source_message_id: 1
+                  status: draft
+                  phase: inspect
+                  version: 1
+                  request: Request
+                  title: Title
+                  job_kind: answer
+                  delivery_target: answer
+                  blocked_reason: Blocked reason
+                  reason_code: Reason code
+                  resume_available: true
+                  resume_unavailable_reason: attempt_active
+                  needs_my_action: true
+                  requirements: []
+                  start_deadline: '2026-09-25T09:00:00Z'
+                  result: {}
+                  repository:
+                    id: 00000000-0000-4000-8000-000000000029
+                    alias: Alias
+                  base_ref: Base ref
+                  budget:
+                    active_seconds: 1
+                    tool_rounds: 1
+                    input_tokens: 1
+                    output_tokens: 1
+                  instructions:
+                    team_revision: 1
+                    profile_revision: 1
+                  follows_job_id: 00000000-0000-4000-8000-000000000030
+                  allowed_actions: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -1415,6 +1664,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentHumanJobResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                job:
+                  id: 00000000-0000-4000-8000-000000000031
+                  profile_id: 00000000-0000-4000-8000-000000000032
+                  requester_id: 1
+                  source_message_id: 1
+                  status: draft
+                  phase: inspect
+                  version: 1
+                  request: Request
+                  title: Title
+                  job_kind: answer
+                  delivery_target: answer
+                  blocked_reason: Blocked reason
+                  reason_code: Reason code
+                  resume_available: true
+                  resume_unavailable_reason: attempt_active
+                  needs_my_action: true
+                  requirements: []
+                  start_deadline: '2026-09-25T09:00:00Z'
+                  result: {}
+                  repository:
+                    id: 00000000-0000-4000-8000-000000000033
+                    alias: Alias
+                  base_ref: Base ref
+                  budget:
+                    active_seconds: 1
+                    tool_rounds: 1
+                    input_tokens: 1
+                    output_tokens: 1
+                  instructions:
+                    team_revision: 1
+                    profile_revision: 1
+                  follows_job_id: 00000000-0000-4000-8000-000000000034
+                  allowed_actions: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -1535,6 +1822,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentHumanApprovalResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                approval_id: 00000000-0000-4000-8000-000000000035
+                decision: approved
+                version: 1
         "400":
           description: The agent wrapper rejected a parsed request.
           content:

@@ -54,6 +54,9 @@ paths:
                           Clients hide these behind a single row.
                         items:
                           type: integer
+              example:
+                result: success
+                msg: Msg
         "400":
           description: Bad request.
           content:
@@ -456,6 +459,9 @@ paths:
                           The recorded changes for this card, newest first.
                         items:
                           $ref: "#/components/schemas/TaskHistoryEntry"
+              example:
+                result: success
+                msg: Msg
         "400":
           description: Bad request.
           content:

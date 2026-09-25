@@ -3448,6 +3448,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsPairingResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                pairing:
+                  id: 00000000-0000-4000-8000-000000000001
+                  state: State
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -3565,6 +3572,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsPairingPreviewResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                pairing:
+                  device_name: Device name
+                  fingerprint_prefix: Fingerprint prefix
+                  realm_name: Realm name
+                  expires_at: '2026-09-25T09:00:00Z'
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -3682,6 +3698,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsRunnersResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                count: 0
+                runners: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -3822,6 +3844,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsRunnerResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                runner:
+                  id: 00000000-0000-4000-8000-000000000002
+                  name: Name
+                  owner_id: 1
+                  host_kind: workstation
+                  status: online
+                  observed_presence: online
+                  last_heartbeat_at: '2026-09-25T09:00:00Z'
+                  observed_at: '2026-09-25T09:00:00Z'
+                  revoked_at: '2026-09-25T09:00:00Z'
+                  fingerprint_prefix: Fingerprint prefix
+                  revision: 1
+                  metadata_revision: 1
+                  catalog_revision: 0
+                  catalog: {}
+                  catalog_summary:
+                    revision: 0
+                    reported_at: '2026-09-25T09:00:00Z'
+                    adapters: []
+                    sandboxes: []
+                  allowed_actions: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -3922,6 +3969,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsRunnerResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                runner:
+                  id: 00000000-0000-4000-8000-000000000003
+                  name: Name
+                  owner_id: 1
+                  host_kind: workstation
+                  status: online
+                  observed_presence: online
+                  last_heartbeat_at: '2026-09-25T09:00:00Z'
+                  observed_at: '2026-09-25T09:00:00Z'
+                  revoked_at: '2026-09-25T09:00:00Z'
+                  fingerprint_prefix: Fingerprint prefix
+                  revision: 1
+                  metadata_revision: 1
+                  catalog_revision: 0
+                  catalog: {}
+                  catalog_summary:
+                    revision: 0
+                    reported_at: '2026-09-25T09:00:00Z'
+                    adapters: []
+                    sandboxes: []
+                  allowed_actions: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -4048,6 +4120,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsEmptyResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -4173,6 +4249,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsRunnerMetadataResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                metadata:
+                  name: Name
+                  host_kind: workstation
+                  metadata_revision: 1
         "400":
           description: Malformed input, stale versions, unavailable resources, or rejected authority.
           content:
@@ -4251,6 +4335,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsRunnerMetadataResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                metadata:
+                  name: Name
+                  host_kind: workstation
+                  metadata_revision: 1
         "400":
           description: Malformed input, stale versions, unavailable resources, or rejected authority.
           content:
@@ -4351,12 +4443,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentPairingStartResponse"
+              example:
+                result: success
+                msg: Msg
+                schema_version: 1
+                pairing_id: 00000000-0000-4000-8000-000000000004
+                state: pending
+                user_code: User code
+                expires_at: '2026-09-25T09:00:00Z'
         "400":
           description: The envelope, field type, or pairing value is invalid.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentDeviceError"
+              example:
+                result: error
+                msg: Msg
+                schema_version: 1
         "405":
           description: Only POST is supported.
         "429":
@@ -4365,6 +4469,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentDeviceError"
+              example:
+                result: error
+                msg: Msg
+                schema_version: 1
   /agent/pairings/status:
     post:
       operationId: get-agent-pairing-status
@@ -4393,12 +4501,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentPairingStatusResponse"
+              example:
+                result: success
+                msg: Msg
+                schema_version: 1
+                pairing_id: 00000000-0000-4000-8000-000000000005
+                state: pending
+                expires_at: '2026-09-25T09:00:00Z'
+                runner_id: 00000000-0000-4000-8000-000000000006
+                recovery: poll
         "400":
           description: The pairing is unavailable, or the envelope or secret is invalid.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentDeviceError"
+              example:
+                result: error
+                msg: Msg
+                schema_version: 1
         "405":
           description: Only POST is supported.
         "429":
@@ -4407,6 +4528,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentDeviceError"
+              example:
+                result: error
+                msg: Msg
+                schema_version: 1
   /agent/pairings/exchange:
     post:
       operationId: exchange-agent-pairing
@@ -4435,12 +4560,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentRunnerCredentialResponse"
+              example:
+                result: success
+                msg: Msg
+                schema_version: 1
+                token: Token
+                refresh_token: Refresh token
+                runner_id: 00000000-0000-4000-8000-000000000007
+                expires_at: '2026-09-25T09:00:00Z'
+                refresh_expires_at: '2026-09-25T09:00:00Z'
         "400":
           description: The pairing is unavailable, unapproved, expired, consumed, or invalid.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentDeviceError"
+              example:
+                result: error
+                msg: Msg
+                schema_version: 1
         "405":
           description: Only POST is supported.
         "429":
@@ -4449,6 +4587,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentDeviceError"
+              example:
+                result: error
+                msg: Msg
+                schema_version: 1
   /agent/runner/token/refresh:
     post:
       operationId: refresh-agent-runner-token
@@ -4477,18 +4619,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentRunnerCredentialResponse"
+              example:
+                result: success
+                msg: Msg
+                schema_version: 1
+                token: Token
+                refresh_token: Refresh token
+                runner_id: 00000000-0000-4000-8000-000000000008
+                expires_at: '2026-09-25T09:00:00Z'
+                refresh_expires_at: '2026-09-25T09:00:00Z'
         "400":
           description: The envelope or refresh credential is invalid.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentDeviceError"
+              example:
+                result: error
+                msg: Msg
+                schema_version: 1
         "401":
           description: The refresh credential is invalid, expired, revoked, or belongs to a revoked runner.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentRunnerCredentialError"
+              example:
+                result: error
+                msg: Msg
+                schema_version: 1
+                code: credential_invalid
         "405":
           description: Only POST is supported.
         "429":
@@ -4497,6 +4657,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentDeviceError"
+              example:
+                result: error
+                msg: Msg
+                schema_version: 1
   /agent/runner/workspaces:
     post:
       operationId: register-agent-runner-workspace
@@ -4528,18 +4692,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentRunnerWorkspaceResponse"
+              example:
+                result: success
+                msg: Msg
+                schema_version: 1
+                repository:
+                  id: 00000000-0000-4000-8000-000000000009
+                  workspace_alias: Workspace alias
+                  revision: 1
+                  policy_version: 1
         "400":
           description: The envelope, origin, required check, revision, or runner ownership is invalid.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentDeviceError"
+              example:
+                result: error
+                msg: Msg
+                schema_version: 1
         "401":
           description: The runner bearer credential is missing, invalid, expired, or revoked.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentRunnerCredentialError"
+              example:
+                result: error
+                msg: Msg
+                schema_version: 1
+                code: credential_invalid
         "405":
           description: Only POST is supported.
   /agent/runner/catalog:

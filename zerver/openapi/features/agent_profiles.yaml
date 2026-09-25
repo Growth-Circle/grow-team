@@ -12,6 +12,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentHumanJobResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                job:
+                  id: 00000000-0000-4000-8000-000000000036
+                  profile_id: 00000000-0000-4000-8000-000000000037
+                  requester_id: 1
+                  source_message_id: 1
+                  status: draft
+                  phase: inspect
+                  version: 1
+                  request: Request
+                  title: Title
+                  job_kind: answer
+                  delivery_target: answer
+                  blocked_reason: Blocked reason
+                  reason_code: Reason code
+                  resume_available: true
+                  resume_unavailable_reason: attempt_active
+                  needs_my_action: true
+                  requirements: []
+                  start_deadline: '2026-09-25T09:00:00Z'
+                  result: {}
+                  repository:
+                    id: 00000000-0000-4000-8000-000000000038
+                    alias: Alias
+                  base_ref: Base ref
+                  budget:
+                    active_seconds: 1
+                    tool_rounds: 1
+                    input_tokens: 1
+                    output_tokens: 1
+                  instructions:
+                    team_revision: 1
+                    profile_revision: 1
+                  follows_job_id: 00000000-0000-4000-8000-000000000039
+                  allowed_actions: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -132,6 +170,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsProfilesResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                count: 0
+                profiles: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -271,6 +315,102 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsProfileCreateResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                profile:
+                  id: 00000000-0000-4000-8000-000000000040
+                  name: Name
+                  description: Description
+                  has_instructions: true
+                  runner_id: 00000000-0000-4000-8000-000000000041
+                  provider_id: 00000000-0000-4000-8000-000000000042
+                  repository_id: 00000000-0000-4000-8000-000000000043
+                  state: draft
+                  desired_state: draft
+                  readiness_state: unchecked
+                  revision: 1
+                  metadata_revision: 1
+                  bot_user_id: 1
+                  default_mode: answer
+                  command_allowed: true
+                  capabilities: {}
+                  owner_id: 1
+                  mode: acp
+                  adapter_id: Adapter id
+                  adapter_version: Adapter version
+                  enabled_revision: 1
+                  readiness_revision: 1
+                  allowed_actions: []
+                  owner:
+                    id: 1
+                    name: Name
+                  runner:
+                    id: 00000000-0000-4000-8000-000000000044
+                    name: Name
+                    owner_id: 1
+                    host_kind: workstation
+                    status: online
+                    observed_presence: online
+                    last_heartbeat_at: '2026-09-25T09:00:00Z'
+                    observed_at: '2026-09-25T09:00:00Z'
+                    revoked_at: '2026-09-25T09:00:00Z'
+                    fingerprint_prefix: Fingerprint prefix
+                    revision: 1
+                    metadata_revision: 1
+                    catalog_revision: 0
+                    catalog: {}
+                    catalog_summary:
+                      revision: 0
+                      reported_at: '2026-09-25T09:00:00Z'
+                      adapters: []
+                      sandboxes: []
+                    allowed_actions: []
+                  provider:
+                    id: 00000000-0000-4000-8000-000000000045
+                    name: Name
+                    owner_id: 1
+                    runner_id: 00000000-0000-4000-8000-000000000046
+                    model_id: Model id
+                    allowed_models: []
+                    api_mode: chat_completions
+                    context_window_tokens: 1
+                    max_output_tokens: 1
+                    data_scope: []
+                    capabilities: {}
+                    model_location: runner_local
+                    disabled_at: '2026-09-25T09:00:00Z'
+                    allowed_actions: []
+                    config_version: 1
+                  repository:
+                    id: 00000000-0000-4000-8000-000000000047
+                    workspace_alias: Workspace alias
+                    owner_id: 1
+                    runner_id: 00000000-0000-4000-8000-000000000048
+                    disabled_at: '2026-09-25T09:00:00Z'
+                    allowed_actions: []
+                  access:
+                    complete: true
+                    runner: true
+                    provider: true
+                    repository: true
+                  configuration:
+                    policy:
+                      scope:
+                        kind: stream
+                      actions: []
+                      sandbox_alias: Sandbox alias
+                      network: {}
+                      hard_cost_cap: true
+                    budget:
+                      input_tokens: 1
+                      output_tokens: 1
+                    instructions: Instructions
+                    scope_restricted: true
+                    network_retained: true
+                  shared_with: []
+                setup_id: 00000000-0000-4000-8000-000000000049
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -391,6 +531,109 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsProfileRecoveryResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                profile:
+                  id: 00000000-0000-4000-8000-000000000050
+                  name: Name
+                  description: Description
+                  has_instructions: true
+                  runner_id: 00000000-0000-4000-8000-000000000051
+                  provider_id: 00000000-0000-4000-8000-000000000052
+                  repository_id: 00000000-0000-4000-8000-000000000053
+                  state: draft
+                  desired_state: draft
+                  readiness_state: unchecked
+                  revision: 1
+                  metadata_revision: 1
+                  bot_user_id: 1
+                  default_mode: answer
+                  command_allowed: true
+                  capabilities: {}
+                  owner_id: 1
+                  mode: acp
+                  adapter_id: Adapter id
+                  adapter_version: Adapter version
+                  enabled_revision: 1
+                  readiness_revision: 1
+                  allowed_actions: []
+                  owner:
+                    id: 1
+                    name: Name
+                  runner:
+                    id: 00000000-0000-4000-8000-000000000054
+                    name: Name
+                    owner_id: 1
+                    host_kind: workstation
+                    status: online
+                    observed_presence: online
+                    last_heartbeat_at: '2026-09-25T09:00:00Z'
+                    observed_at: '2026-09-25T09:00:00Z'
+                    revoked_at: '2026-09-25T09:00:00Z'
+                    fingerprint_prefix: Fingerprint prefix
+                    revision: 1
+                    metadata_revision: 1
+                    catalog_revision: 0
+                    catalog: {}
+                    catalog_summary:
+                      revision: 0
+                      reported_at: '2026-09-25T09:00:00Z'
+                      adapters: []
+                      sandboxes: []
+                    allowed_actions: []
+                  provider:
+                    id: 00000000-0000-4000-8000-000000000055
+                    name: Name
+                    owner_id: 1
+                    runner_id: 00000000-0000-4000-8000-000000000056
+                    model_id: Model id
+                    allowed_models: []
+                    api_mode: chat_completions
+                    context_window_tokens: 1
+                    max_output_tokens: 1
+                    data_scope: []
+                    capabilities: {}
+                    model_location: runner_local
+                    disabled_at: '2026-09-25T09:00:00Z'
+                    allowed_actions: []
+                    config_version: 1
+                  repository:
+                    id: 00000000-0000-4000-8000-000000000057
+                    workspace_alias: Workspace alias
+                    owner_id: 1
+                    runner_id: 00000000-0000-4000-8000-000000000058
+                    disabled_at: '2026-09-25T09:00:00Z'
+                    allowed_actions: []
+                  access:
+                    complete: true
+                    runner: true
+                    provider: true
+                    repository: true
+                  configuration:
+                    policy:
+                      scope:
+                        kind: stream
+                      actions: []
+                      sandbox_alias: Sandbox alias
+                      network: {}
+                      hard_cost_cap: true
+                    budget:
+                      input_tokens: 1
+                      output_tokens: 1
+                    instructions: Instructions
+                    scope_restricted: true
+                    network_retained: true
+                  shared_with: []
+                setup:
+                  id: 00000000-0000-4000-8000-000000000059
+                  phase: pending
+                  requirements: []
+                  profile_revision: 1
+                  provider_config_version: 1
+                  created_at: '2026-09-25T09:00:00Z'
+                  finished_at: '2026-09-25T09:00:00Z'
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -491,6 +734,110 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsProfileDetailResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                profile:
+                  id: 00000000-0000-4000-8000-000000000060
+                  name: Name
+                  description: Description
+                  has_instructions: true
+                  runner_id: 00000000-0000-4000-8000-000000000061
+                  provider_id: 00000000-0000-4000-8000-000000000062
+                  repository_id: 00000000-0000-4000-8000-000000000063
+                  state: draft
+                  desired_state: draft
+                  readiness_state: unchecked
+                  revision: 1
+                  metadata_revision: 1
+                  bot_user_id: 1
+                  default_mode: answer
+                  command_allowed: true
+                  capabilities: {}
+                  owner_id: 1
+                  mode: acp
+                  adapter_id: Adapter id
+                  adapter_version: Adapter version
+                  enabled_revision: 1
+                  readiness_revision: 1
+                  allowed_actions: []
+                  owner:
+                    id: 1
+                    name: Name
+                  runner:
+                    id: 00000000-0000-4000-8000-000000000064
+                    name: Name
+                    owner_id: 1
+                    host_kind: workstation
+                    status: online
+                    observed_presence: online
+                    last_heartbeat_at: '2026-09-25T09:00:00Z'
+                    observed_at: '2026-09-25T09:00:00Z'
+                    revoked_at: '2026-09-25T09:00:00Z'
+                    fingerprint_prefix: Fingerprint prefix
+                    revision: 1
+                    metadata_revision: 1
+                    catalog_revision: 0
+                    catalog: {}
+                    catalog_summary:
+                      revision: 0
+                      reported_at: '2026-09-25T09:00:00Z'
+                      adapters: []
+                      sandboxes: []
+                    allowed_actions: []
+                  provider:
+                    id: 00000000-0000-4000-8000-000000000065
+                    name: Name
+                    owner_id: 1
+                    runner_id: 00000000-0000-4000-8000-000000000066
+                    model_id: Model id
+                    allowed_models: []
+                    api_mode: chat_completions
+                    context_window_tokens: 1
+                    max_output_tokens: 1
+                    data_scope: []
+                    capabilities: {}
+                    model_location: runner_local
+                    disabled_at: '2026-09-25T09:00:00Z'
+                    allowed_actions: []
+                    config_version: 1
+                  repository:
+                    id: 00000000-0000-4000-8000-000000000067
+                    workspace_alias: Workspace alias
+                    owner_id: 1
+                    runner_id: 00000000-0000-4000-8000-000000000068
+                    disabled_at: '2026-09-25T09:00:00Z'
+                    allowed_actions: []
+                  access:
+                    complete: true
+                    runner: true
+                    provider: true
+                    repository: true
+                  configuration:
+                    policy:
+                      scope:
+                        kind: stream
+                      actions: []
+                      sandbox_alias: Sandbox alias
+                      network: {}
+                      hard_cost_cap: true
+                    budget:
+                      input_tokens: 1
+                      output_tokens: 1
+                    instructions: Instructions
+                    scope_restricted: true
+                    network_retained: true
+                  shared_with: []
+                setup:
+                  id: 00000000-0000-4000-8000-000000000069
+                  phase: pending
+                  requirements: []
+                  profile_revision: 1
+                  provider_config_version: 1
+                  created_at: '2026-09-25T09:00:00Z'
+                  finished_at: '2026-09-25T09:00:00Z'
+                attachments: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -590,6 +937,101 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsProfileResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                profile:
+                  id: 00000000-0000-4000-8000-000000000070
+                  name: Name
+                  description: Description
+                  has_instructions: true
+                  runner_id: 00000000-0000-4000-8000-000000000071
+                  provider_id: 00000000-0000-4000-8000-000000000072
+                  repository_id: 00000000-0000-4000-8000-000000000073
+                  state: draft
+                  desired_state: draft
+                  readiness_state: unchecked
+                  revision: 1
+                  metadata_revision: 1
+                  bot_user_id: 1
+                  default_mode: answer
+                  command_allowed: true
+                  capabilities: {}
+                  owner_id: 1
+                  mode: acp
+                  adapter_id: Adapter id
+                  adapter_version: Adapter version
+                  enabled_revision: 1
+                  readiness_revision: 1
+                  allowed_actions: []
+                  owner:
+                    id: 1
+                    name: Name
+                  runner:
+                    id: 00000000-0000-4000-8000-000000000074
+                    name: Name
+                    owner_id: 1
+                    host_kind: workstation
+                    status: online
+                    observed_presence: online
+                    last_heartbeat_at: '2026-09-25T09:00:00Z'
+                    observed_at: '2026-09-25T09:00:00Z'
+                    revoked_at: '2026-09-25T09:00:00Z'
+                    fingerprint_prefix: Fingerprint prefix
+                    revision: 1
+                    metadata_revision: 1
+                    catalog_revision: 0
+                    catalog: {}
+                    catalog_summary:
+                      revision: 0
+                      reported_at: '2026-09-25T09:00:00Z'
+                      adapters: []
+                      sandboxes: []
+                    allowed_actions: []
+                  provider:
+                    id: 00000000-0000-4000-8000-000000000075
+                    name: Name
+                    owner_id: 1
+                    runner_id: 00000000-0000-4000-8000-000000000076
+                    model_id: Model id
+                    allowed_models: []
+                    api_mode: chat_completions
+                    context_window_tokens: 1
+                    max_output_tokens: 1
+                    data_scope: []
+                    capabilities: {}
+                    model_location: runner_local
+                    disabled_at: '2026-09-25T09:00:00Z'
+                    allowed_actions: []
+                    config_version: 1
+                  repository:
+                    id: 00000000-0000-4000-8000-000000000077
+                    workspace_alias: Workspace alias
+                    owner_id: 1
+                    runner_id: 00000000-0000-4000-8000-000000000078
+                    disabled_at: '2026-09-25T09:00:00Z'
+                    allowed_actions: []
+                  access:
+                    complete: true
+                    runner: true
+                    provider: true
+                    repository: true
+                  configuration:
+                    policy:
+                      scope:
+                        kind: stream
+                      actions: []
+                      sandbox_alias: Sandbox alias
+                      network: {}
+                      hard_cost_cap: true
+                    budget:
+                      input_tokens: 1
+                      output_tokens: 1
+                    instructions: Instructions
+                    scope_restricted: true
+                    network_retained: true
+                  shared_with: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -718,6 +1160,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsProvidersResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                count: 0
+                providers: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -857,6 +1305,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsProviderCreateResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                provider:
+                  id: 00000000-0000-4000-8000-000000000079
+                  name: Name
+                  model_id: Model id
+                  revision: 1
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -980,6 +1437,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsProviderResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                provider:
+                  id: 00000000-0000-4000-8000-000000000080
+                  name: Name
+                  owner_id: 1
+                  runner_id: 00000000-0000-4000-8000-000000000081
+                  model_id: Model id
+                  allowed_models: []
+                  api_mode: chat_completions
+                  context_window_tokens: 1
+                  max_output_tokens: 1
+                  data_scope: []
+                  capabilities: {}
+                  model_location: runner_local
+                  disabled_at: '2026-09-25T09:00:00Z'
+                  allowed_actions: []
+                  config_version: 1
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -1079,6 +1556,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsProviderResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                provider:
+                  id: 00000000-0000-4000-8000-000000000082
+                  name: Name
+                  owner_id: 1
+                  runner_id: 00000000-0000-4000-8000-000000000083
+                  model_id: Model id
+                  allowed_models: []
+                  api_mode: chat_completions
+                  context_window_tokens: 1
+                  max_output_tokens: 1
+                  data_scope: []
+                  capabilities: {}
+                  model_location: runner_local
+                  disabled_at: '2026-09-25T09:00:00Z'
+                  allowed_actions: []
+                  config_version: 1
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -1210,6 +1707,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsSetupIdResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                setup_id: 00000000-0000-4000-8000-000000000084
+                phase: Phase
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -1335,6 +1838,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsRepositoriesResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                count: 0
+                repositories: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -1474,6 +1983,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsRepositoryCreateResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                repository:
+                  id: 00000000-0000-4000-8000-000000000085
+                  workspace_alias: Workspace alias
+                  revision: 1
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -1592,6 +2109,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsRepositoryResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                repository:
+                  id: 00000000-0000-4000-8000-000000000086
+                  workspace_alias: Workspace alias
+                  owner_id: 1
+                  runner_id: 00000000-0000-4000-8000-000000000087
+                  disabled_at: '2026-09-25T09:00:00Z'
+                  allowed_actions: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -1692,6 +2220,101 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsProfileResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                profile:
+                  id: 00000000-0000-4000-8000-000000000088
+                  name: Name
+                  description: Description
+                  has_instructions: true
+                  runner_id: 00000000-0000-4000-8000-000000000089
+                  provider_id: 00000000-0000-4000-8000-000000000090
+                  repository_id: 00000000-0000-4000-8000-000000000091
+                  state: draft
+                  desired_state: draft
+                  readiness_state: unchecked
+                  revision: 1
+                  metadata_revision: 1
+                  bot_user_id: 1
+                  default_mode: answer
+                  command_allowed: true
+                  capabilities: {}
+                  owner_id: 1
+                  mode: acp
+                  adapter_id: Adapter id
+                  adapter_version: Adapter version
+                  enabled_revision: 1
+                  readiness_revision: 1
+                  allowed_actions: []
+                  owner:
+                    id: 1
+                    name: Name
+                  runner:
+                    id: 00000000-0000-4000-8000-000000000092
+                    name: Name
+                    owner_id: 1
+                    host_kind: workstation
+                    status: online
+                    observed_presence: online
+                    last_heartbeat_at: '2026-09-25T09:00:00Z'
+                    observed_at: '2026-09-25T09:00:00Z'
+                    revoked_at: '2026-09-25T09:00:00Z'
+                    fingerprint_prefix: Fingerprint prefix
+                    revision: 1
+                    metadata_revision: 1
+                    catalog_revision: 0
+                    catalog: {}
+                    catalog_summary:
+                      revision: 0
+                      reported_at: '2026-09-25T09:00:00Z'
+                      adapters: []
+                      sandboxes: []
+                    allowed_actions: []
+                  provider:
+                    id: 00000000-0000-4000-8000-000000000093
+                    name: Name
+                    owner_id: 1
+                    runner_id: 00000000-0000-4000-8000-000000000094
+                    model_id: Model id
+                    allowed_models: []
+                    api_mode: chat_completions
+                    context_window_tokens: 1
+                    max_output_tokens: 1
+                    data_scope: []
+                    capabilities: {}
+                    model_location: runner_local
+                    disabled_at: '2026-09-25T09:00:00Z'
+                    allowed_actions: []
+                    config_version: 1
+                  repository:
+                    id: 00000000-0000-4000-8000-000000000095
+                    workspace_alias: Workspace alias
+                    owner_id: 1
+                    runner_id: 00000000-0000-4000-8000-000000000096
+                    disabled_at: '2026-09-25T09:00:00Z'
+                    allowed_actions: []
+                  access:
+                    complete: true
+                    runner: true
+                    provider: true
+                    repository: true
+                  configuration:
+                    policy:
+                      scope:
+                        kind: stream
+                      actions: []
+                      sandbox_alias: Sandbox alias
+                      network: {}
+                      hard_cost_cap: true
+                    budget:
+                      input_tokens: 1
+                      output_tokens: 1
+                    instructions: Instructions
+                    scope_restricted: true
+                    network_retained: true
+                  shared_with: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -1812,6 +2435,101 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsProfileResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                profile:
+                  id: 00000000-0000-4000-8000-000000000097
+                  name: Name
+                  description: Description
+                  has_instructions: true
+                  runner_id: 00000000-0000-4000-8000-000000000098
+                  provider_id: 00000000-0000-4000-8000-000000000099
+                  repository_id: 00000000-0000-4000-8000-000000000100
+                  state: draft
+                  desired_state: draft
+                  readiness_state: unchecked
+                  revision: 1
+                  metadata_revision: 1
+                  bot_user_id: 1
+                  default_mode: answer
+                  command_allowed: true
+                  capabilities: {}
+                  owner_id: 1
+                  mode: acp
+                  adapter_id: Adapter id
+                  adapter_version: Adapter version
+                  enabled_revision: 1
+                  readiness_revision: 1
+                  allowed_actions: []
+                  owner:
+                    id: 1
+                    name: Name
+                  runner:
+                    id: 00000000-0000-4000-8000-000000000101
+                    name: Name
+                    owner_id: 1
+                    host_kind: workstation
+                    status: online
+                    observed_presence: online
+                    last_heartbeat_at: '2026-09-25T09:00:00Z'
+                    observed_at: '2026-09-25T09:00:00Z'
+                    revoked_at: '2026-09-25T09:00:00Z'
+                    fingerprint_prefix: Fingerprint prefix
+                    revision: 1
+                    metadata_revision: 1
+                    catalog_revision: 0
+                    catalog: {}
+                    catalog_summary:
+                      revision: 0
+                      reported_at: '2026-09-25T09:00:00Z'
+                      adapters: []
+                      sandboxes: []
+                    allowed_actions: []
+                  provider:
+                    id: 00000000-0000-4000-8000-000000000102
+                    name: Name
+                    owner_id: 1
+                    runner_id: 00000000-0000-4000-8000-000000000103
+                    model_id: Model id
+                    allowed_models: []
+                    api_mode: chat_completions
+                    context_window_tokens: 1
+                    max_output_tokens: 1
+                    data_scope: []
+                    capabilities: {}
+                    model_location: runner_local
+                    disabled_at: '2026-09-25T09:00:00Z'
+                    allowed_actions: []
+                    config_version: 1
+                  repository:
+                    id: 00000000-0000-4000-8000-000000000104
+                    workspace_alias: Workspace alias
+                    owner_id: 1
+                    runner_id: 00000000-0000-4000-8000-000000000105
+                    disabled_at: '2026-09-25T09:00:00Z'
+                    allowed_actions: []
+                  access:
+                    complete: true
+                    runner: true
+                    provider: true
+                    repository: true
+                  configuration:
+                    policy:
+                      scope:
+                        kind: stream
+                      actions: []
+                      sandbox_alias: Sandbox alias
+                      network: {}
+                      hard_cost_cap: true
+                    budget:
+                      input_tokens: 1
+                      output_tokens: 1
+                    instructions: Instructions
+                    scope_restricted: true
+                    network_retained: true
+                  shared_with: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -1932,6 +2650,101 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsProfileResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                profile:
+                  id: 00000000-0000-4000-8000-000000000106
+                  name: Name
+                  description: Description
+                  has_instructions: true
+                  runner_id: 00000000-0000-4000-8000-000000000107
+                  provider_id: 00000000-0000-4000-8000-000000000108
+                  repository_id: 00000000-0000-4000-8000-000000000109
+                  state: draft
+                  desired_state: draft
+                  readiness_state: unchecked
+                  revision: 1
+                  metadata_revision: 1
+                  bot_user_id: 1
+                  default_mode: answer
+                  command_allowed: true
+                  capabilities: {}
+                  owner_id: 1
+                  mode: acp
+                  adapter_id: Adapter id
+                  adapter_version: Adapter version
+                  enabled_revision: 1
+                  readiness_revision: 1
+                  allowed_actions: []
+                  owner:
+                    id: 1
+                    name: Name
+                  runner:
+                    id: 00000000-0000-4000-8000-000000000110
+                    name: Name
+                    owner_id: 1
+                    host_kind: workstation
+                    status: online
+                    observed_presence: online
+                    last_heartbeat_at: '2026-09-25T09:00:00Z'
+                    observed_at: '2026-09-25T09:00:00Z'
+                    revoked_at: '2026-09-25T09:00:00Z'
+                    fingerprint_prefix: Fingerprint prefix
+                    revision: 1
+                    metadata_revision: 1
+                    catalog_revision: 0
+                    catalog: {}
+                    catalog_summary:
+                      revision: 0
+                      reported_at: '2026-09-25T09:00:00Z'
+                      adapters: []
+                      sandboxes: []
+                    allowed_actions: []
+                  provider:
+                    id: 00000000-0000-4000-8000-000000000111
+                    name: Name
+                    owner_id: 1
+                    runner_id: 00000000-0000-4000-8000-000000000112
+                    model_id: Model id
+                    allowed_models: []
+                    api_mode: chat_completions
+                    context_window_tokens: 1
+                    max_output_tokens: 1
+                    data_scope: []
+                    capabilities: {}
+                    model_location: runner_local
+                    disabled_at: '2026-09-25T09:00:00Z'
+                    allowed_actions: []
+                    config_version: 1
+                  repository:
+                    id: 00000000-0000-4000-8000-000000000113
+                    workspace_alias: Workspace alias
+                    owner_id: 1
+                    runner_id: 00000000-0000-4000-8000-000000000114
+                    disabled_at: '2026-09-25T09:00:00Z'
+                    allowed_actions: []
+                  access:
+                    complete: true
+                    runner: true
+                    provider: true
+                    repository: true
+                  configuration:
+                    policy:
+                      scope:
+                        kind: stream
+                      actions: []
+                      sandbox_alias: Sandbox alias
+                      network: {}
+                      hard_cost_cap: true
+                    budget:
+                      input_tokens: 1
+                      output_tokens: 1
+                    instructions: Instructions
+                    scope_restricted: true
+                    network_retained: true
+                  shared_with: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -2052,6 +2865,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsSetupIdResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                setup_id: 00000000-0000-4000-8000-000000000115
+                phase: Phase
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -2177,6 +2996,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsSetupResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                setup:
+                  id: 00000000-0000-4000-8000-000000000116
+                  phase: pending
+                  requirements: []
+                  profile_revision: 1
+                  provider_config_version: 1
+                  created_at: '2026-09-25T09:00:00Z'
+                  finished_at: '2026-09-25T09:00:00Z'
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -2277,6 +3108,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsGrantsResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                count: 0
+                grants: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -2400,6 +3237,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsGrantCreateResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                grant:
+                  id: 00000000-0000-4000-8000-000000000117
+                  target_kind: Target kind
+                  revision: 1
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -2520,6 +3365,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsEmptyResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -2640,6 +3489,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsEmptyResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -2771,6 +3624,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsProfileShareResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                grants: []
+                skipped: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -2900,6 +3759,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsEmptyResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -3020,6 +3883,11 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsAttachmentsResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                attachments: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -3120,6 +3988,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsDefaultResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                default:
+                  has_default: true
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -3211,6 +4085,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsDefaultUpdateResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                default:
+                  has_default: true
+                revision: 1
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -3328,6 +4209,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsTeamInstructionsResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                team_instructions:
+                  text: Text
+                  revision: 1
+                  allowed_actions: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -3419,6 +4308,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsTeamInstructionsResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                team_instructions:
+                  text: Text
+                  revision: 1
+                  allowed_actions: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -3536,6 +4433,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSettingsSelectionResponse"
+              example:
+                result: success
+                msg: ''
+                schema_version: 1
+                selection:
+                  selection_source: none
+                  profile_id: 00000000-0000-4000-8000-000000000118
+                  profile_revision: 1
+                  selection_revision: 1
+                  selection_state: Selection state
+                  job_kind: Job kind
+                  repository_id: 00000000-0000-4000-8000-000000000119
+                  repository:
+                    id: 00000000-0000-4000-8000-000000000120
+                    alias: Alias
+                    base_ref: Base ref
+                  runner:
+                    name: Name
+                    host_kind: Host kind
+                    status: Status
+                  eligible: true
+                  queue_permitted: true
+                  reason: Reason
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
