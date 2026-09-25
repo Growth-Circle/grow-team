@@ -1,6 +1,8 @@
 from typing import Any
 from unittest import mock
 
+import orjson
+
 from zerver.actions.submessage import do_add_submessage
 from zerver.lib.message_cache import MessageDict
 from zerver.lib.test_classes import ZulipTestCase
@@ -135,6 +137,28 @@ class TestBasics(ZulipTestCase):
 
         result = self.client_post("/json/submessage", payload)
         self.assert_json_success(result)
+
+    def test_agent_job_card_takes_no_reader_submessages(self) -> None:
+        # Spec 13: only the server changes an agent job card; a reader
+        # cannot add a snapshot that claims another status.
+        cordelia = self.example_user("cordelia")
+        hamlet = self.example_user("hamlet")
+        message_id = self.send_stream_message(sender=cordelia, stream_name="Verona")
+        do_add_submessage(
+            realm=cordelia.realm,
+            sender_id=cordelia.id,
+            message_id=message_id,
+            msg_type="widget",
+            content=orjson.dumps(dict(widget_type="agent_job", extra_data={})).decode(),
+        )
+        self.login_user(hamlet)
+        payload = dict(
+            message_id=message_id,
+            msg_type="widget",
+            content=orjson.dumps(dict(status="completed")).decode(),
+        )
+        result = self.client_post("/json/submessage", payload)
+        self.assert_json_error(result, "You cannot attach a submessage to this message.")
 
     def test_endpoint_success(self) -> None:
         cordelia = self.example_user("cordelia")

@@ -25,6 +25,16 @@ class TodoData:
     tasks: list[TodoTaskData]
 
 
+def is_agent_job_widget(widget_content: str) -> bool:
+    """Spec 13: only the server posts an agent job card (agent_results calls
+    check_message itself). No API or outgoing webhook sender may forge one."""
+    try:
+        data = json.loads(widget_content)
+    except json.JSONDecodeError:
+        return False
+    return isinstance(data, dict) and data.get("widget_type") == "agent_job"
+
+
 def get_widget_data(content: str) -> tuple[str | None, Any]:
     valid_widget_types = ["poll", "todo"]
     tokens = re.split(r"\s+|\n+", content)

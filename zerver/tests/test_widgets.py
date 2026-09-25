@@ -80,6 +80,59 @@ class WidgetContentTestCase(ZulipTestCase):
         result = self.api_post(sender, "/api/v1/messages", payload)
         self.assert_json_error_contains(result, "Widgets: widget_type is not in widget_content")
 
+    def test_agent_job_widget_is_only_for_the_server(self) -> None:
+        # Spec 13: only the server posts an agent job card, so no sender
+        # can forge one, with a fake status or a phishing link.
+        sender = self.example_user("cordelia")
+        extra_data = dict(
+            job_id="00000000-0000-4000-8000-000000000001",
+            status="completed",
+            title="Title",
+            step_label="job.completed",
+            progress=1.0,
+            artifacts=[],
+            reason_code=None,
+            can_retry=False,
+        )
+        payload = dict(
+            type="stream",
+            to=orjson.dumps("Verona").decode(),
+            topic="whatever",
+            content="whatever",
+            widget_content=orjson.dumps(
+                dict(widget_type="agent_job", extra_data=extra_data)
+            ).decode(),
+        )
+        result = self.api_post(sender, "/api/v1/messages", payload)
+        self.assert_json_error(result, "Widgets: This widget type cannot be sent.")
+
+    def test_agent_job_artifact_links(self) -> None:
+        def widget(url: str | None) -> dict[str, object]:
+            artifact = dict(kind="file", label="answer.txt", url=url, task_id=None)
+            return dict(
+                widget_type="agent_job",
+                extra_data=dict(
+                    job_id="00000000-0000-4000-8000-000000000001",
+                    status="completed",
+                    title="Title",
+                    step_label="job.completed",
+                    progress=1.0,
+                    artifacts=[artifact],
+                    reason_code=None,
+                    can_retry=False,
+                ),
+            )
+
+        for url in [
+            None,
+            "/json/agent/artifacts/00000000-0000-4000-8000-000000000002",
+            "https://example.com/pulls/1",
+        ]:
+            check_widget_content(widget(url))
+        for url in ["javascript:alert(1)", "http://example.com", "/user_uploads/1/a/b.txt"]:
+            with self.assertRaisesRegex(ValidationError, "is not an allowed link"):
+                check_widget_content(widget(url))
+
     def test_get_widget_data_for_non_widget_messages(self) -> None:
         # This is a pretty important test, despite testing the
         # "negative" case.  We never want widgets to interfere

@@ -29,6 +29,7 @@ from zerver.lib.typed_endpoint import (
     OptionalTopic,
     typed_endpoint,
 )
+from zerver.lib.widget import is_agent_job_widget
 from zerver.lib.zcommand import process_zcommands
 from zerver.models import Client, Message, RealmDomain, UserProfile
 from zerver.models.users import get_user_including_cross_realm
@@ -222,6 +223,9 @@ def send_message_backend(
         # Legacy default: a message you sent from a non-API client is
         # automatically marked as read for yourself.
         read_by_sender = client.default_read_by_sender()
+
+    if widget_content is not None and is_agent_job_widget(widget_content):
+        raise JsonableError(_("Widgets: This widget type cannot be sent."))
 
     if agent_send_key is not None:
         if forged:

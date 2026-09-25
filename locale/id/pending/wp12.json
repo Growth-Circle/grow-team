@@ -1,0 +1,7 @@
+{
+  "frontend": {},
+  "backend": {
+    "Widgets: This widget type cannot be sent.": "Widget: Jenis widget ini tidak bisa dikirim.",
+    "{var_name} is not an allowed link": "{var_name} bukan tautan yang diizinkan"
+  }
+}

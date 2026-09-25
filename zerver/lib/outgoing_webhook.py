@@ -21,6 +21,7 @@ from zerver.lib.queue import retry_event
 from zerver.lib.topic import get_topic_from_message_info
 from zerver.lib.url_encoding import message_link_url
 from zerver.lib.users import check_can_access_user, check_user_can_access_all_users
+from zerver.lib.widget import is_agent_job_widget
 from zerver.models import Realm, Service, UserProfile
 from zerver.models.bots import GENERIC_INTERFACE, SLACK_INTERFACE
 from zerver.models.clients import get_client
@@ -213,6 +214,8 @@ def send_response_message(
     assert content
 
     widget_content = response_data.get("widget_content")
+    if widget_content is not None and is_agent_job_widget(widget_content):
+        raise JsonableError(_("Widgets: This widget type cannot be sent."))
 
     if recipient_type_name == "stream":
         message_to = [display_recipient]

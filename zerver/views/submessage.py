@@ -41,6 +41,10 @@ def process_submessage(
 
     widget_type = get_widget_type(message_id=message.id)
 
+    if widget_type == "agent_job":
+        # Spec 13: only the server changes an agent job card.
+        raise JsonableError(_("You cannot attach a submessage to this message."))
+
     is_widget_author = message.sender_id == user_profile.id
 
     if widget_type == "poll":

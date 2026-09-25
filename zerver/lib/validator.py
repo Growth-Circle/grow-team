@@ -427,6 +427,17 @@ def validate_select_field(var_name: str, field_data: str, value: object) -> str:
     return s
 
 
+def check_agent_job_artifact_url(var_name: str, val: object) -> str | None:
+    """An agent job card chip opens an agent artifact or a remote page (a
+    pull request), never another path on this server or another scheme."""
+    if val is None:
+        return None
+    url = check_string(var_name, val)
+    if not url.startswith(("/json/agent/artifacts/", "https://")):
+        raise ValidationError(_("{var_name} is not an allowed link").format(var_name=var_name))
+    return url
+
+
 def check_widget_content(widget_content: object) -> dict[str, Any]:
     if not isinstance(widget_content, dict):
         raise ValidationError("widget_content is not a dict")
@@ -473,6 +484,32 @@ def check_widget_content(widget_content: object) -> dict[str, Any]:
             return widget_content
 
         raise ValidationError("unknown zform type: " + extra_data["type"])
+
+    if widget_type == "agent_job":
+        check_artifacts = check_list(
+            check_dict_only(
+                [
+                    ("kind", check_string_in(["task", "file", "pr", "check"])),
+                    ("label", check_string),
+                    ("url", check_agent_job_artifact_url),
+                    ("task_id", check_none_or(check_int)),
+                ]
+            ),
+        )
+        checker = check_dict_only(
+            [
+                ("job_id", check_string),
+                ("status", check_string),
+                ("title", check_string),
+                ("step_label", check_string),
+                ("progress", check_float),
+                ("artifacts", check_artifacts),
+                ("reason_code", check_none_or(check_string)),
+                ("can_retry", check_bool),
+            ]
+        )
+        checker("extra_data", extra_data)
+        return widget_content
 
     raise ValidationError("unknown widget type: " + widget_type)
 

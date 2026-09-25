@@ -314,6 +314,27 @@ I'm a generic exception :(
             self.get_dm_group_recipient(bot_user, bot_user.bot_owner).id,
         )
 
+    def test_agent_job_widget_is_rejected(self) -> None:
+        # Spec 13: only the server posts an agent job card, so a webhook
+        # service cannot make its bot post one.
+        bot_user = self.example_user("outgoing_webhook_bot")
+        mock_event = self.mock_event(bot_user)
+        service_handler = GenericOutgoingWebhookService("token", bot_user, "service")
+        response = {
+            "content": "whatever",
+            "widget_content": {"widget_type": "agent_job", "extra_data": {}},
+        }
+        with responses.RequestsMock(assert_all_requests_are_fired=True) as requests_mock:
+            requests_mock.add(
+                requests_mock.POST, "https://example.zulip.com", status=200, json=response
+            )
+            with (
+                self.assertLogs(level="INFO"),
+                mock.patch("zerver.lib.outgoing_webhook.fail_with_message") as mock_fail,
+            ):
+                do_rest_call("https://example.zulip.com", mock_event, service_handler)
+        mock_fail.assert_called_once_with(mock_event, "Widgets: This widget type cannot be sent.")
+
     def test_jsonable_exception(self) -> None:
         bot_user = self.example_user("outgoing_webhook_bot")
         mock_event = self.mock_event(bot_user)
