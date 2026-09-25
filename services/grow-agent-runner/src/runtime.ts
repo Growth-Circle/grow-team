@@ -14,6 +14,15 @@ export interface Runtime {
     close(): Promise<void>;
     resume(checkpoint: Data): Promise<boolean>;
 }
+// FL-13 (internals/docs/spec/2026-09-24-agent-fast-lane.md): raised only for a
+// tool_use rejected before dispatch - the call never ran, so it is safe to
+// hand the model a tool_result and let it retry in the same turn. Any other
+// error means the call may already have run (or an operation is now
+// "uncertain"), and must fail the whole turn instead.
+export class ToolRejected extends Error {}
+function rejectionMessage(error: unknown): string {
+    return error instanceof Error ? error.message : "Invalid tool arguments";
+}
 const schemas: Record<string, Data> = {
     read: {path: {type: "string"}},
     search: {path: {type: "string"}, query: {type: "string"}},
@@ -65,20 +74,29 @@ export class RuntimeTools {
             typeof call.arguments !== "string" ||
             Buffer.byteLength(call.arguments) > 65536
         )
-            throw new Error("Invalid model call identity or size");
+            throw new ToolRejected("Invalid model call identity or size");
         if (!this.catalog.some((t) => t.name === call.name))
-            throw new Error("Tool is outside the effective catalog");
-        this.filter.assertArguments(call);
+            throw new ToolRejected("Tool is outside the effective catalog");
+        try {
+            this.filter.assertArguments(call);
+        } catch (error) {
+            throw new ToolRejected(rejectionMessage(error));
+        }
         let raw: Data;
         try {
             raw = JSON.parse(call.arguments);
         } catch {
-            throw new Error("Incomplete tool arguments");
+            throw new ToolRejected("Incomplete tool arguments");
         }
         if (!raw || typeof raw !== "object" || Array.isArray(raw) || Object.hasOwn(raw, "kind"))
-            throw new Error("Invalid tool arguments");
-        const tool = this.validate(call, raw);
-        this.filter.assertArguments(tool);
+            throw new ToolRejected("Invalid tool arguments");
+        let tool: Data;
+        try {
+            tool = this.validate(call, raw);
+            this.filter.assertArguments(tool);
+        } catch (error) {
+            throw new ToolRejected(rejectionMessage(error));
+        }
         await this.authority.assertCurrent();
         if (this.authority.signal.aborted || Date.now() >= this.authority.deadline)
             throw new Error("Tool authority expired");
