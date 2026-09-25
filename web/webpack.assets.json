@@ -131,5 +131,7 @@
         "./src/stats/stats.ts"
     ],
     "app": ["./src/bundles/app.ts"],
-    "digest": ["./src/bundles/legacy_portico_bundle.ts"]
+    "digest": ["./src/bundles/legacy_portico_bundle.ts"],
+    "device_page": ["./src/bundles/device_page.ts"],
+    "service_worker": ["./src/service_worker.ts"]
 }
