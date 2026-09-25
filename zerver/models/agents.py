@@ -166,6 +166,21 @@ class AgentRunner(AgentRecord):
     policy_version = models.PositiveIntegerField(default=1)
     catalog_revision = models.PositiveIntegerField(default=1)
     catalog_report = models.JSONField(default=dict)
+    runner_kind = models.CharField(
+        max_length=20,
+        choices=[("", ""), ("local", "local"), ("vps", "vps"), ("cloud", "cloud")],
+        default="",
+        db_default="",
+    )
+    group = models.CharField(max_length=100, default="", db_default="")
+    labels = models.JSONField(default=list, db_default=[])
+    hidden_at = models.DateTimeField(null=True, default=None)
+    offline_notified_at = models.DateTimeField(null=True, default=None)
+    admin_offline_notified_at = models.DateTimeField(null=True, default=None)
+    stale_notified_at = models.DateTimeField(null=True, default=None)
+    rotate_requested_at = models.DateTimeField(null=True, default=None)
+    region = models.CharField(max_length=40, default="", db_default="")
+    size = models.CharField(max_length=40, default="", db_default="")
     protocol_fields = {"catalog_report": protocol.RunnerCatalog}
 
     class Meta:
@@ -175,8 +190,40 @@ class AgentRunner(AgentRecord):
                 condition=Q(host_kind__in=["workstation", "server", "unknown"]),
                 name="agent_runner_host_kind_valid",
             ),
+            models.CheckConstraint(
+                condition=Q(runner_kind__in=["", "local", "vps", "cloud"]),
+                name="agent_runner_kind_valid",
+            ),
         ]
         indexes = [models.Index(fields=["realm", "owner", "status"])]
+
+
+class AgentRunnerRegistrationToken(AgentRecord):
+    # manage.py delete_realm removes UserProfile rows outright, and an old
+    # image does not know this table exists, so this reference carries no
+    # database-level constraint.
+    created_by = models.ForeignKey(
+        "zerver.UserProfile", on_delete=models.PROTECT, db_constraint=False
+    )
+    token_hash = models.CharField(max_length=128, unique=True)
+    group = models.CharField(max_length=100, default="")
+    runner_kind = models.CharField(
+        max_length=20, choices=[("vps", "vps"), ("cloud", "cloud")], default="vps"
+    )
+    # Carried through to the runner at exchange time (WP20 step 5a).
+    name = models.CharField(max_length=200, default="", db_default="")
+    sets_work_runner = models.BooleanField(default=False, db_default=False)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, default=None)
+    runner = models.ForeignKey(AgentRunner, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(runner_kind__in=["vps", "cloud"]),
+                name="agent_runner_token_kind_valid",
+            ),
+        ]
 
 
 class AgentPairing(AgentRecord):

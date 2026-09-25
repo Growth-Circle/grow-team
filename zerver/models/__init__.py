@@ -20,6 +20,7 @@ from zerver.models.agents import AgentRealmSettings as AgentRealmSettings
 from zerver.models.agents import AgentRepository as AgentRepository
 from zerver.models.agents import AgentRunner as AgentRunner
 from zerver.models.agents import AgentRunnerCredential as AgentRunnerCredential
+from zerver.models.agents import AgentRunnerRegistrationToken as AgentRunnerRegistrationToken
 from zerver.models.agents import AgentSecret as AgentSecret
 from zerver.models.agents import AgentSendIntent as AgentSendIntent
 from zerver.models.agents import AgentSetupOperation as AgentSetupOperation

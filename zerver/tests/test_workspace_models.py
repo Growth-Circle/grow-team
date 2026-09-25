@@ -6,7 +6,15 @@ from django.utils.timezone import now as timezone_now
 from typing_extensions import override
 
 from zerver.lib.test_classes import ZulipTestCase
-from zerver.models import AgentProfile, AgentRealmSettings, AgentRunner, RoomDigest, RoomMeta, Task
+from zerver.models import (
+    AgentProfile,
+    AgentRealmSettings,
+    AgentRunner,
+    AgentRunnerRegistrationToken,
+    RoomDigest,
+    RoomMeta,
+    Task,
+)
 from zerver.models.tasks import TASK_SOURCE_MANUAL, TaskBoard, TaskBoardColumn
 
 
@@ -168,4 +176,40 @@ class WorkspaceSchemaTests(ZulipTestCase):
                 title="Card",
                 creator=self.owner,
                 source="carrier_pigeon",
+            )
+
+    # -- 0824 AgentRunner inventory + registration tokens ----------------
+
+    def test_agent_runner_new_field_defaults(self) -> None:
+        self.assertEqual(self.runner.runner_kind, "")
+        self.assertEqual(self.runner.labels, [])
+        self.assertIsNone(self.runner.hidden_at)
+
+    def test_agent_runner_rejects_bad_kind(self) -> None:
+        with self.assertRaises(IntegrityError):
+            AgentRunner.objects.create(
+                realm=self.realm,
+                owner=self.owner,
+                name="Bad",
+                fingerprint="b" * 64,
+                runner_kind="mainframe",
+            )
+
+    def test_registration_token_defaults_and_kind_constraint(self) -> None:
+        token = AgentRunnerRegistrationToken.objects.create(
+            realm=self.realm,
+            created_by=self.owner,
+            token_hash="c" * 40,
+            expires_at=timezone_now(),
+        )
+        self.assertEqual(token.runner_kind, "vps")
+        self.assertEqual(token.name, "")
+        self.assertFalse(token.sets_work_runner)
+        with self.assertRaises(IntegrityError):
+            AgentRunnerRegistrationToken.objects.create(
+                realm=self.realm,
+                created_by=self.owner,
+                token_hash="d" * 40,
+                runner_kind="local",
+                expires_at=timezone_now(),
             )
