@@ -1,5 +1,5 @@
 # OpenAPI fragment for the server side of the workspace settings page:
-# workspace settings and the role permission matrix. See
+# workspace settings, the role permission matrix, and the audit log. See
 # zerver/openapi/features/events_agent.yaml for the fragment format, and
 # zproject/feature_routes/workspace.py for the routes that this fragment
 # documents.
@@ -366,6 +366,129 @@ paths:
                   "msg": "That permission is locked.",
                   "result": "error",
                 }
+  /realm/audit:
+    get:
+      operationId: get-workspace-audit
+      tags: ["workspace"]
+      summary: Get the audit log
+      description: |
+        Fetch the workspace's audit log, newest first: changes to
+        settings, permissions, roles, members, invitations, rooms,
+        agents, runners, and integrations, and the steps of agent jobs.
+        Each event shows only its type and a few details, never message
+        text or the text of a job. Needs the `audit` permission
+        (`GET /json/realm/permissions`).
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3c02c6).
+      parameters:
+        - name: before
+          in: query
+          description: |
+            Only return events older than this time, as a Unix
+            timestamp. Omit to start from the most recent event. To get
+            the next page, pass the `time` and the `id` of the last event
+            of the current page as `before` and `before_id`.
+          content:
+            application/json:
+              schema:
+                type: number
+                minimum: 0
+              example: 1727150000.5
+        - name: before_id
+          in: query
+          description: |
+            The `id` of the last event of the current page. Use it
+            together with `before`, so that the next page also includes
+            the other events at that same time.
+          schema:
+            type: string
+          example: "realm:1234"
+        - name: limit
+          in: query
+          description: |
+            The maximum number of events to return.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+          example: 50
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceAuditResponse"
+              example:
+                {
+                  "result": "success",
+                  "msg": "",
+                  "events":
+                    [
+                      {
+                        "id": "realm:1234",
+                        "event_type": "WORKSPACE_SETTINGS_CHANGED",
+                        "time": 1727150000.5,
+                        "actor":
+                          {"kind": "human", "id": 12, "name": "Dita Anggraini"},
+                        "parameter":
+                          {
+                            "changed":
+                              [
+                                {
+                                  "property": "timezone",
+                                  "old_value": "Asia/Jakarta",
+                                  "new_value": "Asia/Makassar",
+                                },
+                              ],
+                          },
+                      },
+                    ],
+                }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodedError"
+              example:
+                {
+                  "code": "BAD_REQUEST",
+                  "msg": "You do not have permission to do this.",
+                  "result": "error",
+                }
+  /realm/audit.csv:
+    get:
+      operationId: export-workspace-audit-csv
+      tags: ["workspace"]
+      summary: Export the audit log as CSV
+      description: |
+        Every event of `GET /json/realm/audit`, as a UTF-8 CSV file for an
+        Owner or Admin to keep outside the app. The time column uses the
+        workspace's time zone, and the "what happened" column is text in
+        the workspace's own language. Needs the `audit` permission
+        (`GET /json/realm/permissions`).
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3c02c6).
+      responses:
+        "200":
+          description: |
+            Success. The response is a `text/csv` file, not the usual
+            JSON envelope.
+          content:
+            text/csv: {}
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodedError"
+              example:
+                {
+                  "code": "BAD_REQUEST",
+                  "msg": "You do not have permission to do this.",
+                  "result": "error",
+                }
 components:
   schemas:
     WorkspaceInviteExpiryDays:
@@ -618,3 +741,53 @@ components:
               items:
                 $ref: "#/components/schemas/WorkspacePermissionRow"
           required: [my_role, permissions]
+    WorkspaceAuditEvent:
+      type: object
+      additionalProperties: false
+      description: One event of the audit log.
+      properties:
+        id:
+          type: string
+          description: |
+            A stable ID for this event. Pass it as `before_id` to get the
+            next page.
+        event_type:
+          type: string
+          description: A stable, all-caps event type name.
+        time:
+          type: number
+          description: When this event happened, as a Unix timestamp.
+        actor:
+          description: Who caused this event, or `null` for a system-caused event.
+          type: object
+          nullable: true
+          additionalProperties: false
+          properties:
+            kind:
+              type: string
+              enum: [human, agent]
+            id:
+              type: integer
+              description: The user's ID (the agent's own bot user, for an agent actor).
+            name:
+              type: string
+          required: [kind, id, name]
+        parameter:
+          type: object
+          additionalProperties: true
+          description: Event-specific detail. Its keys vary by `event_type`.
+      required: [id, event_type, time, actor, parameter]
+    WorkspaceAuditResponse:
+      allOf:
+        - $ref: "#/components/schemas/JsonSuccessBase"
+        - type: object
+          additionalProperties: false
+          properties:
+            result: {}
+            msg: {}
+            ignored_parameters_unsupported: {}
+            events:
+              type: array
+              items:
+                $ref: "#/components/schemas/WorkspaceAuditEvent"
+          required: [events]

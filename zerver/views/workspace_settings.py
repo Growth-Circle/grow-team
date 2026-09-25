@@ -1,13 +1,19 @@
-"""Views for the settings page: workspace settings and the role
-permission matrix. The logic lives in zerver/lib/workspace_settings.py.
-This module parses each request and checks who may call each endpoint."""
+"""Views for the settings page: workspace settings, the role permission
+matrix, and the audit log. The logic lives in
+zerver/lib/workspace_settings.py and zerver/lib/audit_feed.py. This module
+parses each request and checks who may call each endpoint."""
 
 from typing import Annotated
 
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseBase, StreamingHttpResponse
 from django.utils.translation import gettext as _
 from pydantic import Field, Json
 
+from zerver.lib.audit_feed import (
+    export_realm_audit_csv,
+    list_realm_audit_events,
+    parse_audit_cursor,
+)
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.response import json_success
 from zerver.lib.role_permissions import has_role_permission
@@ -21,8 +27,14 @@ from zerver.lib.workspace_settings import (
 )
 from zerver.models import UserProfile
 
+DEFAULT_AUDIT_LIMIT = 50
+MAX_AUDIT_LIMIT = 200
+
 # At most one week.
 ApprovalTtlMinutes = Annotated[int, Field(ge=1, lt=10081)]
+AuditLimit = Annotated[int, Field(ge=1, lt=MAX_AUDIT_LIMIT + 1)]
+# A Unix timestamp before the year 10000.
+AuditTime = Annotated[float, Field(ge=0, lt=253402300800)]
 
 
 def _require_permission(user_profile: UserProfile, key: str) -> None:
@@ -91,3 +103,40 @@ def put_permission_matrix(
         raise JsonableError(_("You do not have permission to do this."))
     apply_permission_changes(user_profile, changes)
     return json_success(request)
+
+
+@typed_endpoint
+def get_realm_audit(
+    request: HttpRequest,
+    user_profile: UserProfile,
+    *,
+    before: Json[AuditTime] | None = None,
+    before_id: str | None = None,
+    limit: Json[AuditLimit] = DEFAULT_AUDIT_LIMIT,
+) -> HttpResponse:
+    _require_permission(user_profile, "audit")
+    cursor = parse_audit_cursor(before, before_id) if before is not None else None
+    events = list_realm_audit_events(user_profile.realm, cursor=cursor, limit=limit)
+    # "source" is internal to audit_feed and not part of the response.
+    public_events = [
+        {
+            "id": event["id"],
+            "event_type": event["event_type"],
+            "time": event["time"],
+            "actor": event["actor"],
+            "parameter": event["parameter"],
+        }
+        for event in events
+    ]
+    return json_success(request, data={"events": public_events})
+
+
+@typed_endpoint_without_parameters
+def get_realm_audit_csv(request: HttpRequest, user_profile: UserProfile) -> HttpResponseBase:
+    _require_permission(user_profile, "audit")
+    response = StreamingHttpResponse(
+        export_realm_audit_csv(user_profile.realm), content_type="text/csv; charset=utf-8"
+    )
+    filename = f"audit-{user_profile.realm.string_id or 'workspace'}.csv"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
