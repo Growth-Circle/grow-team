@@ -1,9 +1,10 @@
-/* Sanji brand tokens (map-brand.md §11). Imported once from
-   web/src/bundles/common.ts, so both app.ts and legacy_portico_bundle.ts
-   get these custom properties. */
+/* Sanji brand tokens: color, font, radius, shadow, and motion
+   primitives. Imported once from web/src/bundles/common.ts, so every
+   bundle that imports common.ts gets these custom properties. */
 
 :root {
-    /* Primitif brand */
+    /* Brand primitives */
+    /* stylelint-disable color-no-hex, color-hex-length */
     --sj-kaki: #ff6a3d;
     --sj-ayame: #8b74ff;
     --sj-matcha: #16c784;
@@ -15,9 +16,9 @@
     --sj-redup: #6b6a73;
     --sj-garis-gelap: #a8a6b0;
     --sj-garis: #e2dfd7;
-    --sj-permukaan: #ffffff;
+    --sj-permukaan: #fff;
 
-    /* Primitif tambahan dari Dashboard */
+    /* Additional primitives from the Dashboard mockup */
     --sj-kaki-muda: #ffe1d4;
     --sj-ayame-muda: #e7e1ff;
     --sj-matcha-muda: #d2f7e5;
@@ -34,7 +35,11 @@
     --sj-teks-gelap-2: #c9c7d0;
     --sj-teks-gelap-3: #8a8894;
 
-    /* Semantik: light-dark(terang, gelap). Semua nilai gelap = PROPOSAL. */
+    /* Semantic tokens: light-dark(light, dark). The brand pack has no
+       official dark-theme guidelines yet, so every dark value here is
+       a first estimate: a dark surface or text tone already used
+       elsewhere in the design, picked to keep the same contrast the
+       light value has against its own background. */
     --sj-bg: light-dark(var(--sj-kertas), var(--sj-gelap-1));
     --sj-surface: light-dark(var(--sj-permukaan), var(--sj-gelap-2));
     --sj-surface-raised: light-dark(var(--sj-kertas), var(--sj-gelap-3));
@@ -53,13 +58,16 @@
     --sj-tint-matcha: light-dark(var(--sj-matcha-muda), #1d413a);
     --sj-tint-kuning: light-dark(var(--sj-kuning-muda), #4c442f);
     --sj-text-ayame: light-dark(var(--sj-ayame-teks), #a897ff);
-    /* PROPOSAL: brand #2e8e6b hanya 3,88:1 di Kertas. */
+    /* The raw brand matcha hex (#2e8e6b) is only 3.88:1 on Kertas,
+       below the 4.5:1 text minimum, so this darker shade replaces it
+       for text use. */
     --sj-text-matcha: light-dark(#1f7a5a, var(--sj-matcha));
     --sj-text-bahaya: light-dark(var(--sj-bahaya), #ff8a65);
-    --sj-shadow-color: light-dark(var(--sj-tinta), #000000);
-    --sj-scrim: light-dark(rgb(22 22 29 / 45%), rgb(0 0 0 / 60%));
+    --sj-shadow-color: light-dark(var(--sj-tinta), #000);
+    /* stylelint-enable color-no-hex, color-hex-length */
+    --sj-scrim: light-dark(hsl(240deg 13.73% 10% / 45%), hsl(0deg 0% 0% / 60%));
 
-    /* Sidebar: gelap di kedua tema */
+    /* Sidebar: dark in both themes */
     --sj-sidebar-bg: var(--sj-tinta);
     --sj-sidebar-hover: var(--sj-gelap-2);
     --sj-sidebar-hover-card: var(--sj-gelap-1);
@@ -70,7 +78,7 @@
     --sj-sidebar-label: var(--sj-teks-gelap-3);
     --sj-sidebar-badge: var(--sj-gelap-4);
 
-    /* Huruf */
+    /* Font */
     --sj-font-sans:
         "Schibsted Grotesk Variable", "Schibsted Grotesk", system-ui, sans-serif;
     --sj-font-mono: "IBM Plex Mono", ui-monospace, monospace;
@@ -90,11 +98,11 @@
     --sj-radius-circle: 50%;
     --sj-radius-kotak: 28%;
 
-    /* Garis */
+    /* Border */
     --sj-border: 1.5px solid var(--sj-outline);
     --sj-border-strong: 2px solid var(--sj-outline);
 
-    /* Bayangan */
+    /* Shadow */
     --sj-shadow-press: 0 3px 0 var(--sj-shadow-color);
     --sj-shadow-press-active: 0 1px 0 var(--sj-shadow-color);
     --sj-shadow-3: 3px 3px 0 var(--sj-shadow-color);
@@ -103,11 +111,11 @@
     --sj-shadow-6: 6px 6px 0 var(--sj-shadow-color);
     --sj-shadow-8: 8px 8px 0 var(--sj-shadow-color);
     --sj-shadow-kaki-5: 5px 5px 0 var(--sj-kaki);
-    --sj-shadow-toast: 0 12px 30px rgb(22 22 29 / 30%);
-    --sj-shadow-drawer: -10px 0 30px rgb(22 22 29 / 15%);
+    --sj-shadow-toast: 0 12px 30px hsl(240deg 13.73% 10% / 30%);
+    --sj-shadow-drawer: -10px 0 30px hsl(240deg 13.73% 10% / 15%);
     --sj-ring-focus: 0 0 0 3px var(--sj-kuning);
 
-    /* Gerak */
+    /* Motion */
     --sj-duration-pop: 200ms;
     --sj-duration-toast: 250ms;
     --sj-ease-spring: cubic-bezier(0.3, 1.6, 0.5, 1);
@@ -125,10 +133,9 @@
     }
 }
 
-/* Same as sj-pop, for elements centered with `transform` (dropdown,
-   drawer, modal, palette, toast): sj-pop's translateY alone would
-   clobber their translate(-50%, ...) centering. map-mockup-a.md §3.8,
-   bug R3. */
+/* Same as sj-pop, for an element centered horizontally with
+   `transform: translate(-50%, 0)` (palette, toast): sj-pop's
+   translateY alone would clobber that centering. */
 @keyframes sj-pop-center {
     from {
         opacity: 0;
@@ -138,6 +145,22 @@
     to {
         opacity: 1;
         transform: translate(-50%, 0);
+    }
+}
+
+/* Same idea, for an element centered on both axes with
+   `transform: translate(-50%, -50%)` (modal): the end frame must
+   land on that exact transform, not translate(-50%, 0), or the
+   element keeps drifting after the animation ends. */
+@keyframes sj-pop-center-both {
+    from {
+        opacity: 0;
+        transform: translate(-50%, calc(-50% + 8px));
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
     }
 }
 
@@ -165,10 +188,32 @@
     }
 }
 
-/* PROPOSAL: hormati pengaturan gerak OS. */
+/* Respect the OS motion setting. */
 @media (prefers-reduced-motion: reduce) {
     :root {
         --sj-duration-pop: 0ms;
         --sj-duration-toast: 0ms;
+        --sj-ease-spring: ease-out;
+    }
+
+    @keyframes sj-dots {
+        from,
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes sj-stripe {
+        from,
+        to {
+            background-position: 0 0;
+        }
+    }
+
+    @keyframes sj-blink {
+        from,
+        to {
+            opacity: 1;
+        }
     }
 }
