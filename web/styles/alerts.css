@@ -9,6 +9,16 @@
         hsl(359deg 94% 35%),
         hsl(7deg 100% 74%)
     );
+
+    /* The inline toast pops in during 300ms. The global toast uses
+       --sj-duration-toast, 250ms. */
+    --sj-toast-inline-duration: 300ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --sj-toast-inline-duration: 0ms;
+    }
 }
 
 .alert-display {
@@ -179,4 +189,125 @@
     /* Disable pointer events to prevent user interaction,
        since this button is repurposed as a loading indicator. */
     pointer-events: none;
+}
+
+/* The Sanji toast (feedback_widget.ts show_toast). */
+
+.sj-toast {
+    display: flex;
+    align-items: center;
+    gap: 0.7143em; /* 10px at 14px/1em */
+    font-family: var(--sj-font-sans);
+    font-size: 0.875em; /* 14px at 16px/1em */
+    box-sizing: border-box;
+}
+
+.sj-toast__icon {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 1.6364em; /* 18px at 11px/1em */
+    height: 1.6364em;
+    border-radius: 6px;
+    font-size: 0.7857em; /* 11px at 14px/1em */
+    font-style: normal;
+}
+
+.sj-toast__text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.sj-toast__action {
+    flex: none;
+    font-family: inherit;
+    font-size: 0.9286em; /* 13px at 14px/1em */
+    font-weight: 800;
+    border: 0;
+    background: transparent;
+    padding: 0 0.3077em; /* 0 4px at 13px/1em */
+    cursor: pointer;
+}
+
+/* The global toast is fixed at the bottom center of the window. It
+   is above all pages and above an open drawer or modal, which use
+   z-index 105. It has the ink color in the two themes, as the left
+   sidebar. */
+.sj-toast--global {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    z-index: 120;
+    gap: 0.8571em; /* 12px at 14px/1em */
+    max-width: min(560px, 90vw);
+    width: max-content;
+    padding: 0.8571em 1em 0.8571em 1.1429em; /* 12px 14px 12px 16px at 14px/1em */
+    border-radius: var(--sj-radius-14);
+    background: var(--sj-tinta);
+    color: var(--sj-kertas);
+    font-weight: 600;
+    box-shadow: var(--sj-shadow-toast);
+    /* The translate centers the toast. sj-pop-center keeps this
+       translate during the animation, thus the toast does not jump. */
+    transform: translate(-50%, 0);
+    animation: sj-pop-center var(--sj-duration-toast) ease-out;
+}
+
+.sj-toast--global .sj-toast__icon {
+    background: var(--sj-matcha);
+    color: var(--sj-tinta);
+    font-weight: 900;
+}
+
+.sj-toast--global .sj-toast__action {
+    color: var(--sj-kuning);
+}
+
+.sj-toast--global.sj-toast--error {
+    background: var(--sj-tint-kaki);
+    color: var(--sj-text);
+    border: var(--sj-border-strong);
+}
+
+.sj-toast--global.sj-toast--error .sj-toast__action {
+    /* The yellow action text is not clear on the light error color. */
+    color: var(--sj-text);
+    text-decoration: underline;
+}
+
+/* The inline toast is a green card in a slot of the page. */
+.sj-toast--inline {
+    width: 100%;
+    padding: 0.7143em 1em; /* 10px 14px at 14px/1em */
+    border: var(--sj-border-strong);
+    border-radius: var(--sj-radius-14);
+    background: var(--sj-matcha);
+    color: var(--sj-tinta);
+    font-weight: 700;
+    animation: sj-pop var(--sj-toast-inline-duration) ease-out;
+}
+
+.sj-toast--inline .sj-toast__icon {
+    background: var(--sj-kertas);
+}
+
+.sj-toast--inline .sj-toast__action {
+    color: var(--sj-tinta);
+    text-decoration: underline;
+}
+
+/* The screen reader copy of the toast text. It stays in the page,
+   because a screen reader reads only the changes in a live region
+   that is already in the page. */
+.sj-toast-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
 }
