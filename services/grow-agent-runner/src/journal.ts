@@ -25,6 +25,11 @@ function noSecrets(value: unknown): void {
 export interface JournalLog {
     get(id: string): Entry | null;
     list(kind?: string): Entry[];
+    // One query, WHERE kind=? AND state<>'done': the idle-load fix for a journal
+    // dominated by finished entries (internals/docs/spec/2026-09-24-agent-fast-
+    // lane.md §2.3). Prefer this over list(kind) wherever the caller only wants
+    // the still-open entries.
+    pending(kind: string): Entry[];
     prepare(kind: string, id: string, route: string, request: Data): Entry;
     uncertain(id: string): void;
     complete(id: string, response: Data): void;
@@ -63,6 +68,10 @@ export class Journal {
             get: (id) => normalize(this.get(prefix + id)),
             list: (kind) =>
                 this.list(kind)
+                    .filter((e) => e.scope === scope)
+                    .map((e) => normalize(e)!),
+            pending: (kind) =>
+                this.pending(kind)
                     .filter((e) => e.scope === scope)
                     .map((e) => normalize(e)!),
             prepare: (kind, id, route, request) =>
@@ -118,6 +127,12 @@ export class Journal {
                     .some((row) => row.name === "scope")
             )
                 this.db.exec("ALTER TABLE entries ADD COLUMN scope TEXT NOT NULL DEFAULT ''");
+            // pending(kind) below filters on exactly this pair. Without it, every
+            // idle tick's still-open "claim" entry (§2.3: tens of thousands a day)
+            // makes that query scan the whole table again for its still-tiny result.
+            this.db.exec(
+                "CREATE INDEX IF NOT EXISTS entries_open_kind ON entries(kind) WHERE state<>'done'",
+            );
             const connection = store.read("connection.json");
             if (connection?.runner_id) this.preserveLegacyScope(`runner:${connection.runner_id}`);
         } catch (e) {
@@ -125,17 +140,18 @@ export class Journal {
             throw e;
         }
     }
+    private static row(r: Data): Entry {
+        return {
+            ...r,
+            request: JSON.parse(r.request),
+            response: r.response ? JSON.parse(r.response) : null,
+        } as Entry;
+    }
     get(id: string): Entry | null {
         const r = this.db.prepare("SELECT * FROM entries WHERE id=?").get(id) as unknown as
             | Data
             | undefined;
-        return r
-            ? ({
-                  ...r,
-                  request: JSON.parse(r.request),
-                  response: r.response ? JSON.parse(r.response) : null,
-              } as Entry)
-            : null;
+        return r ? Journal.row(r) : null;
     }
     list(kind?: string): Entry[] {
         return (
@@ -143,6 +159,13 @@ export class Journal {
                 ? this.db.prepare("SELECT id FROM entries WHERE kind=? ORDER BY rowid").all(kind)
                 : this.db.prepare("SELECT id FROM entries ORDER BY rowid").all()
         ).map((r) => this.get(r.id as string)!);
+    }
+    pending(kind: string): Entry[] {
+        return (
+            this.db
+                .prepare("SELECT * FROM entries WHERE kind=? AND state<>'done' ORDER BY rowid")
+                .all(kind) as unknown as Data[]
+        ).map((r) => Journal.row(r));
     }
     prepare(kind: string, id: string, route: string, request: Data, scope = ""): Entry {
         this.protect(request);
