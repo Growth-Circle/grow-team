@@ -4,6 +4,7 @@ from unittest import mock
 import time_machine
 from django.core.signing import dumps
 from django.utils.timezone import now as timezone_now
+from typing_extensions import override
 
 from zerver.actions.users import do_deactivate_user
 from zerver.lib.oauth_callback import (
@@ -27,6 +28,7 @@ class OAuthCallbackTestCase(ZulipTestCase):
     """A registered exchanger leaks into every other test in the process
     unless each test starts from, and restores, an empty registry."""
 
+    @override
     def setUp(self) -> None:
         super().setUp()
         patcher = mock.patch.dict("zerver.lib.oauth_callback._exchangers", clear=True)
