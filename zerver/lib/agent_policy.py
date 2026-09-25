@@ -29,6 +29,10 @@ def _same_realm(actor: UserProfile, *objects: object | None) -> bool:
 
 
 def _principal_matches(actor: UserProfile, grant: agents.AgentGrant) -> bool:
+    # 10-M11: a guest never holds an agent grant, also not through a
+    # group grant or a direct grant made before the user became a guest.
+    if actor.is_guest:
+        return False
     if grant.principal_user_id == actor.id and actor.is_active:
         return True
     if grant.principal_group_id is None:

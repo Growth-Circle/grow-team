@@ -1942,7 +1942,10 @@ def create_agent_grant(
 ) -> agents.AgentGrant:
     if target.realm_id != owner.realm_id or getattr(target, "owner_id", None) != owner.id:
         raise ValueError("Grant target is unavailable.")
-    if principal_user is not None and principal_user.realm_id != owner.realm_id:
+    if principal_user is not None and (
+        principal_user.realm_id != owner.realm_id or principal_user.is_guest
+    ):
+        # 10-M11: a guest can never receive an agent grant.
         raise ValueError("Grant principal is unavailable.")
     if (
         principal_group_id is not None

@@ -3370,6 +3370,12 @@ paths:
       tags:
         - agents
       summary: Grant a person or a group access to an agent resource
+      description: |
+        Grant a person or a group access to an agent resource. A guest
+        cannot receive a grant, and no grant applies to a guest.
+
+        **Changes**: Before Zulip 12.0 (feature level ZF-4f1745), a guest
+        could receive an agent grant.
       responses:
         "200":
           description: Success.
