@@ -297,14 +297,35 @@ components:
           type: object
           description: The GET /json/agent/realm-settings fields that changed.
           additionalProperties:
-            description: A changed field's new value.
+            description: |
+              A changed field's new value. A cleared field is `null`. The
+              default work runner and the default work provider are summary
+              objects.
             oneOf:
               - type: string
                 nullable: true
               - type: integer
-                nullable: true
               - type: boolean
-                nullable: true
+              - type: object
+                description: |
+                  The summary of the default work runner or the default
+                  work provider.
+                additionalProperties: false
+                properties:
+                  id:
+                    type: string
+                    description: The runner's or the provider's ID.
+                  name:
+                    type: string
+                    description: The runner's or the provider's name.
+                  status:
+                    type: string
+                    description: The runner's or the provider's current status.
+                  model:
+                    type: string
+                    nullable: true
+                    description: |
+                      The provider's model, or `null` for a runner.
       required:
         - id
         - type
