@@ -29,6 +29,8 @@ from zerver.lib.agent_policy import (
     accessible_profiles,
     check_agent_access,
     require_agent_resource_access,
+    work_agent_fast_path,
+    work_runner_provider_id,
 )
 from zerver.lib.agent_requests import SetupResult
 from zerver.lib.agent_secrets import credential_matches, encrypt_agent_secret, hash_agent_credential
@@ -790,8 +792,24 @@ def update_profile(
         or profile.desired_state == "archived"
     ):
         raise ValueError("Profile configuration is stale.")
-    require_agent_resource_access(owner, runner, target_kind="runner", action="runner.use")
-    if provider is not None:
+    try:
+        require_agent_resource_access(owner, runner, target_kind="runner", action="runner.use")
+        work_agent = False
+    except AgentAccessDenied:
+        # P-19: a work agent keeps the provider and the harness that the
+        # server picked. Only a user with access to the runner can change them.
+        if default_mode != "answer" or not work_agent_fast_path(profile):
+            raise
+        work_agent = True
+    if work_agent:
+        assert profile.provider_id is not None
+        provider = agents.AgentProvider.objects.select_for_update().get(id=profile.provider_id)
+        mode, adapter_id, adapter_version = (
+            profile.mode,
+            profile.adapter_id,
+            profile.adapter_version,
+        )
+    elif provider is not None:
         require_agent_resource_access(
             owner, provider, target_kind="provider", action="provider.use"
         )
@@ -1125,10 +1143,21 @@ def provider_config(provider: agents.AgentProvider) -> dict[str, object]:
     )
 
 
+def endpoint_adapter(catalog: protocol.RunnerCatalog) -> protocol.AdapterCatalogEntry:
+    """The runner's `endpoint` harness. The runner accepts `mode: endpoint`
+    only with adapter version 0.1.0, and only a ready adapter can run."""
+    for adapter in catalog.adapters:
+        if adapter.version == "0.1.0" and adapter.auth_state == "ready":
+            return adapter
+    raise ValueError("Runner has no endpoint adapter.")
+
+
 def validate_runtime(profile: agents.AgentProfile) -> None:
-    require_agent_resource_access(
-        profile.owner, profile.runner, target_kind="runner", action="runner.use"
-    )
+    fast_path = work_agent_fast_path(profile)
+    if not fast_path:
+        require_agent_resource_access(
+            profile.owner, profile.runner, target_kind="runner", action="runner.use"
+        )
     catalog = protocol.RunnerCatalog.model_validate(profile.runner.catalog_report)
     policy = protocol.Policy.model_validate(profile.policy)
     if (
@@ -1144,9 +1173,10 @@ def validate_runtime(profile: agents.AgentProfile) -> None:
     if profile.provider is not None:
         if profile.provider.runner_id != profile.runner_id:
             raise ValueError("Provider is unavailable.")
-        require_agent_resource_access(
-            profile.owner, profile.provider, target_kind="provider", action="provider.use"
-        )
+        if not fast_path:
+            require_agent_resource_access(
+                profile.owner, profile.provider, target_kind="provider", action="provider.use"
+            )
         provider_config(profile.provider)
     if profile.default_repository is not None:
         if profile.default_repository.runner_id != profile.runner_id:
@@ -1384,18 +1414,27 @@ def create_profile(
     work_tools: list[str] | None = None,
     is_builtin: bool = False,
 ) -> agents.AgentProfile:
-    from zerver.lib.agent_policy import AgentAccessDenied
-
     # is_builtin has no request-schema field on purpose: only
     # ensure_builtin_agents (a shell-only command) may set it, never a
     # member through the HTTP API.
     UserProfile.objects.select_for_update().get(id=owner.id)
     runner = agents.AgentRunner.objects.select_for_update().get(id=runner.id)
+    work_provider_id = None
     try:
         require_agent_resource_access(owner, runner, target_kind="runner", action="runner.use")
     except AgentAccessDenied:
-        raise ValueError("Runner is unavailable.") from None
-    if provider is not None:
+        # P-19: a member without a runner grant may still make an `answer`
+        # agent on the realm's work runner. The server then picks the
+        # provider and the harness. The owner's runner keeps every choice.
+        if default_mode == "answer":
+            work_provider_id = work_runner_provider_id(owner, runner)
+        if work_provider_id is None:
+            raise ValueError("Runner is unavailable.") from None
+    work_fast_path = work_provider_id is not None
+    if work_provider_id is not None:
+        provider = agents.AgentProvider.objects.select_for_update().get(id=work_provider_id)
+        mode = "endpoint"
+    elif provider is not None:
         provider = agents.AgentProvider.objects.select_for_update().get(id=provider.id)
     if provider_network_version is not None and (
         provider is None or provider.config_version != provider_network_version
@@ -1404,12 +1443,13 @@ def create_profile(
     if provider is not None:
         if provider.realm_id != owner.realm_id or provider.runner_id != runner.id:
             raise ValueError("Provider is unavailable.")
-        try:
-            require_agent_resource_access(
-                owner, provider, target_kind="provider", action="provider.use"
-            )
-        except AgentAccessDenied:
-            raise ValueError("Provider is unavailable.") from None
+        if not work_fast_path:
+            try:
+                require_agent_resource_access(
+                    owner, provider, target_kind="provider", action="provider.use"
+                )
+            except AgentAccessDenied:
+                raise ValueError("Provider is unavailable.") from None
     if repository is not None:
         if repository.realm_id != owner.realm_id or repository.runner_id != runner.id:
             raise ValueError("Repository is unavailable.")
@@ -1434,6 +1474,9 @@ def create_profile(
         catalog = protocol.RunnerCatalog.model_validate(runner.catalog_report)
     except Exception:
         raise ValueError("Runner catalog is unavailable.") from None
+    if work_fast_path:
+        adapter = endpoint_adapter(catalog)
+        adapter_id, adapter_version = adapter.id, adapter.version
     if not any(
         item.id == adapter_id and item.version == adapter_version for item in catalog.adapters
     ):

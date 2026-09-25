@@ -25,7 +25,7 @@ from zerver.lib.agent_policy import (
     _visibility_scopes,
     accessible_profiles,
     check_agent_access,
-    require_agent_resource_access,
+    work_agent_fast_path,
 )
 from zerver.lib.agent_presence import observed_runner_status
 from zerver.lib.agent_selection import resolve_agent_selection
@@ -521,9 +521,11 @@ def _directory_profiles(actor: UserProfile) -> tuple[set[UUID], set[UUID]]:
     for profile in owned:
         resources: list[
             tuple[agents.AgentRunner | agents.AgentProvider | agents.AgentRepository, str, str]
-        ] = [(profile.runner, "runner", "runner.use")]
-        if profile.provider is not None:
-            resources.append((profile.provider, "provider", "provider.use"))
+        ] = []
+        if not work_agent_fast_path(profile):
+            resources.append((profile.runner, "runner", "runner.use"))
+            if profile.provider is not None:
+                resources.append((profile.provider, "provider", "provider.use"))
         if profile.default_repository is not None:
             resources.append((profile.default_repository, "repository", "repository.read"))
         if any(
@@ -1053,7 +1055,9 @@ def create_agent_repository(request: HttpRequest, user_profile: UserProfile) -> 
 def create_agent_profile(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
     data = payload(request, r.ProfileCreate)
     runner = agents.AgentRunner.objects.get(id=data.runner_id, realm=user_profile.realm)
-    require_agent_resource_access(user_profile, runner, target_kind="runner", action="runner.use")
+    # No access pre-check here: create_profile is the sole authority on
+    # runner.use, since a member creating a work agent on the workspace's
+    # shared work runner skips that grant entirely (P-19, 5a).
     provider = (
         agents.AgentProvider.objects.get(id=data.provider_id, realm=user_profile.realm)
         if data.provider_id

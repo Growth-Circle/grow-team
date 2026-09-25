@@ -1,5 +1,7 @@
 """Current-revision access checks for agent resources."""
 
+from uuid import UUID
+
 from django.db.models import Q, QuerySet
 from django.utils.timezone import now
 
@@ -7,6 +9,7 @@ from zerver.lib import agent_protocol as protocol
 from zerver.lib.display_recipient import get_display_recipient_by_id
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.message import access_message
+from zerver.lib.role_permissions import has_role_permission
 from zerver.lib.streams import access_stream_by_id
 from zerver.lib.user_groups import get_recursive_group_members
 from zerver.models import Message, Recipient, UserProfile, agents
@@ -37,6 +40,43 @@ def _principal_matches(actor: UserProfile, grant: agents.AgentGrant) -> bool:
         get_recursive_group_members(grant.principal_group_id)
         .filter(id=actor.id, is_active=True)
         .exists()
+    )
+
+
+def work_runner_provider_id(owner: UserProfile, runner: agents.AgentRunner) -> UUID | None:
+    """P-19: the realm's work provider when `owner` may use `runner` as
+    the realm's shared work runner without a runner or provider grant.
+
+    Returns None when `runner` is not the realm's work runner, or when
+    `owner` is inactive, a guest, or lacks the agent_create permission.
+    """
+    realm_settings = agents.AgentRealmSettings.objects.filter(realm_id=runner.realm_id).first()
+    if (
+        realm_settings is None
+        or realm_settings.work_runner_id != runner.id
+        or runner.revoked_at is not None
+        or owner.realm_id != runner.realm_id
+        or not owner.is_active
+        or owner.is_guest
+        or not has_role_permission(owner, "agent_create")
+    ):
+        return None
+    return realm_settings.work_provider_id
+
+
+def work_agent_fast_path(profile: agents.AgentProfile) -> bool:
+    """P-19: an `answer` endpoint profile on the realm's work runner and
+    work provider, owned by a user who may still create agents.
+
+    Such a profile needs no runner.use or provider.use grant. Every
+    access check reads this predicate again, so a changed work runner,
+    a changed work provider, or a lost agent_create closes the path.
+    """
+    return (
+        profile.default_mode == "answer"
+        and profile.mode == "endpoint"
+        and profile.provider_id is not None
+        and work_runner_provider_id(profile.owner, profile.runner) == profile.provider_id
     )
 
 
@@ -314,9 +354,11 @@ def accessible_profiles(actor: UserProfile) -> QuerySet[agents.AgentProfile]:
         )
         resources: list[
             tuple[agents.AgentRunner | agents.AgentProvider | agents.AgentRepository, str, str]
-        ] = [(profile.runner, "runner", "runner.use")]
-        if profile.provider is not None:
-            resources.append((profile.provider, "provider", "provider.use"))
+        ] = []
+        if not work_agent_fast_path(profile):
+            resources.append((profile.runner, "runner", "runner.use"))
+            if profile.provider is not None:
+                resources.append((profile.provider, "provider", "provider.use"))
         if profile.default_repository is not None:
             resources.append((profile.default_repository, "repository", "repository.read"))
         for resource, kind, action in resources:
@@ -376,7 +418,7 @@ def check_agent_access(
     destination: protocol.ConversationScope | None = None,
 ) -> None:
     profile = agents.AgentProfile.objects.select_related(
-        "runner", "provider", "provider__secret"
+        "owner", "runner", "provider", "provider__secret"
     ).get(id=profile.id)
     provider = profile.provider
     if repository is not None:
@@ -433,7 +475,10 @@ def check_agent_access(
         require_active_authority=True,
     ):
         _deny()
-    if not _owner_or_grant(
+    # P-19: a work agent needs no runner or provider grant. The profile
+    # check above still applies to every actor.
+    fast_path = work_agent_fast_path(profile)
+    if not fast_path and not _owner_or_grant(
         actor,
         profile.runner,
         target_kind="runner",
@@ -443,14 +488,18 @@ def check_agent_access(
         require_active_authority=True,
     ):
         _deny()
-    if provider is not None and not _owner_or_grant(
-        actor,
-        provider,
-        target_kind="provider",
-        action="provider.use",
-        source_message=source_message,
-        destination=destination,
-        require_active_authority=True,
+    if (
+        not fast_path
+        and provider is not None
+        and not _owner_or_grant(
+            actor,
+            provider,
+            target_kind="provider",
+            action="provider.use",
+            source_message=source_message,
+            destination=destination,
+            require_active_authority=True,
+        )
     ):
         _deny()
     if repository is not None and not _owner_or_grant(

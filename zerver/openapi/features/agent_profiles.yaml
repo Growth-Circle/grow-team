@@ -315,9 +315,17 @@ paths:
       description: |
         Create an agent profile and start the runner's readiness probe.
 
+        A user who has no access to a runner can still create an `answer`
+        agent on the organization's work runner, if they may create agents.
+        The server then picks the model provider and the harness. A `code`
+        or `manage` agent needs access to the runner.
+
         **Changes**: The `agent_role`, `avatar_shape`, `avatar_color`,
         `model_preset`, `monthly_budget_microunits`, `work_skills`, and
         `work_tools` fields are new in Zulip 12.0 (feature level ZF-4f1745).
+
+        Before feature level ZF-4f1745, every agent needed access to the
+        runner.
       responses:
         "200":
           description: Success.
@@ -995,8 +1003,15 @@ paths:
         `work_tools` keeps its current value. An explicit `null` for
         `monthly_budget_microunits` removes the budget.
 
+        On an `answer` agent on the organization's work runner, an owner
+        without access to the runner keeps the model provider, the mode,
+        and the harness that the server picked.
+
         **Changes**: The fields above are new in Zulip 12.0 (feature level
         ZF-4f1745).
+
+        Before feature level ZF-4f1745, every change needed access to the
+        runner.
       responses:
         "200":
           description: Success.
