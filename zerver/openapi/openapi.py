@@ -559,6 +559,12 @@ def validate_schema(schema: dict[str, Any]) -> None:
     if "oneOf" in schema:
         for subschema in schema["oneOf"]:
             validate_schema(subschema)
+    elif "anyOf" in schema:
+        # A nullable $ref (e.g. "runner: AgentRunnerSummary | null") is
+        # documented as anyOf: [$ref, {type: "null"}], the same way
+        # schema_type() in test_openapi.py already reads it.
+        for subschema in schema["anyOf"]:
+            validate_schema(subschema)
     elif schema["type"] == "array":
         validate_schema(schema["items"])
     elif schema["type"] == "object":

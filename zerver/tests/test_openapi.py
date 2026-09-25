@@ -966,6 +966,14 @@ class OpenAPIAttributesTest(ZulipTestCase):
                 tag = operation["tags"][0]
                 assert tag in VALID_TAGS
                 for status_code, response in operation["responses"].items():
+                    if "application/json" not in response.get("content", {}):
+                        # A response can be undocumented in detail (e.g. a
+                        # bare 403 with no body) or use a non-JSON content
+                        # type (agent routes document their REST-dispatch
+                        # 405 as text/html, matching what the server
+                        # actually sends). Neither has a JSON schema to
+                        # check here.
+                        continue
                     schema = response["content"]["application/json"]["schema"]
                     # Validate the documented examples for each event type
                     # in api/get-events for the documented event schemas.
@@ -982,27 +990,49 @@ class OpenAPIAttributesTest(ZulipTestCase):
                                 content, path, method, status_code
                             )
                     if "oneOf" in schema:
+                        content_obj = response["content"]["application/json"]
                         for subschema in schema["oneOf"]:
                             validate_schema(subschema)
+                            if "example" in subschema:
+                                example = subschema["example"]
+                            else:
+                                # Some agent routes document their oneOf
+                                # branches with one named Media Type Object
+                                # example per branch (a sibling of "schema")
+                                # instead of a "example" field on each
+                                # branch; either is valid OpenAPI 3.0, and
+                                # any example that matches at least one
+                                # branch validates against the whole oneOf.
+                                assert "examples" in content_obj
+                                example = next(iter(content_obj["examples"].values()))["value"]
                             assert validate_against_openapi_schema(
-                                subschema["example"],
+                                example,
                                 path,
                                 method,
                                 status_code,
                             )
                         continue
                     validate_schema(schema)
-                    if "example" not in schema:
-                        assert "examples" in response["content"]["application/json"]
-                        examples = response["content"]["application/json"]["examples"]
+                    content_obj = response["content"]["application/json"]
+                    if "example" in schema:
+                        assert validate_against_openapi_schema(
+                            schema["example"], path, method, status_code
+                        )
+                    elif "example" in content_obj:
+                        # A Media Type Object example (a sibling of "schema",
+                        # rather than a field on the schema itself) is the
+                        # convention every agent route in this fork uses.
+                        # Both are valid OpenAPI 3.0.
+                        assert validate_against_openapi_schema(
+                            content_obj["example"], path, method, status_code
+                        )
+                    else:
+                        assert "examples" in content_obj
+                        examples = content_obj["examples"]
                         for example in examples:
                             assert validate_against_openapi_schema(
                                 examples[example]["value"], path, method, status_code
                             )
-                    else:
-                        assert validate_against_openapi_schema(
-                            schema["example"], path, method, status_code
-                        )
 
 
 class OpenAPIRegexTest(ZulipTestCase):

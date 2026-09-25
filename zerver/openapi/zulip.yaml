@@ -30204,6 +30204,7 @@ components:
             - $ref: "#/components/schemas/AgentRuntimeSecretReference"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
         context_window_tokens:
@@ -30259,6 +30260,7 @@ components:
             - $ref: "#/components/schemas/AgentRuntimeEffectiveProvider"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
         workspace_binding:
@@ -30266,6 +30268,7 @@ components:
             - $ref: "#/components/schemas/AgentRuntimeWorkspaceBinding"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
         policy_version:
@@ -30469,6 +30472,7 @@ components:
             - $ref: "#/components/schemas/AgentRuntimeSecretReference"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
           default: null
@@ -30825,6 +30829,7 @@ components:
             - $ref: "#/components/schemas/AgentRuntimeProviderConfig"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
         repository:
@@ -30832,6 +30837,7 @@ components:
             - $ref: "#/components/schemas/AgentRuntimeRepositoryConfig"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
         policy:
@@ -30855,6 +30861,7 @@ components:
             - $ref: "#/components/schemas/AgentRuntimeCheckpoint"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
           default: null
@@ -30863,6 +30870,7 @@ components:
             - $ref: "#/components/schemas/AgentRuntimeAttemptInstructions"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
           default: null
@@ -30916,6 +30924,7 @@ components:
             - $ref: "#/components/schemas/AgentRuntimeInstructionText"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
           default: null
@@ -30924,6 +30933,7 @@ components:
             - $ref: "#/components/schemas/AgentRuntimeInstructionText"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
           default: null
@@ -31018,6 +31028,7 @@ components:
             - $ref: "#/components/schemas/AgentRuntimeProviderConfig"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
         grant:
@@ -31027,6 +31038,7 @@ components:
             - $ref: "#/components/schemas/AgentRuntimeWorkspaceBinding"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
           default: null
@@ -31300,6 +31312,7 @@ components:
             - $ref: "#/components/schemas/AgentRuntimeTeamReceipt"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
       required:
@@ -31361,6 +31374,7 @@ components:
             - $ref: "#/components/schemas/AgentRuntimeRemoteReceipt"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
         server_receipt:
@@ -31368,6 +31382,7 @@ components:
             - $ref: "#/components/schemas/AgentRuntimeTeamReceipt"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
       required:
@@ -31383,6 +31398,7 @@ components:
         - expires_at
         - receipt
     AgentRuntimeTeamReceiptObjects:
+      type: object
       additionalProperties: false
       properties:
         channel_id:
@@ -31412,6 +31428,7 @@ components:
           type: array
           nullable: true
     AgentRuntimeTeamReceipt:
+      type: object
       additionalProperties: false
       properties:
         tool:
@@ -31536,6 +31553,7 @@ components:
             - $ref: "#/components/schemas/AgentRuntimeAttemptDescriptor"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
         job_version:
@@ -32228,6 +32246,7 @@ components:
             - $ref: "#/components/schemas/AgentRuntimeConversationScope"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
           default: null
@@ -33998,6 +34017,7 @@ components:
             - $ref: "#/components/schemas/AgentSettingsNetworkPolicy"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
           default: null
@@ -34185,6 +34205,7 @@ components:
             - $ref: "#/components/schemas/AgentSettingsConversationScope"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
           default: null
@@ -34401,6 +34422,7 @@ components:
             - $ref: "#/components/schemas/AgentSettingsConversationScope"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
           default: null
@@ -34774,6 +34796,7 @@ components:
                 - $ref: "#/components/schemas/AgentRuntimeConversationScope"
                 - type: object
                   nullable: true
+                  additionalProperties: false
                   enum:
                     - null
             actions:
@@ -34787,6 +34810,7 @@ components:
                 - $ref: "#/components/schemas/AgentRuntimeNetworkPolicy"
                 - type: object
                   nullable: true
+                  additionalProperties: false
                   enum:
                     - null
             hard_cost_cap:
@@ -34927,6 +34951,7 @@ components:
             - $ref: "#/components/schemas/AgentSettingsRunner"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
         provider:
@@ -34934,6 +34959,7 @@ components:
             - $ref: "#/components/schemas/AgentSettingsProvider"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
         repository:
@@ -34941,6 +34967,7 @@ components:
             - $ref: "#/components/schemas/AgentSettingsRepository"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
         access:
@@ -34965,6 +34992,7 @@ components:
             - $ref: "#/components/schemas/AgentSettingsConfiguration"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
         shared_with:
@@ -35346,6 +35374,7 @@ components:
             - $ref: "#/components/schemas/AgentSettingsSetup"
             - type: object
               nullable: true
+              additionalProperties: false
               enum:
                 - null
         attachments:
