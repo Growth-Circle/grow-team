@@ -1,11 +1,13 @@
-# Grow Team
+# sanji
 
-Aset pada folder ini memakai identitas Grow Team.
+Aset pada folder ini memakai identitas sanji.
 Nama file lama dipertahankan agar referensi template dan pesan tetap berfungsi.
 
-Sumber SVG berada di `static/images/grow-team/`.
-Wordmark menggunakan bentuk huruf Source Sans 3 dari paket `source-sans`.
-Lisensi font tersedia pada paket tersebut.
+Sumber SVG berada di `static/images/sanji/`.
+Wordmark memakai path huruf (outline) dari `SchibstedGrotesk[wght].ttf`,
+repo `google/fonts`, folder `ofl/schibstedgrotesk`, lisensi OFL-1.1.
+Path bukan dari paket npm `@fontsource-variable/schibsted-grotesk`.
+Lihat `BRANDING.md` untuk ukuran, tracking, baseline, dan kerning path ini.
 
 Bangun ulang salinan SVG dan PNG dari root repositori:
 
