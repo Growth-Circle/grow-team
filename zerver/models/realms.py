@@ -464,7 +464,7 @@ class Realm(models.Model):
     # Defaults for new users
     default_language = models.CharField(default="en", max_length=MAX_LANGUAGE_ID_LENGTH)
 
-    ZULIP_DISCUSSION_CHANNEL_NAME = gettext_lazy("Grow Team")
+    ZULIP_DISCUSSION_CHANNEL_NAME = gettext_lazy("sanji")
     ZULIP_SANDBOX_CHANNEL_NAME = gettext_lazy("sandbox")
     DEFAULT_NOTIFICATION_STREAM_NAME = gettext_lazy("general")
     STREAM_EVENTS_NOTIFICATION_TOPIC_NAME = gettext_lazy("channel events")
@@ -498,7 +498,7 @@ class Realm(models.Model):
         on_delete=models.SET_NULL,
     )
 
-    ZULIP_UPDATE_ANNOUNCEMENTS_TOPIC_NAME = gettext_lazy("Grow Team updates")
+    ZULIP_UPDATE_ANNOUNCEMENTS_TOPIC_NAME = gettext_lazy("sanji updates")
     zulip_update_announcements_stream = models.ForeignKey(
         "Stream",
         related_name="+",
@@ -963,7 +963,7 @@ class Realm(models.Model):
     LOGO_DEFAULT = "D"
     LOGO_UPLOADED = "U"
     LOGO_SOURCES = (
-        (LOGO_DEFAULT, "Default to Grow Team"),
+        (LOGO_DEFAULT, "Default to sanji"),
         (LOGO_UPLOADED, "Uploaded by administrator"),
     )
     logo_source = models.CharField(

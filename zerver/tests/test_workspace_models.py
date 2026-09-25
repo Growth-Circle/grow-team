@@ -32,7 +32,69 @@ from zerver.models import (
     WebPushSubscription,
     agents,
 )
+from zerver.models.realms import Realm
 from zerver.models.tasks import TASK_SOURCE_MANUAL, TaskBoard, TaskBoardColumn
+
+# (table, column) pairs WP03 adds to a table that existed before Sanji.
+# Every one of these must carry a real database-level default, so an old
+# image's INSERT during a rollback either writes the same value a new
+# image would, instead of failing on NOT NULL or silently writing a NULL
+# whose business meaning is not "no data".
+_NEW_COLUMNS_ON_OLD_TABLES = [
+    ("zerver_agentprofile", "agent_role"),
+    ("zerver_agentprofile", "avatar_shape"),
+    ("zerver_agentprofile", "avatar_color"),
+    ("zerver_agentprofile", "model_preset"),
+    ("zerver_agentprofile", "model_key_hash"),
+    ("zerver_agentprofile", "is_builtin"),
+    ("zerver_agentprofile", "work_skills"),
+    ("zerver_agentprofile", "work_tools"),
+    ("zerver_agentrealmsettings", "brand_color"),
+    ("zerver_agentrealmsettings", "timezone"),
+    ("zerver_agentrealmsettings", "summary_default"),
+    ("zerver_agentrealmsettings", "approval_ttl_minutes"),
+    ("zerver_agentrealmsettings", "invite_expiry_days"),
+    ("zerver_agentrealmsettings", "task_status_notices"),
+    ("zerver_agentrealmsettings", "require_2fa"),
+    ("zerver_agentrealmsettings", "task_id_prefix"),
+    ("zerver_agentrealmsettings", "model_source"),
+    ("zerver_agentrealmsettings", "model_presets"),
+    ("zerver_agentrealmsettings", "model_guardrails"),
+    ("zerver_agentrealmsettings", "agent_language"),
+    ("zerver_agentrealmsettings", "budget_alert_month"),
+    ("zerver_agentrealmsettings", "mcp_default_mode"),
+    ("zerver_task", "source"),
+    ("zerver_agentrunner", "runner_kind"),
+    ("zerver_agentrunner", "group"),
+    ("zerver_agentrunner", "labels"),
+    ("zerver_agentrunner", "region"),
+    ("zerver_agentrunner", "size"),
+    ("zerver_agentpairing", "requested_meta"),
+]
+
+# New tables whose foreign keys must never carry a database-level
+# constraint to UserProfile or Message: an old image's
+# `manage.py delete_realm` or message retention does not know these
+# tables exist, and would otherwise be blocked, or fail outright, on a
+# constraint it cannot see the other side of.
+_NEW_TABLES = [
+    "zerver_roommeta",
+    "zerver_roomdigest",
+    "zerver_roomchannellink",
+    "zerver_agentrunnerregistrationtoken",
+    "zerver_webpushsubscription",
+    "zerver_externalaccount",
+    "zerver_drivefolderlink",
+    "zerver_mcpserver",
+    "zerver_mcpconnection",
+    "zerver_mcptoolpolicy",
+    "zerver_mcpagentgrant",
+    "zerver_mcpjobplan",
+    "zerver_cloudrunnerinstance",
+    "zerver_rolepermission",
+    "zerver_needresolution",
+    "zerver_meeting",
+]
 
 
 class WorkspaceSchemaTests(ZulipTestCase):
@@ -528,6 +590,48 @@ class WorkspaceSchemaTests(ZulipTestCase):
         Meeting.objects.create(**fields)
         with self.assertRaises(IntegrityError):
             Meeting.objects.create(**fields)
+
+    # -- 0835 brand labels --------------------------------------------------
+
+    def test_realm_discussion_and_update_names_are_sanji(self) -> None:
+        self.assertEqual(str(Realm.ZULIP_DISCUSSION_CHANNEL_NAME), "sanji")
+        self.assertEqual(str(Realm.ZULIP_UPDATE_ANNOUNCEMENTS_TOPIC_NAME), "sanji updates")
+        self.assertEqual(dict(Realm.LOGO_SOURCES)[Realm.LOGO_DEFAULT], "Default to sanji")
+
+    # -- Cross-cutting schema rules ------------------------------------------
+
+    def test_new_columns_on_old_tables_have_a_database_default(self) -> None:
+        with connection.cursor() as cursor:
+            for table, column in _NEW_COLUMNS_ON_OLD_TABLES:
+                cursor.execute(
+                    "SELECT column_default FROM information_schema.columns "
+                    "WHERE table_name = %s AND column_name = %s",
+                    [table, column],
+                )
+                row = cursor.fetchone()
+                self.assertIsNotNone(row, f"{table}.{column} does not exist")
+                assert row is not None
+                self.assertIsNotNone(row[0], f"{table}.{column} has no database-level default")
+
+    def test_new_tables_have_no_foreign_key_constraint_to_userprofile_or_message(self) -> None:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT conrelid::regclass::text, confrelid::regclass::text
+                FROM pg_constraint
+                WHERE contype = 'f'
+                  AND conrelid::regclass::text = ANY(%s)
+                  AND confrelid::regclass::text IN ('zerver_userprofile', 'zerver_message')
+                """,
+                [_NEW_TABLES],
+            )
+            offending = cursor.fetchall()
+        self.assertEqual(
+            offending,
+            [],
+            "a WP03 table has a database-level foreign key to UserProfile or Message, "
+            "which blocks an old image's delete_realm or message retention",
+        )
 
     # -- helpers --------------------------------------------------------------
 
