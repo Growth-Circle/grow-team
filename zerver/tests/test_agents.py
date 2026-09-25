@@ -13,6 +13,7 @@ from zerver.actions.agents import (
     endpoint_adapter,
     record_readiness,
     share_agent_profile,
+    unshare_agent_profile,
     validate_runtime,
 )
 from zerver.lib import agent_protocol as protocol
@@ -22,6 +23,7 @@ from zerver.models import agents
 from zerver.models.external_accounts import DriveFolderLink, ExternalAccount
 from zerver.models.mcp import McpAgentGrant, McpConnection, McpServer
 from zerver.models.messages import Message
+from zerver.models.realm_audit_logs import AuditLogEventType, RealmAuditLog
 
 
 def catalog_report() -> dict[str, object]:
@@ -467,3 +469,35 @@ class ProfileAppearanceTest(AgentDirectoryTestCase):
         labels = [chip["label"] for chip in data["profile"]["access_grants"]]
         self.assertNotIn("# private-agent-room", labels)
         self.assertIn("# agent-room", labels)
+
+
+class AgentProfileAuditTest(AgentDirectoryTestCase):
+    def audit_rows(self, profile: agents.AgentProfile, event_type: int) -> list[RealmAuditLog]:
+        return list(
+            RealmAuditLog.objects.filter(
+                realm=self.owner.realm,
+                event_type=event_type,
+                extra_data__profile_id=str(profile.id),
+            ).order_by("id")
+        )
+
+    def enable_share_and_unshare(self) -> agents.AgentProfile:
+        self.login_user(self.owner)
+        result = self.post_agent("profiles", self.profile_payload())
+        profile = self.make_ready(agents.AgentProfile.objects.get(id=result["profile"]["id"]))
+        self.post_agent(f"profiles/{profile.id}/enable", {"expected_revision": profile.revision})
+        share_agent_profile(self.owner, profile, principal_user=self.member)
+        # Sharing again changes no grant, so it adds no row.
+        share_agent_profile(self.owner, profile, principal_user=self.member)
+        unshare_agent_profile(self.owner, profile, principal_user=self.member)
+        return profile
+
+    def test_enable_share_and_unshare_are_audited(self) -> None:
+        profile = self.enable_share_and_unshare()
+        [created] = self.audit_rows(profile, AuditLogEventType.AGENT_PROFILE_CREATED)
+        self.assertEqual(created.modified_user_id, profile.bot_user_id)
+        [enabled] = self.audit_rows(profile, AuditLogEventType.AGENT_PROFILE_ENABLED)
+        self.assertEqual(enabled.acting_user_id, self.owner.id)
+        rows = self.audit_rows(profile, AuditLogEventType.AGENT_PROFILE_SHARED)
+        self.assertEqual([row.extra_data["shared"] for row in rows], [True, False])
+        self.assertEqual({row.modified_user_id for row in rows}, {self.member.id})

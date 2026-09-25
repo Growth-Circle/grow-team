@@ -1566,6 +1566,14 @@ def create_profile(
         work_tools=work_tools or [],
         is_builtin=is_builtin,
     )
+    RealmAuditLog.objects.create(
+        realm=owner.realm,
+        acting_user=owner,
+        modified_user=bot,
+        event_type=AuditLogEventType.AGENT_PROFILE_CREATED,
+        event_time=now(),
+        extra_data={"profile_id": str(profile.id)},
+    )
     setup = agents.AgentSetupOperation.objects.create(
         realm=owner.realm,
         owner=owner,
@@ -1849,6 +1857,14 @@ def enable_profile(
     profile.desired_state = "enabled"
     profile.enabled_revision = profile.revision
     profile.save(update_fields=["desired_state", "enabled_revision", "updated_at"])
+    RealmAuditLog.objects.create(
+        realm=profile.realm,
+        acting_user=owner,
+        modified_user=profile.bot_user,
+        event_type=AuditLogEventType.AGENT_PROFILE_ENABLED,
+        event_time=now(),
+        extra_data={"profile_id": str(profile.id)},
+    )
     return profile
 
 
@@ -1866,6 +1882,14 @@ def pause_profile(
     profile.revision += 1
     profile.enabled_revision = None
     profile.save(update_fields=["desired_state", "revision", "enabled_revision", "updated_at"])
+    RealmAuditLog.objects.create(
+        realm=profile.realm,
+        acting_user=owner,
+        modified_user=profile.bot_user,
+        event_type=AuditLogEventType.AGENT_PROFILE_PAUSED,
+        event_time=now(),
+        extra_data={"profile_id": str(profile.id)},
+    )
     return profile
 
 
@@ -2053,6 +2077,29 @@ def _share_grant_filters(
     return filters
 
 
+def _audit_share(
+    owner: UserProfile,
+    profile: agents.AgentProfile,
+    *,
+    principal_user: UserProfile | None,
+    principal_group_id: int | None,
+    shared: bool,
+) -> None:
+    """Write one audit row for a share or an unshare that changed a grant."""
+    RealmAuditLog.objects.create(
+        realm=profile.realm,
+        acting_user=owner,
+        modified_user=principal_user,
+        event_type=AuditLogEventType.AGENT_PROFILE_SHARED,
+        event_time=now(),
+        extra_data={
+            "profile_id": str(profile.id),
+            "principal_group_id": principal_group_id,
+            "shared": shared,
+        },
+    )
+
+
 def _validate_share_request(
     owner: UserProfile,
     profile: agents.AgentProfile,
@@ -2095,6 +2142,7 @@ def share_agent_profile(
     )
     grants = []
     skipped = []
+    changed = False
     for target_kind, target in _share_targets(profile):
         actions_wanted = _share_min_actions(target_kind, profile)
         if target_kind == "profile":
@@ -2128,8 +2176,17 @@ def share_agent_profile(
                     actions=actions_wanted,
                 )
             )
+            changed = True
         except ValueError:
             skipped.append({"target_kind": target_kind, "reason": "not_owner"})
+    if changed:
+        _audit_share(
+            owner,
+            profile,
+            principal_user=principal_user,
+            principal_group_id=principal_group_id,
+            shared=True,
+        )
     return grants, skipped
 
 
@@ -2164,6 +2221,14 @@ def unshare_agent_profile(
             grant.policy_version += 1
             grant.save(update_fields=["revoked_at", "policy_version", "updated_at"])
             revoked.append(grant)
+    if revoked:
+        _audit_share(
+            owner,
+            profile,
+            principal_user=principal_user,
+            principal_group_id=principal_group_id,
+            shared=False,
+        )
     return revoked
 
 
