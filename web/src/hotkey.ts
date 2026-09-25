@@ -6,6 +6,7 @@ import * as activity_ui from "./activity_ui.ts";
 import * as browser_history from "./browser_history.ts";
 import * as clipboard_handler from "./clipboard_handler.ts";
 import * as color_picker_popover from "./color_picker_popover.ts";
+import * as command_palette from "./command_palette.ts";
 import * as common from "./common.ts";
 import * as compose from "./compose.ts";
 import * as compose_actions from "./compose_actions.ts";
@@ -23,7 +24,6 @@ import * as drafts_overlay_ui from "./drafts_overlay_ui.ts";
 import * as emoji from "./emoji.ts";
 import * as emoji_picker from "./emoji_picker.ts";
 import * as feedback_widget from "./feedback_widget.ts";
-import * as gear_menu from "./gear_menu.ts";
 import * as gif_picker_ui from "./gif_picker_ui.ts";
 import * as hash_util from "./hash_util.ts";
 import * as hashchange from "./hashchange.ts";
@@ -55,7 +55,6 @@ import * as recent_view_util from "./recent_view_util.ts";
 import * as reminders_overlay_ui from "./reminders_overlay_ui.ts";
 import * as saved_snippets_ui from "./saved_snippets_ui.ts";
 import * as scheduled_messages_overlay_ui from "./scheduled_messages_overlay_ui.ts";
-import * as search from "./search.ts";
 import {message_edit_history_visibility_policy_values} from "./settings_config.ts";
 import * as settings_data from "./settings_data.ts";
 import * as sidebar_ui from "./sidebar_ui.ts";
@@ -184,7 +183,6 @@ const KEYDOWN_MAPPINGS: Record<string, Hotkey | Hotkey[]> = {
     C: {name: "compose", message_view_only: true},
     D: {name: "open_drafts", message_view_only: true},
     E: {name: "edit_message", message_view_only: true},
-    G: {name: "gear_menu", message_view_only: true},
     H: {name: "vim_left", message_view_only: true},
     I: {name: "message_actions", message_view_only: true},
     J: {name: "vim_down", message_view_only: true},
@@ -428,6 +426,11 @@ function process_escape_key(e: JQuery.KeyDownEvent): boolean {
     }
 
     if (inbox_ui.is_in_focus() && inbox_ui.change_focused_element("escape")) {
+        return true;
+    }
+
+    if (command_palette.is_open()) {
+        command_palette.close();
         return true;
     }
 
@@ -1158,27 +1161,23 @@ function process_hotkey(e: JQuery.KeyDownEvent, hotkey: Hotkey): boolean {
                 {trigger: "hotkey"},
             );
             return true;
+        // The app shell hides the channel and user search boxes that
+        // q and w used to focus. Both keys open the command palette
+        // at its rooms group instead.
         case "query_streams":
-            if (pm_list.is_zoomed_in()) {
-                sidebar_ui.focus_pm_search_filter();
-            } else if (stream_list.is_zoomed_in()) {
-                sidebar_ui.focus_topic_search_filter();
-            } else {
-                sidebar_ui.initiate_search();
-            }
+            command_palette.open({group: "rooms"});
             return true;
         case "query_users":
             if (page_params.is_spectator) {
                 return false;
             }
-            activity_ui.initiate_search();
+            command_palette.open({group: "rooms"});
             return true;
         case "search":
-        case "search_with_k":
-            search.initiate_search();
+            command_palette.open();
             return true;
-        case "gear_menu":
-            gear_menu.toggle();
+        case "search_with_k":
+            command_palette.toggle();
             return true;
         case "set_status":
             if (page_params.is_spectator) {

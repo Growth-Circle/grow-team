@@ -35,9 +35,9 @@ set_global("document", {
     hasFocus: () => false,
 });
 
-const activity_ui = mock_esm("../src/activity_ui");
 const activity = zrequire("../src/activity");
 const browser_history = mock_esm("../src/browser_history", {go_to_location() {}});
+const command_palette = mock_esm("../src/command_palette");
 const compose_actions = mock_esm("../src/compose_actions");
 const compose_reply = mock_esm("../src/compose_reply");
 const condense = mock_esm("../src/condense");
@@ -46,7 +46,6 @@ const emoji_picker = mock_esm("../src/emoji_picker", {
     is_open: () => false,
     start_picker_for_message_reaction() {},
 });
-const gear_menu = mock_esm("../src/gear_menu");
 const lightbox = mock_esm("../src/lightbox");
 const list_util = mock_esm("../src/list_util");
 const message_actions_popover = mock_esm("../src/message_actions_popover");
@@ -85,9 +84,7 @@ const popovers = mock_esm("../src/user_card_popover", {
 });
 const reactions = mock_esm("../src/reactions");
 const read_receipts = mock_esm("../src/read_receipts");
-const search = mock_esm("../src/search");
 const settings_data = mock_esm("../src/settings_data");
-const sidebar_ui = mock_esm("../src/sidebar_ui");
 const stream_popover = mock_esm("../src/stream_popover");
 const stream_settings_ui = mock_esm("../src/stream_settings_ui");
 const user_status_ui = mock_esm("../src/user_status_ui");
@@ -415,6 +412,25 @@ run_test("allow normal typing when editing text", ({override, override_rewire}) 
     }
 });
 
+run_test("Ctrl+K toggles the command palette even while editing text", ({override_rewire}) => {
+    override_rewire(hotkey, "processing_text", () => true);
+
+    stubbing(command_palette, "toggle", (stub) => {
+        assert.ok(hotkey.process_keydown({key: "k", ctrlKey: true}));
+        assert.equal(stub.num_calls, 1);
+    });
+});
+
+test_while_not_editing_text("q and w work only outside overlays", ({override}) => {
+    override(overlays, "any_active", () => true);
+    assert_unmapped("qw");
+});
+
+test_while_not_editing_text("w does nothing for spectators", ({override}) => {
+    override(page_params, "is_spectator", true);
+    assert_unmapped("w");
+});
+
 run_test("Ctrl+@ opens mentions view even while editing text", ({override_rewire}) => {
     // Ctrl+@ / Cmd+@ should open the mentions view regardless of
     // whether the focus is in a text input, matching the behavior
@@ -445,9 +461,21 @@ test_while_not_editing_text("streams", ({override}) => {
 
 test_while_not_editing_text("basic mappings", () => {
     assert_mapping("?", browser_history, "go_to_location");
-    assert_mapping("/", search, "initiate_search");
-    assert_mapping("w", activity_ui, "initiate_search");
-    assert_mapping("q", sidebar_ui, "initiate_search");
+
+    // The app shell hides the search boxes that these keys used to
+    // focus. "/" opens the command palette; "q" and "w" open it at
+    // its rooms group.
+    assert_mapping("/", command_palette, "open");
+    stubbing(command_palette, "open", (stub) => {
+        assert.ok(process("q"));
+        assert.equal(stub.num_calls, 1);
+        assert.deepEqual(stub.last_call_args, [{group: "rooms"}]);
+    });
+    stubbing(command_palette, "open", (stub) => {
+        assert.ok(process("w"));
+        assert.equal(stub.num_calls, 1);
+        assert.deepEqual(stub.last_call_args, [{group: "rooms"}]);
+    });
 
     assert_mapping("A", message_view, "stream_cycle_backward", true);
     assert_mapping("D", message_view, "stream_cycle_forward", true);
@@ -455,7 +483,8 @@ test_while_not_editing_text("basic mappings", () => {
     assert_mapping("c", compose_actions, "start");
     assert_mapping("x", compose_actions, "start");
     assert_mapping("P", message_view, "show", true);
-    assert_mapping("g", gear_menu, "toggle");
+    // The app shell hides the gear menu, so "g" does nothing.
+    assert_unmapped("g");
     assert_mapping("Y", user_status_ui, "open_user_status_modal", true);
 });
 
