@@ -18,7 +18,7 @@ from zerver.actions.agents import (
 )
 from zerver.lib import agent_job_requests as r
 from zerver.lib import agent_protocol as p
-from zerver.lib.agent_context import agent_transaction, selected_context
+from zerver.lib.agent_context import agent_realm, agent_transaction, selected_context
 from zerver.lib.agent_requests import RunnerMetadataUpdate
 from zerver.lib.agent_results import publish_draft, store_artifact
 from zerver.lib.agent_secrets import decrypt_agent_secret
@@ -47,7 +47,17 @@ def endpoint(
                 return json_response(
                     "error", "Runner authentication is required.", {"schema_version": 1}, status=401
                 )
-            return view(request)
+            try:
+                realm_id = runner(request).realm_id
+            except RunnerCredentialError:
+                # A handful of views (stop evidence) accept a narrower,
+                # revocation-tolerant proof straight from the raw token, so
+                # a rejected credential here does not mean the view will
+                # reject it too. Let the view make that call, as it did
+                # before agent writes were locked per realm.
+                return view(request)
+            with agent_realm(realm_id):
+                return view(request)
 
         return wrapped
 
