@@ -25,7 +25,7 @@ paths:
                 msg: ""
                 stream_id: 7
                 folder_name: "Proyek"
-                owner: { "id": 11, "full_name": "Iago" }
+                owner: {"id": 11, "full_name": "Iago"}
                 due_date: "2026-10-30"
                 summary_enabled: true
                 people_count: 4
@@ -107,7 +107,7 @@ paths:
                 msg: ""
                 stream_id: 7
                 folder_name: "Proyek"
-                owner: { "id": 11, "full_name": "Iago" }
+                owner: {"id": 11, "full_name": "Iago"}
                 due_date: "2026-10-30"
                 summary_enabled: true
                 people_count: 4

@@ -1281,7 +1281,10 @@ async function main() {
             structuredClone(directory.build_profile_payload(profile_form, profile_context)),
             structuredClone(directory.build_profile_payload(profile_form, profile_context)),
         );
-        const profile_payload_built = directory.build_profile_payload(profile_form, profile_context);
+        const profile_payload_built = directory.build_profile_payload(
+            profile_form,
+            profile_context,
+        );
         assert.equal(profile_payload_built.adapter_id, "grow");
         assert.equal(profile_payload_built.adapter_version, "1");
 
@@ -1399,7 +1402,10 @@ async function main() {
 
         assert.deepEqual(
             structuredClone(
-                devices.build_repository_payload({alias: "repo", origin: "", ref: "main"}, {id: "ra"}),
+                devices.build_repository_payload(
+                    {alias: "repo", origin: "", ref: "main"},
+                    {id: "ra"},
+                ),
             ),
             {
                 runner_id: "ra",

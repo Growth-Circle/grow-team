@@ -339,7 +339,12 @@ export async function load_grants(
         }
     }
 }
-export function open_grant_editor(kind: GrantKind, id: string, revision: number, label: string): void {
+export function open_grant_editor(
+    kind: GrantKind,
+    id: string,
+    revision: number,
+    label: string,
+): void {
     const editor = begin_editor("grant", `${kind}:${id}`);
     grant_target = {kind, id, revision, label};
     const box = $("#agent-grant-editor").empty().prop("hidden", false);
@@ -625,7 +630,10 @@ export function bind_grant_handlers(): void {
         });
     });
 }
-function shared_with_label(entry: {principal_kind: "user" | "group"; principal_id: number}): string {
+function shared_with_label(entry: {
+    principal_kind: "user" | "group";
+    principal_id: number;
+}): string {
     if (entry.principal_kind === "group") {
         return (
             user_groups.get_realm_user_groups().find((item) => item.id === entry.principal_id)

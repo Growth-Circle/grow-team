@@ -50,10 +50,7 @@ function capability_label(key: string): string {
 // Pure: builds the model connection cards into $list from already-fetched
 // data. load_providers() below is the only caller that also updates the
 // "Show more" button, since that needs the request's offset as well.
-export function render_providers(
-    $list: JQuery,
-    data: {providers: api.AgentProvider[]},
-): void {
+export function render_providers($list: JQuery, data: {providers: api.AgentProvider[]}): void {
     $list.empty();
     if (data.providers.length === 0) {
         $("<p>")
@@ -293,9 +290,7 @@ export function read_provider_form(): ProviderForm {
         network_host: value("#agent-provider-network-host"),
         network_port: number("#agent-provider-network-port"),
         network_allow_private: Boolean($("#agent-provider-network-private").prop("checked")),
-        network_allow_http_loopback: Boolean(
-            $("#agent-provider-network-loopback").prop("checked"),
-        ),
+        network_allow_http_loopback: Boolean($("#agent-provider-network-loopback").prop("checked")),
         network_allow_http_private: Boolean(
             $("#agent-provider-network-http-private").prop("checked"),
         ),

@@ -53,7 +53,7 @@ paths:
                 $ref: "#/components/schemas/NeedsListResponse"
               example:
                 result: success
-                msg: ''
+                msg: ""
                 schema_version: 1
                 items:
                   - id: "approval:00000000-0000-4000-8000-000000000030"
@@ -68,7 +68,7 @@ paths:
                       initials: KA
                     stream_id: 3
                     topic: rilis-v2
-                    time: '2026-09-25T09:00:00Z'
+                    time: "2026-09-25T09:00:00Z"
                     text: Push the release branch
                     attachment:
                       kind: diff
@@ -76,7 +76,7 @@ paths:
                       filename: diff.patch
                     actions:
                       - approve
-                    expires_at: '2026-09-25T10:00:00Z'
+                    expires_at: "2026-09-25T10:00:00Z"
                     expired: false
                     resolved_at: null
                     resolved_action: null
@@ -176,7 +176,7 @@ paths:
                 $ref: "#/components/schemas/NeedsWriteResponse"
               example:
                 result: success
-                msg: ''
+                msg: ""
                 schema_version: 1
         "400":
           description: The agent wrapper rejected a parsed request.
@@ -201,8 +201,7 @@ paths:
                 msg: "Not logged in: API authentication or user session required"
                 code: UNAUTHORIZED
         "405":
-          description:
-            REST dispatch returns permitted methods in the body and Allow header.
+          description: REST dispatch returns permitted methods in the body and Allow header.
           headers:
             Allow:
               schema:
@@ -252,7 +251,7 @@ paths:
                 $ref: "#/components/schemas/NeedsWriteResponse"
               example:
                 result: success
-                msg: ''
+                msg: ""
                 schema_version: 1
         "400":
           description: The agent wrapper rejected a parsed request.
@@ -277,8 +276,7 @@ paths:
                 msg: "Not logged in: API authentication or user session required"
                 code: UNAUTHORIZED
         "405":
-          description:
-            REST dispatch returns permitted methods in the body and Allow header.
+          description: REST dispatch returns permitted methods in the body and Allow header.
           headers:
             Allow:
               schema:
@@ -408,8 +406,7 @@ components:
           type: string
           format: date-time
           nullable: true
-          description:
-            When you handled the item. null while it is open, and the
+          description: When you handled the item. null while it is open, and the
             order of the `status=resolved` list.
         resolved_action:
           type: string
@@ -422,31 +419,27 @@ components:
         job_id:
           type: string
           nullable: true
-          description: 'The job this item is about. null for a mention.'
+          description: "The job this item is about. null for a mention."
         approval_version:
           type: integer
           nullable: true
-          description:
-            'Only on an approval, as `expected_version` for
-            `POST /agent/approvals/{approval_id}/decision`. null otherwise.'
+          description: "Only on an approval, as `expected_version` for
+            `POST /agent/approvals/{approval_id}/decision`. null otherwise."
         operation_hash:
           type: string
           nullable: true
-          description:
-            'Only on an approval, as `operation_hash` for
-            `POST /agent/approvals/{approval_id}/decision`. null otherwise.'
+          description: "Only on an approval, as `operation_hash` for
+            `POST /agent/approvals/{approval_id}/decision`. null otherwise."
         nonce:
           type: string
           nullable: true
-          description:
-            'Only on a pending approval, as `nonce` for
-            `POST /agent/approvals/{approval_id}/decision`. null otherwise.'
+          description: "Only on a pending approval, as `nonce` for
+            `POST /agent/approvals/{approval_id}/decision`. null otherwise."
         job_version:
           type: integer
           nullable: true
-          description:
-            'Only on a decision, as `expected_version` for
-            `POST /agent/jobs/{job_id}/inputs`. null otherwise.'
+          description: "Only on a decision, as `expected_version` for
+            `POST /agent/jobs/{job_id}/inputs`. null otherwise."
       required:
         - id
         - kind
