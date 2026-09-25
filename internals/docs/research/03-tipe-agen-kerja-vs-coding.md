@@ -11,7 +11,7 @@ Catatan konflik: isi riset ini bertentangan dengan keputusan pemilik di [`agent-
 2. Untuk agen coding: minta pengguna meng-install Claude Code / Codex CLI di server, lalu sanji menyambung lewat **ACP** dan men-spawn container. Benar?
 3. Untuk agen kerja: pakai **Claude Agent SDK** karena "bisa kerja cepat". Benar?
 
-**Konteks repo:** `grow-team` sudah memutuskan runner memakai **ACP** (`codex-acp` 1.12.0) + runtime endpoint OpenAI-compatible, dengan container rootless, lease, dan journal di PostgreSQL (basi, lihat catatan konflik di atas; [agent-harness-decision.md](../agent-harness-decision.md), [agent-runtime-decision.md](../agent-runtime-decision.md); basi sejak [agent-sdk-decision.md](../agent-sdk-decision.md), hari yang sama, lihat catatan konflik di atas).
+**Konteks repo:** `grow-team` sudah memutuskan runner memakai **ACP** (`codex-acp` 1.12.0) + runtime endpoint OpenAI-compatible, dengan container rootless, lease, dan journal di PostgreSQL (lihat [agent-harness-decision.md](../agent-harness-decision.md) dan [agent-runtime-decision.md](../agent-runtime-decision.md). Konteks ini basi sejak [agent-sdk-decision.md](../agent-sdk-decision.md), hari yang sama.).
 
 ---
 
