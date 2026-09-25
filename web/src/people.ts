@@ -772,12 +772,12 @@ export function gravatar_url_for_email(email: string): string {
 // hue with saturation -5 and lightness -7 (the exact delta the frame
 // uses for the first two entries). Replace with exact frame values
 // if a mockup ever shows them.
+// Sanji default avatar: ink circle with a paper initial (light theme),
+// swapped to a paper circle with an ink initial in dark theme
+// (map-brand.md §11.1, §10.2). A single entry, kept as an array so
+// `default_avatar_fill`'s `% length` indexing still works unchanged.
 const DEFAULT_AVATAR_PALETTE: {light: string; dark: string}[] = [
-    {light: "hsl(24deg 45% 55%)", dark: "hsl(24deg 40% 48%)"},
-    {light: "hsl(276deg 35% 55%)", dark: "hsl(276deg 30% 48%)"},
-    {light: "#087f70", dark: "hsl(171.36deg 58.41% 44.31%)"},
-    {light: "hsl(340deg 40% 52%)", dark: "hsl(340deg 35% 45%)"},
-    {light: "hsl(200deg 40% 50%)", dark: "hsl(200deg 35% 43%)"},
+    {light: "#16161d", dark: "#fffaf0"},
 ];
 
 function default_avatar_fill(user_id: number): string {
@@ -785,12 +785,20 @@ function default_avatar_fill(user_id: number): string {
     return settings_data.using_dark_theme() ? entry.dark : entry.light;
 }
 
+// The initial's color is always the circle fill's opposite, so it
+// stays readable whichever theme is active.
+function default_avatar_initials_fill(user_id: number): string {
+    const entry = DEFAULT_AVATAR_PALETTE[user_id % DEFAULT_AVATAR_PALETTE.length]!;
+    return settings_data.using_dark_theme() ? entry.light : entry.dark;
+}
+
 function build_default_avatar_data_uri(user_id: number, initials: string): string {
     const fill = default_avatar_fill(user_id);
+    const initials_fill = default_avatar_initials_fill(user_id);
     // A drawn circle (not a square image relying on container
     // clipping) so the avatar is round in every context.
     const label = initials
-        ? `<text x="16" y="16" dy="0.35em" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="700" fill="#fff">${initials}</text>`
+        ? `<text x="16" y="16" dy="0.35em" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="800" fill="${initials_fill}">${initials}</text>`
         : "";
     const svg =
         `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">` +

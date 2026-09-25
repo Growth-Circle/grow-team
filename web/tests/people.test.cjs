@@ -2144,3 +2144,26 @@ run_test("get_user_mentions_for_display", () => {
         "@_**Maria Athens**, @_**Stephen King|601**, and @_**Stephen King|602**",
     );
 });
+
+run_test("default_avatar_data_uri_matches_theme", ({override}) => {
+    // The jdenticon-style default avatar (map-brand.md §11.1, §10.2):
+    // an ink circle with a paper initial in light theme, swapped to a
+    // paper circle with an ink initial in dark theme, so the initial
+    // stays readable against the circle in both themes.
+    initialize();
+    current_user.avatar_source = settings_config.default_avatar_source_values.jdenticon.code;
+
+    override(settings_data, "using_dark_theme", () => false);
+    let data_uri = people.small_avatar_url_for_person(me);
+    let svg = decodeURIComponent(data_uri.slice("data:image/svg+xml,".length));
+    assert.ok(svg.includes('r="16" fill="#16161d"/>'), svg);
+    assert.ok(svg.includes('font-weight="800" fill="#fffaf0">MM</text>'), svg);
+
+    override(settings_data, "using_dark_theme", () => true);
+    data_uri = people.small_avatar_url_for_person(me);
+    svg = decodeURIComponent(data_uri.slice("data:image/svg+xml,".length));
+    assert.ok(svg.includes('r="16" fill="#fffaf0"/>'), svg);
+    assert.ok(svg.includes('font-weight="800" fill="#16161d">MM</text>'), svg);
+
+    delete current_user.avatar_source;
+});
