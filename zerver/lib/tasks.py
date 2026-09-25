@@ -204,25 +204,28 @@ def work_counts(user_profile: UserProfile) -> dict[str, int]:
     if board is None:
         return counts
 
-    review_column_ids = set(board.columns.filter(is_review=True).values_list("id", flat=True))
-    tasks: QuerySet[Task] = Task.objects.filter(board=board, realm=user_profile.realm)
-    origin_stream_ids = set(
-        tasks.filter(stream_id__isnull=False).values_list("stream_id", flat=True)
-    )
-    allowed = readable_stream_ids(user_profile, origin_stream_ids)
-    visible = tasks.filter(Q(stream_id__isnull=True) | Q(stream_id__in=allowed))
-    counts.update(
-        visible.aggregate(
+    # Grouping by stream_id in one query, instead of listing origin stream
+    # ids and then aggregating the visible rows as two more queries, folds
+    # both into this one: readable_stream_ids only screens the handful of
+    # distinct stream ids below, not one row per task.
+    open_task = Q(completed_at__isnull=True)
+    rows = list(
+        Task.objects.filter(board=board, realm=user_profile.realm)
+        .values("stream_id")
+        .annotate(
             task_board=Count("id"),
-            my_tasks=Count("id", filter=Q(completed_at__isnull=True, assignee_id=user_profile.id)),
+            my_tasks=Count("id", filter=open_task & Q(assignee_id=user_profile.id)),
             awaiting_my_review=Count(
                 "id",
-                filter=Q(
-                    completed_at__isnull=True,
-                    reviewer_id=user_profile.id,
-                    column_id__in=review_column_ids,
-                ),
+                filter=open_task & Q(reviewer_id=user_profile.id, column__is_review=True),
             ),
         )
     )
+    allowed = readable_stream_ids(
+        user_profile, {row["stream_id"] for row in rows if row["stream_id"] is not None}
+    )
+    for row in rows:
+        if row["stream_id"] is None or row["stream_id"] in allowed:
+            for key in ("task_board", "my_tasks", "awaiting_my_review"):
+                counts[key] += row[key]
     return counts

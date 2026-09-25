@@ -26,7 +26,7 @@ from zerver.lib.agent_context import AgentBusy, agent_realm, agent_transaction
 from zerver.lib.agent_secrets import hash_agent_credential
 from zerver.lib.tasks import get_or_create_default_board, running_agent_job_count, work_counts
 from zerver.lib.test_classes import ZulipTestCase, ZulipTransactionTestCase
-from zerver.models import Client, Message, Realm, UserProfile, agents
+from zerver.models import Client, Message, Realm, Stream, UserProfile, agents
 from zerver.models.realms import get_realm
 
 
@@ -456,10 +456,10 @@ class AgentRealmLockTests(ZulipTransactionTestCase):
 
 
 class AgentBadgeCountTests(ZulipTestCase):
-    """running_agent_job_count() and work_counts() now query in bulk
-    instead of looping with a permission check, or a Python total, per
-    row. These pin the counts on a small fixture and the query count
-    that reads it."""
+    """running_agent_job_count() narrows its candidates in SQL before
+    checking each one, and work_counts() totals its rows in one grouped
+    query instead of a Python loop over every visible task. These pin
+    the counts on a small fixture and the query count that reads it."""
 
     @override
     def setUp(self) -> None:
@@ -632,9 +632,9 @@ class AgentBadgeCountTests(ZulipTestCase):
         done.save(update_fields=["completed_at"])
 
         # Six of running_agent_job_count()'s own queries for the one agent
-        # job above, plus four for the task totals: the board, its review
-        # columns, the task board's stream ids, and one aggregate query.
-        with self.assert_database_query_count(10):
+        # job above, plus two for the task totals: the board, and one
+        # query grouped by stream_id that covers every counter at once.
+        with self.assert_database_query_count(8):
             counts = work_counts(self.owner)
         self.assertEqual(
             counts,
@@ -645,3 +645,35 @@ class AgentBadgeCountTests(ZulipTestCase):
                 "agent_running": 1,
             },
         )
+
+    def test_work_counts_only_counts_tasks_from_readable_streams(self) -> None:
+        """visible.filter(Q(stream_id__in=allowed)) (tasks.py) had no
+        fixture that gave it a non-empty candidate: every existing task
+        fixture used a manual card with no stream_id. A card from a
+        public channel hamlet can read must count; a card from a private
+        channel hamlet cannot read must not."""
+        iago = self.example_user("iago")
+        board = get_or_create_default_board(self.owner.realm)
+        columns = list(board.columns.all())
+        public_stream = Stream.objects.get(realm=self.owner.realm, name="Denmark")
+        private_stream = self.make_stream(
+            "work-private", invite_only=True, history_public_to_subscribers=False
+        )
+        self.subscribe(iago, private_stream.name)
+
+        do_create_task(
+            user_profile=iago,
+            board=board,
+            column=columns[0],
+            title="From a public channel",
+            stream_id=public_stream.id,
+        )
+        do_create_task(
+            user_profile=iago,
+            board=board,
+            column=columns[0],
+            title="From a private channel hamlet cannot read",
+            stream_id=private_stream.id,
+        )
+
+        self.assertEqual(work_counts(self.owner)["task_board"], 1)
