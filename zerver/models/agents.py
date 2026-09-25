@@ -774,6 +774,7 @@ class AgentApproval(AgentRecord):
     nonce = models.UUIDField(default=uuid.uuid4, unique=True)
     decided_at = models.DateTimeField(null=True)
     consumed_at = models.DateTimeField(null=True)
+    email_reminder_sent_at = models.DateTimeField(null=True, default=None)
     protocol_fields = {"arguments": protocol.ApprovalArguments}
 
     class Meta:

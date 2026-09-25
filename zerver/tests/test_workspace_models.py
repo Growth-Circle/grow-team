@@ -22,6 +22,7 @@ from zerver.models import (
     McpJobPlan,
     McpServer,
     McpToolPolicy,
+    NeedResolution,
     RolePermission,
     RoomChannelLink,
     RoomDigest,
@@ -445,6 +446,74 @@ class WorkspaceSchemaTests(ZulipTestCase):
             RolePermission.objects.create(
                 realm=self.realm, permission_key="ws_settings", role=999, allowed=True
             )
+
+    # -- 0833 NeedResolution --------------------------------------------------
+
+    def test_need_resolution_unique_per_user_and_message(self) -> None:
+        NeedResolution.objects.create(realm=self.realm, user=self.owner, message_id=self.message_id)
+        with self.assertRaises(IntegrityError):
+            NeedResolution.objects.create(
+                realm=self.realm, user=self.owner, message_id=self.message_id
+            )
+
+    def test_need_resolution_rejects_bad_action(self) -> None:
+        with self.assertRaises(IntegrityError):
+            NeedResolution.objects.create(
+                realm=self.realm, user=self.owner, message_id=self.message_id, action="snoozed"
+            )
+
+    def test_need_resolution_message_deletable_without_error(self) -> None:
+        need = NeedResolution.objects.create(
+            realm=self.realm, user=self.owner, message_id=self.message_id
+        )
+        # Delete the UserMessage row the way retention itself does first, so
+        # only the new table's constraint (not the pre-existing one) is
+        # under test.
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM zerver_usermessage WHERE message_id = %s", [self.message_id]
+            )
+            cursor.execute("DELETE FROM zerver_message WHERE id = %s", [self.message_id])
+            # Force any constraint check to run now, inside this test,
+            # instead of silently at commit time.
+            cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
+            cursor.execute("SELECT 1 FROM zerver_message WHERE id = %s", [self.message_id])
+            self.assertIsNone(cursor.fetchone())
+        # A raw SQL delete runs no Python on_delete, so the column keeps the
+        # old id; read code must treat that id as a message that is gone.
+        need.refresh_from_db()
+        self.assertEqual(need.message_id, self.message_id)
+
+    def test_agent_approval_email_reminder_defaults_to_none(self) -> None:
+        job = self._make_agent_job()
+        attempt = agents.AgentAttempt.objects.create(
+            realm=self.realm,
+            job=job,
+            runner=self.runner,
+            number=1,
+            lease_epoch=1,
+            lease_expires_at=timezone_now(),
+            descriptor_digest="a" * 64,
+        )
+        operation = agents.AgentOperation.objects.create(
+            realm=self.realm,
+            attempt=attempt,
+            operation_id=uuid4(),
+            tool_class="send_message",
+            argument_digest="a" * 64,
+            arguments={"action": "send_message"},
+        )
+        approval = agents.AgentApproval.objects.create(
+            realm=self.realm,
+            job=job,
+            attempt=attempt,
+            operation=operation,
+            operation_hash="a" * 64,
+            policy_version=1,
+            tree_hash="a" * 64,
+            expires_at=timezone_now(),
+        )
+        self.assertIsNone(approval.email_reminder_sent_at)
 
     # -- helpers --------------------------------------------------------------
 
