@@ -25,6 +25,7 @@ from zerver.models import (
     TaskBoardColumn,
     TaskHistory,
     UserProfile,
+    agents,
 )
 
 # Gap between two cards appended to a column. Wide enough that many moves
@@ -126,6 +127,71 @@ def do_create_task(
     return task
 
 
+def _done_column(columns: list[TaskBoardColumn]) -> TaskBoardColumn | None:
+    """The board's done column: the one with a done window, or its last
+    column if none is marked, so a job never has nowhere to land."""
+    if not columns:
+        return None
+    return next((column for column in columns if column.done_window_days is not None), columns[-1])
+
+
+def _synced_column(status: str, columns: list[TaskBoardColumn]) -> TaskBoardColumn | None:
+    if not columns:
+        return None
+    if status == "running":
+        return columns[1] if len(columns) > 1 else None
+    if status == "waiting_for_approval":
+        return next((column for column in columns if column.is_review), None)
+    return _done_column(columns)  # "completed"; the caller checks the result is published.
+
+
+def sync_agent_task(job: agents.AgentJob) -> None:
+    """Move every task card linked to this job to match its status.
+
+    `running` moves the card to the board's second column, `waiting_for_approval`
+    to its review column, and `completed` (once the result is published) to its
+    done column. Any other status leaves the card where a person put it.
+    """
+    if job.status not in {"running", "waiting_for_approval", "completed"}:
+        return
+    if job.status == "completed" and job.result_message_id is None:
+        return
+    bot = job.profile.bot_user
+    for task in Task.objects.filter(agent_job=job).select_related("board", "column"):
+        columns = list(TaskBoardColumn.objects.filter(board_id=task.board_id).order_by("order"))
+        column = _synced_column(job.status, columns)
+        if column is None or column.id == task.column_id:
+            continue
+        previous_column = task.column
+        task.column = column
+        task.position = position_at_end(column)
+        task.last_updated = timezone_now()
+        done_column = column.done_window_days is not None
+        if done_column and task.completed_at is None:
+            task.completed_at = task.last_updated
+        elif not done_column:
+            task.completed_at = None
+        task.save(update_fields=["column", "position", "completed_at", "last_updated"])
+        record_history(
+            task,
+            bot,
+            TaskHistory.MOVED,
+            {"from_column_name": previous_column.name, "to_column_name": column.name},
+        )
+        RealmAuditLog.objects.create(
+            realm=task.realm,
+            acting_user=bot,
+            event_type=AuditLogEventType.TASK_MOVED,
+            event_time=task.last_updated,
+            extra_data={
+                "task_id": task.id,
+                "from_column_id": previous_column.id,
+                "to_column_id": column.id,
+            },
+        )
+        send_task_event(task.realm, task, "update")
+
+
 @transaction.atomic(durable=True)
 def do_move_task(
     *,
@@ -134,6 +200,14 @@ def do_move_task(
     column: TaskBoardColumn,
     position: float | None,
 ) -> Task:
+    if (
+        column.done_window_days is not None
+        and task.column_id != column.id
+        and task.agent_job is not None
+        and task.agent_job.status != "completed"
+    ):
+        raise JsonableError(_("Agent tasks move to done after approval."))
+
     previous_column = task.column
     task.column = column
     task.position = position_at_end(column) if position is None else position
