@@ -595,7 +595,7 @@ JWT_AUTH_KEYS: dict[str, JwtAuthKey] = {}
 # Django setting for what from address to use in error emails.
 SERVER_EMAIL = ZULIP_ADMINISTRATOR
 # Django setting for who receives error emails.
-ADMINS = (("Grow Team Administrator", ZULIP_ADMINISTRATOR),)
+ADMINS = (("sanji Administrator", ZULIP_ADMINISTRATOR),)
 
 # From address for welcome emails.
 WELCOME_EMAIL_SENDER: dict[str, str] | None = None
@@ -799,3 +799,49 @@ SCIM_CONFIG: dict[str, SCIMConfigDict] = {}
 # Minimum number of subscribers in a channel for us to no longer
 # send full subscriber data to the client.
 MIN_PARTIAL_SUBSCRIBERS_CHANNEL_SIZE = 1000
+
+# Sanji feature settings (PLAN.md section 4.6). Each area treats a
+# missing value as "not configured" and hides or disables the matching
+# feature instead of failing; matching secrets are read at point of use
+# with get_secret() and are not declared here.
+
+# Google Drive and Calendar (Drive, Calendar).
+GOOGLE_INTEGRATIONS_CLIENT_ID: str | None = None
+GOOGLE_PICKER_API_KEY: str | None = None
+GOOGLE_PICKER_APP_ID: str | None = None
+GOOGLE_DRIVE_SCOPE = "drive.file"
+
+# GitHub App (GitHub integration).
+GITHUB_APP_ID: str | None = None
+GITHUB_APP_SLUG: str | None = None
+
+# WhatsApp Business Platform (WhatsApp integration).
+WHATSAPP_PHONE_NUMBER_ID: str | None = None
+
+# Whether the "Fathom joins this meeting" toggle is offered.
+FATHOM_JOIN_CONTROL = False
+
+# Whether the OpenRouter guardrails API is available for the model
+# workspace settings panel.
+OPENROUTER_GUARDRAILS_API = False
+
+# Web Push (VAPID).
+VAPID_PUBLIC_KEY: str | None = None
+VAPID_SUBJECT: str | None = None
+
+# Cloud-hosted agent runners. CLOUD_RUNNER_PROVIDER is "aws" or "".
+CLOUD_RUNNER_PROVIDER = ""
+CLOUD_RUNNER_AWS_AMI: str | None = None
+CLOUD_RUNNER_AWS_SUBNETS: str | None = None
+
+# Local runner installer.
+RUNNER_DOWNLOAD_DIR: str | None = None
+RUNNER_IMAGE_REF: str | None = None
+
+# Whether the "Create a new workspace" menu entry is offered.
+WORKSPACE_CREATION_ENABLED = False
+
+# Fixed host that every third-party OAuth connect flow (Google, GitHub,
+# OpenRouter, MCP) redirects back to, regardless of which workspace
+# started the flow. See zerver/lib/oauth_callback.py.
+OAUTH_CALLBACK_HOST: str | None = None

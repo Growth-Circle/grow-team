@@ -3,9 +3,9 @@ from typing import Any
 from .config import get_secret
 
 ################################################################
-## Grow Team server settings.
+## sanji server settings.
 ##
-## This file controls settings that affect the whole Grow Team server.
+## This file controls settings that affect the whole sanji server.
 ## See our documentation at:
 ##   https://zulip.readthedocs.io/en/latest/production/settings.html
 ##
@@ -22,16 +22,16 @@ from .config import get_secret
 ## These settings MUST be set in production. In a development environment,
 ## sensible default values will be used.
 
-## The email address for the person or team who maintains the Grow Team
+## The email address for the person or team who maintains the sanji
 ## installation. Note that this is a public-facing email address; it may
 ## appear on 404 pages, is used as the sender's address for many automated
 ## emails, and is advertised as a support address. An email address like
 ## support@example.com is totally reasonable, as is admin@example.com.
 ## Do not put a display name; e.g. "support@example.com", not
-## "Grow Team Support <support@example.com>".
+## "sanji Support <support@example.com>".
 ZULIP_ADMINISTRATOR = "zulip-admin@example.com"
 
-## The user-accessible Grow Team hostname for this installation, e.g.
+## The user-accessible sanji hostname for this installation, e.g.
 ## zulip.example.com.  This should match what users will put in their
 ## web browser.  If you want to allow multiple hostnames, add the rest
 ## to ALLOWED_HOSTS.
@@ -42,7 +42,7 @@ EXTERNAL_HOST = "zulip.example.com"
 
 ## Alternative hostnames.  A comma-separated list of strings
 ## representing the host/domain names that your users can enter in
-## their browsers to access Grow Team.  This is a security measure; for
+## their browsers to access sanji.  This is a security measure; for
 ## details, see the Django documentation:
 ## https://docs.djangoproject.com/en/5.0/ref/settings/#allowed-hosts
 ##
@@ -54,7 +54,7 @@ EXTERNAL_HOST = "zulip.example.com"
 # ALLOWED_HOSTS = ["zulip-alias.example.com", "192.0.2.1"]
 
 ## If EXTERNAL_HOST is not a valid domain name (e.g. an IP address),
-## set FAKE_EMAIL_DOMAIN below to a domain that Grow Team can use when
+## set FAKE_EMAIL_DOMAIN below to a domain that sanji can use when
 ## generating (fake) email addresses for bots, dummy users, etc.
 # FAKE_EMAIL_DOMAIN = "fake-domain.example.com"
 
@@ -62,7 +62,7 @@ EXTERNAL_HOST = "zulip.example.com"
 ################
 ## Outgoing email (SMTP) settings.
 ##
-## Grow Team needs to be able to send email (that is, use SMTP) so it can
+## sanji needs to be able to send email (that is, use SMTP) so it can
 ## confirm new users' email addresses and send notifications.
 ##
 ## If you don't already have an SMTP provider, free ones are available.
@@ -108,7 +108,7 @@ EXTERNAL_HOST = "zulip.example.com"
 ## confirmation emails when ADD_TOKENS_TO_NOREPLY_ADDRESS=False.
 # NOREPLY_EMAIL_ADDRESS = "noreply@example.com"
 
-## Emails sent by the Grow Team server will use a sender name starting
+## Emails sent by the sanji server will use a sender name starting
 ## with INSTALLATION_NAME. The default is EXTERNAL_HOST. If INSTALLATION_NAME is
 ## "zulip.example.com", email senders names will include:
 ## * "zulip.example.com notifications" (message notification emails).
@@ -126,7 +126,7 @@ EXTERNAL_HOST = "zulip.example.com"
 ################
 ## Email gateway integration.
 ##
-## The email gateway integration supports sending messages into Grow Team
+## The email gateway integration supports sending messages into sanji
 ## by sending an email.
 ## For details, see the documentation:
 ##   https://zulip.readthedocs.io/en/latest/production/email-gateway.html
@@ -978,3 +978,56 @@ CAMO_URI = "/external_content/"
 ##
 ## A value of None disables the navigation tour video experience.
 # NAVIGATION_TOUR_VIDEO_URL = "https://static.zulipchat.com/static/navigation-tour-video/zulip-10.mp4"
+
+################
+## sanji feature settings.
+
+## Controls the Google Drive and Google Calendar integrations. You must
+## also set google_integrations_client_secret in zulip-secrets.conf.
+# GOOGLE_INTEGRATIONS_CLIENT_ID = "<your Google OAuth client ID>"
+# GOOGLE_PICKER_API_KEY = "<your Google Picker API key>"
+# GOOGLE_PICKER_APP_ID = "<your Google Cloud project number>"
+# GOOGLE_DRIVE_SCOPE = "drive.file"
+
+## Controls the GitHub integration. You must also set
+## github_app_private_key and github_app_webhook_secret in
+## zulip-secrets.conf.
+# GITHUB_APP_ID = "<your GitHub App ID>"
+# GITHUB_APP_SLUG = "<your GitHub App slug>"
+
+## Controls the WhatsApp integration. You must also set
+## whatsapp_access_token, whatsapp_app_secret, and whatsapp_verify_token
+## in zulip-secrets.conf.
+# WHATSAPP_PHONE_NUMBER_ID = "<your WhatsApp phone number ID>"
+
+## Offers the "Fathom joins this meeting" toggle for scheduled meetings.
+# FATHOM_JOIN_CONTROL = True
+
+## Controls the model workspace settings panel. You must also set
+## openrouter_management_key in zulip-secrets.conf.
+# OPENROUTER_GUARDRAILS_API = True
+
+## Controls Web Push notifications. You must also set
+## vapid_private_key in zulip-secrets.conf.
+# VAPID_PUBLIC_KEY = "<your VAPID public key>"
+# VAPID_SUBJECT = "mailto:support@example.com"
+
+## Controls cloud-hosted agent runners. You must also set
+## cloud_runner_aws_access_key_id and cloud_runner_aws_secret_access_key
+## in zulip-secrets.conf.
+# CLOUD_RUNNER_PROVIDER = "aws"
+# CLOUD_RUNNER_AWS_AMI = "<your AMI ID>"
+# CLOUD_RUNNER_AWS_SUBNETS = "<comma-separated subnet IDs>"
+
+## Controls the local runner installer.
+# RUNNER_DOWNLOAD_DIR = "/srv/sanji-runner-downloads"
+# RUNNER_IMAGE_REF = "<your container image reference>"
+
+## Offers the "Create a new workspace" menu entry.
+# WORKSPACE_CREATION_ENABLED = True
+
+## Fixed host that every third-party OAuth connect flow (Google, GitHub,
+## OpenRouter, MCP) redirects back to, regardless of which workspace
+## started the flow. This host must be reachable and configured as the
+## single redirect URI on each provider.
+# OAUTH_CALLBACK_HOST = "auth.example.com"
