@@ -16,12 +16,10 @@ async function get_drafts_count(page: Page): Promise<number> {
     return await page.$$eval("#drafts_table .overlay-message-row", (drafts) => drafts.length);
 }
 
-const drafts_button = ".top_left_drafts";
 const drafts_overlay = "#draft_overlay";
 
 async function test_empty_drafts(page: Page): Promise<void> {
-    await page.waitForSelector(drafts_button, {visible: true});
-    await page.click(drafts_button);
+    await common.go_to_hash(page, "#drafts");
 
     await wait_for_drafts_to_appear(page);
     await page.waitForSelector(drafts_overlay, {visible: true});
@@ -44,10 +42,8 @@ async function create_stream_message_draft(page: Page): Promise<void> {
 }
 
 async function test_restore_stream_message_draft_by_opening_compose_box(page: Page): Promise<void> {
-    await page.click(".search_icon");
-    await page.waitForSelector("#search_query", {visible: true});
-    await common.clear_and_type(page, "#search_query", "stream:Denmark topic:tests");
-    await page.keyboard.press("Enter");
+    const denmark_id = await common.get_stream_id(page, "Denmark");
+    await common.go_to_hash(page, `#narrow/channel/${denmark_id}-Denmark/topic/tests`);
     // Wait for narrow to complete.
     const wait_for_change = true;
     await common.get_current_msg_list_id(page, wait_for_change);
@@ -98,8 +94,7 @@ async function open_compose_markdown_preview(page: Page): Promise<void> {
 
 async function open_drafts_after_markdown_preview(page: Page): Promise<void> {
     await open_compose_markdown_preview(page);
-    await page.waitForSelector(drafts_button, {visible: true});
-    await page.click(drafts_button);
+    await common.go_to_hash(page, "#drafts");
     await wait_for_drafts_to_appear(page);
 }
 
@@ -170,8 +165,7 @@ async function edit_stream_message_draft(page: Page): Promise<void> {
 }
 
 async function test_edited_draft_message(page: Page): Promise<void> {
-    await page.waitForSelector(drafts_button, {visible: true});
-    await page.click(drafts_button);
+    await common.go_to_hash(page, "#drafts");
 
     await wait_for_drafts_to_appear(page);
     assert.strictEqual(
@@ -224,8 +218,7 @@ async function test_restore_private_message_draft_via_draft_overlay(page: Page):
 
 async function test_delete_draft(page: Page): Promise<void> {
     console.log("Deleting draft");
-    await page.waitForSelector(drafts_button, {visible: true});
-    await page.click(drafts_button);
+    await common.go_to_hash(page, "#drafts");
     await wait_for_drafts_to_appear(page);
     await page.click("#drafts_table .message_row.private-message .delete-overlay-message");
     const drafts_count = await get_drafts_count(page);
@@ -251,8 +244,7 @@ async function test_save_draft_by_reloading(page: Page): Promise<void> {
     await page.click("#compose_close");
 
     console.log("Reloading finished. Opening drafts again now.");
-    await page.waitForSelector(drafts_button, {visible: true});
-    await page.click(drafts_button);
+    await common.go_to_hash(page, "#drafts");
 
     console.log("Checking drafts survived after the reload");
     await wait_for_drafts_to_appear(page);
@@ -282,7 +274,7 @@ async function test_delete_draft_on_clearing_text(page: Page): Promise<void> {
     await common.fill_form(page, "form#send_message_form", {content: ""});
     await page.click("#compose_close");
     await page.waitForSelector("#send_message_form", {hidden: true});
-    await page.click(drafts_button);
+    await common.go_to_hash(page, "#drafts");
     await wait_for_drafts_to_appear(page);
     const drafts_count = await get_drafts_count(page);
     assert.strictEqual(drafts_count, 1, "Draft not deleted.");
@@ -290,7 +282,7 @@ async function test_delete_draft_on_clearing_text(page: Page): Promise<void> {
 
 async function drafts_test(page: Page): Promise<void> {
     await common.log_in(page);
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
+    await common.go_to_hash(page, "#feed");
     const message_list_id = await common.get_current_msg_list_id(page, true);
     await page.waitForSelector(
         `.message-list[data-message-list-id='${message_list_id}'] .message_row`,

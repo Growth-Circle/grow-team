@@ -10,49 +10,27 @@ import * as common from "./lib/common.ts";
 // only once the new narrow is in place (narrow_title.ts), including for a
 // view with no messages of its own (e.g. this user's direct message feed),
 // so it stays a reliable signal where a wait for a message row would not.
-async function wait_for_narrow(page: Page, title_prefix: string): Promise<void> {
+async function wait_for_title(page: Page, title_prefix: string): Promise<void> {
     await page.waitForFunction((prefix) => document.title.startsWith(prefix), {}, title_prefix);
 }
 
-async function navigate_using_left_sidebar(page: Page, stream_name: string): Promise<void> {
+async function navigate_to_channel(page: Page, stream_name: string): Promise<void> {
     console.log("Visiting #" + stream_name);
-    const stream_id = await page.evaluate(() => zulip_test.get_sub("Verona")!.stream_id);
-    await page.click(`.narrow-filter[data-stream-id="${stream_id}"] .stream-name`);
-    await wait_for_narrow(page, `#${stream_name}`);
+    const stream_id = await common.get_stream_id(page, stream_name);
+    assert.ok(stream_id !== undefined);
+    await common.go_to_hash(page, `#narrow/channel/${stream_id}-${stream_name}`);
+    await wait_for_title(page, `#${stream_name}`);
 }
 
-// Frame 10a's expanded Views list hides Combined feed
-// (left_sidebar_navigation_area.ts: FRAGMENTS_HIDDEN_FROM_EXPANDED_VIEWS_LIST);
-// it stays reachable from the condensed icon row, so collapse the list first
-// when it is not collapsed already.
 async function navigate_to_all_messages(page: Page): Promise<void> {
-    const is_expanded = await page.evaluate(
-        () =>
-            document
-                .querySelector("#views-label-container")
-                ?.classList.contains("showing-expanded-navigation") ?? false,
-    );
-    if (is_expanded) {
-        await page.click("#toggle-top-left-navigation-area-icon");
-    }
-    await page.click("#left-sidebar-navigation-list-condensed .top_left_all_messages");
-    await wait_for_narrow(page, "Combined feed");
-}
-
-async function open_menu(page: Page): Promise<void> {
-    const menu_selector = "#settings-dropdown";
-    await page.waitForSelector(menu_selector, {visible: true});
-    await page.click(menu_selector);
+    await common.go_to_hash(page, "#feed");
+    await wait_for_title(page, "Combined feed");
 }
 
 async function navigate_to_settings(page: Page): Promise<void> {
     console.log("Navigating to settings");
 
-    await common.open_personal_menu(page);
-
-    const settings_selector = "#personal-menu-dropdown a[href^='#settings']";
-    await page.waitForSelector(settings_selector, {visible: true});
-    await page.click(settings_selector);
+    await common.open_personal_settings(page);
 
     const profile_section_tab_selector = "li[data-section='profile']";
     await page.waitForSelector(profile_section_tab_selector, {visible: true});
@@ -67,12 +45,7 @@ async function navigate_to_settings(page: Page): Promise<void> {
 async function navigate_to_subscriptions(page: Page): Promise<void> {
     console.log("Navigate to subscriptions");
 
-    await open_menu(page);
-
-    const manage_streams_selector = '.link-item a[href^="#channels"]';
-    await page.waitForSelector(manage_streams_selector, {visible: true});
-    await page.click(manage_streams_selector);
-
+    await common.go_to_hash(page, "#channels");
     await page.waitForSelector("#subscription_overlay", {visible: true});
 
     await page.click("#subscription_overlay .exit");
@@ -83,11 +56,8 @@ async function navigate_to_subscriptions(page: Page): Promise<void> {
 async function navigate_to_private_messages(page: Page): Promise<void> {
     console.log("Navigate to direct messages");
 
-    const all_private_messages_icon = ".show-all-direct-messages";
-    await page.waitForSelector(all_private_messages_icon, {visible: true});
-    await page.click(all_private_messages_icon);
-
-    await wait_for_narrow(page, "Direct message feed");
+    await common.go_to_hash(page, "#narrow/is/dm");
+    await wait_for_title(page, "Direct message feed");
 }
 
 async function test_reload_hash(page: Page): Promise<void> {
@@ -119,7 +89,7 @@ async function navigation_tests(page: Page): Promise<void> {
 
     await navigate_to_settings(page);
 
-    await navigate_using_left_sidebar(page, "Verona");
+    await navigate_to_channel(page, "Verona");
 
     await navigate_to_all_messages(page);
 
@@ -130,7 +100,7 @@ async function navigation_tests(page: Page): Promise<void> {
     await navigate_to_settings(page);
     await navigate_to_private_messages(page);
     await navigate_to_subscriptions(page);
-    await navigate_using_left_sidebar(page, "Verona");
+    await navigate_to_channel(page, "Verona");
 
     await test_reload_hash(page);
 

@@ -3,13 +3,11 @@ import type {Page} from "puppeteer";
 import * as common from "./lib/common.ts";
 
 async function open_set_user_status_modal(page: Page): Promise<void> {
-    await page.click("#personal-menu");
-    await page.waitForSelector("#personal-menu-dropdown", {visible: true});
-    // We are using evaluate to click because it is very hard to detect if
-    // the personal menu popover has opened.
-    await page.evaluate(() => {
-        document.querySelector<HTMLAnchorElement>(".update_status_text")!.click();
-    });
+    // The app shell hides the navbar personal menu, so use the
+    // Shift+Y shortcut that also opens this dialog.
+    await page.keyboard.down("Shift");
+    await page.keyboard.press("KeyY");
+    await page.keyboard.up("Shift");
 
     // Wait for the modal to completely open.
     await common.wait_for_micromodal_to_open(page);

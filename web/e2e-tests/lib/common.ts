@@ -280,13 +280,13 @@ export async function log_in(
 
 export async function log_out(page: Page): Promise<void> {
     await page.goto(realm_url);
-    const menu_selector = "#personal-menu";
-    const logout_selector = ".personal-menu-actions a.logout_button";
     console.log("Logging out");
-    await page.waitForSelector(menu_selector, {visible: true});
-    await page.click(menu_selector);
-    await page.waitForSelector(logout_selector);
-    await page.click(logout_selector);
+    // The app shell hides the navbar personal menu, so submit the
+    // logout form of the page directly.
+    await page.waitForSelector("#logout_form", {timeout: 5000});
+    await page.$eval("form#logout_form", (form) => {
+        form.submit();
+    });
 
     // Wait for a email input in login page so we know login
     // page is loaded. Then check that we are at the login url.
@@ -564,20 +564,21 @@ export async function open_streams_modal(page: Page): Promise<void> {
     assert.ok(url.includes("#channels/available"));
 }
 
-export async function open_personal_menu(page: Page): Promise<void> {
-    const menu_selector = "#personal-menu";
-    await page.waitForSelector(menu_selector, {visible: true});
-    await page.click(menu_selector);
+// Opens a view or an overlay the way a link does. The app shell hides
+// the navbar menus, so tests reach views through their hashes.
+export async function go_to_hash(page: Page, hash: string): Promise<void> {
+    await page.evaluate((new_hash) => {
+        window.location.hash = new_hash;
+    }, hash);
+}
+
+export async function open_personal_settings(page: Page): Promise<void> {
+    await go_to_hash(page, "#settings/profile");
+    await page.waitForSelector("#settings_overlay_container.show", {visible: true});
 }
 
 export async function manage_organization(page: Page): Promise<void> {
-    const menu_selector = "#settings-dropdown";
-    await page.waitForSelector(menu_selector, {visible: true});
-    await page.click(menu_selector);
-
-    const organization_settings = '.link-item a[href="#organization"]';
-    await page.waitForSelector(organization_settings, {visible: true});
-    await page.click(organization_settings);
+    await go_to_hash(page, "#organization");
     await page.waitForSelector("#settings_overlay_container.show", {visible: true});
 
     const url = await page_url_with_fragment(page);

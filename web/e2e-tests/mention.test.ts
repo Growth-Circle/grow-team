@@ -6,7 +6,7 @@ import * as common from "./lib/common.ts";
 
 async function test_mention(page: Page): Promise<void> {
     await common.log_in(page);
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
+    await common.go_to_hash(page, "#feed");
     let message_list_id = await common.get_current_msg_list_id(page, true);
     await page.waitForSelector(
         `.message-list[data-message-list-id='${message_list_id}'] .message_row`,

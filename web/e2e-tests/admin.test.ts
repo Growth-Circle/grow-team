@@ -238,9 +238,6 @@ async function test_authentication_methods(page: Page): Promise<void> {
     await page.click(save_button);
 
     // Leave the page and return.
-    const settings_dropdown = "#settings-dropdown";
-    await page.click(settings_dropdown);
-
     await common.manage_organization(page);
     await page.click("li[data-section='auth-methods']");
 

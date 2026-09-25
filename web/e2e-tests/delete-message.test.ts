@@ -22,7 +22,7 @@ async function click_delete_and_return_last_msg_id(page: Page): Promise<string> 
 
 async function delete_message_test(page: Page): Promise<void> {
     await common.log_in(page);
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
+    await common.go_to_hash(page, "#feed");
     const message_list_id = await common.get_current_msg_list_id(page, true);
     await page.waitForSelector(
         `.message-list[data-message-list-id='${message_list_id}'] .message_row`,

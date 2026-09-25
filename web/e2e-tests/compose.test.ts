@@ -35,7 +35,7 @@ async function test_send_messages(page: Page): Promise<void> {
         {recipient: "cordelia@zulip.com", content: "Compose direct message reply test"},
     ]);
 
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
+    await common.go_to_hash(page, "#feed");
     const message_list_id = await common.get_current_msg_list_id(page, true);
     await page.waitForSelector(
         `.message-list[data-message-list-id='${message_list_id}'] .message_row`,
@@ -140,7 +140,7 @@ async function test_send_multirecipient_pm_from_cordelia_pm_narrow(page: Page): 
     });
 
     // Go back to the combined feed view and make sure all messages are loaded.
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
+    await common.go_to_hash(page, "#feed");
     const message_list_id = await common.get_current_msg_list_id(page, true);
     await page.waitForSelector(
         `.message-list[data-message-list-id='${message_list_id}'] .message_row`,
@@ -223,7 +223,7 @@ async function test_markdown_preview(page: Page): Promise<void> {
 
 async function compose_tests(page: Page): Promise<void> {
     await common.log_in(page);
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
+    await common.go_to_hash(page, "#feed");
     const message_list_id = await common.get_current_msg_list_id(page, true);
     await page.waitForSelector(
         `.message-list[data-message-list-id='${message_list_id}'] .message_row`,

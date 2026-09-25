@@ -17,7 +17,7 @@ async function expect_home(page: Page): Promise<void> {
     });
     // Assert that there is only one message list.
     assert.equal((await page.$$(".message-list")).length, 1);
-    assert.strictEqual(await page.title(), "Combined feed - Zulip Dev - Zulip");
+    assert.strictEqual(await page.title(), "Combined feed - Zulip Dev - sanji");
     await common.check_messages_sent(page, message_list_id, [
         ["Verona > test", ["verona test a", "verona test b"]],
         ["Verona > other topic", ["verona other topic c"]],
@@ -41,7 +41,7 @@ async function expect_verona_stream_top_topic(page: Page): Promise<void> {
     await common.check_messages_sent(page, message_list_id, [
         ["Verona > test", ["verona test a", "verona test b", "verona test d"]],
     ]);
-    assert.strictEqual(await page.title(), "#Verona > test - Zulip Dev - Zulip");
+    assert.strictEqual(await page.title(), "#Verona > test - Zulip Dev - sanji");
 }
 
 async function expect_verona_stream(page: Page): Promise<void> {
@@ -54,7 +54,7 @@ async function expect_verona_stream(page: Page): Promise<void> {
         ["Verona > other topic", ["verona other topic c"]],
         ["Verona > test", ["verona test d"]],
     ]);
-    assert.strictEqual(await page.title(), "#Verona - Zulip Dev - Zulip");
+    assert.strictEqual(await page.title(), "#Verona - Zulip Dev - sanji");
 }
 
 async function expect_verona_stream_test_topic(page: Page): Promise<void> {
@@ -106,7 +106,7 @@ async function expect_group_direct_messages(page: Page): Promise<void> {
     ]);
     assert.strictEqual(
         await page.title(),
-        "Cordelia, Lear's daughter, King Hamlet - Zulip Dev - Zulip",
+        "Cordelia, Lear's daughter, King Hamlet - Zulip Dev - sanji",
     );
 }
 
@@ -124,7 +124,7 @@ async function un_narrow(page: Page): Promise<void> {
     if ((await (await page.$(".message_comp"))!.boundingBox())?.height) {
         await page.keyboard.press("Escape");
     }
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
+    await common.go_to_hash(page, "#feed");
 }
 
 async function un_narrow_by_clicking_org_icon(page: Page): Promise<void> {
@@ -133,7 +133,7 @@ async function un_narrow_by_clicking_org_icon(page: Page): Promise<void> {
 
 async function expect_recent_view(page: Page): Promise<void> {
     await page.waitForSelector("#recent_view_table", {visible: true});
-    assert.strictEqual(await page.title(), "Recent conversations - Zulip Dev - Zulip");
+    assert.strictEqual(await page.title(), "Recent conversations - Zulip Dev - sanji");
 }
 
 async function test_navigations_from_home(page: Page): Promise<void> {
@@ -142,7 +142,7 @@ async function test_navigations_from_home(page: Page): Promise<void> {
     await page.click(`.focused-message-list [title='Narrow to stream "Verona"']`);
     await expect_verona_stream(page);
 
-    assert.strictEqual(await page.title(), "#Verona - Zulip Dev - Zulip");
+    assert.strictEqual(await page.title(), "#Verona - Zulip Dev - sanji");
     await un_narrow(page);
     await expect_home(page);
 
@@ -170,30 +170,25 @@ async function test_navigations_from_home(page: Page): Promise<void> {
     await expect_recent_view(page);
 }
 
-async function search_and_check(
+// The app shell hides the navbar search box. These narrows are the
+// ones a search opens, reached through their hashes.
+async function narrow_and_check(
     page: Page,
-    search_str: string,
-    item_to_select: string,
+    hash: string,
     check: (page: Page) => Promise<void>,
     expected_narrow_title: string,
 ): Promise<void> {
-    await page.click(".search_icon");
-    await page.waitForSelector(".navbar-search.expanded", {visible: true});
-    await common.select_item_via_typeahead(page, "#search_query", search_str, item_to_select);
-    // Enter to trigger search
-    await page.keyboard.press("Enter");
+    await common.go_to_hash(page, hash);
     await check(page);
     assert.strictEqual(await page.title(), expected_narrow_title);
     await un_narrow(page);
     await expect_home(page);
 }
 
-async function search_silent_user(page: Page, str: string, item: string): Promise<void> {
-    await page.click(".search_icon");
-    await page.waitForSelector(".navbar-search.expanded", {visible: true});
-    await common.select_item_via_typeahead(page, "#search_query", str, item);
-    // Enter to trigger search
-    await page.keyboard.press("Enter");
+async function narrow_to_silent_user(page: Page): Promise<void> {
+    const email_gateway_id = await common.get_user_id_from_name(page, "Email Gateway");
+    assert.ok(email_gateway_id !== undefined);
+    await common.go_to_hash(page, `#narrow/sender/${email_gateway_id}`);
     await page.waitForSelector(".empty_feed_notice", {visible: true});
     const expect_message = "You haven't received any messages sent by Email Gateway yet.";
     assert.strictEqual(
@@ -205,56 +200,48 @@ async function search_silent_user(page: Page, str: string, item: string): Promis
     await expect_home(page);
 }
 
-async function search_tests(page: Page): Promise<void> {
-    await search_and_check(
+async function narrow_tests(page: Page): Promise<void> {
+    const verona_id = await common.get_stream_id(page, "Verona");
+    const cordelia_id = await common.get_user_id_from_name(page, "Cordelia, Lear's daughter");
+    assert.ok(verona_id !== undefined);
+    assert.ok(cordelia_id !== undefined);
+
+    await narrow_and_check(
         page,
-        "Verona",
-        "#Verona",
+        `#narrow/channel/${verona_id}-Verona`,
         expect_verona_stream,
-        "#Verona - Zulip Dev - Zulip",
+        "#Verona - Zulip Dev - sanji",
     );
 
-    await search_and_check(
+    await narrow_and_check(
         page,
-        "Cordelia",
-        "dm:",
+        `#narrow/dm/${cordelia_id}`,
         expect_cordelia_direct_messages,
-        "Cordelia, Lear's daughter - Zulip Dev - Zulip",
+        "Cordelia, Lear's daughter - Zulip Dev - sanji",
     );
 
-    await search_and_check(
+    await narrow_and_check(
         page,
-        "stream:Verona",
-        "",
-        expect_verona_stream,
-        "#Verona - Zulip Dev - Zulip",
-    );
-
-    await search_and_check(
-        page,
-        "stream:Verona topic:test",
-        "",
+        `#narrow/channel/${verona_id}-Verona/topic/test`,
         expect_verona_stream_test_topic,
-        "#Verona > test - Zulip Dev - Zulip",
+        "#Verona > test - Zulip Dev - sanji",
     );
 
-    await search_and_check(
+    await narrow_and_check(
         page,
-        "stream:Verona topic:other+topic",
-        "",
+        `#narrow/channel/${verona_id}-Verona/topic/other.20topic`,
         expect_verona_other_topic,
-        "#Verona > other topic - Zulip Dev - Zulip",
+        "#Verona > other topic - Zulip Dev - sanji",
     );
 
-    await search_and_check(
+    await narrow_and_check(
         page,
-        "topic:test",
-        "",
+        "#narrow/topic/test",
         expect_test_topic,
-        "Search results - Zulip Dev - Zulip",
+        "Search results - Zulip Dev - sanji",
     );
 
-    await search_silent_user(page, "sender:emailgateway@zulip.com", "");
+    await narrow_to_silent_user(page);
 }
 
 async function expect_all_direct_messages(page: Page): Promise<void> {
@@ -275,7 +262,7 @@ async function expect_all_direct_messages(page: Page): Promise<void> {
         await common.get_text_from_selector(page, "#new_conversation_button"),
         "Start new conversation",
     );
-    assert.strictEqual(await page.title(), "Direct message feed - Zulip Dev - Zulip");
+    assert.strictEqual(await page.title(), "Direct message feed - Zulip Dev - sanji");
 }
 
 async function test_narrow_by_clicking_the_left_sidebar(page: Page): Promise<void> {
@@ -284,7 +271,7 @@ async function test_narrow_by_clicking_the_left_sidebar(page: Page): Promise<voi
     await page.click((await get_stream_li(page, "Verona")) + " .stream-name");
     await expect_verona_stream_top_topic(page);
 
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages a");
+    await common.go_to_hash(page, "#feed");
     await expect_home(page);
 
     const all_private_messages_icon = ".show-all-direct-messages";
@@ -490,7 +477,7 @@ async function test_narrow_public_streams(page: Page): Promise<void> {
 
 async function message_basic_tests(page: Page): Promise<void> {
     await common.log_in(page);
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
+    await common.go_to_hash(page, "#feed");
     const message_list_id = await common.get_current_msg_list_id(page, true);
     await page.waitForSelector(
         `.message-list[data-message-list-id='${message_list_id}'] .message_row`,
@@ -524,11 +511,11 @@ async function message_basic_tests(page: Page): Promise<void> {
         {recipient: "cordelia@zulip.com", content: "direct message e"},
     ]);
 
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
+    await common.go_to_hash(page, "#feed");
     await expect_home(page);
 
     await test_navigations_from_home(page);
-    await search_tests(page);
+    await narrow_tests(page);
     await test_narrow_by_clicking_the_left_sidebar(page);
     await test_stream_search_filters_stream_list(page);
     await test_users_search(page);

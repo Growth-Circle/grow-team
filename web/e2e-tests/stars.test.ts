@@ -28,12 +28,12 @@ async function toggle_test_star_message(page: Page): Promise<void> {
 }
 
 async function test_narrow_to_starred_messages(page: Page): Promise<void> {
-    await page.click('#left-sidebar-navigation-list a[href^="#narrow/is/starred"]');
+    await common.go_to_hash(page, "#narrow/is/starred");
     const message_list_id = await common.get_current_msg_list_id(page, true);
     await common.check_messages_sent(page, message_list_id, [["Verona > stars", [message]]]);
 
     // Go back to the combined feed view.
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
+    await common.go_to_hash(page, "#feed");
     const combined_feed_id = await common.get_current_msg_list_id(page, true);
     await page.waitForSelector(
         `.message-list[data-message-list-id='${combined_feed_id}'] .message_row`,
@@ -43,7 +43,7 @@ async function test_narrow_to_starred_messages(page: Page): Promise<void> {
 
 async function stars_test(page: Page): Promise<void> {
     await common.log_in(page);
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
+    await common.go_to_hash(page, "#feed");
     let message_list_id = await common.get_current_msg_list_id(page, true);
     await page.waitForSelector(
         `.message-list[data-message-list-id='${message_list_id}'] .message_row`,
@@ -60,7 +60,7 @@ async function stars_test(page: Page): Promise<void> {
     assert.strictEqual(await stars_count(page), 0, "Unexpected already starred message(s).");
 
     await toggle_test_star_message(page);
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
+    await common.go_to_hash(page, "#feed");
     message_list_id = await common.get_current_msg_list_id(page, true);
     await page.waitForSelector(
         `.message-list[data-message-list-id='${message_list_id}'] .zulip-icon-star-filled`,

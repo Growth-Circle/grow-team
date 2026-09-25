@@ -26,11 +26,7 @@ async function open_manage_bot_tab(page: Page, user_id: number): Promise<void> {
 }
 
 async function open_settings(page: Page): Promise<void> {
-    await common.open_personal_menu(page);
-
-    const settings_selector = "#personal-menu-dropdown a[href^='#settings']";
-    await page.waitForSelector(settings_selector, {visible: true});
-    await page.click(settings_selector);
+    await common.open_personal_settings(page);
 
     await page.waitForSelector("#settings_content .profile-settings-form", {visible: true});
     const page_url = await common.page_url_with_fragment(page);

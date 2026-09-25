@@ -15,10 +15,7 @@ async function get_stream_id(page: Page): Promise<number> {
 }
 
 async function navigate_to_settings_preferences(page: Page): Promise<void> {
-    await common.open_personal_menu(page);
-    await page.waitForSelector("#personal-menu-dropdown a[href^='#settings']", {visible: true});
-    await page.click("#personal-menu-dropdown a[href^='#settings']");
-    await page.waitForSelector("#settings_overlay_container.show", {visible: true});
+    await common.open_personal_settings(page);
     await page.waitForSelector('[data-section="preferences"]', {visible: true});
     await page.click('[data-section="preferences"]');
     await page.waitForSelector("#user_web_mark_read_on_scroll_policy", {visible: true});
@@ -47,7 +44,7 @@ async function test_near_narrow_is_conversation_view(page: Page): Promise<void> 
     assert.ok(msg_id !== undefined, "Expected a message to be sent and visible");
 
     // Navigate away from the topic, then come back via /near/ URL.
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
+    await common.go_to_hash(page, "#feed");
     await common.get_current_msg_list_id(page, true);
 
     await page.goto(
@@ -81,7 +78,7 @@ async function test_near_narrow_reading_gate_clears(page: Page): Promise<void> {
 
     // Navigate away, then return via /near/ URL.  All messages were
     // already marked as read in test 1 when we first visited this topic.
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
+    await common.go_to_hash(page, "#feed");
     await common.get_current_msg_list_id(page, true);
 
     await page.goto(
@@ -188,7 +185,7 @@ async function test_near_narrow_gate_requires_scroll(page: Page): Promise<void> 
     assert.ok(msg_last_id !== undefined);
 
     // Navigate to the combined feed (all sent messages are now marked as read).
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
+    await common.go_to_hash(page, "#feed");
     await common.get_current_msg_list_id(page, true);
 
     // Mark all messages in the topic as unread so the gate has something to gate on.
@@ -256,7 +253,7 @@ async function test_near_narrow_gate_requires_scroll(page: Page): Promise<void> 
 
 async function mark_messages_read_near_test(page: Page): Promise<void> {
     await common.log_in(page);
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
+    await common.go_to_hash(page, "#feed");
     await common.get_current_msg_list_id(page, true);
 
     await test_near_narrow_is_conversation_view(page);

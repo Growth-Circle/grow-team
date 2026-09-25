@@ -143,7 +143,7 @@ async function copy_paste_test(page: Page): Promise<void> {
         {stream_name: "Verona", topic: "copy-paste-topic #3", content: "copy paste test G"},
     ]);
 
-    await page.click("#left-sidebar-navigation-list .top_left_all_messages");
+    await common.go_to_hash(page, "#feed");
     const message_list_id = await common.get_current_msg_list_id(page, true);
     await common.check_messages_sent(page, message_list_id, [
         ["Verona > copy-paste-topic #1", ["copy paste test A", "copy paste test B"]],
