@@ -7,7 +7,7 @@ from django.utils.timezone import now
 
 from zerver.actions.agent_jobs import audit, invalidate_approvals, request_stop, transition
 from zerver.lib.agent_context import AgentBusy, agent_transaction
-from zerver.lib.agent_results import publish_result
+from zerver.lib.agent_results import _block_publication, publish_result
 from zerver.models import agents
 
 
@@ -23,6 +23,7 @@ def reconcile_agents(
         "published": 0,
         "notifications": 0,
         "blocked": 0,
+        "publication_timeouts": 0,
     }
     with agent_transaction():
         queued = (
@@ -33,6 +34,28 @@ def reconcile_agents(
         for job in queued:
             transition(job, "blocked", reason="start_deadline_expired")
             counts["expired_queues"] += 1
+        # FL-30: an answer that has not published within 30 seconds of
+        # reaching "verifying" fails with a reason instead of leaving its
+        # card there forever. transition() stamps updated_at, and a repeated
+        # publication_blocked leaves it alone, so this counts from the first
+        # block. An audience_changed answer waits for its requester instead
+        # (deliver_result_privately).
+        stuck_verifying = list(
+            agents.AgentJob.objects.select_for_update(skip_locked=True)
+            .filter(
+                status="verifying",
+                job_kind="answer",
+                blocked_reason__in=["", "publication_blocked"],
+                updated_at__lte=now() - timedelta(seconds=30),
+            )
+            .order_by("updated_at")
+            .values_list("id", flat=True)[:limit]
+        )
+        for job_id in stuck_verifying:
+            _block_publication(
+                job_id, target_status="failed", reason="publication_timeout", park_outbox=True
+            )
+            counts["publication_timeouts"] += 1
         attempts = (
             agents.AgentAttempt.objects.select_for_update(skip_locked=True)
             .filter(active=True, lease_expires_at__lte=now())

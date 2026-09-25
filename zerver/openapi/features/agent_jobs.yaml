@@ -3703,7 +3703,7 @@ components:
             A stable code for why a blocked, interrupted, failed, or verifying
             job is in that state, such as start_deadline_expired, stop_unconfirmed,
             runtime_stopped, lease_lost, start_failed, result_invalid,
-            verification_failed, publication_blocked,
+            verification_failed, publication_blocked, publication_timeout,
             audience_changed, profile_needs_action, budget_exhausted,
             approval_expired, approval_rejected, or authority_changed. A queued
             job whose runner sent no heartbeat in the last 45 seconds has

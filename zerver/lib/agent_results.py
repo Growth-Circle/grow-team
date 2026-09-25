@@ -26,6 +26,7 @@ from zerver.actions.agent_jobs import (
     check_attempt_access,
     locked_attempt,
     react_after_commit,
+    request_stop,
     throttle,
     transition,
     typing_after_commit,
@@ -332,7 +333,17 @@ def _block_publication(job_id: UUID, *, target_status: str, reason: str, park_ou
     with agent_transaction():
         job = agents.AgentJob.objects.select_for_update().get(id=job_id)
         if job.status == "verifying" and job.blocked_reason != reason:
-            transition(job, target_status, reason=reason)
+            attempt = (
+                agents.AgentAttempt.objects.select_for_update().filter(job=job, active=True).first()
+                if target_status != "verifying"
+                else None
+            )
+            if attempt is not None:
+                # The job ends while its attempt still runs (FL-30): ask the
+                # runner to stop first, the same as an expired approval.
+                request_stop(job, attempt, target=target_status, reason=reason)
+            else:
+                transition(job, target_status, reason=reason)
             audit(
                 job,
                 "publication.blocked",

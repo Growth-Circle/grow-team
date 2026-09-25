@@ -839,3 +839,58 @@ class AgentJobCardTests(ZulipTestCase):
         assert team is not None
         self.assertTrue(team.text.endswith("\n\nRespond in Indonesian."))
         self.assertLessEqual(len(team.text.encode("utf-16-le")) // 2, p.INSTRUCTIONS_MAX_CHARS)
+
+    # ---- publication timeout (FL-30) ----
+
+    def test_verifying_answer_times_out_after_the_publication_deadline(self) -> None:
+        self._ask()
+        job = self._job()
+        attempt = self._claim(job)
+        agents.AgentAttempt.objects.filter(id=attempt.id).update(
+            active=False, process_state="stopped", stopped_at=now(), ended_at=now()
+        )
+        agents.AgentJob.objects.filter(id=job.id).update(
+            status="verifying", updated_at=now() - timedelta(seconds=31)
+        )
+        outbox = agents.AgentOutbox.objects.create(
+            realm=job.realm, job=job, delivery_key=f"result:{job.id}", event_type="result.publish"
+        )
+        with self.captureOnCommitCallbacks(execute=True):
+            counts = reconcile_agents()
+        self.assertEqual(counts["publication_timeouts"], 1)
+        job.refresh_from_db()
+        self.assertEqual((job.status, job.blocked_reason), ("failed", "publication_timeout"))
+        outbox.refresh_from_db()
+        self.assertEqual(outbox.status, "blocked")
+        self.assertTrue(
+            agents.AgentAuditEvent.objects.filter(
+                job=job, type="publication.blocked", payload__reason="publication_timeout"
+            ).exists()
+        )
+        self.assertEqual(self._widget(job)["reason_code"], "publication_timeout")
+
+    def test_publication_timeout_stops_a_still_active_attempt(self) -> None:
+        self._ask()
+        job = self._job()
+        attempt = self._claim(job)
+        agents.AgentJob.objects.filter(id=job.id).update(
+            status="verifying", updated_at=now() - timedelta(seconds=31)
+        )
+        with self.captureOnCommitCallbacks(execute=True):
+            reconcile_agents()
+        job.refresh_from_db()
+        self.assertEqual((job.status, job.stop_target), ("cancel_requested", "failed"))
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.process_state, "stopping")
+
+    def test_answer_held_for_private_delivery_never_times_out(self) -> None:
+        self._ask()
+        job = self._job()
+        agents.AgentJob.objects.filter(id=job.id).update(
+            status="verifying",
+            blocked_reason="audience_changed",
+            updated_at=now() - timedelta(minutes=5),
+        )
+        self.assertEqual(reconcile_agents()["publication_timeouts"], 0)
+        job.refresh_from_db()
+        self.assertEqual(job.status, "verifying")
