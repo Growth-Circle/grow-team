@@ -170,13 +170,13 @@ html {
         }
 
         .form-inline .outline {
-            border: 2px inset hsl(172deg 23% 25%);
+            border: 2px inset var(--sj-text);
             background-color: hsl(0deg 0% 100%);
-            color: hsl(172deg 23% 25%);
+            color: var(--sj-text);
             padding: 13px 20px 11px;
 
             &:hover {
-                background-color: hsl(172deg 65% 97%);
+                background-color: var(--sj-tint-kuning);
             }
         }
 
@@ -206,8 +206,8 @@ html {
     }
 
     .dev-button {
-        color: hsl(170deg 41% 52%);
-        border: 1px solid hsl(170deg 41% 52%);
+        color: var(--sj-text-matcha);
+        border: 1px solid var(--sj-text-matcha);
         border-radius: 4px;
         background-color: transparent;
         font-family: inherit;
@@ -222,8 +222,8 @@ html {
             border-color 0.3s ease;
 
         &:hover {
-            color: hsl(156deg 62% 61%);
-            border-color: hsl(156deg 62% 61%);
+            color: var(--sj-matcha);
+            border-color: var(--sj-matcha);
         }
 
         &.dev-login-button {
@@ -416,13 +416,13 @@ html {
         vertical-align: top;
         padding: 13px 22px;
 
-        font-family: "Source Sans 3 VF", sans-serif;
+        font-family: var(--sj-font-sans);
 
         font-size: 1.2rem;
         font-weight: 400;
         box-sizing: border-box;
         outline: none;
-        color: hsl(0deg 0% 100%);
+        color: var(--sj-kertas);
         background-color: var(--color-action-button);
 
         margin: 25px 0 5px;
@@ -447,7 +447,7 @@ html {
         }
 
         &:focus-visible {
-            outline: 3px solid hsl(172deg 81% 79%);
+            outline: 3px solid var(--sj-kuning);
             /* Override the base clip-path so the focus outline isn't
                trimmed to a 1px square around the rounded button. */
             clip-path: none;
@@ -552,7 +552,7 @@ html {
             padding: 10.5px 32px 10.5px 12px;
             margin: 25px 0 5px;
 
-            font-family: "Source Sans 3 VF", sans-serif;
+            font-family: var(--sj-font-sans);
             font-size: 1.2rem;
             line-height: normal;
             height: auto;
@@ -1396,11 +1396,11 @@ button#register_auth_button_gitlab {
         margin: 0;
 
         &.select-email-form:hover {
-            background-color: hsl(172deg 56% 91%);
+            background-color: var(--sj-krem);
             cursor: pointer;
 
             & i.fa {
-                color: hsl(172deg 63% 76%);
+                color: var(--sj-kaki);
             }
         }
     }
@@ -1689,7 +1689,7 @@ button#register_auth_button_gitlab {
     }
 
     &:focus-visible {
-        outline: 1px solid hsl(172deg 81% 79%);
+        outline: 1px solid var(--sj-kuning);
     }
 }
 
@@ -1835,72 +1835,49 @@ button#register_auth_button_gitlab {
 .login-split-page {
     /* Tokens live on the page wrapper (the outermost element with a new
        class) so every descendant, including .login-split, inherits them
-       without a second copy. */
-    --login-split-page-bg: hsl(0deg 0% 96%);
-    --login-split-surface: hsl(0deg 0% 100%);
-    --login-split-border: hsl(160deg 7% 89%);
+       without a second copy. Semantic --sj-* tokens already switch value
+       with `light-dark()`, so this needs no separate dark-mode block. */
+    --login-split-page-bg: var(--sj-bg);
+    --login-split-surface: var(--sj-surface);
+    --login-split-border: var(--sj-divider);
     --login-split-shadow:
-        0 1px 2px hsl(174deg 20% 20% / 6%), 0 18px 44px hsl(174deg 20% 20% / 7%);
-    --login-split-brand-bg: hsl(172deg 63% 15%);
-    --login-split-brand-text: hsl(0deg 0% 100%);
-    --login-split-brand-url: hsl(168deg 40% 78%);
-    --login-split-brand-body: hsl(168deg 22% 84%);
-    --login-split-brand-fine: hsl(168deg 15% 72%);
-    --login-split-brand-rule: hsl(0deg 0% 100% / 12%);
-    --login-split-heading: hsl(173deg 42% 16%);
-    --login-split-body: hsl(168deg 6% 45%);
-    --login-split-muted: hsl(168deg 7% 56%);
-    --login-split-field-border: hsl(160deg 8% 86%);
-    --login-split-field-ring: hsl(172deg 60% 88%);
-    --login-split-rule: hsl(160deg 8% 90%);
-    --login-split-sso-border: hsl(165deg 8% 88%);
-    --login-split-sso-text: hsl(168deg 12% 28%);
-    --login-split-sso-hover: hsl(150deg 13% 97%);
-    --login-split-separator: hsl(165deg 11% 78%);
-    --login-split-error: hsl(1.1deg 44.7% 50.4%);
-    --login-split-sso-active: hsl(150deg 10% 94%);
-    --login-split-sso-border-hover: hsl(165deg 8% 82%);
+        0 1px 2px rgb(22 22 29 / 6%), 0 18px 44px rgb(22 22 29 / 7%);
+    --login-split-brand-bg: var(--sj-malam);
+    --login-split-brand-text: var(--sj-kertas);
+    --login-split-brand-url: var(--sj-kaki);
+    --login-split-brand-body: var(--sj-garis-gelap);
+    --login-split-brand-fine: var(--sj-garis-gelap);
+    --login-split-brand-rule: rgb(255 250 240 / 12%);
+    --login-split-heading: var(--sj-text);
+    --login-split-body: var(--sj-text-2);
+    --login-split-muted: var(--sj-text-muted);
+    --login-split-field-border: var(--sj-divider);
+    --login-split-field-ring: var(--sj-kuning);
+    --login-split-rule: var(--sj-divider);
+    --login-split-sso-border: var(--sj-divider);
+    --login-split-sso-text: var(--sj-text);
+    --login-split-sso-hover: var(--sj-krem);
+    --login-split-separator: var(--sj-divider);
+    --login-split-error: var(--sj-text-bahaya);
+    --login-split-sso-active: var(--sj-pasir);
+    --login-split-sso-border-hover: var(--sj-divider);
 
     padding: 2.5rem 0 4rem; /* 40px 0 64px */
     background-color: var(--login-split-page-bg);
-
-    @media (prefers-color-scheme: dark) {
-        --login-split-page-bg: hsl(172deg 25% 9%);
-        --login-split-surface: hsl(172deg 18% 14%);
-        --login-split-border: hsl(172deg 14% 22%);
-        --login-split-brand-bg: hsl(172deg 63% 12%);
-        --login-split-heading: hsl(0deg 0% 96%);
-        --login-split-body: hsl(168deg 9% 72%);
-        --login-split-muted: hsl(168deg 8% 62%);
-        --login-split-field-border: hsl(172deg 12% 28%);
-        --login-split-field-ring: hsl(172deg 45% 30%);
-        --login-split-rule: hsl(172deg 12% 24%);
-        --login-split-sso-border: hsl(172deg 12% 28%);
-        --login-split-sso-text: hsl(0deg 0% 90%);
-        --login-split-sso-hover: hsl(172deg 16% 19%);
-        --login-split-sso-active: hsl(172deg 18% 26%);
-        --login-split-sso-border-hover: hsl(172deg 14% 34%);
-        --login-split-separator: hsl(172deg 10% 40%);
-        --login-split-error: hsl(1deg 62% 68%);
-    }
 }
 
 @media (prefers-color-scheme: dark) {
-    /* The portico header stays white on every other page (it shares a
-       logo file with all of them), so darken it only where a login card
-       is present. :has() degrades safely: unsupported browsers keep the
-       white header and the page still reads fine. */
+    /* The portico header stays paper-colored on every other page (it
+       shares a logo file with all of them), so darken it only where a
+       login card is present. :has() degrades safely: unsupported
+       browsers keep the light header and the page still reads fine. */
     .portico-wrap:has(.login-split) .header {
-        background-color: hsl(172deg 30% 12%);
-        color: hsl(0deg 0% 92%);
+        background-color: var(--sj-malam);
+        color: var(--sj-kertas);
     }
 
     .portico-wrap:has(.login-split) .header .top-links a {
-        color: hsl(0deg 0% 92%);
-    }
-
-    .portico-wrap:has(.login-split) .portico-logo {
-        filter: brightness(0) invert(1);
+        color: var(--sj-kertas);
     }
 }
 
@@ -2176,7 +2153,7 @@ button#register_auth_button_gitlab {
 }
 
 .login-split__forgot:focus-visible {
-    outline: 2px solid hsl(172deg 81% 79%);
+    outline: 2px solid var(--sj-kuning);
     outline-offset: 3px;
     border-radius: 4px;
 }
@@ -2204,7 +2181,7 @@ button#register_auth_button_gitlab {
 
 .login-split__password-control .password_visibility_toggle:focus-visible {
     opacity: 1;
-    outline: 2px solid hsl(172deg 81% 79%);
+    outline: 2px solid var(--sj-kuning);
     outline-offset: 2px;
     border-radius: 4px;
 }
@@ -2268,7 +2245,7 @@ button#register_auth_button_gitlab {
     border: none;
     border-radius: 8px;
     background-color: var(--color-action-button);
-    color: hsl(0deg 0% 100%);
+    color: var(--sj-kertas);
     font-family: inherit;
     font-size: 1.0625rem; /* 17px */
     font-weight: 600;
@@ -2286,7 +2263,7 @@ button#register_auth_button_gitlab {
 }
 
 .login-split__submit:focus-visible {
-    outline: 3px solid hsl(172deg 81% 79%);
+    outline: 3px solid var(--sj-kuning);
     outline-offset: 2px;
     clip-path: none;
 }
@@ -2363,7 +2340,7 @@ button#register_auth_button_gitlab {
 }
 
 .login-split button.login-social-button:focus-visible {
-    outline: 3px solid hsl(172deg 81% 79%);
+    outline: 3px solid var(--sj-kuning);
     outline-offset: 2px;
     clip-path: none;
 }
@@ -2413,7 +2390,7 @@ button#register_auth_button_gitlab {
 }
 
 .login-split__link-button:focus-visible {
-    outline: 2px solid hsl(172deg 81% 79%);
+    outline: 2px solid var(--sj-kuning);
     outline-offset: 3px;
     border-radius: 4px;
 }
@@ -2453,7 +2430,7 @@ button#register_auth_button_gitlab {
     border: none;
     border-radius: 8px;
     background-color: var(--color-action-button);
-    color: hsl(0deg 0% 100%);
+    color: var(--sj-kertas);
     font-family: inherit;
     font-size: 1rem; /* 16px */
     font-weight: 600;
@@ -2469,7 +2446,7 @@ button#register_auth_button_gitlab {
 }
 
 .login-split .two-factor-button:focus-visible {
-    outline: 3px solid hsl(172deg 81% 79%);
+    outline: 3px solid var(--sj-kuning);
     outline-offset: 2px;
 }
 

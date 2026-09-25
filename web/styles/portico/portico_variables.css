@@ -1,15 +1,22 @@
 :root {
-    --color-background-gradient-start: hsl(172deg 40% 50%);
-    --color-background-gradient-end: hsl(172deg 48% 69%);
+    /* Lets `light-dark()` in --sj-* tokens (brand_tokens.css) follow
+       the OS preference on portico, which has no dark-theme class. */
+    color-scheme: light dark;
+
+    --color-background-gradient-start: var(--sj-kaki);
+    --color-background-gradient-end: var(--sj-kuning);
     /* This is the same color as set on `--color-table-background` in
        comparison_table.css. */
     --color-background-marketing-page: hsl(0deg 0% 100% / 80%);
     /* This is a legacy color previously set on .why-page divs. */
     --color-text-marketing-page: hsl(223deg 6% 25%);
     --color-background-solid-hero: var(--color-background-gradient-start);
-    --color-text-hero: hsl(0deg 0% 100%);
-    --font-ss3: "Source Sans 3 VF", sans-serif;
-    --font-ops: "Open Sans Variable", sans-serif;
+    /* Fixed ink, not the light-dark `--sj-text`: the hero background
+       (Kaki) does not swap with the OS theme, so its text must not
+       either, or the pair loses contrast in dark mode. */
+    --color-text-hero: var(--sj-tinta);
+    --font-ss3: var(--sj-font-sans);
+    --font-ops: var(--sj-font-sans);
     --color-background-box: hsl(210deg 44% 92%);
     --color-background-box-muted: hsl(0deg 0% 100% / 50%);
     --color-background-box-muted-hover: hsl(0deg 0% 100% / 60%);
@@ -18,23 +25,26 @@
     --color-box-header: hsl(223deg 43% 25%);
     --color-box-copy: hsl(223deg 43% 25%);
     --color-box-copy-fine-print: hsl(223deg 43% 55%);
-    --color-link: hsl(172.44deg 88.15% 26.47%);
-    --color-link-hover: hsl(172.58deg 85.84% 22.16%);
-    --color-link-portico-auth: hsl(172.44deg 88.15% 26.47%);
-    --color-link-portico-auth-hover: hsl(172.58deg 85.84% 22.16%);
-    --color-link-underline: hsl(172.44deg 88.15% 26.47% / 30%);
-    --color-link-underline-hover: hsl(172.58deg 85.84% 22.16%);
+    /* Fixed ink everywhere below: portico pages other than the login
+       card (portico_signin.css .login-split-page) keep a plain light
+       background regardless of the OS theme, so their text tokens
+       must stay fixed too instead of following `light-dark()`. */
+    --color-link: var(--sj-tinta);
+    --color-link-hover: var(--sj-tinta);
+    --color-link-portico-auth: var(--sj-tinta);
+    --color-link-portico-auth-hover: var(--sj-tinta);
+    --color-link-underline: color-mix(
+        in oklch,
+        var(--sj-tinta) 30%,
+        transparent
+    );
+    --color-link-underline-hover: var(--sj-kaki);
     --color-link-underline-alternate: hsl(210deg 94% 100% / 40%);
     --color-link-underline-alternate-hover: hsl(210deg 94% 100% / 80%);
     --color-prominent-border: var(--color-link);
-    --color-action-button: hsl(172.44deg 88.15% 26.47%);
-    --color-action-button-hover: hsl(172.58deg 85.84% 22.16%);
-    --color-action-button-active: hsl(172.09deg 90.1% 19.8%);
-    --color-action-button-subtle-hover: hsl(172.44deg 66% 97%);
-    --color-action-button-subtle-active: hsl(172.44deg 66% 94%);
-
-    @media (prefers-color-scheme: dark) {
-        --color-background-gradient-start: hsl(172deg 63% 40%);
-        --color-background-gradient-end: hsl(172deg 28% 50%);
-    }
+    --color-action-button: var(--sj-tinta);
+    --color-action-button-hover: var(--sj-tinta-2);
+    --color-action-button-active: var(--sj-tinta);
+    --color-action-button-subtle-hover: var(--sj-tint-kaki);
+    --color-action-button-subtle-active: var(--sj-tint-kaki);
 }

@@ -27,7 +27,7 @@
 }
 
 body {
-    font-family: "Source Sans 3 VF", sans-serif;
+    font-family: var(--sj-font-sans);
     height: 100%;
     font-weight: 300;
     font-size: 17px;
@@ -605,7 +605,7 @@ input#terminal:checked ~ #tab-terminal {
     padding: 20px 10px 50px;
     height: 100%;
     background-color: hsl(163deg 42% 85%);
-    font-family: "Source Sans 3 VF", sans-serif;
+    font-family: var(--sj-font-sans);
 }
 
 .error_page img {
@@ -873,7 +873,7 @@ label.label-title {
 
 .api-argument {
     .api-argument-name {
-        font-family: "Source Code Pro", monospace;
+        font-family: var(--sj-font-mono);
 
         .api-argument-hover-link i.fa {
             opacity: 0;
@@ -973,7 +973,7 @@ label.label-title {
 
     #desktop-data {
         padding: 13px 12px 12px;
-        font-family: "Source Code Pro", monospace;
+        font-family: var(--sj-font-mono);
     }
 }
 
@@ -1867,7 +1867,7 @@ button {
 
     font-size: 0.8rem;
     font-weight: 600;
-    font-family: "Source Sans 3 VF", sans-serif;
+    font-family: var(--sj-font-sans);
     margin-top: 10px;
 }
 

@@ -1103,7 +1103,7 @@ button {
 
     font-size: 0.8rem;
     font-weight: 600;
-    font-family: "Source Sans 3 VF", sans-serif;
+    font-family: var(--sj-font-sans);
     margin-top: 10px;
 }
 

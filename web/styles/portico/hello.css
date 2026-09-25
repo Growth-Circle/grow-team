@@ -1,5 +1,5 @@
 :root {
-    --font-ss3: "Source Sans 3 VF", sans-serif;
+    --font-ss3: var(--sj-font-sans);
     --font-ops: "Open Sans Variable", sans-serif;
     --appshot-1-img-width: 1095px;
 }

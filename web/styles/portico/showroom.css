@@ -15,7 +15,7 @@ body {
         var(--legacy-body-line-height-unitless),
         var(--base-line-height-unitless)
     );
-    font-family: "Source Sans 3 VF", sans-serif;
+    font-family: var(--sj-font-sans);
     font-weight: unset; /* override value in legacy_portico.css */
     color: var(--color-text-default);
     background-color: var(--color-background);

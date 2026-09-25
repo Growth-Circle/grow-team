@@ -1,5 +1,5 @@
 body {
-    font-family: "Source Sans 3 VF", sans-serif !important;
+    font-family: var(--sj-font-sans) !important;
     background-color: hsl(0deg 0% 98%);
 }
 
@@ -95,7 +95,7 @@ p {
 }
 
 .button {
-    font-family: "Source Sans 3 VF", sans-serif !important;
+    font-family: var(--sj-font-sans) !important;
     border: none;
     border-radius: 4px;
     outline: none;
