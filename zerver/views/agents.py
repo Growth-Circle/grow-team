@@ -31,8 +31,11 @@ from zerver.lib.agent_presence import observed_runner_status
 from zerver.lib.agent_selection import resolve_agent_selection
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.response import json_response, json_success
+from zerver.lib.stream_subscription import get_user_subscribed_streams
 from zerver.lib.streams import access_stream_by_id
 from zerver.models import Subscription, UserProfile, agents
+from zerver.models.external_accounts import DriveFolderLink
+from zerver.models.mcp import McpAgentGrant
 from zerver.models.streams import Stream
 
 P = ParamSpec("P")
@@ -68,6 +71,58 @@ def _agent_model_label(profile: agents.AgentProfile) -> str:
     else:
         prefix = _model_preset_label(profile.model_preset)
     return " · ".join(part for part in (prefix, model) if part)
+
+
+def _agent_access_chips(
+    profile: agents.AgentProfile, actor: UserProfile | None
+) -> list[dict[str, object]]:
+    """Chip data for contract 5.3's profile "access": the rooms this
+    agent can reach, the Drive folders those rooms expose, and any MCP
+    tool grants. Kept under its own key (`access_grants`, not `access`),
+    because `access` already names the unrelated visibility-completeness
+    flags below that the existing settings page reads.
+
+    A room the viewer cannot themselves read is left out, the same gate
+    `_attachments` already applies; `actor=None` is the trusted-caller
+    convention this module uses elsewhere and skips the gate.
+
+    # ponytail: a few queries per profile (subscribed rooms, one access
+    # check per room, Drive folders, MCP grants), fine at pilot scale
+    # (P-37: one shared realm, few agents). Batch per page if a listing
+    # ever needs to scale past a handful of profiles.
+    """
+    streams = []
+    for stream in get_user_subscribed_streams(profile.bot_user):
+        if actor is not None:
+            try:
+                access_stream_by_id(actor, stream.id, require_active_channel=False)
+            except JsonableError:
+                continue
+        streams.append(stream)
+    chips: list[dict[str, object]] = [
+        {"kind": "room", "id": stream.id, "label": f"# {stream.name}"} for stream in streams
+    ]
+    stream_ids = [stream.id for stream in streams]
+    if stream_ids:
+        folders = DriveFolderLink.objects.filter(
+            realm_id=profile.realm_id, stream_id__in=stream_ids, removed_at__isnull=True
+        )
+        chips += [
+            {
+                "kind": "drive_folder",
+                "id": folder.id,
+                "label": folder.folder_name or folder.folder_id,
+            }
+            for folder in folders
+        ]
+    grants = McpAgentGrant.objects.filter(
+        agent_profile=profile, connection__removed_at__isnull=True
+    ).select_related("connection__server")
+    chips += [
+        {"kind": "mcp", "id": grant.connection_id, "label": grant.connection.server.name}
+        for grant in grants
+    ]
+    return chips
 
 
 def safe_agent_endpoint(view: Callable[P, HttpResponse]) -> Callable[P, HttpResponse]:
@@ -250,6 +305,7 @@ def _profile_data(
         "is_builtin": profile.is_builtin,
         "work_skills": profile.work_skills,
         "work_tools": profile.work_tools,
+        "access_grants": _agent_access_chips(profile, actor),
     }
 
 

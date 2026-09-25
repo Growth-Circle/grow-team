@@ -7,9 +7,11 @@ from uuid import uuid4
 
 from typing_extensions import override
 
-from zerver.actions.agents import claim_setup, record_readiness
+from zerver.actions.agents import claim_setup, record_readiness, share_agent_profile
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.models import agents
+from zerver.models.external_accounts import DriveFolderLink, ExternalAccount
+from zerver.models.mcp import McpAgentGrant, McpConnection, McpServer
 
 
 def catalog_report() -> dict[str, object]:
@@ -173,6 +175,7 @@ class ProfileAppearanceTest(AgentDirectoryTestCase):
         self.assertEqual(data["work_tools"], ["drive"])
         self.assertEqual(data["kind"], "work")
         self.assertEqual(data["model_label"], "Fast · model")
+        self.assertEqual(data["access_grants"], [])
         self.assertFalse(data["is_builtin"])
 
         list_result = self.assert_json_success(self.client_get("/json/agent/profiles"))
@@ -245,3 +248,58 @@ class ProfileAppearanceTest(AgentDirectoryTestCase):
             ),
         )
         self.assertEqual(result["profile"]["model_label"], "Codex")
+
+    def test_access_grants_lists_rooms_folders_and_live_mcp_connections(self) -> None:
+        profile = self.create_owner_agent()
+        stream = self.make_stream("agent-room")
+        self.subscribe(self.owner, "agent-room")
+        self.subscribe(profile.bot_user, "agent-room")
+        account = ExternalAccount.objects.create(
+            realm=self.owner.realm, user=self.owner, provider="google", purpose="drive"
+        )
+        folder = DriveFolderLink.objects.create(
+            realm=self.owner.realm,
+            stream=stream,
+            account=account,
+            folder_id="folder-1",
+            folder_name="Briefs",
+            linked_by=self.owner,
+        )
+        server = McpServer.objects.create(
+            realm=self.owner.realm,
+            slug="linear",
+            name="Linear",
+            auth_mode="none",
+            added_by=self.owner,
+        )
+        live = McpConnection.objects.create(
+            realm=self.owner.realm, server=server, created_by=self.owner
+        )
+        removed = McpConnection.objects.create(
+            realm=self.owner.realm, server=server, created_by=self.owner
+        )
+        McpAgentGrant.objects.create(connection=live, agent_profile=profile)
+        McpAgentGrant.objects.create(connection=removed, agent_profile=profile)
+        removed.removed_at = removed.created_at
+        removed.save(update_fields=["removed_at"])
+
+        data = self.assert_json_success(self.client_get(f"/json/agent/profiles/{profile.id}"))
+        self.assertEqual(
+            data["profile"]["access_grants"],
+            [
+                {"kind": "room", "id": stream.id, "label": "# agent-room"},
+                {"kind": "drive_folder", "id": folder.id, "label": "Briefs"},
+                {"kind": "mcp", "id": live.id, "label": "Linear"},
+            ],
+        )
+
+        # A viewer who cannot read the room does not see it, nor its folders.
+        self.make_stream("private-agent-room", invite_only=True)
+        self.subscribe(self.owner, "private-agent-room")
+        self.subscribe(profile.bot_user, "private-agent-room")
+        share_agent_profile(self.owner, profile, principal_user=self.member)
+        self.login_user(self.member)
+        data = self.assert_json_success(self.client_get(f"/json/agent/profiles/{profile.id}"))
+        labels = [chip["label"] for chip in data["profile"]["access_grants"]]
+        self.assertNotIn("# private-agent-room", labels)
+        self.assertIn("# agent-room", labels)

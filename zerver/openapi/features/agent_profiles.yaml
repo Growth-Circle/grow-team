@@ -430,6 +430,7 @@ paths:
                   is_builtin: false
                   work_skills: []
                   work_tools: []
+                  access_grants: []
                 setup_id: 00000000-0000-4000-8000-000000000049
         "400":
           description: |
@@ -670,6 +671,7 @@ paths:
                   is_builtin: false
                   work_skills: []
                   work_tools: []
+                  access_grants: []
                 setup:
                   id: 00000000-0000-4000-8000-000000000059
                   phase: pending
@@ -883,6 +885,7 @@ paths:
                   is_builtin: false
                   work_skills: []
                   work_tools: []
+                  access_grants: []
                 setup:
                   id: 00000000-0000-4000-8000-000000000069
                   phase: pending
@@ -1106,6 +1109,7 @@ paths:
                   is_builtin: false
                   work_skills: []
                   work_tools: []
+                  access_grants: []
         "400":
           description: |
             The agent wrapper rejected a parsed request. The error code
@@ -2413,6 +2417,7 @@ paths:
                   is_builtin: false
                   work_skills: []
                   work_tools: []
+                  access_grants: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -2638,6 +2643,7 @@ paths:
                   is_builtin: false
                   work_skills: []
                   work_tools: []
+                  access_grants: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -2863,6 +2869,7 @@ paths:
                   is_builtin: false
                   work_skills: []
                   work_tools: []
+                  access_grants: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -6433,6 +6440,33 @@ components:
             The tools a work agent shows in the agent directory.
 
             **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+        access_grants:
+          type: array
+          description: |
+            What the agent can reach: the channels it is subscribed to, the
+            Drive folders of those channels, and its MCP connections. A channel
+            that you cannot read is not listed, and neither are its folders.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              kind:
+                type: string
+                enum:
+                  - room
+                  - drive_folder
+                  - mcp
+              id:
+                type: integer
+                minimum: 1
+              label:
+                type: string
+            required:
+              - kind
+              - id
+              - label
       required:
         - id
         - name
@@ -6474,6 +6508,7 @@ components:
         - is_builtin
         - work_skills
         - work_tools
+        - access_grants
     AgentSettingsSetup:
       type: object
       additionalProperties: false
