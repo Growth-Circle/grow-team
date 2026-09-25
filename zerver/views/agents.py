@@ -1146,9 +1146,7 @@ def _team_instructions_data(
 @safe_agent_endpoint
 def get_team_instructions(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
     settings = agents.AgentRealmSettings.objects.get(realm=user_profile.realm)
-    return _success(
-        request, {"team_instructions": _team_instructions_data(settings, user_profile)}
-    )
+    return _success(request, {"team_instructions": _team_instructions_data(settings, user_profile)})
 
 
 @safe_agent_endpoint
@@ -1157,9 +1155,7 @@ def update_team_instructions(request: HttpRequest, user_profile: UserProfile) ->
     settings = actions.update_team_instructions(
         user_profile, expected_revision=data.expected_revision, text=data.text
     )
-    return _success(
-        request, {"team_instructions": _team_instructions_data(settings, user_profile)}
-    )
+    return _success(request, {"team_instructions": _team_instructions_data(settings, user_profile)})
 
 
 @safe_agent_endpoint

@@ -11,11 +11,8 @@ from django.db import transaction
 from django.db.models import Max
 from django.utils.timezone import now as timezone_now
 from django.utils.translation import gettext as _
-from zerver.lib.exceptions import JsonableError
-from zerver.models.realm_audit_logs import AuditLogEventType
-from zerver.models.users import active_user_ids
-from zerver.tornado.django_api import send_event_on_commit
 
+from zerver.lib.exceptions import JsonableError
 from zerver.lib.tasks import task_event_audience
 from zerver.models import (
     Realm,
@@ -27,6 +24,9 @@ from zerver.models import (
     UserProfile,
     agents,
 )
+from zerver.models.realm_audit_logs import AuditLogEventType
+from zerver.models.users import active_user_ids
+from zerver.tornado.django_api import send_event_on_commit
 
 # Gap between two cards appended to a column. Wide enough that many moves
 # between the same pair of cards never exhaust float precision.

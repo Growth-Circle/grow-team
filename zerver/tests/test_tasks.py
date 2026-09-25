@@ -1,7 +1,6 @@
 import orjson
 from django.utils.timezone import now as timezone_now
 from typing_extensions import override
-from zerver.lib.test_classes import ZulipTestCase
 
 from zerver.actions.tasks import do_create_task
 from zerver.lib.tasks import (
@@ -10,6 +9,7 @@ from zerver.lib.tasks import (
     task_event_audience,
     visible_tasks,
 )
+from zerver.lib.test_classes import ZulipTestCase
 from zerver.models import Task, TaskBoard, TaskBoardColumn, TaskHistory
 
 

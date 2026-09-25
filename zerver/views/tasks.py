@@ -4,12 +4,6 @@ from typing import Annotated, Any
 from django.http import HttpRequest, HttpResponse
 from django.utils.translation import gettext as _
 from pydantic import Json, StringConstraints
-from zerver.lib.exceptions import JsonableError
-from zerver.lib.message import access_message
-from zerver.lib.response import json_success
-from zerver.lib.streams import access_stream_by_id
-from zerver.lib.typed_endpoint import PathOnly, typed_endpoint
-from zerver.lib.users import access_user_by_id
 
 from zerver.actions.tasks import (
     access_column,
@@ -19,6 +13,10 @@ from zerver.actions.tasks import (
     do_rename_task_board,
     do_update_task,
 )
+from zerver.lib.exceptions import JsonableError
+from zerver.lib.message import access_message
+from zerver.lib.response import json_success
+from zerver.lib.streams import access_stream_by_id
 from zerver.lib.tasks import (
     access_board_by_id,
     access_task_by_id,
@@ -27,6 +25,8 @@ from zerver.lib.tasks import (
     visible_tasks,
     work_counts,
 )
+from zerver.lib.typed_endpoint import PathOnly, typed_endpoint
+from zerver.lib.users import access_user_by_id
 from zerver.models import Task, TaskBoard, TaskHistory, UserProfile
 
 TaskTitle = Annotated[
