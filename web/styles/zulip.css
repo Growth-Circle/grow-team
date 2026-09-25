@@ -134,6 +134,13 @@ button {
     }
 }
 
+/* Browsers default an unstyled button to ButtonText, so a button with
+   no other color rule would keep that UA color instead of following
+   the brand text color (R10). */
+button {
+    color: var(--sj-text);
+}
+
 blockquote p {
     font-weight: normal;
 }
@@ -155,6 +162,20 @@ a:focus {
 
     & code {
         color: var(--color-text-generic-link-interactive);
+    }
+}
+
+/* A rendered-markdown link has no class, so this selector leaves every
+   classed UI anchor (nav rows, buttons styled as <a>, icon links) alone.
+   Its text keeps the surrounding prose color; an underline in its own
+   color is what marks it as a link at rest (WCAG 1.4.1). */
+a:not([class]) {
+    text-decoration: underline;
+    text-decoration-color: var(--color-text-link-decoration);
+
+    &:hover,
+    &:focus {
+        text-decoration-color: var(--color-text-link-decoration-hover);
     }
 }
 
