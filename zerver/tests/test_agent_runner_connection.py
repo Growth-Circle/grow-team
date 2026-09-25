@@ -132,12 +132,13 @@ class RunnerConnectionTest(ZulipTestCase):
         self.assertEqual(self.client_get("/api/v1/agent/pairings/status").status_code, 405)
 
     def test_busy_runner_request_logs_warning_not_error(self) -> None:
+        _, issued = self.pair()
         with (
             mock.patch("zerver.views.agent_runner.agent_transaction", side_effect=AgentBusy),
             self.assertLogs("django.request", "WARNING") as logs,
         ):
             response = self.client.get(
-                "/api/v1/agent/runner/leases", HTTP_AUTHORIZATION="Bearer busy"
+                "/api/v1/agent/runner/leases", HTTP_AUTHORIZATION=f"Bearer {issued['token']}"
             )
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response["Retry-After"], "1")
