@@ -21,6 +21,7 @@ from zerver.actions.agents import (
     provider_config,
     validate_runtime,
 )
+from zerver.actions.tasks import sync_agent_task
 from zerver.lib import agent_protocol as p
 from zerver.lib.agent_context import (
     AgentBusy,
@@ -30,6 +31,7 @@ from zerver.lib.agent_context import (
     require_job_access,
     scope_for_message,
 )
+from zerver.lib.agent_events import send_agent_job_event, send_agent_runner_event
 from zerver.lib.agent_policy import (
     AgentAccessDenied,
     _owner_or_grant,
@@ -97,6 +99,12 @@ def transition(job: agents.AgentJob, status: str, *, reason: str = "") -> None:
     job.blocked_reason = reason
     job.version += 1
     job.save(update_fields=["status", "blocked_reason", "version"])
+    # Most `job.phase = ...` writes in this codebase run immediately before
+    # a transition() call on the same job instance, so this also covers a
+    # phase change; a phase change with no status change still needs its
+    # own send_agent_job_event() call at that call site.
+    send_agent_job_event(job)
+    sync_agent_task(job)
     if status in {"failed", "interrupted"}:
         _notify_job_ended(job, reason)
 
@@ -980,12 +988,19 @@ def add_input(
             access_message(job.profile.bot_user, source_message_id, is_modifying_message=False)
         job.input_sequence += 1
         job.version += 1
-        if job.status in {"verifying", "waiting_for_input", "waiting_for_approval"}:
+        status_changed = job.status in {"verifying", "waiting_for_input", "waiting_for_approval"}
+        if status_changed:
             job.status = "running"
             job.result_proposal = None
             for attempt in agents.AgentAttempt.objects.filter(job=job, active=True):
                 invalidate_approvals(attempt)
         job.save(update_fields=["input_sequence", "version", "status", "result_proposal"])
+        if status_changed:
+            # A direct status write, not transition(): this input revives a
+            # job that was waiting, so the card and any open client both
+            # need to hear about it too.
+            send_agent_job_event(job)
+            sync_agent_task(job)
         item = agents.AgentInput.objects.create(
             realm=job.realm,
             job=job,
@@ -1486,6 +1501,7 @@ def fence_prepared_result(job: agents.AgentJob, attempt: agents.AgentAttempt) ->
     attempt.save(update_fields=["process_state"])
     job.version += 1
     job.save(update_fields=["version"])
+    send_agent_job_event(job)
 
 
 def heartbeat(
@@ -1495,9 +1511,15 @@ def heartbeat(
         runner = agents.AgentRunner.objects.select_for_update().get(
             id=runner.id, revoked_at__isnull=True
         )
+        # Observed, not the raw column: a silent runner reads back "unknown"
+        # once its last heartbeat goes stale even though its column value
+        # never left "online", so a raw comparison would miss this event.
+        previous_status = observed_runner_status(runner)
         runner.last_heartbeat_at = now()
         runner.status = "online"
         runner.save(update_fields=["last_heartbeat_at", "status"])
+        if previous_status != observed_runner_status(runner):
+            send_agent_runner_event(runner)
         result: list[dict[str, object]] = []
         for identity in identities:
             job, attempt = locked_attempt(

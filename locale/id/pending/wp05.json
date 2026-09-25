@@ -1,6 +1,6 @@
 {
   "frontend": {},
   "backend": {
-    "Agent tasks move to done after approval.": "Tugas agen pindah ke kolom selesai sesudah disetujui."
+    "Agent tasks move to done after approval.": "Tugas agen pindah ke Selesai hanya lewat approval."
   }
 }

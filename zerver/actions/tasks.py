@@ -127,17 +127,16 @@ def do_create_task(
     return task
 
 
-def _done_column(columns: list[TaskBoardColumn]) -> TaskBoardColumn | None:
-    """The board's done column: the one with a done window, or its last
-    column if none is marked, so a job never has nowhere to land."""
-    if not columns:
-        return None
-    return next((column for column in columns if column.done_window_days is not None), columns[-1])
+def _done_column(columns: list[TaskBoardColumn]) -> TaskBoardColumn:
+    """The board's done column. Every board's default columns mark one, so
+    the caller only calls this with a non-empty column list."""
+    return next(column for column in columns if column.done_window_days is not None)
 
 
 def _synced_column(status: str, columns: list[TaskBoardColumn]) -> TaskBoardColumn | None:
-    if not columns:
-        return None
+    """The caller only ever passes the columns of a board that owns the
+    task being synced, and that task's own column keeps the list non-empty
+    (`TaskBoardColumn.column` is `on_delete=PROTECT`)."""
     if status == "running":
         return columns[1] if len(columns) > 1 else None
     if status == "waiting_for_approval":
@@ -192,6 +191,19 @@ def sync_agent_task(job: agents.AgentJob) -> None:
         send_task_event(task.realm, task, "update")
 
 
+def check_agent_task_move(task: Task, column: TaskBoardColumn) -> None:
+    """Raise before any write when this move would land an agent's task in
+    a done column before its job is approved. Every write path that can
+    move a task into a done column calls this first."""
+    if (
+        column.done_window_days is not None
+        and task.column_id != column.id
+        and task.agent_job is not None
+        and task.agent_job.status != "completed"
+    ):
+        raise JsonableError(_("Agent tasks move to done after approval."))
+
+
 @transaction.atomic(durable=True)
 def do_move_task(
     *,
@@ -200,13 +212,7 @@ def do_move_task(
     column: TaskBoardColumn,
     position: float | None,
 ) -> Task:
-    if (
-        column.done_window_days is not None
-        and task.column_id != column.id
-        and task.agent_job is not None
-        and task.agent_job.status != "completed"
-    ):
-        raise JsonableError(_("Agent tasks move to done after approval."))
+    check_agent_task_move(task, column)
 
     previous_column = task.column
     task.column = column

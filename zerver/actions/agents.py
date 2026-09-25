@@ -15,6 +15,11 @@ from zerver.actions.create_user import do_create_user
 from zerver.actions.streams import bulk_add_subscriptions
 from zerver.actions.user_settings import do_change_full_name
 from zerver.lib import agent_protocol as protocol
+from zerver.lib.agent_events import (
+    send_agent_job_event,
+    send_agent_runner_event,
+    send_pairing_event,
+)
 from zerver.lib.agent_policy import (
     AgentAccessDenied,
     _readable_scope,
@@ -60,6 +65,12 @@ def _reject_credential_like_instructions(text: str) -> None:
         raise AgentUserError("instructions_rejected")
 
 
+def _pairing_audience(pairing: agents.AgentPairing) -> list[int]:
+    """The owner once a pairing has one. A later change adds pre-approval
+    intent, for the user watching a pairing before they own it."""
+    return [] if pairing.owner_id is None else [pairing.owner_id]
+
+
 @transaction.atomic()
 def start_pairing(
     device_name: str,
@@ -76,7 +87,7 @@ def start_pairing(
         or not 32 <= len(polling_secret) <= 512
     ):
         raise ValueError("Invalid pairing request.")
-    return agents.AgentPairing.objects.create(
+    pairing = agents.AgentPairing.objects.create(
         realm=None,
         device_name=device_name,
         fingerprint=fingerprint,
@@ -84,6 +95,9 @@ def start_pairing(
         polling_secret_hash=hash_agent_credential(polling_secret),
         expires_at=expires_at or now() + PAIRING_TTL,
     )
+    # Anonymous at this point: no owner exists yet to notify.
+    send_pairing_event(pairing, "pending", _pairing_audience(pairing))
+    return pairing
 
 
 def _pairing_code_matches(pairing: agents.AgentPairing, user_code: str) -> bool:
@@ -101,14 +115,21 @@ def _check_pairing_code(
     """
     pairing = agents.AgentPairing.objects.select_for_update().get(id=pairing.id)
     if pairing.state != "pending" or pairing.expires_at <= now():
-        pairing.state = "expired" if pairing.expires_at <= now() else pairing.state
+        newly_expired = pairing.state == "pending" and pairing.expires_at <= now()
+        if newly_expired:
+            pairing.state = "expired"
         pairing.save(update_fields=["state", "updated_at"])
+        if newly_expired:
+            send_pairing_event(pairing, "expired", _pairing_audience(pairing))
         return pairing, True
     if not _pairing_code_matches(pairing, user_code):
         pairing.failed_attempts += 1
-        if pairing.failed_attempts >= PAIRING_MAX_FAILURES:
+        rejected = pairing.failed_attempts >= PAIRING_MAX_FAILURES
+        if rejected:
             pairing.state = "rejected"
         pairing.save(update_fields=["failed_attempts", "state", "updated_at"])
+        if rejected:
+            send_pairing_event(pairing, "denied", _pairing_audience(pairing))
         return pairing, True
     return pairing, False
 
@@ -124,6 +145,7 @@ def approve_pairing(
             pairing.approved_at = now()
             pairing.state = "approved"
             pairing.save(update_fields=["realm", "owner", "approved_at", "state", "updated_at"])
+            send_pairing_event(pairing, "approved", [owner.id])
     if unavailable:
         raise ValueError("Pairing is unavailable.")
     return pairing
@@ -148,9 +170,12 @@ def exchange_pairing(pairing: agents.AgentPairing, polling_secret: str) -> tuple
             unavailable = True
         elif not credential_matches(polling_secret, pairing.polling_secret_hash):
             pairing.failed_attempts += 1
-            if pairing.failed_attempts >= PAIRING_MAX_FAILURES:
+            rejected = pairing.failed_attempts >= PAIRING_MAX_FAILURES
+            if rejected:
                 pairing.state = "rejected"
             pairing.save(update_fields=["failed_attempts", "state", "updated_at"])
+            if rejected:
+                send_pairing_event(pairing, "denied", _pairing_audience(pairing))
             unavailable = True
         else:
             runner = agents.AgentRunner.objects.create(
@@ -220,15 +245,23 @@ def revoke_runner(runner: agents.AgentRunner) -> None:
     runner.revoked_at = now()
     runner.status = "revoked"
     runner.save(update_fields=["revoked_at", "status", "updated_at"])
+    send_agent_runner_event(runner)
     agents.AgentRunnerCredential.objects.filter(runner=runner, revoked_at__isnull=True).update(
         revoked_at=runner.revoked_at
     )
     # Task 3 consumes this durable stopping state and records runner stop evidence.
     active_attempts = agents.AgentAttempt.objects.filter(runner=runner, active=True)
     active_attempts.update(process_state="stopping")
-    agents.AgentJob.objects.filter(agentattempt__runner=runner, agentattempt__active=True).update(
+    stopped_job_ids = list(
+        agents.AgentJob.objects.filter(
+            agentattempt__runner=runner, agentattempt__active=True
+        ).values_list("id", flat=True)
+    )
+    agents.AgentJob.objects.filter(id__in=stopped_job_ids).update(
         status="cancel_requested", version=F("version") + 1
     )
+    for job in agents.AgentJob.objects.filter(id__in=stopped_job_ids):
+        send_agent_job_event(job)
 
 
 @transaction.atomic()

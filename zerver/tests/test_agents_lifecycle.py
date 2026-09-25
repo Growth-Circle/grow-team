@@ -582,7 +582,9 @@ class AgentLifecycleTests(ZulipTestCase):
             job.refresh_from_db()
             self.assertEqual(job.status, "waiting_for_input")
             self.assertFalse(Message.objects.filter(sender=self.profile.bot_user).exists())
-        self.assertEqual(len(callbacks), 1)
+        # One callback schedules the notice above; the other sends this
+        # transition's agent_job event.
+        self.assertEqual(len(callbacks), 2)
         for callback in callbacks:
             callback()
         message = Message.objects.get(sender=self.profile.bot_user)

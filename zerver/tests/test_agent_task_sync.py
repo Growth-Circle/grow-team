@@ -1,10 +1,19 @@
 """Task cards follow their linked agent job's status (05-R1, 05-R2)."""
 
+from datetime import timedelta
 from uuid import uuid4
 
+from django.utils.timezone import now
 from typing_extensions import override
 
-from zerver.actions.tasks import do_create_task, do_move_task, sync_agent_task
+from zerver.actions.agent_jobs import add_input, transition
+from zerver.actions.tasks import (
+    check_agent_task_move,
+    do_create_task,
+    do_move_task,
+    sync_agent_task,
+)
+from zerver.lib.agent_context import current_audience
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.tasks import get_or_create_default_board
 from zerver.lib.test_classes import ZulipTestCase
@@ -98,6 +107,82 @@ class AgentTaskSyncTest(ZulipTestCase):
 
         self.card.refresh_from_db()
         self.assertEqual(self.card.column_id, self.columns[2].id)
+
+    def test_sync_agent_task_is_a_noop_once_the_card_is_already_there(self) -> None:
+        self.job.status = "running"
+        self.job.save(update_fields=["status"])
+        sync_agent_task(self.job)
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.column_id, self.columns[1].id)
+
+        history_count = TaskHistory.objects.filter(task=self.card).count()
+        sync_agent_task(self.job)  # Same status, same column: nothing to do.
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.column_id, self.columns[1].id)
+        self.assertEqual(TaskHistory.objects.filter(task=self.card).count(), history_count)
+
+    def test_sync_agent_task_is_a_noop_when_no_review_column_exists(self) -> None:
+        self.columns[2].is_review = False
+        self.columns[2].save(update_fields=["is_review"])
+        self.job.status = "waiting_for_approval"
+        self.job.save(update_fields=["status"])
+
+        sync_agent_task(self.job)  # No column to sync to: must not raise.
+
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.column_id, self.columns[0].id)
+
+    def test_transition_calls_sync_agent_task(self) -> None:
+        transition(self.job, "running")
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.column_id, self.columns[1].id)
+
+    def test_add_input_revives_a_waiting_job_and_moves_its_card(self) -> None:
+        """`add_input` writes `job.status` directly instead of going through
+        `transition()`, so it needs its own event and sync call."""
+        self.conversation.audience_binding = current_audience(
+            self.conversation, self.hamlet, self.profile.bot_user
+        ).model_dump(mode="json")
+        self.conversation.save(update_fields=["audience_binding"])
+        self.job.status = "waiting_for_approval"
+        self.job.save(update_fields=["status"])
+        agents.AgentAttempt.objects.create(
+            realm=self.realm,
+            job=self.job,
+            runner=self.runner,
+            number=1,
+            lease_epoch=1,
+            lease_expires_at=now() + timedelta(seconds=90),
+            descriptor_digest="a" * 64,
+            active=True,
+        )
+
+        with self.capture_send_event_calls(expected_num_events=2) as events:
+            add_input(
+                self.hamlet,
+                self.job.id,
+                expected_version=self.job.version,
+                client_key=uuid4(),
+                text="Go ahead.",
+            )
+
+        job_events = [call["event"] for call in events if call["event"]["type"] == "agent_job"]
+        self.assert_length(job_events, 1)
+        self.assertEqual(job_events[0]["status"], "running")
+
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, "running")
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.column_id, self.columns[1].id)
+
+    def test_check_agent_task_move_rejects_done_before_job_completes(self) -> None:
+        with self.assertRaisesMessage(JsonableError, "Agent tasks move to done after approval."):
+            check_agent_task_move(self.card, self.columns[3])
+
+    def test_check_agent_task_move_allows_done_once_job_completes(self) -> None:
+        self.job.status = "completed"
+        self.job.save(update_fields=["status"])
+        check_agent_task_move(self.card, self.columns[3])  # Must not raise.
 
     def test_agent_card_rejected_from_done_before_job_completes(self) -> None:
         with self.assertRaisesMessage(JsonableError, "Agent tasks move to done after approval."):
