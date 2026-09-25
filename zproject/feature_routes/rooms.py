@@ -2,7 +2,10 @@ from django.urls.resolvers import URLPattern
 
 from zerver.lib.rest import rest_path
 from zerver.views.room_meta import (
-    archive_channels, get_quiet_channels_view, get_room_meta, get_room_topics_view,
+    archive_channels,
+    get_quiet_channels_view,
+    get_room_meta,
+    get_room_topics_view,
     update_room_meta,
 )
 

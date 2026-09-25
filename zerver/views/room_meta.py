@@ -12,9 +12,15 @@ from pydantic import Json
 from pydantic_partials.sentinels import Missing, MissingType
 
 from zerver.actions.room_meta import (
-    DUE_DATE_UNSET, DueDateUnset, can_edit_room_meta, can_toggle_room_summary,
-    check_can_archive_room, do_bulk_archive_rooms, do_update_room_meta,
-    get_room_meta_or_unsaved, get_room_owner,
+    DUE_DATE_UNSET,
+    DueDateUnset,
+    can_edit_room_meta,
+    can_toggle_room_summary,
+    check_can_archive_room,
+    do_bulk_archive_rooms,
+    do_update_room_meta,
+    get_room_meta_or_unsaved,
+    get_room_owner,
 )
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.quiet_rooms import get_quiet_channels
@@ -22,7 +28,14 @@ from zerver.lib.response import json_success
 from zerver.lib.room_topics import get_room_topics
 from zerver.lib.streams import access_stream_by_id
 from zerver.lib.typed_endpoint import PathOnly, typed_endpoint, typed_endpoint_without_parameters
-from zerver.models import DriveFolderLink, RoomChannelLink, RoomMeta, Stream, Subscription, UserProfile
+from zerver.models import (
+    DriveFolderLink,
+    RoomChannelLink,
+    RoomMeta,
+    Stream,
+    Subscription,
+    UserProfile,
+)
 
 
 def _parse_due_date(raw: str) -> date:
@@ -48,7 +61,8 @@ def _room_meta_data(
     ).exists()
     drive_folder_link = (
         DriveFolderLink.objects.filter(stream=stream, removed_at__isnull=True)
-        .order_by("id").first()
+        .order_by("id")
+        .first()
     )
     can_edit_meta = not stream.deactivated and can_edit_room_meta(user_profile, stream)
     can_toggle_summary = not stream.deactivated and can_toggle_room_summary(user_profile, stream)
@@ -69,7 +83,10 @@ def _room_meta_data(
 
 @typed_endpoint
 def get_room_meta(
-    request: HttpRequest, user_profile: UserProfile, *, stream_id: PathOnly[int],
+    request: HttpRequest,
+    user_profile: UserProfile,
+    *,
+    stream_id: PathOnly[int],
 ) -> HttpResponse:
     (stream, _sub) = access_stream_by_id(
         user_profile, stream_id, require_active_channel=False, require_content_access=False
@@ -80,8 +97,12 @@ def get_room_meta(
 
 @typed_endpoint
 def update_room_meta(
-    request: HttpRequest, user_profile: UserProfile, *, stream_id: PathOnly[int],
-    announce: Json[bool] = False, due_date: Json[str | None] | MissingType = Missing,
+    request: HttpRequest,
+    user_profile: UserProfile,
+    *,
+    stream_id: PathOnly[int],
+    announce: Json[bool] = False,
+    due_date: Json[str | None] | MissingType = Missing,
     summary_enabled: Json[bool] | None = None,
 ) -> HttpResponse:
     (stream, _sub) = access_stream_by_id(user_profile, stream_id, require_content_access=False)
@@ -95,15 +116,21 @@ def update_room_meta(
     if not isinstance(due_date, MissingType):
         parsed_due_date = None if due_date is None else _parse_due_date(due_date)
     room_meta = do_update_room_meta(
-        stream, due_date=parsed_due_date, summary_enabled=summary_enabled,
-        announce=announce, acting_user=user_profile,
+        stream,
+        due_date=parsed_due_date,
+        summary_enabled=summary_enabled,
+        announce=announce,
+        acting_user=user_profile,
     )
     return json_success(request, data=_room_meta_data(user_profile, stream, room_meta))
 
 
 @typed_endpoint
 def get_room_topics_view(
-    request: HttpRequest, user_profile: UserProfile, *, stream_id: PathOnly[int],
+    request: HttpRequest,
+    user_profile: UserProfile,
+    *,
+    stream_id: PathOnly[int],
 ) -> HttpResponse:
     (stream, _sub) = access_stream_by_id(user_profile, stream_id, require_active_channel=False)
     return json_success(request, data={"topics": get_room_topics(user_profile, stream)})
@@ -116,7 +143,9 @@ def get_quiet_channels_view(request: HttpRequest, user_profile: UserProfile) -> 
 
 @typed_endpoint
 def archive_channels(
-    request: HttpRequest, user_profile: UserProfile, *,
+    request: HttpRequest,
+    user_profile: UserProfile,
+    *,
     stream_ids: Json[Annotated[list[int], Len(max_length=100)]],
 ) -> HttpResponse:
     streams = []

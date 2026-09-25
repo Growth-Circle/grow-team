@@ -19,9 +19,19 @@ from zerver.lib.exceptions import JsonableError
 from zerver.lib.quiet_rooms import QuietRoomNotice, rooms_needing_notice
 from zerver.lib.role_permissions import has_role_permission
 from zerver.lib.streams import (
-    access_stream_for_send_message, can_administer_accessible_channel, channel_events_topic_name,
+    access_stream_for_send_message,
+    can_administer_accessible_channel,
+    channel_events_topic_name,
 )
-from zerver.models import AgentProfile, ChannelFolder, Realm, RealmAuditLog, RoomMeta, Stream, UserProfile
+from zerver.models import (
+    AgentProfile,
+    ChannelFolder,
+    Realm,
+    RealmAuditLog,
+    RoomMeta,
+    Stream,
+    UserProfile,
+)
 from zerver.models.realm_audit_logs import AuditLogEventType
 
 ROOM_TYPE_FOLDER_NAMES = ("Proyek", "Klien", "Tim")
@@ -33,8 +43,18 @@ def format_due_date(due_date: date) -> str:
     30 Okt"; WP14 review defect 16c). Each month name is translated on its
     own so this never depends on the server's own locale data."""
     month_names = (
-        _("Jan"), _("Feb"), _("Mar"), _("Apr"), _("May"), _("Jun"),
-        _("Jul"), _("Aug"), _("Sep"), _("Oct"), _("Nov"), _("Dec"),
+        _("Jan"),
+        _("Feb"),
+        _("Mar"),
+        _("Apr"),
+        _("May"),
+        _("Jun"),
+        _("Jul"),
+        _("Aug"),
+        _("Sep"),
+        _("Oct"),
+        _("Nov"),
+        _("Dec"),
     )
     return f"{due_date.day} {month_names[due_date.month - 1]}"
 
@@ -101,8 +121,11 @@ def _find_builtin_agent_bot(realm: Realm, name: str) -> UserProfile | None:
     archived (WP14 review defect 12)."""
     profile = (
         AgentProfile.objects.filter(
-            realm=realm, is_builtin=True, name=name,
-            archived_at__isnull=True, bot_user__is_active=True,
+            realm=realm,
+            is_builtin=True,
+            name=name,
+            archived_at__isnull=True,
+            bot_user__is_active=True,
         )
         .select_related("bot_user")
         .order_by("id")
@@ -156,8 +179,10 @@ def _send_room_announce(stream: Stream, room_meta: RoomMeta, *, acting_user: Use
     with override_language(stream.realm.default_language):
         owner_name = owner.full_name if owner is not None else _("nobody")
         content = _room_announce_text(
-            stream_name=stream.name, owner_name=owner_name,
-            due_date=room_meta.due_date, is_proyek_folder=is_proyek_folder,
+            stream_name=stream.name,
+            owner_name=owner_name,
+            due_date=room_meta.due_date,
+            is_proyek_folder=is_proyek_folder,
         )
         internal_send_stream_message(sender, stream, channel_events_topic_name(stream), content)
 
@@ -172,8 +197,12 @@ DUE_DATE_UNSET = DueDateUnset()
 
 @transaction.atomic(savepoint=False)
 def do_update_room_meta(
-    stream: Stream, *, due_date: date | None | DueDateUnset = DUE_DATE_UNSET,
-    summary_enabled: bool | None = None, announce: bool = False, acting_user: UserProfile,
+    stream: Stream,
+    *,
+    due_date: date | None | DueDateUnset = DUE_DATE_UNSET,
+    summary_enabled: bool | None = None,
+    announce: bool = False,
+    acting_user: UserProfile,
 ) -> RoomMeta:
     room_meta = get_or_create_room_meta(stream)
     changed: dict[str, object] = {}
@@ -190,8 +219,11 @@ def do_update_room_meta(
             update_fields.append("summary_enabled_by")
         room_meta.save(update_fields=update_fields)
         RealmAuditLog.objects.create(
-            realm=stream.realm, acting_user=acting_user, modified_stream=stream,
-            event_type=AuditLogEventType.ROOM_META_CHANGED, event_time=timezone_now(),
+            realm=stream.realm,
+            acting_user=acting_user,
+            modified_stream=stream,
+            event_type=AuditLogEventType.ROOM_META_CHANGED,
+            event_time=timezone_now(),
             extra_data={"changed": changed},
         )
         send_room_meta_event(room_meta)

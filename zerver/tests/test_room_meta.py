@@ -7,7 +7,10 @@ from django.core.management.base import CommandError
 
 from zerver.actions.channel_folders import check_add_channel_folder
 from zerver.actions.room_meta import (
-    NoRealmOwnerError, do_bulk_archive_rooms, ensure_room_type_folders, format_due_date,
+    NoRealmOwnerError,
+    do_bulk_archive_rooms,
+    ensure_room_type_folders,
+    format_due_date,
     get_room_owner,
 )
 from zerver.actions.streams import do_change_stream_group_based_setting
@@ -15,7 +18,12 @@ from zerver.actions.users import do_change_user_role, do_deactivate_user
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.lib.types import UserGroupMembersData
 from zerver.models import (
-    AgentProfile, AgentRunner, ChannelFolder, Message, RealmAuditLog, UserProfile,
+    AgentProfile,
+    AgentRunner,
+    ChannelFolder,
+    Message,
+    RealmAuditLog,
+    UserProfile,
 )
 from zerver.models.realm_audit_logs import AuditLogEventType
 
@@ -105,9 +113,7 @@ class RoomMetaTest(ZulipTestCase):
                 f"/json/streams/{stream.id}/meta",
                 {"due_date": orjson.dumps("2026-10-30").decode()},
             )
-            self.assert_json_error(
-                result, "You do not have permission to change this channel."
-            )
+            self.assert_json_error(result, "You do not have permission to change this channel.")
 
     def test_fallback_owner_is_lowest_id_realm_owner(self) -> None:
         realm = self.example_user("hamlet").realm

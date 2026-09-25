@@ -161,9 +161,7 @@ class NotifyQuietRoomsTest(ZulipTestCase):
 
         notified = send_quiet_room_notices(realm)
         self.assertGreaterEqual(notified, 1)
-        dm = Message.objects.filter(sender=kaki.bot_user, content__icontains=room.name).latest(
-            "id"
-        )
+        dm = Message.objects.filter(sender=kaki.bot_user, content__icontains=room.name).latest("id")
         # The DM must say *why* (WP14 review defect 14), not only flag the
         # room: "past its due date", not the quiet-room wording below.
         self.assertIn(f"#**{room.name}**: past its due date. Consider archiving it.", dm.content)
@@ -236,7 +234,9 @@ class NotifyQuietRoomsTest(ZulipTestCase):
         self.send_stream_message(owner, "wp14-notify-send-fails")
         backdate_last_message(room, QUIET_THRESHOLD_DAYS + 1)
 
-        with mock.patch("zerver.actions.room_meta.internal_send_private_message", return_value=None):
+        with mock.patch(
+            "zerver.actions.room_meta.internal_send_private_message", return_value=None
+        ):
             self.assertEqual(send_quiet_room_notices(realm), 0)
 
         room_meta = RoomMeta.objects.get(stream=room)
