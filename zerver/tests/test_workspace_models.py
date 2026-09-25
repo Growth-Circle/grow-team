@@ -69,3 +69,54 @@ class WorkspaceSchemaTests(ZulipTestCase):
         # old id; read code must treat that id as a message that is gone.
         digest.refresh_from_db()
         self.assertEqual(digest.source_message_id, self.message_id)
+
+    # -- 0821 AgentProfile appearance/budget ---------------------------
+
+    def test_agent_profile_new_field_defaults(self) -> None:
+        self.assertEqual(self.profile.agent_role, "custom")
+        self.assertEqual(self.profile.avatar_shape, "circle")
+        self.assertEqual(self.profile.avatar_color, "")
+        self.assertEqual(self.profile.model_preset, "")
+        self.assertIsNone(self.profile.monthly_budget_microunits)
+        self.assertFalse(self.profile.is_builtin)
+        self.assertEqual(self.profile.work_skills, [])
+        self.assertEqual(self.profile.work_tools, [])
+
+    def test_agent_profile_rejects_bad_role(self) -> None:
+        with self.assertRaises(IntegrityError):
+            AgentProfile.objects.create(
+                realm=self.realm,
+                owner=self.owner,
+                runner=self.runner,
+                bot_user=self.example_user("webhook_bot"),
+                name="Bad",
+                adapter_id="codex-acp",
+                adapter_version="1.0",
+                agent_role="villain",
+            )
+
+    def test_agent_profile_rejects_bad_avatar_shape(self) -> None:
+        with self.assertRaises(IntegrityError):
+            AgentProfile.objects.create(
+                realm=self.realm,
+                owner=self.owner,
+                runner=self.runner,
+                bot_user=self.example_user("webhook_bot"),
+                name="Bad",
+                adapter_id="codex-acp",
+                adapter_version="1.0",
+                avatar_shape="triangle",
+            )
+
+    def test_agent_profile_rejects_bad_model_preset(self) -> None:
+        with self.assertRaises(IntegrityError):
+            AgentProfile.objects.create(
+                realm=self.realm,
+                owner=self.owner,
+                runner=self.runner,
+                bot_user=self.example_user("webhook_bot"),
+                name="Bad",
+                adapter_id="codex-acp",
+                adapter_version="1.0",
+                model_preset="ultra",
+            )

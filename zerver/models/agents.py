@@ -305,6 +305,37 @@ class AgentProfile(AgentRecord):
     archived_at = models.DateTimeField(null=True)
     policy = models.JSONField(default=dict)
     budget = models.JSONField(default=dict)
+    agent_role = models.CharField(
+        max_length=20,
+        choices=[
+            ("planner", "planner"),
+            ("builder", "builder"),
+            ("reviewer", "reviewer"),
+            ("custom", "custom"),
+        ],
+        default="custom",
+        db_default="custom",
+    )
+    avatar_shape = models.CharField(
+        max_length=20,
+        choices=[("circle", "circle"), ("ring", "ring"), ("box", "box")],
+        default="circle",
+        db_default="circle",
+    )
+    avatar_color = models.CharField(max_length=20, default="", db_default="")
+    model_preset = models.CharField(
+        max_length=20,
+        choices=[("", ""), ("fast", "fast"), ("balanced", "balanced"), ("best", "best")],
+        default="",
+        db_default="",
+    )
+    monthly_budget_microunits = models.PositiveBigIntegerField(null=True, default=None)
+    model_key_hash = models.CharField(max_length=128, default="", db_default="")
+    model_key_limit_microunits = models.PositiveBigIntegerField(null=True, default=None)
+    model_key_rotated_at = models.DateTimeField(null=True, default=None)
+    is_builtin = models.BooleanField(default=False, db_default=False)
+    work_skills = models.JSONField(default=list, db_default=[])
+    work_tools = models.JSONField(default=list, db_default=[])
     protocol_fields = {
         "capability_report": protocol.CapabilityReport,
         "readiness_configuration": protocol.ExecutionConfiguration | None,
@@ -319,6 +350,18 @@ class AgentProfile(AgentRecord):
                 "readiness_state", protocol.ReadinessState, "agent_profile_readiness_valid"
             ),
             state_constraint("default_mode", protocol.JobKind, "agent_profile_job_kind_valid"),
+            models.CheckConstraint(
+                condition=Q(agent_role__in=["planner", "builder", "reviewer", "custom"]),
+                name="agent_profile_role_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(avatar_shape__in=["circle", "ring", "box"]),
+                name="agent_profile_avatar_shape_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(model_preset__in=["", "fast", "balanced", "best"]),
+                name="agent_profile_model_preset_valid",
+            ),
             models.CheckConstraint(
                 condition=Q(mode="acp") | Q(mode="endpoint", provider__isnull=False),
                 name="agent_profile_runtime_valid",
