@@ -337,6 +337,7 @@ from zerver.views.video_calls import (
 )
 from zerver.views.welcome_bot_custom_message import send_test_welcome_bot_custom_message
 from zproject import dev_urls
+from zproject.feature_routes import API_PATTERNS, PAGE_PATTERNS
 
 if settings.TWO_FACTOR_AUTHENTICATION_ENABLED:  # nocoverage
     from two_factor.gateways.twilio.urls import urlpatterns as tf_twilio_urls
@@ -415,9 +416,7 @@ v1_api_and_json_patterns = [
     rest_path("agent/profiles/<uuid:profile_id>/attach-channel", POST=attach_agent_profile_stream),
     rest_path("agent/profiles/<uuid:profile_id>/share", POST=share_agent_profile_view),
     rest_path("agent/profiles/<uuid:profile_id>/unshare", POST=unshare_agent_profile_view),
-    rest_path(
-        "agent/team-instructions", GET=get_team_instructions, PATCH=update_team_instructions
-    ),
+    rest_path("agent/team-instructions", GET=get_team_instructions, PATCH=update_team_instructions),
     rest_path("agent/pairings/preview", POST=preview_agent_pairing),
     rest_path("agent/jobs/<uuid:job_id>/deliver-privately", POST=agent_job_views.deliver_privately),
     rest_path("agent/profiles/<uuid:profile_id>/test-task", POST=agent_job_views.send_test_task),
@@ -726,6 +725,7 @@ v1_api_and_json_patterns = [
     rest_path("export/realm/consents", GET=get_users_export_consents),
     rest_path("register_client_device", POST=register_device),
     rest_path("remove_client_device", POST=remove_device),
+    *API_PATTERNS,
 ]
 
 # These views serve pages (HTML). As such, their internationalization
@@ -734,6 +734,7 @@ v1_api_and_json_patterns = [
 # If you're adding a new page to the website (as opposed to a new
 # endpoint for use by code), you should add it here.
 i18n_urls = [
+    *PAGE_PATTERNS,
     path("", home, name="home"),
     # We have a desktop-specific landing page in case we change our /
     # to not log in in the future. We don't want to require a new
