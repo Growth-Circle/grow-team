@@ -50,7 +50,7 @@ class AgentJobCardTests(ZulipTestCase):
             realm=self.owner.realm, defaults={"enabled": True}
         )
         self.runner = self._runner(self.owner, "Card", "c")
-        self.profile = self._profile(self.owner, self.runner, "Ayame")
+        self.profile = self._profile(self.owner, self.runner, "Hana")
         self.sequence = 0
 
     def _runner(self, owner: UserProfile, name: str, fingerprint: str) -> agents.AgentRunner:
@@ -229,7 +229,7 @@ class AgentJobCardTests(ZulipTestCase):
         job = self._job()
         card = self._card(job)
         self.assertEqual(card.sender_id, self.profile.bot_user_id)
-        self.assertEqual(card.content, "Ayame · Queued")
+        self.assertEqual(card.content, "Hana · Queued")
         self.assertEqual(Message.objects.filter(sender=self.profile.bot_user).count(), 1)
         widget = self._widget(job)
         self.assertEqual((widget["status"], widget["progress"]), ("queued", 0.05))
@@ -253,7 +253,7 @@ class AgentJobCardTests(ZulipTestCase):
         job = self._job()
         attempt = self._claim(job)
         self.assertEqual(self._widget(job)["status"], "running")
-        self.assertEqual(self._card(job).content, "Ayame · Working")
+        self.assertEqual(self._card(job).content, "Hana · Working")
         with (
             self._events() as notices,
             tempfile.TemporaryDirectory() as directory,
@@ -413,7 +413,7 @@ class AgentJobCardTests(ZulipTestCase):
         attempt = self._claim(job)
         agents.AgentJob.objects.filter(id=job.id).update(job_kind="manage")
         self._draft(job, attempt, "Not shown")
-        self.assertEqual(self._card(job).content, "Ayame · Working")
+        self.assertEqual(self._card(job).content, "Hana · Working")
 
     def test_blocked_admission_gets_a_stopped_card_and_eyes(self) -> None:
         agents.AgentProfile.objects.filter(id=self.profile.id).update(
@@ -423,7 +423,7 @@ class AgentJobCardTests(ZulipTestCase):
         self.assertEqual(Reaction.objects.get(message_id=message_id).emoji_name, "eyes")
         job = self._job()
         self.assertEqual(job.status, "blocked")
-        self.assertEqual(self._card(job).content, "Ayame · Stopped")
+        self.assertEqual(self._card(job).content, "Hana · Stopped")
         widget = self._widget(job)
         self.assertEqual(
             (widget["status"], widget["reason_code"]), ("blocked", "profile_needs_action")
@@ -507,7 +507,7 @@ class AgentJobCardTests(ZulipTestCase):
         )
         self._ask()
         job = self._job()
-        self.assertEqual(actions.card_extra_data(job)["title"], "Please answer @Ayame")
+        self.assertEqual(actions.card_extra_data(job)["title"], "Please answer @Hana")
         card = self._card(job)
         self.assertEqual(card.content, "(x)(https://example.com) · Queued")
         self.assertNotIn(">x</a>", card.rendered_content or "")
@@ -640,7 +640,7 @@ class AgentJobCardTests(ZulipTestCase):
         ]:
             job.status = status
             job.stop_target = stop_target
-            self.assertEqual(_card_fallback(job), f"Ayame · {text}")
+            self.assertEqual(_card_fallback(job), f"Hana · {text}")
 
     def test_card_texts_use_the_agent_language(self) -> None:
         """Spec 13 principle 6: the agent language setting, not the
@@ -694,7 +694,7 @@ class AgentJobCardTests(ZulipTestCase):
         job = self._job()
         with self.captureOnCommitCallbacks(execute=True):
             actions.cancel_job(self.owner, job.id, job.version)
-        self.assertEqual(self._card(job).content, "Ayame · Cancelled")
+        self.assertEqual(self._card(job).content, "Hana · Cancelled")
         self.assertEqual(self._widget(job)["status"], "cancelled")
 
     def test_job_that_never_started_shows_stopped_with_the_cause(self) -> None:
@@ -703,7 +703,7 @@ class AgentJobCardTests(ZulipTestCase):
         agents.AgentJob.objects.filter(id=job.id).update(start_deadline=now())
         with self.captureOnCommitCallbacks(execute=True):
             reconcile_agents()
-        self.assertEqual(self._card(job).content, "Ayame · Stopped")
+        self.assertEqual(self._card(job).content, "Hana · Stopped")
         widget = self._widget(job)
         self.assertEqual((widget["status"], widget["reason_code"]), ("blocked", "runner_offline"))
 
