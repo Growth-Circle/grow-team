@@ -29,6 +29,7 @@ from zerver.models.groups import SystemGroups
 from zerver.models.realm_audit_logs import AuditLogEventType
 from zerver.models.realms import get_realm
 from zerver.models.users import get_user_by_delivery_email
+from zerver.openapi.openapi import validate_against_openapi_schema
 
 if TYPE_CHECKING:
     from django.test.client import _MonkeyPatchedWSGIResponse as TestHttpResponse
@@ -377,6 +378,21 @@ class RealmSettingsTests(ZulipTestCase):
         payload = self.assert_json_success(result)
         self.assertIsNone(payload["work_runner"])
         self.assertIsNone(payload["work_provider"])
+
+    def test_settings_event_matches_the_event_schema(self) -> None:
+        runner = self.make_runner(self.example_user("desdemona"), "Own")
+        self.login("desdemona")
+        # A summary object, then null.
+        for change in [{"work_runner_id": str(runner.id)}, {"work_runner_id": ""}]:
+            with self.capture_send_event_calls(expected_num_events=1) as events:
+                self.assert_json_success(self.client_patch("/json/agent/realm-settings", change))
+            content = {
+                "queue_id": "1.1",
+                "events": [{"id": 0, **events[0]["event"]}],
+                "msg": "",
+                "result": "success",
+            }
+            validate_against_openapi_schema(content, "/events", "get", "200")
 
     def test_can_create_workspace_needs_both_role_and_setting(self) -> None:
         with self.settings(WORKSPACE_CREATION_ENABLED=False):
