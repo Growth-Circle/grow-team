@@ -808,3 +808,34 @@ class AgentJobCardTests(ZulipTestCase):
         with queries_captured() as queries:
             self.assert_json_success(self.client_get("/json/agent/jobs"))
         self.assert_length(queries, 27)
+
+    # ---- the language sentence in the descriptor ----
+
+    def _team_instructions(self, text: str, language: str) -> p.InstructionText | None:
+        agents.AgentRealmSettings.objects.filter(realm=self.owner.realm).update(
+            team_instructions=text, agent_language=language
+        )
+        self._ask()
+        job = self._job()
+        actions.claim_work(self.runner, claim_key=uuid4())
+        descriptor = agents.AgentAttempt.objects.get(job=job).descriptor
+        instructions = p.AttemptDescriptor.model_validate(descriptor).instructions
+        assert instructions is not None
+        return instructions.team
+
+    def test_descriptor_language_sentence_follows_the_agent_language(self) -> None:
+        team = self._team_instructions("Be brief.", "en")
+        assert team is not None
+        self.assertEqual(team.text, "Be brief.\n\nRespond in English.")
+
+    def test_descriptor_language_sentence_without_team_instructions(self) -> None:
+        team = self._team_instructions("", "id")
+        assert team is not None
+        self.assertEqual(team.text, "Respond in Indonesian.")
+
+    def test_descriptor_language_sentence_fits_full_team_instructions(self) -> None:
+        # 4000 emoji are 8000 UTF-16 units: the whole instructions limit.
+        team = self._team_instructions("\U0001f600" * 4000, "id")
+        assert team is not None
+        self.assertTrue(team.text.endswith("\n\nRespond in Indonesian."))
+        self.assertLessEqual(len(team.text.encode("utf-16-le")) // 2, p.INSTRUCTIONS_MAX_CHARS)

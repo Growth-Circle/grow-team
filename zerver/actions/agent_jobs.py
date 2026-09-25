@@ -611,6 +611,35 @@ def complete_draft(
         return result
 
 
+def _with_language_directive(
+    instructions: dict[str, object] | None, realm_id: int
+) -> dict[str, object]:
+    """One language sentence appended to the team instructions, from Settings
+    -> General -> Agent language (default Indonesian). The v1 schema is
+    unchanged (`instructions.team.text` stays a plain string): this only
+    adds to its content, the same field descriptor_instructions already
+    produces. With no team instructions, the team block holds only this
+    sentence, at the realm's own revision counter."""
+    settings = agents.AgentRealmSettings.objects.get(realm_id=realm_id)
+    directive = (
+        "Respond in Indonesian." if settings.agent_language == "id" else "Respond in English."
+    )
+    instructions = dict(instructions) if instructions else {"team": None, "profile": None}
+    team = p.InstructionText.model_validate(instructions["team"]) if instructions["team"] else None
+    text = directive
+    if team is not None:
+        # The descriptor caps the whole text at INSTRUCTIONS_MAX_CHARS UTF-16
+        # units (the runner's own count), so cut the team text to leave room.
+        room = p.INSTRUCTIONS_MAX_CHARS - len(f"\n\n{directive}")
+        kept = team.text.encode("utf-16-le")[: 2 * room].decode("utf-16-le", "ignore")
+        text = f"{kept}\n\n{directive}"
+    instructions["team"] = {
+        "revision": team.revision if team is not None else settings.team_instructions_revision,
+        "text": text,
+    }
+    return instructions
+
+
 def build_descriptor(job: agents.AgentJob, attempt: agents.AgentAttempt) -> dict[str, Any]:
     profile = job.profile
     tested = require_ready(profile)
@@ -661,7 +690,7 @@ def build_descriptor(job: agents.AgentJob, attempt: agents.AgentAttempt) -> dict
         "provider": provider_config(profile.provider) if profile.provider else None,
         "repository": repository,
         "policy": p.serialize_payload(policy),
-        "instructions": descriptor_instructions(profile),
+        "instructions": _with_language_directive(descriptor_instructions(profile), job.realm_id),
         "budget": job.budget,
         "context_refs": [
             {

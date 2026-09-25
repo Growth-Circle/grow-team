@@ -4328,7 +4328,11 @@ class AgentLifecycleTests(ZulipTestCase):
         self.assertEqual(
             descriptor["instructions"],
             {
-                "team": {"revision": 3, "text": "Reply in Bahasa Indonesia."},
+                # The agent language sentence ends the team instructions.
+                "team": {
+                    "revision": 3,
+                    "text": "Reply in Bahasa Indonesia.\n\nRespond in Indonesian.",
+                },
                 "profile": {
                     "revision": profile.revision,
                     "text": "Always confirm the ticket number first.",
@@ -4467,7 +4471,10 @@ class AgentLifecycleTests(ZulipTestCase):
             },
         )
         self.assertEqual(
-            data["instructions"], {"team_revision": None, "profile_revision": profile.revision}
+            # With no team instructions, the team block holds only the
+            # agent language sentence, at the realm's revision counter.
+            data["instructions"],
+            {"team_revision": 1, "profile_revision": profile.revision},
         )
 
     def test_test_task_sends_one_bot_message_and_one_answer_job(self) -> None:
