@@ -16,9 +16,13 @@
                     {{#if is_compact}}
                         <div class="alert" id="dialog_error"></div>
                     {{/if}}
-                    {{#if modal_subtitle_html}}
+                    {{#if (or modal_subtitle_html sub_text)}}
                     <div class="modal__subtitle">
-                        {{{ modal_subtitle_html }}}
+                        {{#if modal_subtitle_html}}
+                            {{{ modal_subtitle_html }}}
+                        {{else}}
+                            {{ sub_text }}
+                        {{/if}}
                     </div>
                     {{/if}}
                 </div>

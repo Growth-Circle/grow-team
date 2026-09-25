@@ -65,6 +65,7 @@ export type DialogWidgetConfig = {
     modal_title_text?: string;
     modal_content_html: string;
     modal_subtitle_html?: string;
+    sub_text?: string;
     is_compact?: boolean;
     has_tab_switcher?: boolean;
     on_click?: (e: JQuery.ClickEvent) => void;
@@ -174,6 +175,8 @@ export function launch(conf: DialogWidgetConfig): string {
     // Optional parameters:
     // * modal_subtitle_html: Provides additional context
     //   below the modal title.
+    // * sub_text: The subtitle as plain text. Use it when the
+    //   subtitle has no HTML. modal_subtitle_html has priority.
     // * is_compact: If true, enables the compact version where the modal
     //   content area is not rendered, and the modal_content_html is
     //   passed to the modal_subtitle_html to be displayed as the subtitle.
@@ -217,6 +220,7 @@ export function launch(conf: DialogWidgetConfig): string {
         modal_title_html: conf.modal_title_html,
         modal_title_text: conf.modal_title_text,
         modal_subtitle_html: conf.modal_subtitle_html,
+        sub_text: conf.sub_text,
         is_compact: conf.is_compact,
         has_tab_switcher: conf.has_tab_switcher,
         link: conf.help_link,
