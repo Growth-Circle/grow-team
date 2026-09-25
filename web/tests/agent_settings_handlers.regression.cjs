@@ -136,10 +136,12 @@ async function main() {
         }),
         // __importStar's per-property getter only forwards a name that
         // exists on this object when the module first requires
-        // "./agent_api.ts"; a later `api.approve_pairing = ...` reassignment
-        // for a name that was never a key here stays invisible to the
-        // module under test. Declare the key here so tests can override it.
+        // "./agent_api.ts"; a later `api.<name> = ...` reassignment for a
+        // name that was never a key here stays invisible to the module
+        // under test. Declare the key here so tests can override it.
         approve_pairing: async () => ({}),
+        revoke_runner: async () => ({}),
+        probe_provider: async () => ({}),
         send_test_task: async () => ({job: {id: "test-task-job"}}),
         agent_error_code: (error) =>
             error && typeof error === "object" && typeof error.responseJSON?.code === "string"
@@ -187,73 +189,127 @@ async function main() {
             },
         },
     );
-    const out = {};
-    const source = fs.readFileSync(path.join(__dirname, "../src/settings_agents.ts"), "utf8");
-    vm.runInNewContext(transpile(source), {
-        exports: out,
-        require(name) {
-            if (name === "jquery") {
-                return $;
-            }
-            if (name === "./agent_api.ts") {
-                return api;
-            }
-            if (name === "./agent_ui_state.ts") {
-                return {
-                    ...ui_state,
-                    new_client_key() {
-                        key_id += 1;
-                        return `key-${key_id}`;
-                    },
-                };
-            }
-            if (name === "./agent_settings_labels.ts") {
-                return settings_labels;
-            }
-            if (name === "./i18n.ts") {
-                return i18n;
-            }
-            if (name === "./state_data.ts") {
-                return {current_user, realm: {realm_url: "https://realm.test"}};
-            }
-            if (name === "./confirm_dialog.ts") {
-                return {launch: (config) => config.on_click()};
-            }
-            if (name === "./people.ts") {
-                return {
-                    maybe_get_user_by_id: (id) =>
-                        id === 7
-                            ? {full_name: "Colleague"}
-                            : id === 1
-                              ? {full_name: "Owner"}
-                              : undefined,
-                    get_realm_active_human_users: () => [{user_id: 7, full_name: "Colleague"}],
-                };
-            }
-            if (name === "./user_groups.ts") {
-                return {get_realm_user_groups: () => []};
-            }
-            if (name === "./stream_data.ts") {
-                return {
-                    get_unsorted_subs_with_content_access: () => [{stream_id: 42, name: "Denmark"}],
-                    get_sub_by_id: () => ({name: "Denmark"}),
-                };
-            }
-            throw new Error(name);
-        },
-        window: dom.window,
-        document: dom.window.document,
-        sessionStorage: dom.window.sessionStorage,
-        setTimeout(fn) {
-            timer_id += 1;
-            timers.set(timer_id, fn);
-            return timer_id;
-        },
-        clearTimeout(id) {
-            timers.delete(id);
-        },
-        console,
-    });
+    // Every module below (the shared core, its four panels, and
+    // settings_agents.ts itself) gets its exports object created here,
+    // before any of the five loads, and this harness
+    // passes that same object to every other module that imports it. A
+    // module that requires another one still mid-evaluation gets a
+    // reference to its (not yet fully populated) exports object; the
+    // transpiled CommonJS output only reads a property off that reference
+    // when a handler actually runs later, never at require() time, so the
+    // forward reference is safe regardless of load order.
+    const shared_core = {};
+    const core = {};
+    const directory = {};
+    const devices = {};
+    const connections = {};
+    const team_default = {};
+    function load_panel(file, exports_obj) {
+        const panel_source = fs.readFileSync(path.join(__dirname, `../src/${file}`), "utf8");
+        vm.runInNewContext(transpile(panel_source), {
+            exports: exports_obj,
+            require(name) {
+                if (name === "jquery") {
+                    return $;
+                }
+                if (name === "./agent_api.ts") {
+                    return api;
+                }
+                if (name === "./agent_ui_state.ts") {
+                    return {
+                        ...ui_state,
+                        new_client_key() {
+                            key_id += 1;
+                            return `key-${key_id}`;
+                        },
+                    };
+                }
+                if (name === "./agent_settings_labels.ts") {
+                    return settings_labels;
+                }
+                if (name === "./i18n.ts") {
+                    return i18n;
+                }
+                if (name === "./state_data.ts") {
+                    return {current_user, realm: {realm_url: "https://realm.test"}};
+                }
+                if (name === "./confirm_dialog.ts") {
+                    return {launch: (config) => config.on_click()};
+                }
+                if (name === "./people.ts") {
+                    return {
+                        maybe_get_user_by_id: (id) =>
+                            id === 7
+                                ? {full_name: "Colleague"}
+                                : id === 1
+                                  ? {full_name: "Owner"}
+                                  : undefined,
+                        get_realm_active_human_users: () => [{user_id: 7, full_name: "Colleague"}],
+                    };
+                }
+                if (name === "./user_groups.ts") {
+                    return {get_realm_user_groups: () => []};
+                }
+                if (name === "./stream_data.ts") {
+                    return {
+                        get_unsorted_subs_with_content_access: () => [
+                            {stream_id: 42, name: "Denmark"},
+                        ],
+                        get_sub_by_id: () => ({name: "Denmark"}),
+                    };
+                }
+                if (name === "./settings_agents_core.ts") {
+                    return shared_core;
+                }
+                if (name === "./settings_agents_directory.ts") {
+                    return directory;
+                }
+                if (name === "./settings_agents_devices.ts") {
+                    return devices;
+                }
+                if (name === "./settings_agents_connections.ts") {
+                    return connections;
+                }
+                if (name === "./settings_agents_team_default.ts") {
+                    return team_default;
+                }
+                throw new Error(name);
+            },
+            window: dom.window,
+            document: dom.window.document,
+            sessionStorage: dom.window.sessionStorage,
+            setTimeout(fn) {
+                timer_id += 1;
+                timers.set(timer_id, fn);
+                return timer_id;
+            },
+            clearTimeout(id) {
+                timers.delete(id);
+            },
+            console,
+        });
+    }
+    // settings_agents_core.ts loads first: every other module below reads
+    // its bindings with a plain named import (`import {value} from
+    // "./settings_agents_core.ts"`), which the transpiled output reads
+    // from `shared_core` lazily (a property access at call time, long
+    // after every module here has finished loading), so this one could
+    // in fact load in any order. settings_agents.ts's own
+    // `import * as directory from "./settings_agents_directory.ts"` (and
+    // the same for the other three panels) is different: TypeScript's
+    // __importStar helper returns the required object unchanged once that
+    // object's own `__esModule` flag is set, which every module here sets
+    // on itself before its first named export runs, so `directory` is the
+    // very object load_panel fills in below, not a copy taken too early.
+    // directory.ts also imports one binding directly from devices.ts
+    // (pairing_runner_hint), the only export one panel reads from another.
+    load_panel("settings_agents_core.ts", shared_core);
+    load_panel("settings_agents_directory.ts", directory);
+    load_panel("settings_agents_devices.ts", devices);
+    load_panel("settings_agents_connections.ts", connections);
+    load_panel("settings_agents_team_default.ts", team_default);
+    load_panel("settings_agents.ts", core);
+    const out = core;
     $("#agent-settings")[0].getClientRects = () => [{}];
     const flush = async () => {
         for (let i = 0; i < 20; i += 1) {
@@ -386,6 +442,21 @@ async function main() {
         await flush();
         assert.equal(dom.window.sessionStorage.getItem(pointer), newer_key);
         api.get_profile = async (id) => ({profile: profile(id), setup: null, attachments: []});
+        // The shared cancel handler reads directory.profile_submitted and
+        // directory.profile_key across module boundaries; confirm it still
+        // clears an unsubmitted profile's pending key.
+        await fresh();
+        $("#agent-new-profile").trigger("click");
+        await flush();
+        const cancel_pointer = "grow-agent-profile:https://realm.test:1";
+        assert.ok(dom.window.sessionStorage.getItem(cancel_pointer));
+        $("#agent-profile-cancel").trigger("click");
+        await flush();
+        assert.equal(dom.window.sessionStorage.getItem(cancel_pointer), null);
+        assert.deepEqual(
+            JSON.parse(dom.window.sessionStorage.getItem(`${cancel_pointer}:submitted`) ?? "[]"),
+            [],
+        );
         await fresh();
         const created = deferred();
         api.create_profile = () => created.promise;
@@ -894,6 +965,92 @@ async function main() {
         );
         assert.equal($("#agent-pairing-added").prop("hidden"), false);
         assert.match($("#agent-pairing-added").text(), /Add agent on this device/);
+
+        // An approval that reveals a runner the device list did not already
+        // know about sets the pairing hint, and "Add agent on this device"
+        // preselects that runner in the new-profile wizard.
+        runners = [runner("ra"), runner("rb"), runner("rc")];
+        api.list_runners = async () => ({runners, count: runners.length});
+        $("#agent-pairing-id").val("pairing-2");
+        $("#agent-pairing-code").val("333333").trigger("input");
+        api.preview_pairing = async () => ({
+            pairing: {
+                device_name: "New device",
+                fingerprint_prefix: "ffff0000ffff0000",
+                realm_name: "Realm",
+                expires_at: "2026-01-01T00:00:00Z",
+            },
+        });
+        $("#agent-pairing-check").trigger("click");
+        await flush();
+        api.approve_pairing = async () => ({pairing: {id: "pairing-2", state: "approved"}});
+        $("#agent-pairing-form").trigger("submit");
+        await flush();
+        click("profile-new-on-runner", "");
+        await flush();
+        assert.equal($("#agent-profile-runner").val(), "rc");
+        runners = [runner("ra"), runner("rb")];
+        api.list_runners = async () => ({runners, count: 2});
+
+        // Revoking a device's pairing confirms first, then sends its
+        // current revision.
+        dom.window.confirm = () => true;
+        const revokable_runner = {...runner("ra"), allowed_actions: ["edit", "revoke"]};
+        api.list_runners = async () => ({runners: [revokable_runner, runner("rb")], count: 2});
+        let revoked_call;
+        api.revoke_runner = async (id, revision) => {
+            revoked_call = {id, revision};
+            return {};
+        };
+        await fresh("devices");
+        click("runner-revoke", "ra");
+        await flush();
+        assert.deepEqual(revoked_call, {id: "ra", revision: 1});
+        assert.match($("#agent-settings-status").text(), /Pairing revoked\./);
+        api.revoke_runner = async () => ({});
+        runners = [runner("ra"), runner("rb")];
+        api.list_runners = async () => ({runners, count: 2});
+
+        // Probing a model connection sends its current config version.
+        const probeable_provider = {
+            ...provider("a"),
+            allowed_actions: ["edit", "probe"],
+            config_version: 1,
+        };
+        api.list_providers = async () => ({providers: [probeable_provider], count: 1});
+        let probed_call;
+        api.probe_provider = async (id, payload) => {
+            probed_call = {id, payload};
+            return {};
+        };
+        await fresh("connections");
+        click("provider-probe", "a");
+        await flush();
+        assert.equal(probed_call.id, "a");
+        assert.equal(probed_call.payload.expected_revision, 1);
+        api.list_providers = async () => ({providers: [provider("a"), provider("b")], count: 2});
+        api.probe_provider = async () => ({});
+
+        // "Fix grants" opens the grant editor for a profile the person can
+        // edit, and announces the ask-the-owner sentence otherwise.
+        profiles = [{...profile("a"), allowed_actions: ["edit"]}];
+        api.list_profiles = async () => ({profiles, count: profiles.length});
+        await fresh();
+        click("repair-grants", "a");
+        await flush();
+        assert.equal($("#agent-grant-editor").prop("hidden"), false);
+        assert.equal($("#agent-resource-grant-form").length, 1);
+        profiles = [{...profile("b"), allowed_actions: []}];
+        api.list_profiles = async () => ({profiles, count: profiles.length});
+        await fresh();
+        click("repair-grants", "b");
+        await flush();
+        assert.match(
+            $("#agent-settings-status").text(),
+            /Ask the resource owner to grant the missing access\./,
+        );
+        profiles = [profile("a"), profile("b")];
+        api.list_profiles = async () => ({profiles, count: profiles.length});
 
         // Adapter options show sign-in labels, and a requirement row shows
         // its contract 12.5 sentence with the raw code and surface moved

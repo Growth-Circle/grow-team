@@ -229,80 +229,132 @@ async function settings_scenarios() {
             },
         },
     );
-    const out = {};
-    const source = fs.readFileSync(path.join(__dirname, "../src/settings_agents.ts"), "utf8");
-    vm.runInNewContext(transpile(source), {
-        exports: out,
-        require(name) {
-            if (name === "jquery") {
-                return $;
-            }
-            if (name === "./agent_api.ts") {
-                return api;
-            }
-            if (name === "./agent_settings_labels.ts") {
-                return settings_labels;
-            }
-            if (name === "./agent_ui_state.ts") {
-                return {
-                    new_client_key: () => `key-${Math.random()}`,
-                    // Mirrors agent_ui_state.ts's own derived_budget_defaults
-                    // (contract 3.5); this harness stubs the module by hand
-                    // instead of loading the real one, see the file banner.
-                    derived_budget_defaults: (provider) =>
-                        provider
-                            ? {
-                                  input_tokens: Math.min(
-                                      Math.max(provider.context_window_tokens * 10, 200000),
-                                      4000000,
-                                  ),
-                                  output_tokens: Math.min(
-                                      Math.max(provider.max_output_tokens * 4, 16000),
-                                      256000,
-                                  ),
-                              }
-                            : {input_tokens: 400000, output_tokens: 16000},
-                };
-            }
-            if (name === "./state_data.ts") {
-                return {current_user, realm: {realm_url: "https://realm.test"}};
-            }
-            if (name === "./confirm_dialog.ts") {
-                return {launch: (config) => config.on_click()};
-            }
-            if (name === "./people.ts") {
-                return {
-                    maybe_get_user_by_id: () => ({full_name: "Owner"}),
-                    get_realm_active_human_users: () => [],
-                };
-            }
-            if (name === "./user_groups.ts") {
-                return {get_realm_user_groups: () => []};
-            }
-            if (name === "./stream_data.ts") {
-                return {
-                    get_unsorted_subs_with_content_access: () => [{stream_id: 42, name: "Denmark"}],
-                    get_sub_by_id: () => ({name: "Denmark"}),
-                };
-            }
-            if (name === "./i18n.ts") {
-                return {$t: format_message};
-            }
-            throw new Error(name);
-        },
-        window: dom.window,
-        document: dom.window.document,
-        sessionStorage: dom.window.sessionStorage,
-        setTimeout(fn) {
-            timer_id += 1;
-            timers.set(timer_id, fn);
-            return timer_id;
-        },
-        clearTimeout(id) {
-            timers.delete(id);
-        },
-        console,
-    });
+    // Every module below (the shared core, its four panels, and
+    // settings_agents.ts itself) gets its exports object created here,
+    // before any of the five loads, and this harness passes that same
+    // object to every other module that imports it. A module that
+    // requires another one still mid-evaluation gets a reference to its
+    // (not yet fully populated) exports object; the transpiled CommonJS
+    // output only reads a property off that reference when a handler
+    // actually runs later, never at require() time, so the forward
+    // reference is safe regardless of load order.
+    const shared_core = {};
+    const core = {};
+    const directory = {};
+    const devices = {};
+    const connections = {};
+    const team_default = {};
+    function load_panel(file, exports_obj) {
+        const panel_source = fs.readFileSync(path.join(__dirname, `../src/${file}`), "utf8");
+        vm.runInNewContext(transpile(panel_source), {
+            exports: exports_obj,
+            require(name) {
+                if (name === "jquery") {
+                    return $;
+                }
+                if (name === "./agent_api.ts") {
+                    return api;
+                }
+                if (name === "./agent_settings_labels.ts") {
+                    return settings_labels;
+                }
+                if (name === "./agent_ui_state.ts") {
+                    return {
+                        new_client_key: () => `key-${Math.random()}`,
+                        // Mirrors agent_ui_state.ts's own derived_budget_defaults
+                        // (contract 3.5); this harness stubs the module by hand
+                        // instead of loading the real one, see the file banner.
+                        derived_budget_defaults: (provider) =>
+                            provider
+                                ? {
+                                      input_tokens: Math.min(
+                                          Math.max(provider.context_window_tokens * 10, 200000),
+                                          4000000,
+                                      ),
+                                      output_tokens: Math.min(
+                                          Math.max(provider.max_output_tokens * 4, 16000),
+                                          256000,
+                                      ),
+                                  }
+                                : {input_tokens: 400000, output_tokens: 16000},
+                    };
+                }
+                if (name === "./state_data.ts") {
+                    return {current_user, realm: {realm_url: "https://realm.test"}};
+                }
+                if (name === "./confirm_dialog.ts") {
+                    return {launch: (config) => config.on_click()};
+                }
+                if (name === "./people.ts") {
+                    return {
+                        maybe_get_user_by_id: () => ({full_name: "Owner"}),
+                        get_realm_active_human_users: () => [],
+                    };
+                }
+                if (name === "./user_groups.ts") {
+                    return {get_realm_user_groups: () => []};
+                }
+                if (name === "./stream_data.ts") {
+                    return {
+                        get_unsorted_subs_with_content_access: () => [
+                            {stream_id: 42, name: "Denmark"},
+                        ],
+                        get_sub_by_id: () => ({name: "Denmark"}),
+                    };
+                }
+                if (name === "./i18n.ts") {
+                    return {$t: format_message};
+                }
+                if (name === "./settings_agents_core.ts") {
+                    return shared_core;
+                }
+                if (name === "./settings_agents_directory.ts") {
+                    return directory;
+                }
+                if (name === "./settings_agents_devices.ts") {
+                    return devices;
+                }
+                if (name === "./settings_agents_connections.ts") {
+                    return connections;
+                }
+                if (name === "./settings_agents_team_default.ts") {
+                    return team_default;
+                }
+                throw new Error(name);
+            },
+            window: dom.window,
+            document: dom.window.document,
+            sessionStorage: dom.window.sessionStorage,
+            setTimeout(fn) {
+                timer_id += 1;
+                timers.set(timer_id, fn);
+                return timer_id;
+            },
+            clearTimeout(id) {
+                timers.delete(id);
+            },
+            console,
+        });
+    }
+    // settings_agents_core.ts loads first: every other module below reads
+    // its bindings with a plain named import (`import {value} from
+    // "./settings_agents_core.ts"`), which the transpiled output reads
+    // from `shared_core` lazily (a property access at call time, long
+    // after every module here has finished loading), so this one could
+    // in fact load in any order. settings_agents.ts's own
+    // `import * as directory from "./settings_agents_directory.ts"` (and
+    // the same for the other three panels) is different: TypeScript's
+    // __importStar helper returns the required object unchanged once that
+    // object's own `__esModule` flag is set, which every module here sets
+    // on itself before its first named export runs, so `directory` is the
+    // very object load_panel fills in below, not a copy taken too early.
+    load_panel("settings_agents_core.ts", shared_core);
+    load_panel("settings_agents_directory.ts", directory);
+    load_panel("settings_agents_devices.ts", devices);
+    load_panel("settings_agents_connections.ts", connections);
+    load_panel("settings_agents_team_default.ts", team_default);
+    load_panel("settings_agents.ts", core);
+    const out = core;
     $("#agent-settings")[0].getClientRects = () => [{}];
     const flush = async () => {
         for (let i = 0; i < 20; i += 1) {
