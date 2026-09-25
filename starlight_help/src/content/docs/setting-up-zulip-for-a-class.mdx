@@ -1,5 +1,5 @@
 ---
-title: Setting up Grow Team for a class
+title: Setting up sanji for a class
 ---
 
 import {Tabs} from "@astrojs/starlight/components";
@@ -16,13 +16,13 @@ import HowToCreateAUserGroup from "../include/_HowToCreateAUserGroup.mdx";
 import HowToInviteUsersToJoinNoImport from "../include/_HowToInviteUsersToJoinNoImport.mdx";
 import ReviewOrganizationSettingsInstructions from "../include/_ReviewOrganizationSettingsInstructions.mdx";
 
-Welcome to Grow Team! This page will guide you through setting everything
+Welcome to sanji! This page will guide you through setting everything
 up for [teaching with Zulip](https://zulip.com/for/education/). If you
-are using Grow Team for a different purpose, we recommend checking out the
-[moving to Grow Team](/help/moving-to-zulip) guide instead.
+are using sanji for a different purpose, we recommend checking out the
+[moving to sanji](/help/moving-to-zulip) guide instead.
 
-If you are a student, or if your Grow Team organization is already set up,
-you can proceed to the [Using Grow Team for a
+If you are a student, or if your sanji organization is already set up,
+you can proceed to the [Using sanji for a
 class](/help/using-zulip-for-a-class) guide.
 
 If you encounter any problems as you're getting started, please drop
@@ -31,52 +31,56 @@ and let us know!
 
 <span id="trying-out-zulip" aria-hidden="true" />
 
-## Trying out Grow Team
+<span id="trying-out-grow-team" aria-hidden="true" />
+
+## Trying out sanji
 
 Use channels and topics to share lecture notes, answer questions, and coordinate with teaching staff.
-Ask your Grow Team administrator for access to a classroom organization.
+Ask your sanji administrator for access to a classroom organization.
 Try the workflow with a small group before inviting the whole class.
 
 ## Choosing between Zulip Cloud and self-hosting
 
-Grow Team currently uses a self-hosted installation. Ask the operator about capacity, backups, and account policies before adding a class.
+sanji currently uses a self-hosted installation. Ask the operator about capacity, backups, and account policies before adding a class.
 [Zulip Cloud](https://zulip.com/zulip-cloud/) is a separate upstream service with its own terms and pricing.
 
 <span id="do-i-need-a-separate-zulip-organization-for-each-class" aria-hidden="true" />
 
-## Do I need a separate Grow Team organization for each class?
+<span id="do-i-need-a-separate-grow-team-organization-for-each-class" aria-hidden="true" />
 
-There are a few ways to set up Grow Team, and different ones may be convenient for your needs:
+## Do I need a separate sanji organization for each class?
 
-* If your **school or department already has a Grow Team organization**,
+There are a few ways to set up sanji, and different ones may be convenient for your needs:
+
+* If your **school or department already has a sanji organization**,
   you will probably find it easiest to just add your class to
   it. Advantages:
-  * Students and staff can use a single Grow Team account for all classes.
+  * Students and staff can use a single sanji account for all classes.
   * You can create department-wide channels, e.g., for announcing talks or other events.
-  * You don’t need to set up a separate server if you’re self-hosting Grow Team.
-* You can **set up a separate Grow Team organization for each class**
+  * You don’t need to set up a separate server if you’re self-hosting sanji.
+* You can **set up a separate sanji organization for each class**
   you’re teaching. Advantages:
   * This makes it simple to manage permissions, e.g., if you want to
     make sure TAs from one class cannot moderate discussion from a
     different class.
   * Students can’t see who is in channels for other classes.
-  * You can easily switch between multiple Grow Team organizations in
+  * You can easily switch between multiple sanji organizations in
     the [compatible desktop clients](/apps/).
-* You can **use a single Grow Team organization for several classes**
-  you’re teaching, perhaps re-purposing a Grow Team organization from a
+* You can **use a single sanji organization for several classes**
+  you’re teaching, perhaps re-purposing a sanji organization from a
   prior term. Advantages:
   * Information from your classes is all in one place, e.g., if you
     want to re-post a response to a question that was also asked
     last time you taught the class.
 
-If you change your mind down the line, you can rename your Grow Team
+If you change your mind down the line, you can rename your sanji
 organization by sending a request to
 [support@zulip.com](mailto:support@zulip.com).
 
 ## Create your organization profile
 
 The information in your organization profile is displayed on the
-registration and login page for your organization, and in the Grow Team app.
+registration and login page for your organization, and in the sanji app.
 
 ### Edit organization profile
 
@@ -106,13 +110,15 @@ A few settings to highlight:
 
 ### Roles and permissions
 
-Grow Team offers [several levels of permissions based on user
+sanji offers [several levels of permissions based on user
 roles](/help/user-roles). Here are some recommendations for
 how to assign roles and permissions for a class.
 
 <span id="recommended-roles-and-permissions-for-a-single-class-zulip-organization" aria-hidden="true" />
 
-#### Recommended roles and permissions for a single-class Grow Team organization
+<span id="recommended-roles-and-permissions-for-a-single-class-grow-team-organization" aria-hidden="true" />
+
+#### Recommended roles and permissions for a single-class sanji organization
 
 | Who                                 | Role                                           |
 | ----------------------------------- | ---------------------------------------------- |
@@ -212,7 +218,7 @@ For most classes, the following channels are recommended:
 A few notes:
 
 * Small classes may need just one discussion channel for all lectures.
-* If you are [using a single Grow Team organization][separate-orgs] for
+* If you are [using a single sanji organization][separate-orgs] for
   more than one class, all channel names should be prefixed with the
   name of the class, e.g., “CS101 > Lecture 1: Course intro”.
 
@@ -223,7 +229,7 @@ A few notes:
 <CustomizeSettingsForNewUsers />
 
 <ZulipTip>
-  If using your Grow Team organization for a single class, set default
+  If using your sanji organization for a single class, set default
   channels for new users to include **#announcements**, **#general**,
   and all lecture/unit channels.
 </ZulipTip>
@@ -250,8 +256,8 @@ channels for your class.
 </Tabs>
 
 To get everyone off to a good start, you may wish to share the guide
-to [Getting started with Grow Team][getting-started] and the guide to
-[Using Grow Team for a class](/help/using-zulip-for-a-class).
+to [Getting started with sanji][getting-started] and the guide to
+[Using sanji for a class](/help/using-zulip-for-a-class).
 
 <ZulipTip>
   If you create new channels later on, you can subscribe users
@@ -281,9 +287,9 @@ user groups:
 
 ## Set up integrations
 
-Grow Team integrates directly with dozens of products, and with hundreds
+sanji integrates directly with dozens of products, and with hundreds
 more through [Zapier](/integrations/zapier) and
-[IFTTT](/integrations/ifttt).  Popular Grow Team integrations include
+[IFTTT](/integrations/ifttt).  Popular sanji integrations include
 [GitHub](/integrations/github) and
 [GitLab](/integrations/gitlab). The [integrations
 page](/integrations/) has instructions for integrating with each
@@ -291,7 +297,7 @@ product.
 
 ## Cleaning up at the end of a class
 
-If you plan to use the same Grow Team organization in future terms (either
+If you plan to use the same sanji organization in future terms (either
 for your own classes or for your department), you will likely want to:
 
 * Rename all channels to indicate the class and term in which they were used, for
@@ -304,12 +310,12 @@ for your own classes or for your department), you will likely want to:
   [make all the channels from the class private][make-private]. You’ll
   be able to find and reuse content yourself, and [invite course
   staff][subscribe-to-channel] to these private channels as needed.
-* You may choose to [deactivate students’ Grow Team
+* You may choose to [deactivate students’ sanji
   accounts][deactivate-user] when the class is over.
 * [Unpin channels](/help/pin-a-channel) from the class from your
   personal view.
 
-If you do not plan to reuse the Grow Team organization, you can instead:
+If you do not plan to reuse the sanji organization, you can instead:
 
 * [Export the organization](/help/export-your-organization) or [generate a static
   HTML archive](https://github.com/zulip/zulip-archive) to archive the information.
@@ -317,8 +323,8 @@ If you do not plan to reuse the Grow Team organization, you can instead:
 
 ## Further reading
 
-* [Using Grow Team for a class](/help/using-zulip-for-a-class)
-* [Getting started with Grow Team](/help/getting-started-with-zulip)
+* [Using sanji for a class](/help/using-zulip-for-a-class)
+* [Getting started with sanji](/help/getting-started-with-zulip)
 * [Introduction to topics](/help/introduction-to-topics)
 * [Moderating open organizations](/help/moderating-open-organizations)
 

@@ -6,8 +6,8 @@ import {Steps} from "@astrojs/starlight/components";
 
 import ZulipNote from "../../components/ZulipNote.astro";
 
-Integrations let you connect Grow Team with other products. For example, you can get
-notification messages in Grow Team when an issue in your tracker is updated, or for
+Integrations let you connect sanji with other products. For example, you can get
+notification messages in sanji when an issue in your tracker is updated, or for
 alerts from your monitoring tool.
 
 Use the [available integrations](/integrations/) for this deployment. You can
@@ -17,7 +17,7 @@ also connect an incoming webhook that uses the
 If you don't find an integration you need, you can:
 
 * [Write your own integration](#write-your-own-integration).
-* Report a Grow Team issue through the
+* Report a sanji issue through the
   [project tracker](https://github.com/Growth-Circle/grow-team/issues).
 
 ## Set up an integration
@@ -25,37 +25,37 @@ If you don't find an integration you need, you can:
 ### Native integrations
 
 <Steps>
-  1. [Search Grow Team's integrations](/integrations/) for the product you'd like to
-     connect to Grow Team.
+  1. [Search sanji's integrations](/integrations/) for the product you'd like to
+     connect to sanji.
   1. Click on the card for the product, and follow the instructions on the page.
 </Steps>
 
 ### Integrate via Zapier or IFTTT
 
-If you don't see a native Grow Team integration, you can access thousands of
+If you don't see a native sanji integration, you can access thousands of
 additional integrations through [Zapier](https://zapier.com/apps) and
 [IFTTT](https://ifttt.com/search).
 
 <Steps>
   1. Search [Zapier](https://zapier.com/apps) or [IFTTT](https://ifttt.com/search)
-     for the product you'd like to connect to Grow Team.
+     for the product you'd like to connect to sanji.
   1. Follow the integration instructions for [Zapier](/integrations/zapier) or
      [IFTTT](/integrations/ifttt).
 </Steps>
 
 ### Integrate via Slack-compatible webhook API
 
-Grow Team can process incoming webhook messages written to work with [Slack's
+sanji can process incoming webhook messages written to work with [Slack's
 webhook API](https://api.slack.com/messaging/webhooks). This makes it easy to
 quickly move your integrations when [migrating your
-organization](/help/import-from-slack) from Slack to Grow Team, or integrate any
-product that has a Slack webhook integration with Grow Team .
+organization](/help/import-from-slack) from Slack to sanji, or integrate any
+product that has a Slack webhook integration with sanji .
 
 <ZulipNote>
   **Note:** In the long term, the recommended approach is to use
-  Grow Team's native integrations, which take advantage of Grow Team's topics.
+  sanji's native integrations, which take advantage of sanji's topics.
   There may also be some quirks when Slack's formatting system is
-  translated into Grow Team's.
+  translated into sanji's.
 </ZulipNote>
 
 <Steps>
@@ -69,48 +69,50 @@ product that has a Slack webhook integration with Grow Team .
 ### Integrate via email
 
 If the product you'd like to integrate can send email notifications, you can
-[send those emails to a Grow Team channel](/help/message-a-channel-by-email). The
-email subject will become the Grow Team topic, and the email body will become the
-Grow Team message.
+[send those emails to a sanji channel](/help/message-a-channel-by-email). The
+email subject will become the sanji topic, and the email body will become the
+sanji message.
 
 For example, you can configure your personal GitHub notifications to go to a
-Grow Team channel rather than your email inbox. Notifications for each issue or pull
+sanji channel rather than your email inbox. Notifications for each issue or pull
 request will be grouped into a single topic.
 
 ## Write your own integration
 
-You can write your own Grow Team integrations using the well-documented APIs below.
+You can write your own sanji integrations using the well-documented APIs below.
 For example, if your company develops software, you can create a custom
-integration to connect your product to Grow Team.
+integration to connect your product to sanji.
 
 For deployment-specific help, contact your server administrator.
 
 <span id="sending-content-into-zulip" aria-hidden="true" />
 
-### Sending content into Grow Team
+<span id="sending-content-into-grow-team" aria-hidden="true" />
+
+### Sending content into sanji
 
 * If the third-party service supports outgoing webhooks, you likely want to
   build an [incoming webhook
   integration](https://zulip.readthedocs.io/en/latest/webhooks/incoming-webhooks-overview.html).
 * If it doesn't, you may want to write a
   [script or plugin integration](/help/non-webhook-integrations).
-* The [`zulip-send` tool](/api/send-message) makes it easy to send Grow Team
+* The [`zulip-send` tool](/api/send-message) makes it easy to send sanji
   messages from shell scripts.
 * Finally, you can
-  [send messages using Grow Team's API](/api/send-message), with bindings for
+  [send messages using sanji's API](/api/send-message), with bindings for
   Python, JavaScript and [other languages](/api/client-libraries).
 
 ### Sending and receiving content
 
-* To react to activity inside Grow Team, look at Grow Team's
+* To react to activity inside sanji, look at sanji's
   [Python framework for interactive bots](/help/running-bots) or
-  [Grow Team's real-time events API](/api/get-events).
+  [sanji's real-time events API](/api/get-events).
 * If what you want isn't covered by the above, check out the full
   [REST API](/api/rest). The web, mobile, desktop, and terminal apps are
   built on top of this API, so it can do anything a human user can do. Most
   but not all of the endpoints are documented on this site; if you need
   something that isn't there check the
-  [Grow Team source code](https://github.com/Growth-Circle/grow-team).
+  [sanji source code](https://github.com/Growth-Circle/grow-team).
 
 ## Related articles
 

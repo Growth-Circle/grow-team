@@ -1,4 +1,25 @@
 :root {
+    /* sanji accent for links, the sidebar active item, and the site
+       title (map-brand.md §11, PROPOSAL). Starlight sets
+       --sl-color-text-accent from --sl-color-accent, so plain Ayame
+       (#8b74ff) gives only 3.48:1 as foreground text and fails WCAG
+       AA. Ayame teks (#5b45d6) passes at 6.43:1 or better. Kaki
+       stays in the low (background-tint) tier only, because Kaki
+       text on Kertas measures 2.73:1 and also fails as foreground
+       text. */
+    /* stylelint-disable color-no-hex */
+    --sl-color-accent-low: light-dark(#ffe1d4, #4c2e2b);
+    --sl-color-accent: light-dark(#5b45d6, #a897ff);
+    --sl-color-accent-high: light-dark(#5b45d6, #a897ff);
+    /* stylelint-enable color-no-hex */
+
+    /* sanji fonts (map-brand.md §11 --sj-font-sans/--sj-font-mono).
+       starlight_help builds independently of the web app bundle that
+       WP06 updates, so it loads its own copies from Fontsource. */
+    --sl-font:
+        "Schibsted Grotesk Variable", "Schibsted Grotesk", system-ui, sans-serif;
+    --sl-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
     /* Starlight base style headings are huge and distract from reading the text.
        This is OK for some sites, but we are sparing with text and really want to
        encourage users to read it. */

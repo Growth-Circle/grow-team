@@ -18,12 +18,12 @@ protocol used by Single Sign-On (SSO) services and identity providers
 to provision/deprovision user accounts and [groups](/help/user-groups).
 Zulip supports SCIM integration, both in [Zulip Cloud](https://zulip.com/zulip-cloud/)
 and for [self-hosted](https://zulip.com/self-hosting/) Zulip servers.
-This page describes how to configure SCIM provisioning for Grow Team.
+This page describes how to configure SCIM provisioning for sanji.
 
 <CloudPlusOnly />
 
 <ZulipTip>
-  While Grow Team's SCIM integration is generic, we've only fully
+  While sanji's SCIM integration is generic, we've only fully
   documented the setup process with the Okta and Microsoft EntraID
   SCIM providers. [your server administrator](/help/contact-support) is happy to
   help customers configure this integration with SCIM providers that
@@ -43,10 +43,10 @@ This page describes how to configure SCIM provisioning for Grow Team.
          **Browse App Catalog**.
       1. Search for **SCIM** and select **SCIM 2.0 Test App (Header Auth)**.
       1. Click **Add** and choose your **Application label**. For example, you can
-         name it "Grow Team SCIM".
+         name it "sanji SCIM".
       1. Continue to **Sign-On Options**. Leave the **SAML** options as they are.
          This type of Okta application doesn't actually support SAML authentication,
-         and you'll need to set up a separate Okta app to activate SAML for your Grow Team
+         and you'll need to set up a separate Okta app to activate SAML for your sanji
          organization.
       1. In **Credentials Details**, specify the following fields:
          * **Application username format**: `Email`
@@ -57,7 +57,7 @@ This page describes how to configure SCIM provisioning for Grow Team.
          * **Base URL for self-hosting**: `https://zulip.example.com/scim/v2`
          * **API token**: `Bearer <token>` (given to you by your server administrator)
            When you proceed to the next step, Okta will verify that these details are
-           correct by making a SCIM request to the Grow Team server.
+           correct by making a SCIM request to the sanji server.
       1. Enable the following **Provisioning to App** settings:
          * **Create Users**
          * **Update User Attributes**
@@ -78,13 +78,13 @@ This page describes how to configure SCIM provisioning for Grow Team.
            or configure an appropriate **Attribute mapping** in the app's **Provisioning**
            section.
            The valid values are: **owner**, **administrator**, **moderator**, **member**, **guest**.
-      1. Now that the integration is ready to manage Grow Team user accounts, **assign**
+      1. Now that the integration is ready to manage sanji user accounts, **assign**
          users to the SCIM app.
          * When you assign a user, Okta will check if the account exists in your
-           Grow Team organization. If it doesn't, the account will be created.
+           sanji organization. If it doesn't, the account will be created.
          * Changes to the user's email or name in Okta will automatically cause the
-           Grow Team account to be updated accordingly.
-         * Unassigning a user from the app will deactivate their Grow Team account.
+           sanji account to be updated accordingly.
+         * Unassigning a user from the app will deactivate their sanji account.
     </FlattenedSteps>
   </TabItem>
 
@@ -113,7 +113,7 @@ This page describes how to configure SCIM provisioning for Grow Team.
          mappings][attribute-mappings]: one for Users and one for
          Groups. Make sure to set **Provision Microsoft Entra ID Groups** to
          be disabled. Provisioning of Groups is currently not supported in
-         Grow Team.
+         sanji.
       1. In **Provision Microsoft Entra ID Users**, configure the necessary mappings:
          * Change **userName** to map to **mail**. **Important**: You need
            **mail** to be set for all your users or trying to assign them
@@ -129,7 +129,7 @@ This page describes how to configure SCIM provisioning for Grow Team.
          assign users to be provisioned via this integration.
       1. Wait for the initial provisioning cycle to be started by
          Entra. This might take up to 40 minutes. This delay is entirely
-         inside Entra, and not under Grow Team’s control. You can also use
+         inside Entra, and not under sanji’s control. You can also use
          [**Provision on demand**][provision-on-demand] in Entra to cause
          immediate SCIM provisioning for specific users, which is handy when
          testing the integration.
@@ -150,22 +150,22 @@ This page describes how to configure SCIM provisioning for Grow Team.
 ## Synchronizing group membership with SCIM
 
 You can enable group sync for any of your SCIM provider's groups. When you do,
-the SCIM integration will create a user group in Grow Team with the matching name
+the SCIM integration will create a user group in sanji with the matching name
 and user memberships. When you add or remove users from the group in your SCIM
 provider, these changes will immediately be reflected in group memberships in
-Grow Team.
+sanji.
 
 In order to ensure consistent state, do not modify the **name** or **user
-memberships** of SCIM-managed groups inside of Grow Team. Such groups are meant to
-be managed in your SCIM provider. Changes made on the Grow Team side will not be
-reflected in your SCIM provider, and instead will cause the state of the Grow Team
+memberships** of SCIM-managed groups inside of sanji. Such groups are meant to
+be managed in your SCIM provider. Changes made on the sanji side will not be
+reflected in your SCIM provider, and instead will cause the state of the sanji
 group to become inconsistent with the state of the SCIM provider's group.
 
-Grow Team supports [adding user groups to other
+sanji supports [adding user groups to other
 groups](/help/manage-user-groups#add-user-groups-to-a-group), but some SCIM
 providers (including Okta) do not. As a result, this concept is also not
-supported in Grow Team's SCIM integration. If you want to use nested groups, you can
-add groups to other groups in Grow Team and manage the individual members of each
+supported in sanji's SCIM integration. If you want to use nested groups, you can
+add groups to other groups in sanji and manage the individual members of each
 subgroup in your SCIM provider.
 
 <Tabs>
@@ -173,17 +173,17 @@ subgroup in your SCIM provider.
     <Steps>
       1. Follow the instructions [above](#configure-scim) to configure SCIM.
       1. [Rename](/help/manage-user-groups#change-a-user-groups-name-or-description)
-         any Grow Team groups that have the same names as groups that you want to sync. If
-         you push a group whose name matches an existing Grow Team group, the request will
+         any sanji groups that have the same names as groups that you want to sync. If
+         you push a group whose name matches an existing sanji group, the request will
          fail.
-      1. Open the **Application** you set up above for the Grow Team SCIM integration, and
+      1. Open the **Application** you set up above for the sanji SCIM integration, and
          go to the **Push groups** tab. This menu allows you to choose the Okta groups
-         which should be synchronized with Grow Team's user groups.
+         which should be synchronized with sanji's user groups.
     </Steps>
 
     <ZulipNote>
       SCIM `DELETE` requests are not supported for groups. To **Unlink** a group in
-      Okta from the Grow Team SCIM integration, select **Leave the group in the target
+      Okta from the sanji SCIM integration, select **Leave the group in the target
       app**. The **Delete the group in the target app** option is not supported.
     </ZulipNote>
   </TabItem>
@@ -192,4 +192,4 @@ subgroup in your SCIM provider.
 ## Related articles
 
 * [SAML authentication](/help/saml-authentication)
-* [Moving to Grow Team](/help/moving-to-zulip)
+* [Moving to sanji](/help/moving-to-zulip)

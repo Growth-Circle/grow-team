@@ -151,8 +151,8 @@ export default defineConfig({
             zstd: false,
         }),
         starlight({
-            title: "Grow Team help center",
-            favicon: "../static/images/favicon.svg",
+            title: "sanji help center",
+            favicon: "../static/images/favicon.svg?v=sanji-1",
             components: {
                 Footer: "./src/components/Footer.astro",
                 Head: "./src/components/Head.astro",
@@ -160,10 +160,15 @@ export default defineConfig({
             },
             pagination: false,
             routeMiddleware: "./src/route_data.ts",
-            customCss: ["./src/styles/main.css"],
+            customCss: [
+                "@fontsource-variable/schibsted-grotesk",
+                "@fontsource/ibm-plex-mono/400.css",
+                "@fontsource/ibm-plex-mono/500.css",
+                "./src/styles/main.css",
+            ],
             sidebar: [
                 {
-                    label: "Grow Team",
+                    label: "sanji",
                     link: "../",
                 },
                 {
@@ -263,7 +268,7 @@ export default defineConfig({
                     ],
                 },
                 {
-                    label: "Guides for mastering Grow Team",
+                    label: "Guides for mastering sanji",
                     items: [
                         "keyboard-shortcuts",
                         "reading-strategies",
@@ -452,7 +457,7 @@ export default defineConfig({
                     ],
                 },
                 {
-                    label: "Grow Team administration",
+                    label: "sanji administration",
                     link: "#",
                     attrs: {
                         class: "non-clickable-sidebar-heading",
@@ -634,7 +639,7 @@ export default defineConfig({
                     items: ["view-zulip-version", "gdpr-compliance", "contact-support"],
                 },
                 {
-                    label: "◀ Back to Grow Team",
+                    label: "◀ Back to sanji",
                     link: "../",
                 },
             ],
