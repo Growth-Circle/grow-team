@@ -17,7 +17,10 @@ Bukti ini menetapkan konteks deploy chat. Bukti ini tidak membuktikan setiap ACL
 ## Kontrol agent di source
 
 - Record agent membawa realm. Validasi dan policy menolak referensi lintas realm dan memakai current access.
-- Pairing perangkat tidak memberi authority tenant sebelum approval browser. Credential runner disimpan sebagai hash dan dapat dirotasi atau dicabut.
+- Pairing perangkat tidak memberi authority tenant sebelum approval browser. Credential
+  runner disimpan sebagai hash dan dapat dirotasi atau dicabut. Untuk VPS tanpa layar,
+  token pendaftaran sekali pakai (`sjr_…`) menggantikan approval browser: pembuatan
+  token oleh Owner, Admin, atau pemegang izin runner adalah momen approval itu sendiri.
 - Secret provider bersifat write-only dan terenkripsi. Runner menyimpan referensi secret lokal, bukan isi secret dalam registry atau descriptor.
 - Grant memilih principal dan resource eksplisit. Administrator platform tidak otomatis mewarisi runner, provider, repository, atau profil milik owner lain.
 - Scope conversation dan audience binding membatasi context. Scope setup tidak memberi hak membaca history pesan.

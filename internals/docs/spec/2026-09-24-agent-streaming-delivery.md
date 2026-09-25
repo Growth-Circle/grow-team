@@ -16,26 +16,28 @@ mengatur apa yang orang lihat di chat dan di panel tugas selama agent bekerja.
 
 ## 2. Urutan tampilan
 
-| Waktu                          | Yang orang lihat di topik                         | Yang terjadi di server                          |
-| ------------------------------ | ------------------------------------------------- | ----------------------------------------------- |
-| Admission menerima job         | Indikator "Agent sedang mengetik"                 | Server mengirim notifikasi typing atas nama bot |
-| Setiap 10 s sebelum draft ada  | Indikator tetap tampil                            | Server memperbarui notifikasi typing            |
-| Snapshot draft pertama         | Satu pesan bot baru dengan teks awal dan penanda menulis | Server membuat pesan draft                |
-| Snapshot berikutnya            | Teks pesan bertambah                              | Server mengedit pesan draft, maks 1 kali per detik |
-| `result.prepared`              | Teks final, penanda menulis hilang                | Server mengedit pesan draft menjadi hasil final |
-| Gagal atau batal               | Teks penjelasan di pesan yang sama, atau pesan baru bila draft belum ada | Server menulis teks kegagalan |
+| Waktu                         | Yang orang lihat di topik                                                    | Yang terjadi di server                                              |
+| ----------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Admission menerima job        | Reaksi 👀 dari bot pada pesan mention, dan indikator "Agent sedang mengetik" | Server menambah reaksi dan mengirim notifikasi typing atas nama bot |
+| Setiap 10 s sebelum draft ada | Indikator tetap tampil                                                       | Server memperbarui notifikasi typing                                |
+| ±0,6 s sesudah admission      | Pesan bot baru dengan kartu ANTRE                                            | Server membuat pesan draft (kartu ANTRE)                            |
+| Snapshot draft pertama        | Kartu ANTRE berubah menjadi teks awal dan penanda menulis                    | Server mengedit pesan draft yang sudah ada                          |
+| Snapshot berikutnya           | Teks pesan bertambah                                                         | Server mengedit pesan draft, maks 1 kali per detik                  |
+| `result.prepared`             | Teks final, penanda menulis hilang                                           | Server mengedit pesan draft menjadi hasil final                     |
+| Gagal atau batal              | Teks penjelasan di pesan yang sama, atau pesan baru bila draft belum ada     | Server menulis teks kegagalan                                       |
 
 ## 3. Pesan draft
 
 ### 3.1 Pembuatan
 
-1. Server membuat pesan draft saat menerima snapshot pertama yang lolos cek audiens.
+1. Server membuat pesan draft (kartu ANTRE) saat admission menerima job, sebelum snapshot
+   mana pun ada. Cek audiens berjalan sebelum pesan ini dibuat.
 2. Pengirim adalah bot profil. Tujuan adalah topik asal, atau DM asal.
 3. Isi pesan adalah teks snapshot, lalu penanda menulis di baris terakhir.
 4. Server mencatat `result_message_id` pada job saat pesan draft dibuat. Kunci
    pengiriman tetap `result:{job_id}`. Tidak ada pesan hasil kedua.
-5. Bila `result.prepared` datang sebelum snapshot mana pun, server langsung mengirim
-   hasil final sebagai pesan biasa.
+5. Bila `result.prepared` datang sebelum snapshot mana pun, server langsung mengedit
+   pesan draft yang sudah dibuat saat admission menjadi hasil final.
 
 ### 3.2 Edit
 
@@ -80,18 +82,18 @@ mengatur apa yang orang lihat di chat dan di panel tugas selama agent bekerja.
 Teks mengikuti aturan salinan: tanpa detail internal, satu kalimat, lalu jalan keluar.
 Teks bawaan berbahasa Inggris dan diterjemahkan.
 
-| Keadaan                                   | Teks untuk orang di topik                                                   | Aksi             |
-| ----------------------------------------- | --------------------------------------------------------------------------- | ---------------- |
-| Runner pemilik offline saat mention       | "{agent} is offline right now. Your request will start when it is back."     | Job tetap antre  |
-| Job belum mulai sesudah 60 s              | "{agent} has not started yet. It will reply here when it does."              | Job tetap antre  |
-| Antrean penuh                             | "{agent} has too many requests right now. Try again in a few minutes."       | Job ditolak      |
-| Model tidak menjawab (idle timeout)       | "{agent} stopped responding. Ask again to retry."                            | Tombol Retry     |
-| Batas penyedia model (429 setelah retry)  | "{agent} is busy right now. Ask again in a minute."                          | Tombol Retry     |
-| Model menolak (`refusal`)                 | "{agent} can't help with this request."                                      | —                |
-| Jawaban terpotong (`max_tokens`)          | Teks draft tetap, lalu "The answer was cut short. Ask for the rest."         | —                |
-| Batal oleh pemberi perintah               | Teks draft tetap, lalu "Stopped."                                            | —                |
-| Audiens berubah di tengah jawaban         | Pesan draft disembunyikan. Pemberi perintah menerima hasil secara privat.    | AT-23            |
-| Kegagalan lain                            | "{agent} couldn't finish this. Ask again to retry."                          | Tombol Retry     |
+| Keadaan                                  | Teks untuk orang di topik                                                 | Aksi            |
+| ---------------------------------------- | ------------------------------------------------------------------------- | --------------- |
+| Runner pemilik offline saat mention      | "{agent} is offline right now. Your request will start when it is back."  | Job tetap antre |
+| Job belum mulai sesudah 60 s             | "{agent} has not started yet. It will reply here when it does."           | Job tetap antre |
+| Antrean penuh                            | "{agent} has too many requests right now. Try again in a few minutes."    | Job ditolak     |
+| Model tidak menjawab (idle timeout)      | "{agent} stopped responding. Ask again to retry."                         | Tombol Retry    |
+| Batas penyedia model (429 setelah retry) | "{agent} is busy right now. Ask again in a minute."                       | Tombol Retry    |
+| Model menolak (`refusal`)                | "{agent} can't help with this request."                                   | —               |
+| Jawaban terpotong (`max_tokens`)         | Teks draft tetap, lalu "The answer was cut short. Ask for the rest."      | —               |
+| Batal oleh pemberi perintah              | Teks draft tetap, lalu "Stopped."                                         | —               |
+| Audiens berubah di tengah jawaban        | Pesan draft disembunyikan. Pemberi perintah menerima hasil secara privat. | AT-23           |
+| Kegagalan lain                           | "{agent} couldn't finish this. Ask again to retry."                       | Tombol Retry    |
 
 Aturan:
 
@@ -100,30 +102,31 @@ Aturan:
    Bila belum ada, server mengirim satu pesan bot baru.
 3. Teks tidak menyebut endpoint, kode error, model, runner, container, atau kunci.
 4. Detail teknis hanya ada di panel tugas untuk pemilik profil dan admin.
-5. Tombol Retry membuat job baru dengan `follows_job_id`. Tombol hanya tampil untuk
-   pemberi perintah.
+5. Tombol Retry memanggil `POST /json/agent/jobs/{id}/resume` bila state job
+   mengizinkan. Bila tidak, server membuat job baru dengan `follows_job_id` dan
+   memperbarui kartu yang sama. Tombol hanya tampil untuk pemberi perintah.
 
 ## 6. Penanda menulis
 
-1. Penanda menulis adalah satu baris miring di akhir pesan: "*{agent} is writing…*".
+1. Penanda menulis adalah satu baris miring di akhir pesan: "_{agent} is writing…_".
 2. Penanda tidak masuk ke teks hasil, salinan, atau kutipan.
 3. Klien tanpa frontend Grow tetap melihat penanda sebagai teks biasa. Hasil final
    menghapusnya.
 
 ## 7. Kriteria penerimaan (SD)
 
-| ID    | Kriteria                                                                                     |
-| ----- | -------------------------------------------------------------------------------------------- |
-| SD-01 | Indikator mengetik tampil paling lambat 1 s sesudah admission menerima job.                   |
-| SD-02 | Indikator mengetik tetap tampil sampai pesan draft ada atau job berakhir.                     |
-| SD-03 | Satu job menghasilkan tepat satu pesan bot di topik, termasuk saat snapshot diulang.          |
-| SD-04 | Edit draft maks 1 kali per detik per pesan.                                                  |
-| SD-05 | Edit draft tidak menambah riwayat edit dan tidak menampilkan "EDITED".                       |
-| SD-06 | Notifikasi push dan email untuk jawaban agent dikirim satu kali, sesudah hasil final.        |
-| SD-07 | Mention di teks draft tidak mengirim notifikasi. Mention di hasil final mengirim satu kali.   |
-| SD-08 | Markdown yang belum lengkap di draft tidak merusak tampilan pesan lain.                      |
-| SD-09 | Setiap keadaan pada tabel bagian 5 menghasilkan teksnya dalam 30 s.                          |
-| SD-10 | Teks kegagalan tidak memuat detail internal (tes grep salinan).                              |
-| SD-11 | Panel tugas memperbarui fase tanpa polling.                                                  |
-| SD-12 | Panel tugas tidak menampilkan thinking, argumen alat mentah, atau isi paket konteks.         |
+| ID    | Kriteria                                                                                            |
+| ----- | --------------------------------------------------------------------------------------------------- |
+| SD-01 | Reaksi 👀 dan indikator mengetik tampil paling lambat 1 s sesudah admission menerima job.           |
+| SD-02 | Indikator mengetik tetap tampil sampai pesan draft ada atau job berakhir.                           |
+| SD-03 | Satu job menghasilkan tepat satu pesan bot di topik, termasuk saat snapshot diulang.                |
+| SD-04 | Edit draft maks 1 kali per detik per pesan.                                                         |
+| SD-05 | Edit draft tidak menambah riwayat edit dan tidak menampilkan "EDITED".                              |
+| SD-06 | Notifikasi push dan email untuk jawaban agent dikirim satu kali, sesudah hasil final.               |
+| SD-07 | Mention di teks draft tidak mengirim notifikasi. Mention di hasil final mengirim satu kali.         |
+| SD-08 | Markdown yang belum lengkap di draft tidak merusak tampilan pesan lain.                             |
+| SD-09 | Setiap keadaan pada tabel bagian 5 menghasilkan teksnya dalam 30 s.                                 |
+| SD-10 | Teks kegagalan tidak memuat detail internal (tes grep salinan).                                     |
+| SD-11 | Panel tugas memperbarui fase tanpa polling.                                                         |
+| SD-12 | Panel tugas tidak menampilkan thinking, argumen alat mentah, atau isi paket konteks.                |
 | SD-13 | Mention saat runner offline langsung mendapat teks "offline", dan job berjalan saat runner kembali. |

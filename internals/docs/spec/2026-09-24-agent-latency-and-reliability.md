@@ -15,11 +15,11 @@ menjaga agent tetap tersedia saat rilis.
 
 Dari 15 job, 8 selesai dan 7 gagal:
 
-| Pola                                   | Jumlah | Linimasa (detik dari `job.queued`)                                   | Temuan |
-| -------------------------------------- | ------ | -------------------------------------------------------------------- | ------ |
-| `start_failed`                         | 3      | `attempt.starting` 1–168 s, lalu `attempt.stopped` 13–142 s kemudian | Container model gagal mulai |
-| `runtime_stopped` sesudah `context.read` | 3    | `tool.finished` 16–32 s, lalu diam, lalu `attempt.stopped` 20–391 s kemudian | Jurnal runner tidak mencatat reservasi model. Loop berhenti sebelum memanggil model |
-| Dibatalkan sesudah menunggu            | 2      | Belum mulai sesudah 113 s, atau diam 391 s sesudah membaca konteks    | Pemberi perintah menyerah |
+| Pola                                     | Jumlah | Linimasa (detik dari `job.queued`)                                           | Temuan                                                                              |
+| ---------------------------------------- | ------ | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `start_failed`                           | 3      | `attempt.starting` 1–168 s, lalu `attempt.stopped` 13–142 s kemudian         | Container model gagal mulai                                                         |
+| `runtime_stopped` sesudah `context.read` | 3      | `tool.finished` 16–32 s, lalu diam, lalu `attempt.stopped` 20–391 s kemudian | Jurnal runner tidak mencatat reservasi model. Loop berhenti sebelum memanggil model |
+| Dibatalkan sesudah menunggu              | 2      | Belum mulai sesudah 113 s, atau diam 391 s sesudah membaca konteks           | Pemberi perintah menyerah                                                           |
 
 Kejadian lain:
 
@@ -34,22 +34,22 @@ dari model.
 
 Ukur di produksi selama 7 hari bergulir, hanya untuk job jalur cepat.
 
-| Ukuran                                             | p50      | p95      |
-| -------------------------------------------------- | -------- | -------- |
-| Pesan sampai indikator mengetik                    | ≤ 1 s    | ≤ 2 s    |
-| Pesan sampai teks jawaban pertama tampil           | ≤ 5 s    | ≤ 10 s   |
-| Pesan sampai jawaban final, `answer` tanpa alat    | ≤ 12 s   | ≤ 25 s   |
-| Pesan sampai jawaban final, `answer` dengan alat   | ≤ 20 s   | ≤ 45 s   |
-| `result.prepared` sampai hasil final tampil        | ≤ 1 s    | ≤ 3 s    |
+| Ukuran                                           | p50    | p95    |
+| ------------------------------------------------ | ------ | ------ |
+| Pesan sampai indikator mengetik                  | ≤ 1 s  | ≤ 2 s  |
+| Pesan sampai teks jawaban pertama tampil         | ≤ 5 s  | ≤ 10 s |
+| Pesan sampai jawaban final, `answer` tanpa alat  | ≤ 12 s | ≤ 25 s |
+| Pesan sampai jawaban final, `answer` dengan alat | ≤ 20 s | ≤ 45 s |
+| `result.prepared` sampai hasil final tampil      | ≤ 1 s  | ≤ 3 s  |
 
 Batas kegagalan:
 
-| Ukuran                                                 | Batas            |
-| ------------------------------------------------------ | ---------------- |
-| Job jalur cepat yang gagal karena sistem               | ≤ 2 %            |
-| Job yang gagal tanpa pesan ke pemberi perintah         | 0                |
-| Menit runner tidak tersedia per rilis                  | ≤ 5 menit        |
-| Mention saat runner offline tanpa balasan dalam 5 s    | 0                |
+| Ukuran                                              | Batas     |
+| --------------------------------------------------- | --------- |
+| Job jalur cepat yang gagal karena sistem            | ≤ 2 %     |
+| Job yang gagal tanpa pesan ke pemberi perintah      | 0         |
+| Menit runner tidak tersedia per rilis               | ≤ 5 menit |
+| Mention saat runner offline tanpa balasan dalam 5 s | 0         |
 
 "Gagal karena sistem" tidak menghitung batal oleh pengguna, penolakan model, dan
 penolakan izin.
@@ -60,18 +60,18 @@ penolakan izin.
 
 Server menyimpan titik waktu ini pada `AgentAttempt`:
 
-| Field                | Diisi saat                                         |
-| -------------------- | -------------------------------------------------- |
-| `message_sent_at`    | Pesan pemicu tersimpan                             |
-| `queued_at`          | Job masuk antrean                                  |
-| `typing_sent_at`     | Indikator mengetik pertama dikirim                 |
-| `claimed_at`         | Claim berhasil                                     |
-| `model_request_at`   | Runner mengirim request model pertama              |
-| `first_delta_at`     | Runner menerima delta teks pertama                 |
-| `first_draft_at`     | Pesan draft pertama dibuat                         |
-| `prepared_at`        | `result.prepared` diterima                         |
-| `published_at`       | Hasil final tampil                                 |
-| `stopped_at`         | `attempt.stopped` diterima                         |
+| Field              | Diisi saat                            |
+| ------------------ | ------------------------------------- |
+| `message_sent_at`  | Pesan pemicu tersimpan                |
+| `queued_at`        | Job masuk antrean                     |
+| `typing_sent_at`   | Indikator mengetik pertama dikirim    |
+| `claimed_at`       | Claim berhasil                        |
+| `model_request_at` | Runner mengirim request model pertama |
+| `first_delta_at`   | Runner menerima delta teks pertama    |
+| `first_draft_at`   | Pesan draft pertama dibuat            |
+| `prepared_at`      | `result.prepared` diterima            |
+| `published_at`     | Hasil final tampil                    |
+| `stopped_at`       | `attempt.stopped` diterima            |
 
 Runner mengirim `model_request_at` dan `first_delta_at` sebagai field event. Server
 mengisi field lain dari jamnya sendiri.
@@ -106,6 +106,7 @@ isi jawaban, atau argumen alat.
    langsung mengirim teks "offline" (spesifikasi streaming bagian 5).
 3. Status yang tidak dapat diperiksa tampil sebagai `unknown`, bukan `offline`.
 4. Runner yang offline lebih dari 5 menit mengirim peringatan ke pemilik profil.
+   Lebih dari 15 menit, peringatan juga terkirim ke Owner dan Admin.
 
 ### 5.2 Drain dan restart
 
@@ -136,26 +137,26 @@ isi jawaban, atau argumen alat.
 
 ## 7. Akar masalah yang wajib ditutup sebelum F5
 
-| Nomor | Masalah                                                        | Tindakan                                                              |
-| ----- | -------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Nomor | Masalah                                                            | Tindakan                                                                                                                                                 |
+| ----- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1     | Loop adapter berhenti sesudah `context.read` tanpa memanggil model | Tulis tes regresi dari 4 job dengan pola ini: 3 `runtime_stopped` dan `a6ee760d`. Jalur cepat tidak memakai loop ini, tetapi jalur code masih memakainya |
-| 2     | Container model gagal mulai (`start_failed`)                   | Catat penyebab start di jurnal. Jalur cepat tidak memakai container   |
-| 3     | Job tidak mulai selama 113–168 s                               | Long-poll `/runner/wake` dan kapasitas per jalur                     |
-| 4     | Runner mati lebih dari 1 jam saat rilis                        | Prosedur rilis bagian 5.3 dan peringatan bagian 5.1                   |
-| 5     | Gagal tanpa pesan ke pengguna                                   | Teks kegagalan spesifikasi streaming bagian 5                         |
+| 2     | Container model gagal mulai (`start_failed`)                       | Catat penyebab start di jurnal. Jalur cepat tidak memakai container                                                                                      |
+| 3     | Job tidak mulai selama 113–168 s                                   | Long-poll `/runner/wake` dan kapasitas per jalur                                                                                                         |
+| 4     | Runner mati lebih dari 1 jam saat rilis                            | Prosedur rilis bagian 5.3 dan peringatan bagian 5.1                                                                                                      |
+| 5     | Gagal tanpa pesan ke pengguna                                      | Teks kegagalan spesifikasi streaming bagian 5                                                                                                            |
 
 ## 8. Kriteria penerimaan (LR)
 
-| ID    | Kriteria                                                                                  |
-| ----- | ----------------------------------------------------------------------------------------- |
-| LR-01 | Setiap job menyimpan semua titik waktu bagian 4.1 yang berlaku untuk jalurnya.            |
-| LR-02 | Dasbor menampilkan p50 dan p95 per ukuran bagian 3 dari data 7 hari.                      |
-| LR-03 | Probe sintetis berjalan setiap 15 menit dan tidak mengirim notifikasi.                    |
-| LR-04 | Dua probe gagal berturut-turut mengirim peringatan ke pemilik profil.                     |
+| ID    | Kriteria                                                                                    |
+| ----- | ------------------------------------------------------------------------------------------- |
+| LR-01 | Setiap job menyimpan semua titik waktu bagian 4.1 yang berlaku untuk jalurnya.              |
+| LR-02 | Dasbor menampilkan p50 dan p95 per ukuran bagian 3 dari data 7 hari.                        |
+| LR-03 | Probe sintetis berjalan setiap 15 menit dan tidak mengirim notifikasi.                      |
+| LR-04 | Dua probe gagal berturut-turut mengirim peringatan ke pemilik profil.                       |
 | LR-05 | Runner tanpa heartbeat 45 s tampil `offline`. Status yang gagal diperiksa tampil `unknown`. |
-| LR-06 | Mention saat runner offline mendapat teks dalam 5 s, dan job berjalan saat runner kembali. |
-| LR-07 | `drain` menyelesaikan job jalur cepat aktif dalam 3 menit tanpa klaim baru.               |
-| LR-08 | Rilis tanpa perubahan skema protokol tidak menghentikan runner.                           |
-| LR-09 | Retry tidak terjadi sesudah delta pertama tampil.                                        |
-| LR-10 | Metrik tidak memuat isi prompt, isi jawaban, argumen alat, atau kunci.                    |
-| LR-11 | Target bagian 3 tercapai 7 hari berturut-turut sebelum fase F5.                          |
+| LR-06 | Mention saat runner offline mendapat teks dalam 5 s, dan job berjalan saat runner kembali.  |
+| LR-07 | `drain` menyelesaikan job jalur cepat aktif dalam 3 menit tanpa klaim baru.                 |
+| LR-08 | Rilis tanpa perubahan skema protokol tidak menghentikan runner.                             |
+| LR-09 | Retry tidak terjadi sesudah delta pertama tampil.                                           |
+| LR-10 | Metrik tidak memuat isi prompt, isi jawaban, argumen alat, atau kunci.                      |
+| LR-11 | Target bagian 3 tercapai 7 hari berturut-turut sebelum fase F5.                             |

@@ -4,11 +4,11 @@ Status produk: internal, web-first. Target pertama adalah tim lima sampai enam a
 
 ## Masalah dan sasaran
 
-Tim membutuhkan percakapan kerja yang dapat dicari menurut kanal dan topik. Sanji mempertahankan chat Zulip dan menambahkan kemampuan agent secara terkendali. Anggota memakai browser untuk chat, membuat tugas, melihat status, memberi input, dan meninjau approval. Runner dapat berada pada laptop atau server milik owner.
+Tim membutuhkan percakapan kerja yang dapat dicari menurut kanal dan topik. Sanji mempertahankan chat Zulip dan menambahkan kemampuan agent secara terkendali. Anggota memakai browser untuk chat, mem-brief agen, melihat status, memberi input, dan meninjau approval. Runner dapat berada pada laptop atau server milik owner.
 
 ## Persona
 
-- **Anggota:** memakai chat dan membuat tugas jika memiliki grant yang berlaku.
+- **Anggota:** memakai chat dan mem-brief agen jika memiliki grant yang berlaku.
 - **Owner runner:** memasangkan perangkat dan mendaftarkan workspace, provider, serta katalog yang disetujui.
 - **Administrator realm:** mengelola kebijakan realm. Role ini tidak memberi authority runner atau credential owner lain.
 - **Operator platform:** menjaga deploy, backup, recovery, dan isolasi host.
@@ -25,14 +25,14 @@ Pilot tidak melakukan pemantauan umum. Trigger otomatis berasal dari mention per
 
 ## Status produk
 
-| Produk | Status | Batas |
-| --- | --- | --- |
-| Workspace chat internal | Bukti deploy bertanggal tersedia | Bukti ulang diperlukan untuk perubahan rilis. |
-| Control plane dan runner agent | Komponen source tersedia | Task 0–6 selesai dan lulus review komponen. |
-| Image runner | Intermediate image `1c3ebcde3d7e` diuji | Image rilis final belum ditetapkan. |
-| Enable profil | Diterapkan | Enable eksplisit sudah ada di source (`zerver/actions/agents.py`). |
-| UI agent, provider pilot, dan activation | Diterapkan | UI agent terbit. Profil "Opus" aktif di realm produksi. |
-| Kesiapan rilis | Pending | Migrasi live, 106 acceptance rows, recovery, kapasitas, dan sertifikasi keamanan belum lengkap. |
+| Produk                                   | Status                                  | Batas                                                                                           |
+| ---------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Workspace chat internal                  | Bukti deploy bertanggal tersedia        | Bukti ulang diperlukan untuk perubahan rilis.                                                   |
+| Control plane dan runner agent           | Komponen source tersedia                | Task 0–6 selesai dan lulus review komponen.                                                     |
+| Image runner                             | Intermediate image `1c3ebcde3d7e` diuji | Image rilis final belum ditetapkan.                                                             |
+| Enable profil                            | Diterapkan                              | Enable eksplisit sudah ada di source (`zerver/actions/agents.py`).                              |
+| UI agent, provider pilot, dan activation | Diterapkan                              | UI agent terbit. Profil "Opus" aktif di realm produksi.                                         |
+| Kesiapan rilis                           | Pending                                 | Migrasi live, 106 acceptance rows, recovery, kapasitas, dan sertifikasi keamanan belum lengkap. |
 
 ## Metrik provisional
 
@@ -44,10 +44,10 @@ Billing, SLA, aplikasi native desktop/mobile, dan operasi multi-klien belum masu
 
 ## Kebutuhan terkait
 
-| Product requirement | Business requirement | Functional requirement |
-| --- | --- | --- |
-| PR-01 Workspace internal | BR-01 validasi workspace internal dahulu | FR-01–FR-07 dan FR-20 |
-| PR-02 Pilot agent internal | BR-02 validasi agent dengan authority eksplisit | FR-08–FR-18 |
-| PR-03 Kesiapan B2B | BR-03 komersialisasi setelah gate | FR-19 |
+| Product requirement        | Business requirement                            | Functional requirement |
+| -------------------------- | ----------------------------------------------- | ---------------------- |
+| PR-01 Workspace internal   | BR-01 validasi workspace internal dahulu        | FR-01–FR-07 dan FR-20  |
+| PR-02 Pilot agent internal | BR-02 validasi agent dengan authority eksplisit | FR-08–FR-18            |
+| PR-03 Kesiapan B2B         | BR-03 komersialisasi setelah gate               | FR-19                  |
 
 Lihat [BRD](brd.md), [FRD](frd.md), [roadmap](roadmap.md), [security](security.md), dan tiga spesifikasi agent: [connections and coding harness](spec/2026-09-21-agent-connections-and-coding-harness.md), [lifecycle and mention flow](spec/2026-09-21-agent-lifecycle-and-mention-flow.md), serta [settings, connections, and team defaults](spec/2026-09-22-agent-settings-connections-and-team-defaults.md).

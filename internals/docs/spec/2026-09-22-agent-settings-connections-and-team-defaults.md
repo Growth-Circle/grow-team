@@ -59,15 +59,15 @@ konkret. Aturan tersebut ada sekarang di bagian 10 (menghubungkan koneksi) dan
 
 ### 3.1 Entitas dan label
 
-| Istilah UI         | Entitas                                    | Makna                                                         |
-| ------------------ | ------------------------------------------ | ------------------------------------------------------------- |
-| Agent              | `AgentProfile` dan `bot_user_id`           | Identitas yang menerima tugas.                                |
-| Perangkat / Runner | `AgentRunner`                              | Mesin yang menjalankan proses dan tools.                      |
-| Agent terpasang **[jalur code]** | Adapter dan katalog runner            | Program agent berbasis adapter yang tersedia pada runner terpilih. |
-| Koneksi model      | `AgentProvider`                            | Endpoint, model, dan referensi credential inferensi.          |
-| Default tim        | Referensi profil pada `AgentRealmSettings` | Pilihan awal pada form tugas baru.                            |
-| Mode awal profil   | `AgentProfile.default_mode`                | Jenis job `answer`, `code`, atau `manage` ketika tugas tidak menetapkan jenis lain. (v2, 2026-09-24) |
-| Akses bersama      | `AgentGrant`                               | Siapa yang boleh memakai resource, pada scope tertentu.       |
+| Istilah UI                       | Entitas                                    | Makna                                                                                                |
+| -------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Agent                            | `AgentProfile` dan `bot_user_id`           | Identitas yang menerima tugas.                                                                       |
+| Perangkat / Runner               | `AgentRunner`                              | Mesin yang menjalankan proses dan tools.                                                             |
+| Agent terpasang **[jalur code]** | Adapter dan katalog runner                 | Program agent berbasis adapter yang tersedia pada runner terpilih.                                   |
+| Koneksi model                    | `AgentProvider`                            | Endpoint, model, dan referensi credential inferensi.                                                 |
+| Default tim                      | Referensi profil pada `AgentRealmSettings` | Pilihan awal pada form tugas baru.                                                                   |
+| Mode awal profil                 | `AgentProfile.default_mode`                | Jenis job `answer`, `code`, atau `manage` ketika tugas tidak menetapkan jenis lain. (v2, 2026-09-24) |
+| Akses bersama                    | `AgentGrant`                               | Siapa yang boleh memakai resource, pada scope tertentu.                                              |
 
 Default tim tidak sama dengan model default atau `default_mode`. Mengubah salah
 satu tidak mengubah yang lain. Nama menu dan field tidak boleh menyebut ketiganya
@@ -105,6 +105,11 @@ dan pola aksesibilitas Sanji existing.
 | Koneksi model | Koneksi yang boleh dikelola atau dipakai; model dan hasil probe yang relevan.        | Tambah koneksi; uji ulang; ganti credential jika berwenang.                        |
 | Default tim   | Pilihan saat ini dan cakupan ketersediaannya.                                        | Admin menetapkan atau menghapus default; anggota membaca hasil yang aman untuknya. |
 
+Di halaman Pengaturan bermockup (`internals/docs/pages/10-pengaturan-dan-peran.md`),
+area di atas menjadi tab: **Agent** dan **Default tim** masuk tab **Agen & runner**;
+**Perangkat** juga masuk **Agen & runner**; **Koneksi model** menjadi tab **Model &
+API key**. Tabel ini tetap menjelaskan isi dan aksi tiap area.
+
 Filter direktori: **Semua yang bisa saya pakai**, **Milik saya**, **Dibagikan kepada
 saya**, serta lokasi workstation/server. Filter hanya menyaring hasil yang sudah
 diizinkan server. Filter, count, pencarian, pagination, dan detail harus memiliki
@@ -136,7 +141,7 @@ hostname, IP, pemilik, URL endpoint, atau status online.
 | Runner                | Lokasi model          | Label yang tepat                                                        | Makna praktis                                                      |
 | --------------------- | --------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | Laptop Rama           | API eksternal         | “Laptop Rama · Komputer pribadi”; “Model: koneksi eksternal”            | Tools berjalan di laptop; inferensi melalui endpoint yang dipilih. |
-| Laptop Rama           | Endpoint lokal runner | “Laptop Rama · Komputer pribadi”; “Model: endpoint lokal runner”        | Browser tetap mengirim tugas melalui Sanji.                    |
+| Laptop Rama           | Endpoint lokal runner | “Laptop Rama · Komputer pribadi”; “Model: endpoint lokal runner”        | Browser tetap mengirim tugas melalui Sanji.                        |
 | Server pengembangan   | API eksternal         | “Server Pengembangan · Server”; pemilik dan akses ditampilkan terpisah. | Menutup browser anggota tidak mematikan proses runner.             |
 | Server pengembangan   | Endpoint pada server  | “Server Pengembangan · Server”; “Model: endpoint lokal runner”          | Localhost merujuk server runner tersebut.                          |
 | Runner tanpa kategori | Belum diketahui       | Nama runner; “Jenis perangkat belum ditentukan”.                        | Tidak menampilkan ikon server berdasarkan tebakan.                 |
@@ -273,12 +278,12 @@ path workspace runner lama pada runner baru.
 
 ### 8.3 Tiga arti “connect” pada UI
 
-| Maksud pengguna                      | Aksi yang tersedia                    | Efek                                                           |
-| ------------------------------------ | ------------------------------------- | -------------------------------------------------------------- |
-| Memakai agent yang sudah dibagikan   | Pilih agent dari direktori.           | Tidak ada pairing atau profil baru.                            |
-| Memakai agent CLI pada mesin sendiri **[jalur code]** | Hubungkan runner, lalu pilih adapter. | Profil memakai runtime dan auth yang diizinkan pada mesin itu. |
-| Memakai API model **[jalur code]**   | Pilih runner dan koneksi model.       | Runtime endpoint runner menyediakan loop dan tools.       |
-| Memakai jalur cepat **[jalur cepat]** | Pilih runner dan koneksi Anthropic Messages. | Loop `@anthropic-ai/sdk` di proses runner menjawab `answer`/`manage`. |
+| Maksud pengguna                                       | Aksi yang tersedia                           | Efek                                                                  |
+| ----------------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------- |
+| Memakai agent yang sudah dibagikan                    | Pilih agent dari direktori.                  | Tidak ada pairing atau profil baru.                                   |
+| Memakai agent CLI pada mesin sendiri **[jalur code]** | Hubungkan runner, lalu pilih adapter.        | Profil memakai runtime dan auth yang diizinkan pada mesin itu.        |
+| Memakai API model **[jalur code]**                    | Pilih runner dan koneksi model.              | Runtime endpoint runner menyediakan loop dan tools.                   |
+| Memakai jalur cepat **[jalur cepat]**                 | Pilih runner dan koneksi Anthropic Messages. | Loop `@anthropic-ai/sdk` di proses runner menjawab `answer`/`manage`. |
 
 Hindari satu tombol “Connect” yang dapat berarti keempatnya tanpa penjelasan.
 
@@ -332,18 +337,18 @@ Aturan nilai efektif:
 Kontrol Sanji hanya muncul jika kontrak backend dan adapter benar-benar
 mendukung pengaturan itu.
 
-| Pengaturan                                     | Perlakuan Sanji                                                                                                             |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Nama dan deskripsi                             | Metadata profil. Deskripsi tidak diam-diam menjadi system prompt.                                                               |
-| Model pada mode endpoint **[jalur code]**      | Berasal dari `AgentProvider.model_id`. Versi awal tidak menambah override model tersembunyi pada profil.                        |
-| Model/config agent terpasang **[jalur code]**  | Ditampilkan dari kemampuan/config yang dilaporkan dan diuji. Field yang belum bisa disimpan tampil sebagai informasi.           |
-| Budget, batas konteks, output, dan pemeriksaan | Memakai field typed fondasi dan batas policy; nilai unknown tidak ditampilkan sebagai angka kemampuan terukur.                  |
-| Effort **[jalur cepat]** (v2, 2026-09-24)      | Server menetapkan `effort` lewat `model_policy` per jenis job: `answer` = `low`, `manage` = `medium`. Pemilik profil boleh menaikkan effort `answer` ke `medium`. Pemilik tidak dapat menurunkan effort `manage`. |
-| Prompt caching **[jalur cepat]** (v2, 2026-09-24) | Aktif otomatis untuk jalur cepat; UI menampilkan rasio cache dari metrik, tanpa kontrol tersendiri.                          |
-| Thinking effort **[jalur code]**               | Hanya dapat diedit bila adapter/provider mendukung nilai dan persistensinya; jangan menyamakan vocabulary semua model.          |
-| Tools                                          | Tampilkan kemampuan dan scope grant. Tidak ada toggle yang membuka seluruh filesystem atau host shell.                          |
-| MCP tambahan **[jalur code]**                  | Konfigurasi server/tool baru tetap mengikuti broker dan sandbox. Editor MCP bebas bukan syarat MVP pengaturan ini.              |
-| Instruksi peran persisten                      | Memerlukan kontrak tersendiri pada profil, context broker, dan descriptor. Tidak tersedia pada payload snapshot yang diperiksa. |
+| Pengaturan                                        | Perlakuan Sanji                                                                                                                                                                                                   |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Nama dan deskripsi                                | Metadata profil. Deskripsi tidak diam-diam menjadi system prompt.                                                                                                                                                 |
+| Model pada mode endpoint **[jalur code]**         | Berasal dari `AgentProvider.model_id`. Versi awal tidak menambah override model tersembunyi pada profil.                                                                                                          |
+| Model/config agent terpasang **[jalur code]**     | Ditampilkan dari kemampuan/config yang dilaporkan dan diuji. Field yang belum bisa disimpan tampil sebagai informasi.                                                                                             |
+| Budget, batas konteks, output, dan pemeriksaan    | Memakai field typed fondasi dan batas policy; nilai unknown tidak ditampilkan sebagai angka kemampuan terukur.                                                                                                    |
+| Effort **[jalur cepat]** (v2, 2026-09-24)         | Server menetapkan `effort` lewat `model_policy` per jenis job: `answer` = `low`, `manage` = `medium`. Pemilik profil boleh menaikkan effort `answer` ke `medium`. Pemilik tidak dapat menurunkan effort `manage`. |
+| Prompt caching **[jalur cepat]** (v2, 2026-09-24) | Aktif otomatis untuk jalur cepat; UI menampilkan rasio cache dari metrik, tanpa kontrol tersendiri.                                                                                                               |
+| Thinking effort **[jalur code]**                  | Hanya dapat diedit bila adapter/provider mendukung nilai dan persistensinya; jangan menyamakan vocabulary semua model.                                                                                            |
+| Tools                                             | Tampilkan kemampuan dan scope grant. Tidak ada toggle yang membuka seluruh filesystem atau host shell.                                                                                                            |
+| MCP tambahan **[jalur code]**                     | Konfigurasi server/tool baru tetap mengikuti broker dan sandbox. Editor MCP bebas bukan syarat MVP pengaturan ini.                                                                                                |
+| Instruksi peran persisten                         | Memerlukan kontrak tersendiri pada profil, context broker, dan descriptor. Tidak tersedia pada payload snapshot yang diperiksa.                                                                                   |
 
 Instruksi peran dapat ditambahkan setelah jalur fondasi stabil. Implementasinya
 harus versioned, masuk anggaran konteks, terikat snapshot attempt, dan tetap
@@ -672,20 +677,20 @@ untuk pembagian pekerjaan yang berlaku sekarang.
 
 ## 16. Keadaan gagal dan pesan yang dapat ditindaklanjuti
 
-| Keadaan                                       | Pesan bagi pengguna yang berhak                                         | Tindakan                                                                 |
-| --------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Belum ada agent yang dapat dipakai            | Belum ada agent untuk tugas ini.                                        | Pilih yang dibagikan atau lihat petunjuk meminta akses.                  |
-| Runner belum terhubung                        | Perangkat belum terhubung ke Sanji.                                 | Pemilik memeriksa layanan runner atau melanjutkan pairing.               |
-| Agent terpasang tetapi belum login            | Agent ditemukan; login masih diperlukan pada runner.                    | Tampilkan metode adapter yang benar-benar didukung.                      |
-| Adapter terpasang belum sesuai versi **[jalur code]** | Versi adapter belum didukung untuk konfigurasi ini.              | Tampilkan versi yang diuji dan petunjuk pemilik.                         |
-| API model hanya mendukung teks **[jalur code]** | Koneksi dapat dipakai untuk Diskusi; tools belum lulus pemeriksaan.    | Pilih Diskusi atau perbaiki koneksi untuk Coding.                        |
-| Profil tersimpan, probe gagal                 | Profil tersimpan. Pemeriksaan belum berhasil.                           | Perbaiki requirement; uji ulang profil yang sama.                        |
-| Akses profil ada, resource lain belum lengkap | Akses untuk menjalankan tugas ini belum lengkap.                        | Tampilkan resource yang boleh diketahui dan pihak pengelolanya.          |
-| Default offline                               | Tugas akan mengantre sampai runner terhubung atau batas mulai tercapai. | Tunggu atau pilih agent lain sebelum mengirim.                           |
-| Default tidak boleh diketahui                 | Belum ada agent default yang bisa dipakai untuk tugas ini.              | Pilih kandidat yang diizinkan; jangan menampilkan identitas tersembunyi. |
-| Default berubah selama form terbuka           | Pilihan default tim berubah; agent pada draft ini tetap dipertahankan.  | Pengguna meninjau dan mengganti sendiri jika diperlukan.                 |
-| Dua admin menyimpan bersamaan                 | Pengaturan sudah berubah sejak halaman dibuka.                          | Muat nilai terbaru dan tinjau ulang; tidak menimpa otomatis.             |
-| Query status gagal                            | Status perangkat belum diketahui.                                       | Coba muat ulang; jangan membuat runner/profil duplikat.                  |
+| Keadaan                                               | Pesan bagi pengguna yang berhak                                         | Tindakan                                                                 |
+| ----------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Belum ada agent yang dapat dipakai                    | Belum ada agent untuk tugas ini.                                        | Pilih yang dibagikan atau lihat petunjuk meminta akses.                  |
+| Runner belum terhubung                                | Perangkat belum terhubung ke Sanji.                                     | Pemilik memeriksa layanan runner atau melanjutkan pairing.               |
+| Agent terpasang tetapi belum login                    | Agent ditemukan; login masih diperlukan pada runner.                    | Tampilkan metode adapter yang benar-benar didukung.                      |
+| Adapter terpasang belum sesuai versi **[jalur code]** | Versi adapter belum didukung untuk konfigurasi ini.                     | Tampilkan versi yang diuji dan petunjuk pemilik.                         |
+| API model hanya mendukung teks **[jalur code]**       | Koneksi dapat dipakai untuk Diskusi; tools belum lulus pemeriksaan.     | Pilih Diskusi atau perbaiki koneksi untuk Coding.                        |
+| Profil tersimpan, probe gagal                         | Profil tersimpan. Pemeriksaan belum berhasil.                           | Perbaiki requirement; uji ulang profil yang sama.                        |
+| Akses profil ada, resource lain belum lengkap         | Akses untuk menjalankan tugas ini belum lengkap.                        | Tampilkan resource yang boleh diketahui dan pihak pengelolanya.          |
+| Default offline                                       | Tugas akan mengantre sampai runner terhubung atau batas mulai tercapai. | Tunggu atau pilih agent lain sebelum mengirim.                           |
+| Default tidak boleh diketahui                         | Belum ada agent default yang bisa dipakai untuk tugas ini.              | Pilih kandidat yang diizinkan; jangan menampilkan identitas tersembunyi. |
+| Default berubah selama form terbuka                   | Pilihan default tim berubah; agent pada draft ini tetap dipertahankan.  | Pengguna meninjau dan mengganti sendiri jika diperlukan.                 |
+| Dua admin menyimpan bersamaan                         | Pengaturan sudah berubah sejak halaman dibuka.                          | Muat nilai terbaru dan tinjau ulang; tidak menimpa otomatis.             |
+| Query status gagal                                    | Status perangkat belum diketahui.                                       | Coba muat ulang; jangan membuat runner/profil duplikat.                  |
 
 Error dari proses, provider, dan katalog melewati redaction fondasi. UI tidak
 menampilkan payload auth, command dengan credential, raw environment, atau
@@ -700,41 +705,41 @@ diacu langsung. Uji UI dengan API Django, database fixture, dan runner fixture
 sesuai tahap. Untuk platform yang akan dirilis, pairing, install/autostart, dan
 kedua mode koneksi memerlukan bukti runtime sebenarnya dari gate fondasi.
 
-| ID    | Skenario                                                        | Hasil yang harus dibuktikan                                                                                         |
-| ----- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| AS-01 | Anggota memakai agent yang dibagikan                            | Dapat membuat tugas tanpa pairing, instalasi lokal, atau profil baru.                                               |
-| AS-02 | Workstation dan server melalui pairing                          | Protokol sama; owner/realm terikat benar; kategori berasal dari deklarasi pemilik.                                  |
-| AS-03 | Browser berbeda, termasuk ponsel                                | Nama/lokasi runner tetap tepat; tidak ada tebakan “perangkat ini”.                                                  |
-| AS-04 | Empat kombinasi lokasi runner dan model                         | Label membedakan eksekusi tools dari lokasi inferensi; localhost merujuk runner.                                    |
-| AS-05 | Kategori atau status belum diketahui                            | Unknown tetap terlihat; tidak berubah menjadi server atau offline berdasarkan fallback.                             |
-| AS-06 | Katalog adapter runner A dan B berbeda **[jalur code]**         | Form hanya menawarkan hasil runner terpilih; callback lama tidak mengganti hasil runner baru.                       |
-| AS-07 | Adapter terpasang tetapi auth unknown/logout **[jalur code]**   | UI meminta tindakan yang tepat; tidak mengumumkan code_ready.                                                       |
-| AS-08 | Endpoint tanpa discovery model atau tools **[jalur code]**      | Model manual dapat diprobe; kegagalan tools tidak disamarkan sebagai Coding siap.                                   |
-| AS-08 (v2, 2026-09-24) | Probe koneksi Anthropic Messages **[jalur cepat]**    | Gerbang F0: `POST /v1/messages` streaming dan satu `tool_use` lulus sebelum profil `answer`/`manage` aktif.         |
-| AS-09 | Runner diubah saat form koneksi terbuka                         | Provider/repository yang tidak cocok dibatalkan; secret/path tidak berpindah otomatis.                              |
-| AS-10 | Endpoint localhost/private                                      | Request probe berasal dari runner berizin; browser dan server web tidak melakukan probe ke host tersebut.           |
-| AS-11 | Create/retry profil setelah respons hilang                      | Satu identitas profil dan bot; status setup dapat ditemukan kembali.                                                |
-| AS-12 | Probe selesai setelah pengguna mengetik atau mengosongkan field | Nilai draft terbaru tetap utuh; tidak ada probe ulang per keystroke.                                                |
-| AS-13 | Save berlangsung lalu pengguna mengedit atau menutup form       | Hasil lama tidak menghapus draft baru; cancel sebelum submit tidak mengirim mutasi.                                 |
-| AS-14 | Draft lulus probe, belum enable                                 | Profil siap tetap draft dan tidak menerima tugas; enable revision yang tepat mengaktifkannya.                       |
-| AS-15 | Hanya grant profil yang diberikan                               | UI tidak mengklaim akses lengkap; admission menolak resource lain yang belum diberikan.                             |
-| AS-16 | Admin memilih profil privat atau profil realm lain              | Tidak menembus ACL; pilihan default tidak memberi grant tambahan.                                                   |
-| AS-17 | Default tim dipakai dua anggota                                 | Identitas agent sama, job terpisah, izin kedua anggota diperiksa sendiri.                                           |
-| AS-18 | Anggota memilih profil lain                                     | Pilihan eksplisit menang atas default, recents, serta refresh status.                                               |
-| AS-19 | Anggota mengosongkan pemilih                                    | Callback resolver tidak mengisi ulang default pada draft yang sama.                                                 |
-| AS-20 | Admin mengganti default A menjadi B saat draft A terbuka        | Draft dan job A tetap ke A; form baru memakai B jika sah.                                                           |
-| AS-21 | Default offline atau kapasitas penuh                            | Tidak berpindah agent otomatis; antrean/rejection mengikuti admission existing.                                     |
-| AS-22 | Default paused, stale, revoked, atau tidak dapat diketahui      | Tidak dipilih untuk form baru; reason disesuaikan ACL dan tidak membocorkan ID tersembunyi.                         |
-| AS-23 | Default Diskusi dipilih untuk permintaan Coding eksplisit       | Tidak menaikkan kemampuan atau grant; pengguna memilih agent yang sesuai.                                           |
-| AS-24 | Mention eksplisit, chat biasa, DM, dan pesan bot                | Default tim tidak menambah penerima atau trigger di luar aturan AT/AF.                                              |
-| AS-25 | Dua admin menyimpan expected revision yang sama                 | Satu perubahan menang; pihak lain mendapat conflict dan dapat membaca keadaan terbaru.                              |
-| AS-26 | Izin dicabut antara resolve dan submit                          | Tidak ada spawn tanpa otoritas; profile ID kosong tidak diisi default server diam-diam.                             |
-| AS-27 | Logout/realm switch dengan request tertunda                     | Data/cache/callback realm lama tidak muncul pada konteks baru.                                                      |
-| AS-28 | Credential atau model profil berubah                            | Kesiapan lama tidak berlaku; secret tidak tersalin ke browser/anggota atau artifact.                                |
-| AS-29 | Default diganti, label runner diedit, atau default dikosongkan  | Tidak ada restart proses, perubahan budget, atau pembatalan job sebagai efek samping.                               |
-| AS-30 | Profil default diarsip atau pemilik dinonaktifkan               | Tidak ada pengambilalihan credential/ownership atau pengalihan job; pengguna mendapat jalur pemulihan yang sah.     |
-| AS-31 | Penggunaan dipindah dari laptop ke server                       | Profil/runner baru diprobe dan diberi grant; job serta bot lama tetap dapat ditelusuri.                             |
-| AS-32 | Migrasi aditif, UI lintas browser, dan regresi chat             | Data existing memakai default null/lokasi unknown; query tidak per kartu; AT-33/AT-36 dan regresi chat tetap lulus. |
+| ID                     | Skenario                                                        | Hasil yang harus dibuktikan                                                                                         |
+| ---------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| AS-01                  | Anggota memakai agent yang dibagikan                            | Dapat membuat tugas tanpa pairing, instalasi lokal, atau profil baru.                                               |
+| AS-02                  | Workstation dan server melalui pairing                          | Protokol sama; owner/realm terikat benar; kategori berasal dari deklarasi pemilik.                                  |
+| AS-03                  | Browser berbeda, termasuk ponsel                                | Nama/lokasi runner tetap tepat; tidak ada tebakan “perangkat ini”.                                                  |
+| AS-04                  | Empat kombinasi lokasi runner dan model                         | Label membedakan eksekusi tools dari lokasi inferensi; localhost merujuk runner.                                    |
+| AS-05                  | Kategori atau status belum diketahui                            | Unknown tetap terlihat; tidak berubah menjadi server atau offline berdasarkan fallback.                             |
+| AS-06                  | Katalog adapter runner A dan B berbeda **[jalur code]**         | Form hanya menawarkan hasil runner terpilih; callback lama tidak mengganti hasil runner baru.                       |
+| AS-07                  | Adapter terpasang tetapi auth unknown/logout **[jalur code]**   | UI meminta tindakan yang tepat; tidak mengumumkan code_ready.                                                       |
+| AS-08                  | Endpoint tanpa discovery model atau tools **[jalur code]**      | Model manual dapat diprobe; kegagalan tools tidak disamarkan sebagai Coding siap.                                   |
+| AS-08 (v2, 2026-09-24) | Probe koneksi Anthropic Messages **[jalur cepat]**              | Gerbang F0: `POST /v1/messages` streaming dan satu `tool_use` lulus sebelum profil `answer`/`manage` aktif.         |
+| AS-09                  | Runner diubah saat form koneksi terbuka                         | Provider/repository yang tidak cocok dibatalkan; secret/path tidak berpindah otomatis.                              |
+| AS-10                  | Endpoint localhost/private                                      | Request probe berasal dari runner berizin; browser dan server web tidak melakukan probe ke host tersebut.           |
+| AS-11                  | Create/retry profil setelah respons hilang                      | Satu identitas profil dan bot; status setup dapat ditemukan kembali.                                                |
+| AS-12                  | Probe selesai setelah pengguna mengetik atau mengosongkan field | Nilai draft terbaru tetap utuh; tidak ada probe ulang per keystroke.                                                |
+| AS-13                  | Save berlangsung lalu pengguna mengedit atau menutup form       | Hasil lama tidak menghapus draft baru; cancel sebelum submit tidak mengirim mutasi.                                 |
+| AS-14                  | Draft lulus probe, belum enable                                 | Profil siap tetap draft dan tidak menerima tugas; enable revision yang tepat mengaktifkannya.                       |
+| AS-15                  | Hanya grant profil yang diberikan                               | UI tidak mengklaim akses lengkap; admission menolak resource lain yang belum diberikan.                             |
+| AS-16                  | Admin memilih profil privat atau profil realm lain              | Tidak menembus ACL; pilihan default tidak memberi grant tambahan.                                                   |
+| AS-17                  | Default tim dipakai dua anggota                                 | Identitas agent sama, job terpisah, izin kedua anggota diperiksa sendiri.                                           |
+| AS-18                  | Anggota memilih profil lain                                     | Pilihan eksplisit menang atas default, recents, serta refresh status.                                               |
+| AS-19                  | Anggota mengosongkan pemilih                                    | Callback resolver tidak mengisi ulang default pada draft yang sama.                                                 |
+| AS-20                  | Admin mengganti default A menjadi B saat draft A terbuka        | Draft dan job A tetap ke A; form baru memakai B jika sah.                                                           |
+| AS-21                  | Default offline atau kapasitas penuh                            | Tidak berpindah agent otomatis; antrean/rejection mengikuti admission existing.                                     |
+| AS-22                  | Default paused, stale, revoked, atau tidak dapat diketahui      | Tidak dipilih untuk form baru; reason disesuaikan ACL dan tidak membocorkan ID tersembunyi.                         |
+| AS-23                  | Default Diskusi dipilih untuk permintaan Coding eksplisit       | Tidak menaikkan kemampuan atau grant; pengguna memilih agent yang sesuai.                                           |
+| AS-24                  | Mention eksplisit, chat biasa, DM, dan pesan bot                | Default tim tidak menambah penerima atau trigger di luar aturan AT/AF.                                              |
+| AS-25                  | Dua admin menyimpan expected revision yang sama                 | Satu perubahan menang; pihak lain mendapat conflict dan dapat membaca keadaan terbaru.                              |
+| AS-26                  | Izin dicabut antara resolve dan submit                          | Tidak ada spawn tanpa otoritas; profile ID kosong tidak diisi default server diam-diam.                             |
+| AS-27                  | Logout/realm switch dengan request tertunda                     | Data/cache/callback realm lama tidak muncul pada konteks baru.                                                      |
+| AS-28                  | Credential atau model profil berubah                            | Kesiapan lama tidak berlaku; secret tidak tersalin ke browser/anggota atau artifact.                                |
+| AS-29                  | Default diganti, label runner diedit, atau default dikosongkan  | Tidak ada restart proses, perubahan budget, atau pembatalan job sebagai efek samping.                               |
+| AS-30                  | Profil default diarsip atau pemilik dinonaktifkan               | Tidak ada pengambilalihan credential/ownership atau pengalihan job; pengguna mendapat jalur pemulihan yang sah.     |
+| AS-31                  | Penggunaan dipindah dari laptop ke server                       | Profil/runner baru diprobe dan diberi grant; job serta bot lama tetap dapat ditelusuri.                             |
+| AS-32                  | Migrasi aditif, UI lintas browser, dan regresi chat             | Data existing memakai default null/lokasi unknown; query tidak per kartu; AT-33/AT-36 dan regresi chat tetap lulus. |
 
 Fixture minimum memakai dua realm, seorang admin, pemilik runner berbeda,
 anggota berizin, anggota tanpa izin, dua profil bernama sama, dan dua runner.
