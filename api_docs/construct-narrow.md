@@ -1,13 +1,13 @@
 # Construct a narrow
 
-A **narrow** is a set of filters for Grow Team messages, that can be based
+A **narrow** is a set of filters for sanji messages, that can be based
 on many different factors (like sender, channel, topic, search
-keywords, etc.). Narrows are used in various places in the Grow Team
+keywords, etc.). Narrows are used in various places in the sanji
 API (most importantly, in the API for fetching messages).
 
 It is simplest to explain the algorithm for encoding a search as a
 narrow using a single example. Consider the following search query
-(written as it would be entered in the Grow Team web app's search box).
+(written as it would be entered in the sanji web app's search box).
 It filters for messages sent to channel `announce`, not sent by
 `iago@zulip.com`, and containing the words `cool` and `sunglasses`:
 
@@ -15,7 +15,7 @@ It filters for messages sent to channel `announce`, not sent by
 channel:announce -sender:iago@zulip.com cool sunglasses
 ```
 
-This query would be JSON-encoded for use in the Grow Team API using JSON
+This query would be JSON-encoded for use in the sanji API using JSON
 as a list of simple objects, as follows:
 
 ```json
@@ -36,9 +36,9 @@ as a list of simple objects, as follows:
 ]
 ```
 
-The Grow Team help center article on [searching for messages](/help/search-for-messages)
+The sanji help center article on [searching for messages](/help/search-for-messages)
 documents the majority of the search/narrow options supported by the
-Grow Team API.
+sanji API.
 
 Note that many narrows, including all that lack a `channel` or `channels`
 operator, search the current user's personal message history. See
@@ -58,41 +58,41 @@ as an empty string.
 
 ## Changes
 
-* In Grow Team 12.0 (feature level 489), support was added for a new
+* In sanji 12.0 (feature level 489), support was added for a new
   filter, `channels:archived`, which returns messages the current user
   received in channels that have been [archived](/help/archive-a-channel).
 
-* In Grow Team 12.0 (feature level 446), add the `mentions` operator,
+* In sanji 12.0 (feature level 446), add the `mentions` operator,
   matching messages that contain a direct personal mention of the
   specified user.
 
-* In Grow Team 10.0 (feature level 366), support was added for a new
+* In sanji 10.0 (feature level 366), support was added for a new
   `is:muted` operator combination, matching messages in topics and
   channels that the user has [muted](/help/mute-a-topic).
 
-* Before Grow Team 10.0 (feature level 334), empty string was not a valid
+* Before sanji 10.0 (feature level 334), empty string was not a valid
   topic name for channel messages.
 
-* In Grow Team 9.0 (feature level 271), support was added for a new filter
+* In sanji 9.0 (feature level 271), support was added for a new filter
   operator, `with`, which uses a [message ID](#message-ids) for its
   operand, and is designed for creating permanent links to topics.
 
-* In Grow Team 9.0 (feature level 265), support was added for a new
+* In sanji 9.0 (feature level 265), support was added for a new
   `is:followed` filter, matching messages in topics that the current
   user is [following](/help/follow-a-topic).
 
-* In Grow Team 9.0 (feature level 250), support was added for two filters
+* In sanji 9.0 (feature level 250), support was added for two filters
   related to stream messages: `channel` and `channels`. The `channel`
   operator is an alias for the `stream` operator. The `channels`
   operator is an alias for the `streams` operator. Both `channel` and
   `channels` return the same exact results as `stream` and `streams`
   respectively.
 
-* In Grow Team 9.0 (feature level 249), support was added for a new filter,
+* In sanji 9.0 (feature level 249), support was added for a new filter,
   `has:reaction`, which returns messages that have at least one [emoji
   reaction](/help/emoji-reactions).
 
-* In Grow Team 7.0 (feature level 177), support was added for three filters
+* In sanji 7.0 (feature level 177), support was added for three filters
   related to direct messages: `is:dm`, `dm` and `dm-including`. The
   `dm` operator replaced and deprecated the `pm-with` operator. The
   `is:dm` filter replaced and deprecated the `is:private` filter. The
@@ -152,7 +152,7 @@ that also accept a `narrow` parameter; see
 [GET /messages][anchor-get-messages] and
 [POST /messages/flags/narrow][anchor-post-flags].
 
-**Changes**: Prior to Grow Team 8.0 (feature level 194), the message ID
+**Changes**: Prior to sanji 8.0 (feature level 194), the message ID
 operand for the `id` operator needed to be encoded as a string.
 
 
@@ -167,7 +167,7 @@ operand for the `id` operator needed to be encoded as a string.
 
 ### Channel and user IDs
 
-There are a few additional narrow/search options (new in Grow Team 2.1)
+There are a few additional narrow/search options (new in sanji 2.1)
 that use either channel IDs or user IDs that are not documented in the
 help center because they are primarily useful to API clients:
 

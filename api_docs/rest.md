@@ -1,7 +1,7 @@
-# The Grow Team REST API
+# The sanji REST API
 
-The Grow Team REST API powers the Grow Team web app. It remains compatible with
-the Grow Team API protocol. To use this API:
+The sanji REST API powers the sanji web app. It remains compatible with
+the sanji API protocol. To use this API:
 
 * You'll need to [get an API key](/api/api-keys).  You will likely
   want to [create a bot](/help/add-a-bot-or-integration), unless you're
@@ -28,4 +28,4 @@ endpoints:
 {!rest-endpoints.md!}
 
 For implementation details that are not documented here, consult the
-[Grow Team source code](https://github.com/Growth-Circle/grow-team).
+[sanji source code](https://github.com/Growth-Circle/grow-team).

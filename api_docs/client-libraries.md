@@ -1,11 +1,11 @@
 # Client libraries
 
-These API client libraries make it easy to work with Grow Team's compatible REST API
+These API client libraries make it easy to work with sanji's compatible REST API
 in your favorite language.
 
 ## Official libraries
 
-These upstream Grow Team libraries can work with the Grow Team API protocol. The
+These upstream sanji libraries can work with the sanji API protocol. The
 Python library is the most complete and best documented.
 
 * [Python](https://github.com/zulip/python-zulip-api)
@@ -28,8 +28,8 @@ languages:
 ### Contributing
 
 Contributing to improve language libraries is appreciated, as is
-writing new ones. Report Grow Team documentation changes through the
-[Grow Team project](https://github.com/Growth-Circle/grow-team/issues).
+writing new ones. Report sanji documentation changes through the
+[sanji project](https://github.com/Growth-Circle/grow-team/issues).
 
 ### Outdated
 

@@ -1,10 +1,10 @@
 # Outgoing webhook payloads
 
-Grow Team supports [outgoing webhooks](/help/outgoing-webhooks) in a clean,
-native [Grow Team format](#zulip-format), as well as in a [Slack-compatible
+sanji supports [outgoing webhooks](/help/outgoing-webhooks) in a clean,
+native [sanji format](#zulip-format), as well as in a [Slack-compatible
 format](#slack-compatible-format).
 
-## Grow Team format
+## sanji format {#zulip-format}
 
 {generate_code_example|/zulip-outgoing-webhook:post|fixture}
 
@@ -17,10 +17,10 @@ format](#slack-compatible-format).
 This webhook format is compatible with [Slack's outgoing webhook
 API](https://api.slack.com/custom-integrations/outgoing-webhooks),
 which can help with porting an existing Slack integration to work with
-Grow Team, and allows immediate integration with many third-party systems
+sanji, and allows immediate integration with many third-party systems
 that already support Slack outgoing webhooks.
 
-The following table details how the Grow Team server translates a Grow Team
+The following table details how the sanji server translates a sanji
 message into the Slack-compatible webhook format.
 
 <table class="table">
@@ -38,11 +38,11 @@ message into the Slack-compatible webhook format.
         </tr>
         <tr>
             <td><code>team_id</code></td>
-            <td>ID of the Grow Team organization prefixed by "T".</td>
+            <td>ID of the sanji organization prefixed by "T".</td>
         </tr>
         <tr>
             <td><code>team_domain</code></td>
-            <td>Hostname of the Grow Team organization</td>
+            <td>Hostname of the sanji organization</td>
         </tr>
         <tr>
             <td><code>channel_id</code></td>

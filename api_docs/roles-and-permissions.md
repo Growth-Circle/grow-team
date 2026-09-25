@@ -1,15 +1,15 @@
 # Roles and permissions
 
-Grow Team offers several levels of permissions based on a
-[user's role](/help/user-roles) in a Grow Team organization.
+sanji offers several levels of permissions based on a
+[user's role](/help/user-roles) in a sanji organization.
 
 Here are some important details to note when working with these
-roles and permissions in Grow Team's API:
+roles and permissions in sanji's API:
 
 ## A user's role
 
 A user's account data include a `role` property, which contains the
-user's role in the Grow Team organization. These roles are encoded as:
+user's role in the sanji organization. These roles are encoded as:
 
 * Organization owner: 100
 
@@ -69,7 +69,7 @@ event](/api/get-events#realm_user-add), and the
 
 ## Permission levels
 
-Many areas of Grow Team are customizable by the roles
+Many areas of sanji are customizable by the roles
 above, such as (but not limited to) [restricting message editing and
 deletion](/help/restrict-message-editing-and-deletion) and various
 permissions for different [channel types](/help/channel-permissions).
@@ -95,7 +95,7 @@ specified ability or access. For example, a permission level documented
 as 'moderators only' includes organization moderators, administrators,
 and owners.
 
-Note that specific settings and policies in the Grow Team API that use these
+Note that specific settings and policies in the sanji API that use these
 permission levels will likely support a subset of those listed above.
 
 ## Group-based permissions
@@ -105,7 +105,7 @@ Some settings have been migrated to a more flexible system based on
 
 ## Determining if a user is a full member
 
-When a Grow Team organization has set up a [waiting period before new members
+When a sanji organization has set up a [waiting period before new members
 turn into full members](/help/restrict-permissions-of-new-members),
 clients will need to determine if a user's account has aged past the
 organization's waiting period threshold.

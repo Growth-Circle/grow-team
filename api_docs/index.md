@@ -1,23 +1,23 @@
-# The Grow Team API
+# The sanji API
 
-Grow Team uses the compatible Grow Team API protocol. These APIs allow you to
-integrate other services with Grow Team. This
+sanji uses the compatible sanji API protocol. These APIs allow you to
+integrate other services with sanji. This
 guide should help you find the API you need:
 
-* First, check if the tool you'd like to integrate with Grow Team
+* First, check if the tool you'd like to integrate with sanji
   [already has a native integration](/integrations/).
 * Next, check if [Zapier](https://zapier.com/apps) or
   [IFTTT](https://ifttt.com/search) has an integration.
   native integrations can often connect a service without writing code.
-* If you'd like to send content into Grow Team, you can
+* If you'd like to send content into sanji, you can
   [write a native incoming webhook integration][incoming-webhooks-overview]
   or use the [API for sending messages](/api/send-message).
 * If you're building an interactive bot that reacts to activity inside
-  Grow Team, see the
+  sanji, see the
   [Python framework for interactive bots](/help/running-bots) or
   [real-time events API](/api/get-events).
 
-To build your own Grow Team integration, check out
+To build your own sanji integration, check out
 the full [REST API](/api/rest), generally starting with
 [installing the API client bindings](/api/installation-instructions).
 

@@ -1,27 +1,27 @@
 # Real-time events API
 
-Grow Team's real-time events API lets you write software that reacts
-immediately to events happening in Grow Team.  This API is what powers the
-real-time updates in the Grow Team web and mobile apps.  As a result, the
+sanji's real-time events API lets you write software that reacts
+immediately to events happening in sanji.  This API is what powers the
+real-time updates in the sanji web and mobile apps.  As a result, the
 events available via this API cover all changes to data displayed in
-the Grow Team product, from new messages to channel descriptions to
+the sanji product, from new messages to channel descriptions to
 emoji reactions to changes in user or organization-level settings.
 
 ## Using the events API
 
-The simplest way to use Grow Team's real-time events API is by using
+The simplest way to use sanji's real-time events API is by using
 `call_on_each_event` from our Python bindings.  You just need to write
 a Python function (in the examples below, the `lambda`s) and pass it
 into `call_on_each_event`; your function will be called whenever a new
 event matching the specified parameters (`event_types`, `narrow`,
-etc.) occurs in Grow Team.
+etc.) occurs in sanji.
 
 `call_on_each_event` takes care of all the potentially tricky details
 of long-polling, error handling, exponential backoff in retries, etc.
 It's cousin, `call_on_each_message`, provides an even simpler
-interface for processing Grow Team messages.
+interface for processing sanji messages.
 
-More complex applications (like a Grow Team terminal client) may need to
+More complex applications (like a sanji terminal client) may need to
 instead use the raw [register](/api/register-queue) and
 [events](/api/get-events) endpoints.
 
