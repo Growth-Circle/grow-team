@@ -352,10 +352,7 @@
 /* Quote cards sit above the textarea inside the compose card. The
    member can open or remove a card, but cannot edit its text. */
 .compose-quote-context {
-    --compose-quote-border: light-dark(
-        hsl(170deg 10% 88%),
-        hsl(180deg 10% 20%)
-    );
+    --compose-quote-border: var(--sj-divider);
 
     flex: none;
     display: flex;
@@ -385,13 +382,13 @@
     text-align: left;
     font: inherit;
     color: var(--color-text-default);
-    background-color: light-dark(hsl(170deg 8% 96%), hsl(185deg 12% 16%));
+    background-color: var(--sj-surface-muted);
     border: 1px solid var(--compose-quote-border);
     border-radius: 10px;
     cursor: pointer;
 
     &:hover {
-        border-color: light-dark(hsl(172deg 40% 70%), hsl(172deg 30% 36%));
+        border-color: var(--sj-outline);
     }
 
     &:focus-visible {
@@ -412,7 +409,7 @@
     display: -webkit-box;
     overflow: hidden;
     padding-left: 0.53em;
-    border-left: 2px solid light-dark(hsl(170deg 10% 80%), hsl(180deg 10% 32%));
+    border-left: 2px solid var(--sj-divider);
     font-size: 0.87em;
     line-height: 1.4;
     color: var(--color-text-item);
@@ -471,7 +468,7 @@
     margin: 0;
     padding-left: 0.8em;
     overflow: auto;
-    border-left: 3px solid light-dark(hsl(170deg 10% 80%), hsl(180deg 10% 32%));
+    border-left: 3px solid var(--sj-divider);
 }
 
 #message-content-container {
@@ -624,7 +621,7 @@
     align-items: center;
     gap: 16px;
     padding: 8px 14px 12px;
-    border-top: 1px solid light-dark(hsl(170deg 10% 91%), hsl(180deg 10% 22%));
+    border-top: 1px solid var(--sj-divider);
 
     > .compose-scrolling-buttons-container {
         /* Fills the remaining width of the toolbar row; its
@@ -796,10 +793,7 @@
 
     @media (width < $sm_min) {
         padding: 10px 12px;
-        border-bottom-color: light-dark(
-            hsl(170deg 10% 91%),
-            hsl(180deg 10% 22%)
-        );
+        border-bottom-color: var(--sj-divider);
     }
 }
 
@@ -813,7 +807,7 @@
 
         &::before {
             content: "/";
-            color: light-dark(hsl(180deg 6% 60%), hsl(170deg 8% 60%));
+            color: var(--sj-text-muted);
         }
     }
 
@@ -827,7 +821,7 @@
        instead of floating over the top-right corner. */
     position: static;
     font-size: 1em; /* 16px at 16px/1em */
-    color: light-dark(hsl(180deg 10% 42%), hsl(170deg 8% 60%));
+    color: var(--sj-text-muted);
     background: transparent;
     font-weight: normal;
     line-height: 1;

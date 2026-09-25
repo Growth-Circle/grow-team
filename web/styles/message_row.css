@@ -325,7 +325,7 @@
 
     .message_length_toggle {
         width: 100%;
-        height: 1.714em; /* 24px / 14px em */
+        height: 1.5em; /* 24px / 16px/1em */
         margin-bottom: var(--message-box-markdown-aligned-vertical-space);
         color: var(--color-text-show-more-less-button);
         background-color: var(--color-show-more-less-button-background);
@@ -506,7 +506,7 @@
             height: 2.375em;
             margin-top: var(--message-box-vertical-margin);
             border-radius: var(--radius-lg);
-            background-color: hsl(172deg 88% 26%);
+            background-color: var(--sj-tinta);
 
             .inline_profile_picture {
                 display: none;
@@ -832,8 +832,8 @@
     line-height: var(--message-box-sender-line-height);
     grid-area: time;
     display: block;
-    /* 13px at 14px/1em */
-    font-size: 0.9286em;
+    /* 13px at 16px/1em */
+    font-size: 0.8125em;
     font-weight: 350;
     text-align: end;
     opacity: 0.8;
@@ -875,7 +875,7 @@
         font-weight: 400;
         opacity: 1;
         letter-spacing: 0;
-        color: light-dark(hsl(180deg 10% 40%), hsl(170deg 6% 60%));
+        color: var(--sj-text-muted);
     }
 }
 
@@ -1164,8 +1164,8 @@
 }
 
 .message_edit_notice {
-    /* 10px at 14px/1em */
-    font-size: 0.7143em;
+    /* 10px at 16px/1em */
+    font-size: 0.625em;
     opacity: 0.5;
     user-select: none;
     white-space: nowrap;
@@ -1236,7 +1236,7 @@
        it never has to compete with .messagebox for grid space. */
     .message_row.unread {
         position: relative;
-        margin-top: 2.4286em; /* 34px at 14px em */
+        margin-top: 2.125em; /* 34px at 16px em */
 
         /* See https://stackoverflow.com/questions/2717480/css-selector-for-first-element-with-class/8539107#8539107
            for details on how this first-of-siblings technique works. */
@@ -1252,22 +1252,19 @@
             grid-row: 1 / -1;
             grid-column: 1 / -1;
             position: absolute;
-            inset: -2.4286em 0 auto; /* 34px at 14px em */
+            inset: 2.125em 0 auto; /* 34px at 16px em */
             margin-left: 0;
             display: flex;
             align-items: center;
             gap: 12px;
-            height: 2em; /* 28px at 14px em */
+            height: 1.75em; /* 28px at 16px em */
 
             &::before,
             &::after {
                 content: "";
                 flex: 1;
                 height: 1px;
-                background: light-dark(
-                    hsl(172deg 45% 72%),
-                    hsl(172deg 40% 32%)
-                );
+                background: var(--sj-divider);
             }
 
             .unread-marker-fill {
@@ -1275,9 +1272,9 @@
                 width: auto;
                 height: auto;
                 background: none;
-                font-size: 0.9286em; /* 13px at 14px em */
+                font-size: 0.8125em; /* 13px at 16px em */
                 font-weight: 700;
-                color: light-dark(hsl(173deg 86% 22%), hsl(168deg 55% 72%));
+                color: var(--sj-text);
                 white-space: nowrap;
 
                 &::before {
@@ -1375,7 +1372,7 @@
         padding: 0 0.25em;
 
         & i {
-            font-size: 0.7143em; /* 10px at 14px / em */
+            font-size: 0.625em; /* 10px at 16px / em */
             /* TODO: Don't use relative positioning here. */
             position: relative;
             margin-left: 0.2em; /* 2px at 10px / em */
@@ -1400,7 +1397,7 @@
         line-height: 1.3077; /* 17px at the 13px font size above */
         text-align: center;
         text-transform: none;
-        color: light-dark(hsl(180deg 10% 38%), hsl(170deg 6% 60%));
+        color: var(--sj-text-muted);
 
         &::before {
             position: relative;
@@ -1423,8 +1420,7 @@
         &::after {
             content: " ";
             height: 0;
-            border-bottom: 1px solid
-                light-dark(hsl(170deg 10% 88%), hsl(180deg 10% 20%));
+            border-bottom: 1px solid var(--sj-divider);
         }
 
         .date_row_text {
@@ -1470,7 +1466,7 @@
         opacity: 0.6;
 
         & i {
-            font-size: 0.7143em; /* 10px at 14px / em */
+            font-size: 0.625em; /* 10px at 16px / em */
             /* TODO: Don't use relative positioning here. */
             position: relative;
             top: 0.1em; /* 1px at 10px / em */
@@ -1478,7 +1474,7 @@
         }
 
         .zulip-icon.zulip-icon-lock {
-            font-size: 0.8571em; /* 12px at 14px / em */
+            font-size: 0.75em; /* 12px at 16px / em */
             top: 0.0833em; /* 1px at 12px / em */
             margin-left: 0.1667em; /* 2px at 12px / em */
         }
@@ -1558,17 +1554,17 @@
     }
 
     .zulip-icon.zulip-icon-globe {
-        font-size: 0.8571em; /* 12px at 14px/1em */
-        vertical-align: -0.0714em; /* -1px at 14px/1em */
+        font-size: 0.75em; /* 12px at 16px/1em */
+        vertical-align: -0.0625em; /* -1px at 16px/1em */
     }
 
     .zulip-icon.zulip-icon-lock {
-        font-size: 0.9286em; /* 13px at 14px/1em */
-        vertical-align: -0.0714em; /* -1px at 14px/1em */
+        font-size: 0.8125em; /* 13px at 16px/1em */
+        vertical-align: -0.0625em; /* -1px at 16px/1em */
     }
 
     .zulip-icon.zulip-icon-hashtag {
-        font-size: 0.9286em; /* 13px at 14px/1em */
-        vertical-align: -0.1429em; /* -2px at 14px/1em */
+        font-size: 0.8125em; /* 13px at 16px/1em */
+        vertical-align: -0.125em; /* -2px at 16px/1em */
     }
 }

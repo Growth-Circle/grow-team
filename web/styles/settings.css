@@ -2446,7 +2446,7 @@ label.preferences-radio-choice-label {
     }
 
     .integration-url {
-        font-family: "Source Code Pro", monospace;
+        font-family: var(--sj-font-mono);
         background-color: var(--color-background-integration-url);
         padding: 10px;
         font-size: 0.85rem;
@@ -2680,11 +2680,11 @@ label.preferences-radio-choice-label {
    shape and its container, row, and card classes. */
 #agent-job-overlay,
 #agent-job-list-overlay {
-    --agent-job-surface: light-dark(hsl(0deg 0% 100%), hsl(185deg 13% 13%));
-    --agent-job-border: light-dark(hsl(170deg 10% 88%), hsl(180deg 10% 20%));
-    --agent-job-divider: light-dark(hsl(170deg 10% 91%), hsl(180deg 10% 18%));
-    --agent-job-fill: light-dark(hsl(170deg 8% 95%), hsl(185deg 12% 16%));
-    --agent-job-brand: light-dark(hsl(173deg 88% 26%), hsl(168deg 55% 72%));
+    --agent-job-surface: var(--sj-surface);
+    --agent-job-border: var(--sj-divider);
+    --agent-job-divider: var(--sj-divider);
+    --agent-job-fill: var(--sj-surface-muted);
+    --agent-job-brand: var(--sj-text);
     --agent-job-attention-text: light-dark(
         hsl(35deg 70% 28%),
         var(--color-text-warning-subtle-action-button)

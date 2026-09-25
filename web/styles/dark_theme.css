@@ -157,7 +157,7 @@
     .alert.alert-success {
         color: inherit;
         background-color: hsl(161deg 60% 46% / 20%);
-        border-color: hsl(165deg 68% 37%);
+        border-color: var(--sj-matcha);
     }
 
     .alert.alert-info {

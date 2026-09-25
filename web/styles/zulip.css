@@ -35,7 +35,7 @@ body {
         var(--legacy-body-line-height-unitless),
         var(--base-line-height-unitless)
     );
-    font-family: "Source Sans 3 VF", sans-serif;
+    font-family: var(--sj-font-sans);
     color: var(--color-text-default);
     background-color: var(--color-background);
 
@@ -160,7 +160,7 @@ a:focus {
 
 code,
 pre {
-    font-family: "Source Code Pro", monospace;
+    font-family: var(--sj-font-mono);
 }
 
 .no-select {
@@ -1248,12 +1248,12 @@ nav {
 }
 
 .operator_value {
-    font-family: "Source Code Pro", monospace;
+    font-family: var(--sj-font-mono);
     color: hsl(353deg 70% 65%);
 }
 
 .operator {
-    font-family: "Source Code Pro", monospace;
+    font-family: var(--sj-font-mono);
 }
 
 #loading_older_messages_indicator,
@@ -1528,8 +1528,8 @@ div.topic_edit_spinner .loading_indicator_spinner {
     }
 
     .flatpickr-confirm {
-        color: hsl(0deg 0% 100%);
-        background-color: hsl(172.44deg 88.15% 26.47%);
+        color: var(--sj-tinta);
+        background-color: var(--sj-kaki);
         font-size: var(--flatpickr-confirm-button-font-size);
         font-weight: 600;
     }

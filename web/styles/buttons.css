@@ -9,7 +9,7 @@
     font-family: inherit;
     font-weight: 600;
     letter-spacing: 0.02ch;
-    padding: 0 0.857em; /* 12px at 14px em */
+    padding: 0 0.75em; /* 12px at 16px em */
     min-height: var(--height-control-md);
     color: var(--color-text-neutral-subtle-action-button);
     background-color: var(--color-background-neutral-subtle-action-button);
@@ -63,8 +63,8 @@
     &:disabled {
         cursor: default;
         pointer-events: none;
-        background-color: light-dark(hsl(170deg 8% 92%), hsl(185deg 12% 18%));
-        color: light-dark(hsl(180deg 6% 58%), hsl(180deg 6% 45%));
+        background-color: var(--sj-surface-muted);
+        color: var(--sj-text-muted);
     }
 
     .zulip-icon {
@@ -125,7 +125,7 @@
        mode. Frame 2a asks for the same white-with-border treatment
        here, on the Cancel button. */
     background-color: var(--color-background-tab-picker-selected-tab);
-    border: 1px solid light-dark(hsl(170deg 10% 82%), hsl(180deg 10% 26%));
+    border: 1px solid var(--sj-divider);
 
     &:hover,
     &:focus-visible {

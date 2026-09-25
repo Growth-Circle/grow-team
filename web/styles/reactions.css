@@ -10,30 +10,12 @@
        redeclaring them here (rather than each property below) keeps
        every rule that already references them -- hover states
        included -- consistent with the new palette. */
-    --color-message-reaction-border: light-dark(
-        hsl(170deg 10% 88%),
-        hsl(180deg 10% 24%)
-    );
-    --color-message-reaction-background: light-dark(
-        hsl(170deg 8% 96%),
-        hsl(185deg 12% 17%)
-    );
-    --color-message-reaction-text: light-dark(
-        hsl(180deg 10% 30%),
-        hsl(170deg 6% 60%)
-    );
-    --color-message-reaction-border-reacted: light-dark(
-        hsl(172deg 40% 78%),
-        hsl(172deg 40% 32%)
-    );
-    --color-message-reaction-background-reacted: light-dark(
-        hsl(172deg 55% 94%),
-        hsl(172deg 40% 20%)
-    );
-    --color-message-reaction-text-reacted: light-dark(
-        hsl(173deg 86% 22%),
-        hsl(168deg 55% 72%)
-    );
+    --color-message-reaction-border: var(--sj-divider);
+    --color-message-reaction-background: var(--sj-surface-muted);
+    --color-message-reaction-text: var(--sj-text-2);
+    --color-message-reaction-border-reacted: var(--sj-matcha);
+    --color-message-reaction-background-reacted: var(--sj-tint-matcha);
+    --color-message-reaction-text-reacted: var(--sj-text-matcha);
     /* "tanpa bayangan dalam" (no inner shadow) in either reaction
        state; transparent (not none) keeps the box-shadow declaration
        below valid. */
@@ -51,9 +33,9 @@
 
     .message_reaction {
         display: flex;
-        height: 2em; /* 28px at 14px em */
-        padding: 0 0.7143em; /* 0 10px at 14px em */
-        gap: 0.4286em; /* 6px at 14px em */
+        height: 1.75em; /* 28px at 16px em */
+        padding: 0 0.625em; /* 0 10px at 16px em */
+        gap: 0.375em; /* 6px at 16px em */
         box-sizing: border-box;
         min-width: 44px;
         cursor: pointer;
@@ -90,9 +72,9 @@
 
         .emoji {
             margin: 0;
-            /* 17px at 14px/1em */
-            height: 1.2143em;
-            width: 1.2143em;
+            /* 17px at 16px/1em */
+            height: 1.0625em;
+            width: 1.0625em;
             /* Preserve the emoji's dimensions, no
                matter what the flexbox does. */
             flex-shrink: 0;

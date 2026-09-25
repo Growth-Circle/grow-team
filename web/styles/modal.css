@@ -169,7 +169,7 @@
 }
 
 #api_key_value {
-    font-family: "Source Code Pro", monospace;
+    font-family: var(--sj-font-mono);
     font-size: 1em;
 }
 
@@ -225,17 +225,11 @@
 
 .dialog_submit_button {
     margin-left: 12px;
-    background-color: light-dark(
-        hsl(172.44deg 88.15% 26.47%),
-        hsl(171.36deg 58.41% 44.31%)
-    );
-    color: light-dark(hsl(0deg 0% 100%), hsl(185deg 30% 10%));
+    background-color: var(--sj-kaki);
+    color: var(--sj-tinta);
 
     &:hover {
-        background-color: light-dark(
-            hsl(172.58deg 85.84% 22.16%),
-            hsl(172deg 58% 50%)
-        );
+        background-color: var(--sj-ink);
     }
 }
 

@@ -80,7 +80,7 @@
     border: 1px solid var(--color-border-popover-menu);
     border-radius: var(--radius-xl);
     box-shadow: var(--box-shadow-popover-menu);
-    font-size: 1.0714em; /* 15px at 14px em */
+    font-size: 0.9375em; /* 15px at 16px em */
 
     > .tippy-content {
         padding: 0;
@@ -865,7 +865,7 @@ ul.popover-group-menu-member-list {
             text-align: center;
             cursor: pointer;
             background: var(--color-background-tab-picker-container);
-            color: light-dark(hsl(180deg 8% 40%), hsl(170deg 8% 72%));
+            color: var(--sj-text-muted);
 
             &:first-child {
                 border-radius: var(--radius-md) 0 0 var(--radius-md);
@@ -998,7 +998,7 @@ ul.popover-group-menu-member-list {
         gap: 0.4em;
         /* 13px at 15px/1em */
         font-size: 0.8667em;
-        color: light-dark(hsl(180deg 8% 38%), hsl(170deg 8% 68%));
+        color: var(--sj-text-muted);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -1021,7 +1021,7 @@ ul.popover-group-menu-member-list {
     min-height: 2.1333em;
     /* 14px at 15px/1em */
     font-size: 0.9333em;
-    color: light-dark(hsl(180deg 8% 38%), hsl(170deg 8% 68%));
+    color: var(--sj-text-muted);
 
     .popover-menu-icon {
         /* 16px at 14px/1em, since this row's own font-size is 14px */
@@ -1191,7 +1191,7 @@ ul.popover-group-menu-member-list {
         .popover-menu-icon {
             /* 42% lightness, one shade darker than --color-icon-purple's
                45%, which stays reserved for user-card description rows. */
-            color: light-dark(hsl(180deg 8% 42%), hsl(170deg 6% 60%));
+            color: var(--sj-text-muted);
         }
 
         .popover-menu-link {

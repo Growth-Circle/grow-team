@@ -1305,7 +1305,7 @@ li.active-sub-filter {
                    calibrated against, independent of the
                    14px-em/0.9286em size .unread_count uses
                    elsewhere. */
-                font-size: 0.8571em; /* 12px at 14px/1em, scales with information density */
+                font-size: 0.75em; /* 12px at 16px/1em, scales with information density */
             }
 
             /* Show the same styles when each item is
@@ -1505,7 +1505,7 @@ li.active-sub-filter {
    hsl(180deg 10% 38%) in light mode, never lighter, so small text
    stays readable on white. Dark mode keeps the existing quiet tone. */
 .top_left_starred_messages .unread_count.quiet-count {
-    color: light-dark(hsl(180deg 10% 38%), hsl(170deg 8% 60%));
+    color: var(--sj-text-muted);
     font-weight: 400;
 }
 
@@ -1807,7 +1807,7 @@ li.active-sub-filter {
    "My tasks" is a solid badge like Inbox, "Awaiting my review" is a bare
    bold number like Mentions, and running agent tasks sit in a pale pill. */
 .top_left_task_board .unread_count.quiet-count {
-    color: light-dark(hsl(180deg 10% 38%), hsl(170deg 8% 60%));
+    color: var(--sj-text-muted);
     font-weight: 400;
 }
 
@@ -1828,8 +1828,8 @@ li.active-sub-filter {
     background-color: var(--color-background-brand-subtle-action-button);
     color: var(--color-text-brand-subtle-action-button);
     box-shadow: none;
-    /* 12px at 14px/1em; the pill carries a word, not only a digit. */
-    font-size: 0.8571em;
+    /* 12px at 16px/1em; the pill carries a word, not only a digit. */
+    font-size: 0.75em;
 }
 
 #views-label-container {
@@ -1979,8 +1979,8 @@ li.active-sub-filter {
         .zulip-icon.zulip-icon-globe,
         .zulip-icon.zulip-icon-hashtag,
         .zulip-icon.zulip-icon-lock {
-            /* 16px at 14px/1em, frame 10a channel row icon size. */
-            font-size: 1.1429em;
+            /* 16px at 16px/1em, frame 10a channel row icon size. */
+            font-size: 1em;
         }
     }
 
@@ -2136,8 +2136,8 @@ li.active-sub-filter {
 .sidebar-topic-check {
     grid-area: starting-anchor-element;
     place-self: center end;
-    /* 15px at 14px/1em */
-    font-size: 1.0714em;
+    /* 15px at 16px/1em */
+    font-size: 0.9375em;
     /* Use background to mask part of grouping bracket. */
     padding-left: 3px;
     /* Keep background from affecting rounded corners on
@@ -2207,7 +2207,7 @@ li.active-sub-filter {
    "N more topics" summary row keeps its real count, since it
    totals multiple topics rather than marking a single one. */
 li.topic-list-item:not(.show-more-topics) .unread_count {
-    width: 0.5714em; /* 8px at 14px/1em */
+    width: 0.5em; /* 8px at 16px/1em */
     height: 0.5714em;
     padding: 0;
     color: transparent;
@@ -2450,7 +2450,7 @@ ul.topic-list.topic-list-has-topics::before {
     top: 0.75em;
     bottom: 0.75em;
     left: 14px;
-    border-left: 2px solid light-dark(hsl(172deg 30% 82%), hsl(172deg 25% 30%));
+    border-left: 2px solid var(--sj-divider);
     pointer-events: none;
 }
 

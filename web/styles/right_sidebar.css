@@ -229,9 +229,9 @@
                 top: 50%;
                 /* Flush with this block's own 4px padding. */
                 right: 4px;
-                /* 9px at 14px em */
-                width: 0.6429em;
-                height: 0.6429em;
+                /* 9px at 16px/1em */
+                width: 0.5625em;
+                height: 0.5625em;
                 border-radius: var(--radius-pill);
                 transform: translateY(-50%);
             }
@@ -366,8 +366,8 @@
 .buddy-list-section li.buddy-list-presence-divider {
     padding: 5px 5px 5px 0;
     color: var(--color-text-sidebar-heading);
-    /* 12px at 14px em */
-    font-size: 0.8571em;
+    /* 12px at 16px/1em */
+    font-size: 0.75em;
     font-weight: var(--font-weight-sidebar-heading);
     letter-spacing: var(--letter-spacing-sidebar-heading);
     text-transform: uppercase;
