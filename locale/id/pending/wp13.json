@@ -5,6 +5,7 @@
     "Fast": "Cepat",
     "Balanced": "Seimbang",
     "Best": "Terbaik",
-    "You do not have permission to change this task.": "Kamu tidak punya izin untuk mengubah tugas ini."
+    "You do not have permission to change this task.": "Kamu tidak punya izin untuk mengubah tugas ini.",
+    "{user} moved {task} to {column}.": "{user} memindahkan {task} ke {column}."
   }
 }

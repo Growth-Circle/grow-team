@@ -286,10 +286,16 @@ paths:
         Moving a card never changes the conversation it came from. The change is
         written to the card history instead.
 
+        When the organization turns on task status notices, the Notification
+        Bot posts a short message to the card's topic when the card moves to
+        another column.
+
         **Changes**: New in Zulip 12.0 (feature level ZF-4a7c21).
 
         Before feature level ZF-4f1745, any user who could read a card could
         change it.
+
+        Before feature level ZF-4f1745, a card move posted no status notice.
       parameters:
         - name: task_id
           in: path

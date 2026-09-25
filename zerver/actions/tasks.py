@@ -7,16 +7,21 @@ person can read back is written to the card history instead.
 from datetime import datetime
 from typing import Any
 
+from django.conf import settings as django_settings
 from django.db import transaction
 from django.db.models import Max
 from django.utils.timezone import now as timezone_now
 from django.utils.translation import gettext as _
+from django.utils.translation import override as override_language
 
+from zerver.actions.message_send import internal_send_stream_message
 from zerver.lib.exceptions import JsonableError
+from zerver.lib.mention import silent_mention_syntax_for_user
 from zerver.lib.tasks import realm_task_id_prefix, task_api_dict, task_event_audience
 from zerver.models import (
     Realm,
     RealmAuditLog,
+    Stream,
     Task,
     TaskBoard,
     TaskBoardColumn,
@@ -24,9 +29,10 @@ from zerver.models import (
     UserProfile,
     agents,
 )
+from zerver.models.agents import AgentRealmSettings
 from zerver.models.realm_audit_logs import AuditLogEventType
 from zerver.models.tasks import TASK_SOURCE_MANUAL
-from zerver.models.users import active_user_ids
+from zerver.models.users import active_user_ids, get_system_bot
 from zerver.tornado.django_api import send_event_on_commit
 
 # Gap between two cards appended to a column. Wide enough that many moves
@@ -66,6 +72,37 @@ def send_task_event(
         prefix = task_id_prefix if task_id_prefix is not None else realm_task_id_prefix(realm)
         event["task"] = task_api_dict(task, task_id_prefix=prefix)
     send_event_on_commit(realm, event, task_event_audience(realm, task))
+
+
+def notify_task_status_change(
+    task: Task, previous_column: TaskBoardColumn, column: TaskBoardColumn, actor: UserProfile
+) -> None:
+    """05-R4: a short system message to the card's topic when its column
+    changes, only for a card linked to a room and only when the
+    workspace turned status notices on (`task_status_notices`, off by
+    default, T-18)."""
+    if task.stream_id is None or not task.topic or previous_column.id == column.id:
+        return
+    realm_settings = AgentRealmSettings.objects.filter(realm=task.realm).first()
+    if realm_settings is None or not realm_settings.task_status_notices:
+        return
+    stream = Stream.objects.filter(id=task.stream_id, realm=task.realm).first()
+    if stream is None:
+        return
+    sender = get_system_bot(django_settings.NOTIFICATION_BOT, task.realm_id)
+    # The workspace language, not the mover's: an agent job can move a card.
+    with override_language(stream.realm.default_language):
+        content = _("{user} moved {task} to {column}.").format(
+            user=silent_mention_syntax_for_user(actor),
+            task=_code_span(task.title),
+            column=_code_span(column.name),
+        )
+    internal_send_stream_message(sender, stream, task.topic, content, acting_user=actor)
+
+
+def _code_span(text: str) -> str:
+    """Show user text as a Markdown code span, so it cannot mention anyone."""
+    return "`" + text.replace("`", "'") + "`"
 
 
 def record_history(
@@ -195,6 +232,7 @@ def sync_agent_task(job: agents.AgentJob) -> None:
                 "to_column_id": column.id,
             },
         )
+        notify_task_status_change(task, previous_column, column, bot)
         send_task_event(task.realm, task, "update", task_id_prefix=task_id_prefix)
 
 
@@ -252,6 +290,7 @@ def do_move_task(
                 "to_column_id": column.id,
             },
         )
+        notify_task_status_change(task, previous_column, column, user_profile)
 
     send_task_event(task.realm, task, "update")
     return task

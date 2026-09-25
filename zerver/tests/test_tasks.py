@@ -2,7 +2,7 @@ import orjson
 from django.utils.timezone import now as timezone_now
 from typing_extensions import override
 
-from zerver.actions.tasks import do_create_task
+from zerver.actions.tasks import do_create_task, do_move_task
 from zerver.lib.tasks import (
     get_or_create_default_board,
     hidden_done_task_ids,
@@ -564,3 +564,47 @@ class TaskReassignmentPermissionTest(TaskBoardTestCase):
         self.login_user(self.cordelia)
         result = self.client_patch(f"/json/tasks/{card.id}", {"column_id": self.columns[1].id})
         self.assert_json_success(result)
+
+
+class TaskStatusNoticeTest(TaskBoardTestCase):
+    @override
+    def setUp(self) -> None:
+        super().setUp()
+        self.stream = self.make_stream("task-room")
+        self.subscribe(self.hamlet, "task-room")
+
+    def move_card(self, title: str = "Room card") -> Task:
+        card = do_create_task(
+            user_profile=self.hamlet,
+            board=self.board,
+            column=self.columns[0],
+            title=title,
+            stream_id=self.stream.id,
+            topic="general",
+        )
+        do_move_task(user_profile=self.hamlet, task=card, column=self.columns[1], position=None)
+        return card
+
+    def test_notice_is_off_by_default(self) -> None:
+        before = self.get_last_message().id
+        self.move_card()
+        self.assertEqual(self.get_last_message().id, before)
+
+    def test_notice_posts_when_enabled(self) -> None:
+        AgentRealmSettings.objects.create(realm=self.hamlet.realm, task_status_notices=True)
+        before = self.get_last_message().id
+        self.move_card()
+        message = self.get_last_message()
+        self.assertNotEqual(message.id, before)
+        self.assertEqual(message.recipient.type_id, self.stream.id)
+        self.assertEqual(message.topic_name(), "general")
+        self.assertIn("`Room card`", message.content)
+        self.assertIn(f"`{self.columns[1].name}`", message.content)
+
+    def test_notice_cannot_mention_anyone(self) -> None:
+        AgentRealmSettings.objects.create(realm=self.hamlet.realm, task_status_notices=True)
+        self.move_card(title="Ping @**all** `now`")
+        message = self.get_last_message()
+        self.assertIn("`Ping @**all** 'now'`", message.content)
+        assert message.rendered_content is not None
+        self.assertNotIn('data-user-id="*"', message.rendered_content)
