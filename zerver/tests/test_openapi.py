@@ -258,6 +258,45 @@ class OpenAPIArgumentsTest(ZulipTestCase):
         "/remotes/server/analytics",
         "/remotes/server/analytics/status",
         "/remotes/server/billing",
+        # Agent runner device protocol: bearer-token machine endpoints
+        # registered directly on urlpatterns (not through rest_dispatch),
+        # so this REST-focused test never visits them. See PLAN.md Sanji
+        # WP04 and api_docs/include/rest-endpoints.md for the runner
+        # protocol's own reference (zerver/openapi/features/agent_devices.yaml
+        # and agent_runner_extras.yaml already document every one of these).
+        "/agent/runner/claims",
+        "/agent/runner/operations",
+        "/agent/runner/leases",
+        "/agent/runner/controls",
+        "/agent/runner/heartbeat",
+        "/agent/runner/events",
+        "/agent/runner/stop-evidence",
+        "/agent/runner/context",
+        "/agent/runner/drafts",
+        "/agent/runner/context-file",
+        "/agent/runner/inputs",
+        "/agent/runner/inputs/reconcile",
+        "/agent/runner/artifacts",
+        "/agent/runner/operations/propose",
+        "/agent/runner/operations/consume",
+        "/agent/runner/operations/execute",
+        "/agent/runner/operations/reconcile",
+        "/agent/runner/operations/reconcile-local",
+        "/agent/runner/checkpoints",
+        "/agent/runner/authority",
+        "/agent/runner/credential-access",
+        "/agent/runner/setup-authority",
+        "/agent/runner/probe-credential-access",
+        "/agent/runner/workspaces",
+        "/agent/runner/token/refresh",
+        "/agent/runner/catalog",
+        "/agent/runner/metadata",
+        "/agent/runner/setups",
+        "/agent/runner/setups/claim",
+        "/agent/runner/setups/result",
+        "/agent/pairings",
+        "/agent/pairings/exchange",
+        "/agent/pairings/status",
     }
 
     # Endpoints in the API documentation that don't use rest_dispatch
@@ -275,10 +314,48 @@ class OpenAPIArgumentsTest(ZulipTestCase):
     # a JSON request body, the same convention every other agent
     # settings endpoint uses, so typed_endpoint reports no arguments for
     # them and this test cannot compare that against the documented
-    # "payload" field.
+    # "payload" field. The same is true for every other endpoint below:
+    # they read their body with the shared payload() helper (a single
+    # form field) or their query string by hand, in
+    # zerver/views/agent_jobs.py and zerver/views/agents.py, rather than
+    # through @typed_endpoint/REQ, so this test's automatic argument
+    # comparison cannot apply to them either.
     buggy_documentation_endpoints: set[str] = {
         "/agent/profiles/{profile_id}/share",
         "/agent/profiles/{profile_id}/unshare",
+        "/agent/jobs",
+        "/agent/jobs/{job_id}",
+        "/agent/jobs/{job_id}/events",
+        "/agent/jobs/{job_id}/inputs",
+        "/agent/jobs/{job_id}/configure",
+        "/agent/jobs/{job_id}/cancel",
+        "/agent/jobs/{job_id}/resume",
+        "/agent/jobs/{job_id}/deliver-privately",
+        "/agent/message-preflight",
+        "/agent/approvals/{approval_id}/decision",
+        "/agent/profiles",
+        "/agent/profiles/recover",
+        "/agent/profiles/{profile_id}",
+        "/agent/pairings/approve",
+        "/agent/pairings/preview",
+        "/agent/runners",
+        "/agent/runners/{runner_id}/metadata",
+        "/agent/runners/{runner_id}/revoke",
+        "/agent/team-default",
+        "/agent/team-instructions",
+        "/agent/selection/resolve",
+        "/agent/providers",
+        "/agent/providers/{provider_id}",
+        "/agent/providers/{provider_id}/probe",
+        "/agent/repositories",
+        "/agent/profiles/{profile_id}/pause",
+        "/agent/profiles/{profile_id}/archive",
+        "/agent/profiles/{profile_id}/enable",
+        "/agent/profiles/{profile_id}/readiness",
+        "/agent/grants",
+        "/agent/grants/{grant_id}/revoke",
+        "/agent/profiles/{profile_id}/attach-channel",
+        "/agent/profiles/{profile_id}/test-task",
     }
 
     def ensure_no_documentation_if_intentionally_undocumented(
@@ -1093,8 +1170,43 @@ class APIDocsSidebarTest(ZulipTestCase):
             # This is rendered on the "Outgoing webhooks" page and hence is not
             # linked in the sidebar.
             "zulip-outgoing-webhooks",
-            # Runner device protocol; not part of the public API docs.
+            # Agent runner device protocol: bearer-token machine endpoints,
+            # not part of the public API docs (see pending_endpoints in
+            # OpenAPIArgumentsTest for the matching route-scanning exemption).
             "agent-runtime-draft",
+            "agent-runtime-claims",
+            "agent-runtime-leases",
+            "agent-runtime-controls",
+            "agent-runtime-heartbeat",
+            "agent-runtime-events",
+            "agent-runtime-stop-evidence",
+            "agent-runtime-context",
+            "agent-runtime-context-file",
+            "agent-runtime-inputs",
+            "agent-runtime-inputs-reconcile",
+            "agent-runtime-artifacts",
+            "agent-runtime-operations-propose",
+            "agent-runtime-operations-consume",
+            "agent-runtime-operations-execute",
+            "agent-runtime-operations-reconcile",
+            "agent-runtime-operations-reconcile-local",
+            "agent-runtime-operations",
+            "agent-runtime-checkpoints",
+            "agent-runtime-authority",
+            "agent-runtime-credential-access",
+            "agent-runtime-setup-authority",
+            "agent-runtime-probe-credential-access",
+            "register-agent-runner-workspace",
+            "refresh-agent-runner-token",
+            "update-agent-runner-catalog",
+            "get-agent-runner-metadata",
+            "update-agent-runner-metadata-device",
+            "agent-runtime-setups",
+            "agent-runtime-setups-claim",
+            "agent-runtime-setups-result",
+            "create-agent-pairing",
+            "exchange-agent-pairing",
+            "get-agent-pairing-status",
         }
         sidebar_path = "api_docs/sidebar_index.md"
         rest_endpoints_path = "api_docs/include/rest-endpoints.md"
