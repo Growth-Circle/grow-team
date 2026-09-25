@@ -15,6 +15,7 @@ from zerver.models import (
     RoomDigest,
     RoomMeta,
     Task,
+    WebPushSubscription,
 )
 from zerver.models.tasks import TASK_SOURCE_MANUAL, TaskBoard, TaskBoardColumn
 
@@ -230,3 +231,17 @@ class WorkspaceSchemaTests(ZulipTestCase):
         )
         self.assertEqual(pairing.requested_meta, {})
         self.assertIsNone(pairing.denied_at)
+
+    # -- 0826 WebPushSubscription ------------------------------------------
+
+    def test_web_push_subscription_unique_per_user_and_endpoint(self) -> None:
+        fields = dict(
+            user=self.owner,
+            realm=self.realm,
+            endpoint="https://push.example/abc",
+            p256dh="key",
+            auth="secret",
+        )
+        WebPushSubscription.objects.create(**fields)
+        with self.assertRaises(IntegrityError):
+            WebPushSubscription.objects.create(**fields)
