@@ -1,4 +1,4 @@
-# FRD Grow Team
+# FRD Sanji
 
 Status dokumen: penyelarasan sementara, 2026-09-22. Status menunjukkan bukti yang tersedia atau pekerjaan yang masih diperlukan. Status tidak menggantikan acceptance evidence rilis.
 
@@ -23,7 +23,7 @@ Status dokumen: penyelarasan sementara, 2026-09-22. Status menunjukkan bukti yan
 | FR-17 | Audit dan hasil | Lifecycle dicatat. Hasil dipost hanya jika audience dan verification tetap sah. | Ada di source. Audit tidak dinyatakan administrator-proof. |
 | FR-18 | Runner terisolasi **[jalur code]** | Kerja opsional memakai containment rootless dan limit. Aplikasi realtime tidak dihentikan atau dibiarkan tidur. Jalur cepat (answer, manage) tidak memakai container. | Task 0–6 selesai dan lulus review komponen. Image `1c3ebcde3d7e` diuji sebagai intermediate image. Sertifikasi runtime produk masih pending. |
 | FR-19 | Tenant boundary | Setiap job, audit, bot, dan reference memiliki realm boundary. Tes lintas tenant gagal tertutup. | Model dan policy ada di source. Operasi B2B belum siap. |
-| FR-20 | Branding runtime | Image fork Grow Team berjalan di `team.growc.id`. Login, logo, favicon, footer, bantuan, dan indikator pemuatan memakai identitas Grow Team. | Bukti publik dan browser inti bertanggal ada dalam [laporan verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md). |
+| FR-20 | Branding runtime | Image fork Sanji berjalan di `team.growc.id` (workspace Growth Circle) dan, sejak Tahap 2 rebrand, di `{slug}.sanji.space` (workspace baru). Login, logo, favicon, footer, bantuan, dan indikator pemuatan memakai identitas Sanji. | Bukti publik dan browser inti bertanggal ada dalam [laporan verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md). Domain target ada di [keputusan rebrand](sanji-rebrand-decision.md). |
 
 ## Kontrak settings dan default
 

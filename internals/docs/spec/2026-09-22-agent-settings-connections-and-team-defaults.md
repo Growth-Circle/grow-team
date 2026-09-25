@@ -22,7 +22,7 @@ agent default tim. Fokusnya adalah pengaturan yang dapat dipahami dari browser.
 
 Keputusan pengguna yang menjadi kontrak:
 
-- Grow Team tetap aplikasi web. Pengguna tidak memerlukan aplikasi desktop.
+- Sanji tetap aplikasi web. Pengguna tidak memerlukan aplikasi desktop.
 - Runner berjalan pada laptop atau server milik pengguna.
 - Agent terpasang dan endpoint OpenAI-compatible tetap didukung untuk jalur code.
   Jalur cepat memakai koneksi model Anthropic Messages; lihat
@@ -96,7 +96,7 @@ tidak menggantikan pemeriksaan grant pada admission.
 ## 4. Struktur pengaturan di browser
 
 Gunakan halaman **Pengaturan → Agent** dengan empat area yang memakai komponen
-dan pola aksesibilitas Grow Team existing.
+dan pola aksesibilitas Sanji existing.
 
 | Area          | Isi utama                                                                            | Aksi                                                                               |
 | ------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
@@ -136,7 +136,7 @@ hostname, IP, pemilik, URL endpoint, atau status online.
 | Runner                | Lokasi model          | Label yang tepat                                                        | Makna praktis                                                      |
 | --------------------- | --------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | Laptop Rama           | API eksternal         | “Laptop Rama · Komputer pribadi”; “Model: koneksi eksternal”            | Tools berjalan di laptop; inferensi melalui endpoint yang dipilih. |
-| Laptop Rama           | Endpoint lokal runner | “Laptop Rama · Komputer pribadi”; “Model: endpoint lokal runner”        | Browser tetap mengirim tugas melalui Grow Team.                    |
+| Laptop Rama           | Endpoint lokal runner | “Laptop Rama · Komputer pribadi”; “Model: endpoint lokal runner”        | Browser tetap mengirim tugas melalui Sanji.                    |
 | Server pengembangan   | API eksternal         | “Server Pengembangan · Server”; pemilik dan akses ditampilkan terpisah. | Menutup browser anggota tidak mematikan proses runner.             |
 | Server pengembangan   | Endpoint pada server  | “Server Pengembangan · Server”; “Model: endpoint lokal runner”          | Localhost merujuk server runner tersebut.                          |
 | Runner tanpa kategori | Belum diketahui       | Nama runner; “Jenis perangkat belum ditentukan”.                        | Tidak menampilkan ikon server berdasarkan tebakan.                 |
@@ -147,7 +147,7 @@ dipilih. Model di API eksternal tidak membuat proses agent menjadi “agent clou
 Dalam browser, gunakan nama perangkat yang stabil. Label **Perangkat ini** hanya
 boleh muncul jika ada bukti asosiasi browser–runner yang terverifikasi. Versi
 awal tidak memiliki mekanisme tersebut, sehingga tidak memakai label itu.
-Membuka Grow Team dari ponsel tidak mengubah label Laptop Rama menjadi lokal
+Membuka Sanji dari ponsel tidak mengubah label Laptop Rama menjadi lokal
 terhadap ponsel atau mengalihkan eksekusi ke ponsel.
 
 ### 5.2 Contoh informasi kartu
@@ -227,7 +227,7 @@ profil. Registrasi lintas realm tetap terpisah; tidak berbagi token secara impli
 
 ### 8.1 Agent terpasang pada runner **[jalur code]**
 
-Katalog berasal dari runner terpilih, bukan dari mesin Grow Team atau browser.
+Katalog berasal dari runner terpilih, bukan dari mesin Sanji atau browser.
 Setiap pilihan memuat ID adapter, versi, availability, metode auth yang
 dilaporkan, dan hasil probe. Label seperti “terpasang” dan “sudah login” tetap
 berbeda dari “siap coding”.
@@ -277,7 +277,7 @@ path workspace runner lama pada runner baru.
 | ------------------------------------ | ------------------------------------- | -------------------------------------------------------------- |
 | Memakai agent yang sudah dibagikan   | Pilih agent dari direktori.           | Tidak ada pairing atau profil baru.                            |
 | Memakai agent CLI pada mesin sendiri **[jalur code]** | Hubungkan runner, lalu pilih adapter. | Profil memakai runtime dan auth yang diizinkan pada mesin itu. |
-| Memakai API model **[jalur code]**   | Pilih runner dan koneksi model.       | Runtime endpoint Grow Runner menyediakan loop dan tools.       |
+| Memakai API model **[jalur code]**   | Pilih runner dan koneksi model.       | Runtime endpoint runner menyediakan loop dan tools.       |
 | Memakai jalur cepat **[jalur cepat]** | Pilih runner dan koneksi Anthropic Messages. | Loop `@anthropic-ai/sdk` di proses runner menjawab `answer`/`manage`. |
 
 Hindari satu tombol “Connect” yang dapat berarti keempatnya tanpa penjelasan.
@@ -329,10 +329,10 @@ Aturan nilai efektif:
 
 ### 9.2 Pengaturan lanjutan dan batas dukungan
 
-Kontrol Grow Team hanya muncul jika kontrak backend dan adapter benar-benar
+Kontrol Sanji hanya muncul jika kontrak backend dan adapter benar-benar
 mendukung pengaturan itu.
 
-| Pengaturan                                     | Perlakuan Grow Team                                                                                                             |
+| Pengaturan                                     | Perlakuan Sanji                                                                                                             |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | Nama dan deskripsi                             | Metadata profil. Deskripsi tidak diam-diam menjadi system prompt.                                                               |
 | Model pada mode endpoint **[jalur code]**      | Berasal dari `AgentProvider.model_id`. Versi awal tidak menambah override model tersembunyi pada profil.                        |
@@ -675,7 +675,7 @@ untuk pembagian pekerjaan yang berlaku sekarang.
 | Keadaan                                       | Pesan bagi pengguna yang berhak                                         | Tindakan                                                                 |
 | --------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | Belum ada agent yang dapat dipakai            | Belum ada agent untuk tugas ini.                                        | Pilih yang dibagikan atau lihat petunjuk meminta akses.                  |
-| Runner belum terhubung                        | Perangkat belum terhubung ke Grow Team.                                 | Pemilik memeriksa layanan runner atau melanjutkan pairing.               |
+| Runner belum terhubung                        | Perangkat belum terhubung ke Sanji.                                 | Pemilik memeriksa layanan runner atau melanjutkan pairing.               |
 | Agent terpasang tetapi belum login            | Agent ditemukan; login masih diperlukan pada runner.                    | Tampilkan metode adapter yang benar-benar didukung.                      |
 | Adapter terpasang belum sesuai versi **[jalur code]** | Versi adapter belum didukung untuk konfigurasi ini.              | Tampilkan versi yang diuji dan petunjuk pemilik.                         |
 | API model hanya mendukung teks **[jalur code]** | Koneksi dapat dipakai untuk Diskusi; tools belum lulus pemeriksaan.    | Pilih Diskusi atau perbaiki koneksi untuk Coding.                        |
@@ -761,7 +761,7 @@ dan admin memilih default. Anggota dari browser lain membuat tugas dengan
 default tersebut, menggantinya pada tugas berikutnya, lalu melihat perilaku
 yang benar saat default offline atau haknya dicabut.
 
-Dokumen ini belum membuktikan kelulusan tes Buzz, UI Grow Team, instalasi runner,
+Dokumen ini belum membuktikan kelulusan tes Buzz, UI Sanji, instalasi runner,
 provider pengguna, atau deployment produksi. Penelitian tidak menjalankan model
 berbayar, mengganti default nyata, memberi grant, atau mengubah worktree paralel.
 Detail platform/harness yang sudah dipilih pekerjaan aktif tidak dibuka ulang

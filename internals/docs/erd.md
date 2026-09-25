@@ -1,4 +1,4 @@
-# ERD Grow Team
+# ERD Sanji
 
 Status dokumen: penyelarasan sementara dari `zerver/models/agents.py`, 2026-09-22. Diagram menunjukkan relasi utama ForeignKey dan OneToOneField source saat ini. Diagram ini tidak menyatakan migrasi telah diterapkan di produksi.
 
@@ -90,6 +90,32 @@ Semua `AgentRecord` memiliki UUID, realm, dan timestamp. `AgentPairing` dapat be
 `AgentJob` menyimpan requester, conversation, profile, runner, repository, source, result, policy, budget, revision, dan state. `AgentAttempt` menyimpan lease epoch, descriptor, process state, cursors, dan stop evidence. Sejak keputusan SDK agent 2026-09-24, `AgentAttempt` juga menyimpan `lane` (`fast` atau `code`), `context_bundle_digest`, dan titik waktu per tahap (`queued_at`, `claimed_at`, `model_request_at`, `first_delta_at`, `first_draft_at`, `prepared_at`, `published_at`, `stopped_at`; lihat [latensi dan keandalan](spec/2026-09-24-agent-latency-and-reliability.md) bagian 4.1). `AgentOperation`, `AgentApproval`, `AgentVerification`, dan `AgentArtifact` membatasi effect, keputusan, pemeriksaan, dan hasil. Satu operasi dapat memiliki beberapa record approval menurut ForeignKey source. Constraint service menentukan approval yang dapat dikonsumsi.
 
 `AgentSetupOperation` dan `AgentProbeGrant` menyimpan probe readiness. Setup scope tidak memberi authority history pesan. `AgentSendIntent` dan `AgentDispatchReceipt` menyimpan admission pesan dan receipt idempotent.
+
+## Model papan tugas
+
+```mermaid
+erDiagram
+  REALM ||--o{ TASK_BOARD : has
+  TASK_BOARD ||--o{ TASK_BOARD_COLUMN : has
+  TASK_BOARD_COLUMN ||--o{ TASK : holds
+  REALM ||--o{ TASK : scopes
+  STREAM o|--o{ TASK : links_room
+  MESSAGE o|--o| TASK : origin_message
+  USER_PROFILE ||--o{ TASK : creates
+  USER_PROFILE o|--o{ TASK : assignee
+  USER_PROFILE o|--o{ TASK : reviewer
+  AGENT_PROFILE o|--o{ TASK : agent_profile
+  AGENT_JOB o|--o{ TASK : agent_job
+  TASK ||--o{ TASK_HISTORY : logs
+  USER_PROFILE o|--o{ TASK_HISTORY : acting_user
+```
+
+`Task`, `TaskBoard`, `TaskBoardColumn`, dan `TaskHistory`
+(`zerver/models/tasks.py`) sudah ada di source dan tidak butuh tabel baru untuk
+spec papan tugas Sanji (lihat [17-model-dan-api-key.md](pages/17-model-dan-api-key.md)
+dan seterusnya, serta [05-tugas.md](pages/05-tugas.md)). `Task.column` memakai
+`on_delete=PROTECT`: sebuah kolom tidak bisa dihapus selagi masih ada kartu di
+dalamnya.
 
 ## Kontrak settings pending Task9
 

@@ -1,10 +1,10 @@
-# PRD Grow Team
+# PRD Sanji
 
 Status produk: internal, web-first. Target pertama adalah tim lima sampai enam anggota. Produk dapat dipertimbangkan untuk klien setelah pilot internal dan gate operasi selesai.
 
 ## Masalah dan sasaran
 
-Tim membutuhkan percakapan kerja yang dapat dicari menurut kanal dan topik. Grow Team mempertahankan chat Zulip dan menambahkan kemampuan agent secara terkendali. Anggota memakai browser untuk chat, membuat tugas, melihat status, memberi input, dan meninjau approval. Runner dapat berada pada laptop atau server milik owner.
+Tim membutuhkan percakapan kerja yang dapat dicari menurut kanal dan topik. Sanji mempertahankan chat Zulip dan menambahkan kemampuan agent secara terkendali. Anggota memakai browser untuk chat, membuat tugas, melihat status, memberi input, dan meninjau approval. Runner dapat berada pada laptop atau server milik owner.
 
 ## Persona
 
@@ -15,7 +15,7 @@ Tim membutuhkan percakapan kerja yang dapat dicari menurut kanal dan topik. Grow
 
 ## Cakupan chat dan bukti sebelumnya
 
-Chat, kanal, topik, DM, pencarian, unggah, peran, undangan, reset password, dan email transaksi berasal dari fork Zulip. Bukti deploy bertanggal mencakup `team.growc.id`, halaman publik, sesi admin, tampilan pesan, event queue, dan identitas Grow Team. Lihat [laporan verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md). Bukti ini mendukung status chat. Bukti ini tidak menyatakan semua ACL, recovery penuh, atau rilis agent sudah selesai.
+Chat, kanal, topik, DM, pencarian, unggah, peran, undangan, reset password, dan email transaksi berasal dari fork Zulip. Bukti deploy bertanggal mencakup `team.growc.id`, halaman publik, sesi admin, tampilan pesan, event queue, dan identitas Sanji. Lihat [laporan verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md). Bukti ini mendukung status chat. Bukti ini tidak menyatakan semua ACL, recovery penuh, atau rilis agent sudah selesai.
 
 ## Perilaku target pilot agent
 

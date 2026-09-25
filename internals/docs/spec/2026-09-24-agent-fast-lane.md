@@ -24,14 +24,14 @@ Hasil yang diminta:
 
 Keadaan sekarang (diukur dari 8 job `answer` yang selesai di produksi, 2026-09-23):
 
-| Tahap                             | Waktu                  | Penyebab                                                         |
-| --------------------------------- | ---------------------- | ---------------------------------------------------------------- |
-| Pesan sampai job masuk antrean    | 1–2 s                  | Sudah cepat                                                      |
-| Job masuk antrean sampai mulai    | 12–17 s (sekali 53 s)  | Polling 2 s, lalu satu container model baru untuk setiap attempt |
-| Baca konteks                      | 8–15 s                 | `context.read` lewat propose, consume, dan siklus polling        |
-| Model menjawab                    | 18–40 s                | Tanpa streaming, effort default `high`, 150–830 token keluaran   |
-| Hasil siap sampai tampil di chat  | 6–24 s                 | Publikasi menunggu bukti container berhenti                      |
-| **Total**                         | **47–118 s, median ±75 s** |                                                              |
+| Tahap                            | Waktu                      | Penyebab                                                         |
+| -------------------------------- | -------------------------- | ---------------------------------------------------------------- |
+| Pesan sampai job masuk antrean   | 1–2 s                      | Sudah cepat                                                      |
+| Job masuk antrean sampai mulai   | 12–17 s (sekali 53 s)      | Polling 2 s, lalu satu container model baru untuk setiap attempt |
+| Baca konteks                     | 8–15 s                     | `context.read` lewat propose, consume, dan siklus polling        |
+| Model menjawab                   | 18–40 s                    | Tanpa streaming, effort default `high`, 150–830 token keluaran   |
+| Hasil siap sampai tampil di chat | 6–24 s                     | Publikasi menunggu bukti container berhenti                      |
+| **Total**                        | **47–118 s, median ±75 s** |                                                                  |
 
 Dari 15 job, 7 berakhir `interrupted` atau `cancelled`.
 
@@ -54,25 +54,25 @@ Dari 15 job, 7 berakhir `interrupted` atau `cancelled`.
 
 ### 2.1 Istilah
 
-| Istilah         | Arti                                                                                        |
-| --------------- | ------------------------------------------------------------------------------------------- |
-| Jalur (lane)    | Cara menjalankan attempt. Nilai: `fast` atau `code`. Server memilih jalur dari jenis job.   |
-| Jalur cepat     | Loop Anthropic SDK di dalam proses runner. Untuk `answer` dan `manage`.                     |
-| Jalur code      | Container, adapter, dan workspace yang ada. Untuk `code`.                                   |
-| Paket konteks   | Konteks awal yang server susun saat claim, dibatasi audiens dan token.                      |
-| Pesan draft     | Pesan bot di topik asal yang server edit selama jawaban ditulis.                            |
-| Snapshot draft  | Teks jawaban lengkap sampai saat itu, dikirim runner dengan nomor urut.                     |
-| Koneksi model   | Base URL, kunci, dan model pada host runner untuk API Anthropic Messages.                   |
-| Alat baca       | Alat tanpa efek yang server jalankan dalam satu request (`operations/run`).                 |
-| Alat tim        | Satu dari 11 alat `manage` pada [spesifikasi administrator](2026-09-23-agent-administrator.md). |
+| Istilah        | Arti                                                                                            |
+| -------------- | ----------------------------------------------------------------------------------------------- |
+| Jalur (lane)   | Cara menjalankan attempt. Nilai: `fast` atau `code`. Server memilih jalur dari jenis job.       |
+| Jalur cepat    | Loop Anthropic SDK di dalam proses runner. Untuk `answer` dan `manage`.                         |
+| Jalur code     | Container, adapter, dan workspace yang ada. Untuk `code`.                                       |
+| Paket konteks  | Konteks awal yang server susun saat claim, dibatasi audiens dan token.                          |
+| Pesan draft    | Pesan bot di topik asal yang server edit selama jawaban ditulis.                                |
+| Snapshot draft | Teks jawaban lengkap sampai saat itu, dikirim runner dengan nomor urut.                         |
+| Koneksi model  | Base URL, kunci, dan model pada host runner untuk API Anthropic Messages.                       |
+| Alat baca      | Alat tanpa efek yang server jalankan dalam satu request (`operations/run`).                     |
+| Alat tim       | Satu dari 11 alat `manage` pada [spesifikasi administrator](2026-09-23-agent-administrator.md). |
 
 ## 3. Pemilihan jalur
 
-| `job_kind` | Jalur  | Alat                                             | Effort default | Batas giliran alat | Batas waktu attempt |
-| ---------- | ------ | ------------------------------------------------ | -------------- | ------------------ | ------------------- |
-| `answer`   | `fast` | Alat baca (bagian 7)                             | `low`          | 8                  | 3 menit             |
-| `manage`   | `fast` | Alat baca + alat tim                             | `medium`       | 20                 | 15 menit            |
-| `code`     | `code` | Sesuai [spesifikasi eksekusi](2026-09-22-agent-execution-context-skills-and-mcp.md) | Sesuai profil | 40 | 60 menit |
+| `job_kind` | Jalur  | Alat                                                                                | Effort default | Batas giliran alat | Batas waktu attempt |
+| ---------- | ------ | ----------------------------------------------------------------------------------- | -------------- | ------------------ | ------------------- |
+| `answer`   | `fast` | Alat baca (bagian 7)                                                                | `low`          | 8                  | 3 menit             |
+| `manage`   | `fast` | Alat baca + alat tim                                                                | `medium`       | 20                 | 15 menit            |
+| `code`     | `code` | Sesuai [spesifikasi eksekusi](2026-09-22-agent-execution-context-skills-and-mcp.md) | Sesuai profil  | 40                 | 60 menit            |
 
 Aturan:
 
@@ -88,7 +88,7 @@ Aturan:
 ```mermaid
 sequenceDiagram
     participant U as Staf
-    participant S as Server Grow Team
+    participant S as Server Sanji
     participant T as Tornado (/runner/wake)
     participant R as Runner (jalur cepat)
     participant M as API Anthropic Messages
@@ -116,14 +116,14 @@ sequenceDiagram
 
 Langkah dan target waktu:
 
-| Langkah                                   | Target p50 | Catatan                                               |
-| ----------------------------------------- | ---------- | ----------------------------------------------------- |
-| Pesan sampai indikator mengetik           | < 1 s      | Server mengirim indikator saat admission menerima job |
-| Job masuk antrean sampai claim            | < 0,5 s    | Long-poll `/runner/wake`, bukan polling               |
-| Claim sampai request model dikirim        | < 0,5 s    | Paket konteks sudah ada di respons claim              |
-| Request model sampai delta teks pertama   | < 4 s      | Effort `low`, prompt cache                            |
-| Delta pertama sampai pesan draft tampil   | < 1,5 s    | Snapshot pertama langsung, lalu maks 1 per detik      |
-| `result.prepared` sampai hasil final      | < 1 s      | Tanpa menunggu `attempt.stopped`                      |
+| Langkah                                 | Target p50 | Catatan                                               |
+| --------------------------------------- | ---------- | ----------------------------------------------------- |
+| Pesan sampai indikator mengetik         | < 1 s      | Server mengirim indikator saat admission menerima job |
+| Job masuk antrean sampai claim          | < 0,5 s    | Long-poll `/runner/wake`, bukan polling               |
+| Claim sampai request model dikirim      | < 0,5 s    | Paket konteks sudah ada di respons claim              |
+| Request model sampai delta teks pertama | < 4 s      | Effort `low`, prompt cache                            |
+| Delta pertama sampai pesan draft tampil | < 1,5 s    | Snapshot pertama langsung, lalu maks 1 per detik      |
+| `result.prepared` sampai hasil final    | < 1 s      | Tanpa menunggu `attempt.stopped`                      |
 
 ## 5. Bangun runner dan claim
 
@@ -155,15 +155,15 @@ Server menyusun paket konteks di dalam claim, sesudah pemeriksaan akses terakhir
 
 Isi paket:
 
-| Bagian               | Isi                                                                                         | Batas                     |
-| -------------------- | ------------------------------------------------------------------------------------------- | ------------------------- |
-| `request`            | Pesan pemicu, pengirim, waktu, dan pesan yang dikutip                                        | 1 pesan + kutipan         |
-| `conversation`       | Pesan terbaru di topik asal atau DM, urut waktu                                              | 50 pesan atau 12.000 token |
-| `place`              | Nama channel, deskripsi channel, nama topik, jenis audiens                                   | —                         |
-| `people`             | Nama dan peran orang yang muncul di `conversation`                                           | 50 orang                  |
-| `requester`          | Nama, peran realm, zona waktu, bahasa                                                        | —                         |
-| `instructions`       | Instruksi realm, instruksi profil, indeks skill (urutan dari spesifikasi eksekusi bagian 9.2) | 8.000 token               |
-| `audience_epoch`     | Epoch audiens saat paket disusun                                                             | —                         |
+| Bagian           | Isi                                                                                           | Batas                      |
+| ---------------- | --------------------------------------------------------------------------------------------- | -------------------------- |
+| `request`        | Pesan pemicu, pengirim, waktu, dan pesan yang dikutip                                         | 1 pesan + kutipan          |
+| `conversation`   | Pesan terbaru di topik asal atau DM, urut waktu                                               | 50 pesan atau 12.000 token |
+| `place`          | Nama channel, deskripsi channel, nama topik, jenis audiens                                    | —                          |
+| `people`         | Nama dan peran orang yang muncul di `conversation`                                            | 50 orang                   |
+| `requester`      | Nama, peran realm, zona waktu, bahasa                                                         | —                          |
+| `instructions`   | Instruksi realm, instruksi profil, indeks skill (urutan dari spesifikasi eksekusi bagian 9.2) | 8.000 token                |
+| `audience_epoch` | Epoch audiens saat paket disusun                                                              | —                          |
 
 Aturan:
 
@@ -201,13 +201,13 @@ Paket konteks, jalur, dan snapshot draft butuh `schema_version` 2.
 
 ### 6.2 Koneksi model
 
-| Field        | Arti                                                                  |
-| ------------ | --------------------------------------------------------------------- |
-| `api`        | Nilai tetap `anthropic_messages`                                      |
-| `base_url`   | Endpoint Anthropic Messages, misalnya 9router atau API Anthropic      |
-| `api_key`    | Disimpan di berkas privat runner (mode 600). Tidak pernah ke server   |
-| `model`      | ID model, misalnya `claude-opus-5`                                    |
-| `max_output` | Batas atas `max_tokens` yang pemilik izinkan                          |
+| Field        | Arti                                                                |
+| ------------ | ------------------------------------------------------------------- |
+| `api`        | Nilai tetap `anthropic_messages`                                    |
+| `base_url`   | Endpoint Anthropic Messages, misalnya 9router atau API Anthropic    |
+| `api_key`    | Disimpan di berkas privat runner (mode 600). Tidak pernah ke server |
+| `model`      | ID model, misalnya `claude-opus-5`                                  |
+| `max_output` | Batas atas `max_tokens` yang pemilik izinkan                        |
 
 Aturan:
 
@@ -225,16 +225,16 @@ Aturan:
 
 Server mengirim `model_policy` pada claim. Runner tidak menaikkan nilainya.
 
-| Field               | `answer`        | `manage`        |
-| ------------------- | --------------- | --------------- |
-| `effort`            | `low`           | `medium`        |
+| Field               | `answer`                       | `manage`                       |
+| ------------------- | ------------------------------ | ------------------------------ |
+| `effort`            | `low`                          | `medium`                       |
 | `thinking`          | `adaptive`, tampilan `omitted` | `adaptive`, tampilan `omitted` |
-| `max_tokens`        | 8.000           | 16.000          |
-| `tool_rounds`       | 8               | 20              |
-| `idle_timeout_s`    | 30              | 30              |
-| `turn_timeout_s`    | 120             | 180             |
-| `attempt_timeout_s` | 180             | 900             |
-| `max_retries`       | 2               | 2               |
+| `max_tokens`        | 8.000                          | 16.000                         |
+| `tool_rounds`       | 8                              | 20                             |
+| `idle_timeout_s`    | 30                             | 30                             |
+| `turn_timeout_s`    | 120                            | 180                            |
+| `attempt_timeout_s` | 180                            | 900                            |
+| `max_retries`       | 2                              | 2                              |
 
 Aturan:
 
@@ -307,15 +307,15 @@ Alat baca memakai endpoint baru `POST /runner/operations/run`:
 
 Semua alat membaca atas nama pemberi perintah, dibatasi audiens job.
 
-| ID alat              | Fungsi                                                                     | Batas hasil       |
-| -------------------- | -------------------------------------------------------------------------- | ----------------- |
-| `context.read`       | Baca referensi konteks tambahan yang server sebut di paket                  | Sesuai v1         |
-| `messages.search`    | Cari pesan di channel yang terlihat oleh irisan audiens                     | 20 pesan          |
-| `topic.history`      | Baca pesan satu topik yang terlihat, dengan kursor                          | 50 pesan per call |
-| `channels.list`      | Daftar channel yang terlihat, dengan jumlah anggota dan deskripsi           | 200 channel       |
-| `people.find`        | Cari orang yang terlihat: nama, peran, zona waktu                           | 20 orang          |
-| `tasks.list`         | Daftar kartu task board yang terlihat, dengan filter kolom dan penanggung jawab | 50 kartu      |
-| `team.find`          | Sesuai spesifikasi administrator, hanya untuk `manage`                      | 10 per jenis      |
+| ID alat           | Fungsi                                                                          | Batas hasil       |
+| ----------------- | ------------------------------------------------------------------------------- | ----------------- |
+| `context.read`    | Baca referensi konteks tambahan yang server sebut di paket                      | Sesuai v1         |
+| `messages.search` | Cari pesan di channel yang terlihat oleh irisan audiens                         | 20 pesan          |
+| `topic.history`   | Baca pesan satu topik yang terlihat, dengan kursor                              | 50 pesan per call |
+| `channels.list`   | Daftar channel yang terlihat, dengan jumlah anggota dan deskripsi               | 200 channel       |
+| `people.find`     | Cari orang yang terlihat: nama, peran, zona waktu                               | 20 orang          |
+| `tasks.list`      | Daftar kartu task board yang terlihat, dengan filter kolom dan penanggung jawab | 50 kartu          |
+| `team.find`       | Sesuai spesifikasi administrator, hanya untuk `manage`                          | 10 per jenis      |
 
 Aturan:
 
@@ -338,11 +338,11 @@ Jalur cepat memakai state machine yang ada. Perubahan:
 
 ### 8.2 Event `result.draft`
 
-| Field       | Arti                                                  |
-| ----------- | ----------------------------------------------------- |
-| `draft_seq` | Nomor urut naik per attempt                           |
+| Field       | Arti                                                       |
+| ----------- | ---------------------------------------------------------- |
+| `draft_seq` | Nomor urut naik per attempt                                |
 | `text`      | Teks jawaban lengkap sampai saat ini, maks 10.000 karakter |
-| `final`     | Selalu `false`. Hasil final memakai `result.prepared` |
+| `final`     | Selalu `false`. Hasil final memakai `result.prepared`      |
 
 Aturan:
 
@@ -390,37 +390,37 @@ Semua invarian ini tetap berlaku di jalur cepat:
 
 Risiko baru dan pengendaliannya:
 
-| Risiko                                             | Pengendalian                                                        |
-| -------------------------------------------------- | ------------------------------------------------------------------- |
+| Risiko                                              | Pengendalian                                                        |
+| --------------------------------------------------- | ------------------------------------------------------------------- |
 | Loop model sekarang di proses host, tanpa container | Proses runner tidak menjalankan kode. Alat hanya request ke server. |
-| Data satu job terbaca job lain                     | Isolasi bagian 6.6 dan tes FL-12                                    |
-| Rahasia lolos lewat snapshot                       | Filter dengan buffer 64 karakter, disaring lagi di server           |
-| Paket konteks terlalu luas                         | Batas bagian 5.3 dan cek akses per pesan                            |
+| Data satu job terbaca job lain                      | Isolasi bagian 6.6 dan tes FL-12                                    |
+| Rahasia lolos lewat snapshot                        | Filter dengan buffer 64 karakter, disaring lagi di server           |
+| Paket konteks terlalu luas                          | Batas bagian 5.3 dan cek akses per pesan                            |
 
 ## 11. Observabilitas
 
 Runner dan server mencatat per attempt, tanpa isi prompt dan tanpa isi jawaban:
 
-| Metrik                     | Sumber  |
-| -------------------------- | ------- |
+| Metrik                                                                                                           | Sumber    |
+| ---------------------------------------------------------------------------------------------------------------- | --------- |
 | `queued_at`, `claimed_at`, `model_request_at`, `first_delta_at`, `first_draft_at`, `prepared_at`, `published_at` | Event job |
-| `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens` | Usage SDK |
-| `tool_calls`, `tool_ms_total`, `retries`                   | Runner    |
-| `failure_code`                                             | Server    |
+| `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`                        | Usage SDK |
+| `tool_calls`, `tool_ms_total`, `retries`                                                                         | Runner    |
+| `failure_code`                                                                                                   | Server    |
 
 Target, dasbor, dan alarm ada di
 [spesifikasi latensi dan keandalan](2026-09-24-agent-latency-and-reliability.md).
 
 ## 12. Rencana rilis
 
-| Fase | Isi                                                                                               | Syarat lanjut                         |
-| ---- | ------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| F0   | Probe koneksi model: `POST /v1/messages`, streaming, dan satu `tool_use` pada endpoint produksi.   | Probe lulus, atau keputusan pengganti |
-| F1   | Perbaikan cepat di harness lama: idle timeout, effort `low` untuk `answer`, publikasi `answer` tanpa menunggu stop | Tes AT, AF lama tetap lulus |
-| F2   | Protokol v2, long-poll `/runner/wake`, paket konteks, loop SDK jalur cepat di balik flag profil `fast_lane` | FL-01 sampai FL-15 lulus      |
-| F3   | Pesan draft dan snapshot streaming                                                                | FL-16 sampai FL-22 lulus              |
-| F4   | Katalog alat baca v2 dan `operations/run`                                                         | FL-23 sampai FL-27 lulus              |
-| F5   | Flag aktif untuk semua profil. Jalur `answer` dan `manage` lama dipensiunkan                      | Target latensi 7 hari berturut-turut  |
+| Fase | Isi                                                                                                                | Syarat lanjut                         |
+| ---- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------- |
+| F0   | Probe koneksi model: `POST /v1/messages`, streaming, dan satu `tool_use` pada endpoint produksi.                   | Probe lulus, atau keputusan pengganti |
+| F1   | Perbaikan cepat di harness lama: idle timeout, effort `low` untuk `answer`, publikasi `answer` tanpa menunggu stop | Tes AT, AF lama tetap lulus           |
+| F2   | Protokol v2, long-poll `/runner/wake`, paket konteks, loop SDK jalur cepat di balik flag profil `fast_lane`        | FL-01 sampai FL-15 lulus              |
+| F3   | Pesan draft dan snapshot streaming                                                                                 | FL-16 sampai FL-22 lulus              |
+| F4   | Katalog alat baca v2 dan `operations/run`                                                                          | FL-23 sampai FL-27 lulus              |
+| F5   | Flag aktif untuk semua profil. Jalur `answer` dan `manage` lama dipensiunkan                                       | Target latensi 7 hari berturut-turut  |
 
 Aturan:
 
@@ -432,37 +432,37 @@ Aturan:
 
 ## 13. Kriteria penerimaan (FL)
 
-| ID    | Kriteria                                                                                                  |
-| ----- | --------------------------------------------------------------------------------------------------------- |
-| FL-01 | Server memilih `lane` dari `job_kind`. Runner tidak dapat mengubahnya.                                    |
-| FL-02 | Job `answer` dan `manage` tidak membuat container.                                                        |
-| FL-03 | Sinyal `agent_job_ready` membuat runner mengklaim job dalam 0,5 s (p50) di lingkungan tes.                 |
-| FL-04 | Polling cadangan mengklaim job bila long-poll `/runner/wake` terputus.                                    |
-| FL-05 | Paket konteks hanya memuat pesan yang terlihat oleh irisan audiens. Tes negatif untuk channel privat lain. |
-| FL-06 | Paket konteks dipangkas sesuai batas bagian 5.3 dan mencatat jumlah pesan yang dibuang.                    |
-| FL-07 | Tidak ada panggilan jaringan atau model di dalam transaksi claim.                                          |
-| FL-08 | Runner v1 tidak menerima job jalur cepat.                                                                  |
-| FL-09 | Request model memakai `effort`, `max_tokens`, dan timeout dari `model_policy`.                             |
-| FL-10 | Stream diam 30 s diputus. Stream lambat yang aktif tidak diputus.                                         |
-| FL-11 | `cache_read_input_tokens` lebih dari 0 pada job kedua dengan profil sama dalam 1 jam.                      |
-| FL-12 | Dua job paralel pada satu runner tidak berbagi riwayat atau hasil alat.                                    |
-| FL-13 | `tool_use` dengan nama asing ditolak sebelum dispatch.                                                     |
-| FL-14 | JSON alat yang terpotong tidak menjalankan alat.                                                           |
-| FL-15 | `max_tokens`, `refusal`, dan `end_turn` tanpa teks berakhir dengan pesan gagal yang terlihat.              |
-| FL-16 | Pesan draft pertama tampil paling lambat 1,5 s sesudah delta teks pertama.                                 |
-| FL-17 | Snapshot lama (`draft_seq` lebih kecil) tidak menimpa teks yang lebih baru.                                |
-| FL-18 | Rahasia yang terpotong di batas dua delta tidak tampil di pesan draft.                                     |
-| FL-19 | Hasil final mengedit pesan draft. Tidak ada pesan hasil kedua.                                             |
-| FL-20 | Hasil final tampil paling lambat 1 s sesudah `result.prepared`, tanpa menunggu `attempt.stopped`.          |
-| FL-21 | Batal di tengah streaming mengubah pesan draft ke teks batal, lalu job menjadi `cancelled`.                |
-| FL-22 | Perubahan audiens di tengah streaming menahan hasil dan menyembunyikan pesan draft.                        |
+| ID    | Kriteria                                                                                                    |
+| ----- | ----------------------------------------------------------------------------------------------------------- |
+| FL-01 | Server memilih `lane` dari `job_kind`. Runner tidak dapat mengubahnya.                                      |
+| FL-02 | Job `answer` dan `manage` tidak membuat container.                                                          |
+| FL-03 | Sinyal `agent_job_ready` membuat runner mengklaim job dalam 0,5 s (p50) di lingkungan tes.                  |
+| FL-04 | Polling cadangan mengklaim job bila long-poll `/runner/wake` terputus.                                      |
+| FL-05 | Paket konteks hanya memuat pesan yang terlihat oleh irisan audiens. Tes negatif untuk channel privat lain.  |
+| FL-06 | Paket konteks dipangkas sesuai batas bagian 5.3 dan mencatat jumlah pesan yang dibuang.                     |
+| FL-07 | Tidak ada panggilan jaringan atau model di dalam transaksi claim.                                           |
+| FL-08 | Runner v1 tidak menerima job jalur cepat.                                                                   |
+| FL-09 | Request model memakai `effort`, `max_tokens`, dan timeout dari `model_policy`.                              |
+| FL-10 | Stream diam 30 s diputus. Stream lambat yang aktif tidak diputus.                                           |
+| FL-11 | `cache_read_input_tokens` lebih dari 0 pada job kedua dengan profil sama dalam 1 jam.                       |
+| FL-12 | Dua job paralel pada satu runner tidak berbagi riwayat atau hasil alat.                                     |
+| FL-13 | `tool_use` dengan nama asing ditolak sebelum dispatch.                                                      |
+| FL-14 | JSON alat yang terpotong tidak menjalankan alat.                                                            |
+| FL-15 | `max_tokens`, `refusal`, dan `end_turn` tanpa teks berakhir dengan pesan gagal yang terlihat.               |
+| FL-16 | Pesan draft pertama tampil paling lambat 1,5 s sesudah delta teks pertama.                                  |
+| FL-17 | Snapshot lama (`draft_seq` lebih kecil) tidak menimpa teks yang lebih baru.                                 |
+| FL-18 | Rahasia yang terpotong di batas dua delta tidak tampil di pesan draft.                                      |
+| FL-19 | Hasil final mengedit pesan draft. Tidak ada pesan hasil kedua.                                              |
+| FL-20 | Hasil final tampil paling lambat 1 s sesudah `result.prepared`, tanpa menunggu `attempt.stopped`.           |
+| FL-21 | Batal di tengah streaming mengubah pesan draft ke teks batal, lalu job menjadi `cancelled`.                 |
+| FL-22 | Perubahan audiens di tengah streaming menahan hasil dan menyembunyikan pesan draft.                         |
 | FL-23 | `operations/run` menjalankan alat baca dalam satu request dan mengembalikan hasil tersimpan saat diulang.   |
-| FL-24 | `operations/run` menolak alat tim.                                                                         |
-| FL-25 | Alat baca v2 tidak membocorkan nama, ID, atau jumlah sumber daya yang tidak terlihat.                     |
-| FL-26 | Job `answer` tidak mendapat alat tim.                                                                      |
-| FL-27 | Alat baca dalam satu giliran berjalan paralel. Alat tim berjalan berurutan.                                |
-| FL-28 | Kunci model tidak muncul di event, jurnal, log, atau error.                                                |
-| FL-29 | Job `code` tetap memakai jalur code dan lulus tes EX yang ada.                                             |
+| FL-24 | `operations/run` menolak alat tim.                                                                          |
+| FL-25 | Alat baca v2 tidak membocorkan nama, ID, atau jumlah sumber daya yang tidak terlihat.                       |
+| FL-26 | Job `answer` tidak mendapat alat tim.                                                                       |
+| FL-27 | Alat baca dalam satu giliran berjalan paralel. Alat tim berjalan berurutan.                                 |
+| FL-28 | Kunci model tidak muncul di event, jurnal, log, atau error.                                                 |
+| FL-29 | Job `code` tetap memakai jalur code dan lulus tes EX yang ada.                                              |
 | FL-30 | Gagal di mana pun menghasilkan pesan untuk pemberi perintah dalam 30 s. Tidak ada job yang gagal diam-diam. |
 
 ## 14. Yang tidak berubah

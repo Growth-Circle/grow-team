@@ -1,8 +1,8 @@
-# Roadmap Grow Team
+# Roadmap Sanji
 
 Tidak ada tanggal komitmen dalam roadmap ini. Status membedakan bukti deploy chat, komponen source, dan gate rilis produk.
 
-1. **Workspace internal chat — bukti deploy bertanggal tersedia.** Fork Grow Team berjalan pada `team.growc.id`. Bukti branding mencakup halaman publik, sesi admin, browser inti, dan identitas produk. Pertahankan bukti ini untuk chat. Ulangi bukti bila rilis berubah. Gate tersisa mencakup ACL penuh, capacity, dan restore stack penuh.
+1. **Workspace internal chat — bukti deploy bertanggal tersedia.** Fork Sanji berjalan pada `team.growc.id`. Bukti branding mencakup halaman publik, sesi admin, browser inti, dan identitas produk. Pertahankan bukti ini untuk chat. Ulangi bukti bila rilis berubah. Gate tersisa mencakup ACL penuh, capacity, dan restore stack penuh.
 2. **Control plane dan runner agent — komponen selesai direview.** Task 0–6 telah selesai dan lulus review komponen. Model durable, policy, lifecycle, mention admission, runner, dan containment tersedia. Image `1c3ebcde3d7e` diuji sebagai intermediate image.
 3. **Settings dan UI agent — terbit di image `12.2-grow-team.22`; bukti penerimaan belum lengkap.** Image ini (`83b1a57b9e4`) memuat pengaturan agent, dialog tugas, drawer tugas, dan berbagi agent. Runner produksi online. Probe hanya merekam readiness; enable adalah aksi eksplisit pada revision yang diuji. Tugas Coding dari dialog tugas gagal pada image ini. Baris AT, AF, dan AS terkait belum lulus.
 4. **Rilis 23: agent administrator dan kerja tim — implementasi berjalan.** Kontrak mencakup [agent administrator](spec/2026-09-23-agent-administrator.md), berbagi agent ke tim, status di percakapan, kode alasan, default budget, daftar tugas, dan tugas Coding dari dialog tugas. [Keputusan harness](agent-harness-decision.md) mempertahankan Zulip dan `grow-agent-runner`.

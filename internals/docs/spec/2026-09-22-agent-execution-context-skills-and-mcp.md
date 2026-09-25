@@ -49,7 +49,7 @@ profil, skill, dan koneksi MCP mengisi bagian yang sengaja ditunda pada bagian
 
 Keputusan pengguna yang dipertahankan:
 
-- Semua pengaturan, tugas, review, dan pemulihan tersedia di web Grow Team.
+- Semua pengaturan, tugas, review, dan pemulihan tersedia di web Sanji.
 - Runner berjalan pada laptop atau server milik pengguna. Tidak perlu aplikasi desktop.
 - Job `code` memakai jalur code: agent terpasang melalui adapter dan runtime
   endpoint OpenAI-compatible tetap tersedia sesuai kemampuan yang diuji
@@ -72,7 +72,7 @@ sebelumnya membantu pencarian; keputusan diperiksa kembali pada source terbaru.
 Tes upstream dibaca sebagai contoh regresi, **tidak dijalankan dalam penelitian
 ini**. Pembacaan ini juga tidak membuktikan konfigurasi produksi Buzz.
 
-| ID    | Bukti Buzz                                                        | Temuan pada jalur yang diperiksa                                                                                                                                               | Konsekuensi untuk Grow Team                                                                                                         |
+| ID    | Bukti Buzz                                                        | Temuan pada jalur yang diperiksa                                                                                                                                               | Konsekuensi untuk Sanji                                                                                                         |
 | ----- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
 | BX-01 | [Listener][buzz-listener], [antrean][buzz-queue]                  | Pesan melewati pemeriksaan pengirim, filter, scope sesi, lalu antrean. Antrean mempunyai batas dan jalur pembuangan event.                                                     | Ambil pemisahan admission dan eksekusi; gunakan job/outbox durable Grow, tanpa membuang tugas yang sudah diterima.                  |
 | BX-02 | [Antrean][buzz-queue], [scope][buzz-scope]                        | Satu scope yang sedang berjalan tidak diproses sebagai turn paralel biasa; batching dan kebijakan sesi memengaruhi urutan.                                                     | Satu writer per attempt; follow-up memakai input berurutan, bukan sesi baru tanpa hubungan.                                         |
@@ -99,7 +99,7 @@ filesystem read-only yang ditetapkan fondasinya. [Source pod][buzz-pod].
 
 Pada source yang diperiksa, tidak ditemukan satu kontrak yang membuktikan setiap
 agent otomatis mengambil issue, membuat checkout terisolasi, menjalankan semua
-tes wajib, lalu melakukan commit. Kontrak berikut merupakan **desain Grow Team**
+tes wajib, lalu melakukan commit. Kontrak berikut merupakan **desain Sanji**
 yang memakai pelajaran Buzz, bukan klaim fitur Buzz yang tinggal diaktifkan.
 
 ## 3. Keputusan desain dan istilah
@@ -113,7 +113,7 @@ yang memakai pelajaran Buzz, bukan klaim fitur Buzz yang tinggal diaktifkan.
 | Istilah         | Arti                                                                  |
 | --------------- | --------------------------------------------------------------------- |
 | Agent           | Profil dan identitas percakapan yang dapat menerima tugas.            |
-| Runner          | Supervisor pada perangkat yang terhubung ke Grow Team.                |
+| Runner          | Supervisor pada perangkat yang terhubung ke Sanji.                |
 | Job             | Satu tugas pengguna yang tahan restart.                               |
 | Attempt         | Satu usaha eksekusi job dengan lease epoch tertentu.                  |
 | Claim           | Transaksi server yang menyerahkan attempt kepada runner.              |
@@ -464,7 +464,7 @@ terdeteksi. Artifact mempunyai pemeriksaan data scope sendiri.
 
 Identitas author, committer, trailer, DCO, serta signing berasal dari konfigurasi
 yang disetujui dan aturan repository. Jangan menebak identitas dari orang yang
-meminta tugas. Untuk repository Grow Team, setiap pesan commit wajib berakhir
+meminta tugas. Untuk repository Sanji, setiap pesan commit wajib berakhir
 dengan trailer berikut, setelah baris kosong:
 
 ```text

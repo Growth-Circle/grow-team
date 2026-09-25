@@ -1,4 +1,4 @@
-# Spesifikasi Koneksi Agent dan Coding Harness Grow Team
+# Spesifikasi Koneksi Agent dan Coding Harness Sanji
 
 Tanggal: 2026-09-21. Diperbarui 2026-09-24.
 
@@ -20,13 +20,13 @@ Pemeriksaan tambahan web Buzz: `5079c770fe30bb3d8204822ce6c2431eacac6d4b`.
 
 ## 1. Arah produk dan keputusan pengguna
 
-Grow Team akan menjadi tempat anggota tim memberi tugas kepada agent, mengikuti
+Sanji akan menjadi tempat anggota tim memberi tugas kepada agent, mengikuti
 pekerjaannya, meninjau perubahan kode, dan mengendalikan tindakan lanjutan.
-Percakapan tetap menggunakan kanal, topik, dan DM Grow Team yang sudah ada.
+Percakapan tetap menggunakan kanal, topik, dan DM Sanji yang sudah ada.
 
 Arahan pengguna yang sudah dikonfirmasi:
 
-1. Agent berjalan pada **laptop atau server milik pengguna** dan terhubung ke Grow Team.
+1. Agent berjalan pada **laptop atau server milik pengguna** dan terhubung ke Sanji.
 2. Pengguna juga dapat menambahkan **endpoint OpenAI-compatible**. Aturan ini
    berlaku untuk jalur code. Jalur cepat memakai koneksi model Anthropic Messages
    sesuai [spesifikasi jalur cepat](2026-09-24-agent-fast-lane.md) bagian 6.2.
@@ -39,7 +39,7 @@ tersebut. Dokumen ini tidak menyatakan koneksi agent, runner, tabel AI, atau API
 baru sudah tersedia. Tidak ada uji integrasi provider atau runtime agent dalam
 penyusunan dokumen ini.
 
-Rekomendasi produk: **pertahankan Zulip sebagai aplikasi web Grow Team dan adaptasi
+Rekomendasi produk: **pertahankan Zulip sebagai aplikasi web Sanji dan adaptasi
 pola harness Buzz**. Source web Buzz yang diperiksa menyediakan penjelajah
 repository dan halaman undangan. Jalur chat serta pengelolaan agent yang diperiksa
 masih menggunakan API Tauri pada aplikasi desktop. Rebrand Buzz akan memerlukan
@@ -50,14 +50,14 @@ memutuskan atau mengotorisasi perpindahan platform. Kelengkapan harness Buzz tet
 bermanfaat sebagai referensi dan kandidat runtime terpisah dari antarmukanya.
 
 Dokumen ini memberikan kontrak kemampuan yang dibutuhkan pada kedua jalur.
-Bagian arsitektur Django, model ORM, endpoint Grow Team, dan peta file menjelaskan
-implementasi konkret **jika Grow Team tetap memakai Zulip**. Pada jalur tersebut,
-gunakan **Grow Runner** pada perangkat pengguna dengan dua mode runtime:
+Bagian arsitektur Django, model ORM, endpoint Sanji, dan peta file menjelaskan
+implementasi konkret **jika Sanji tetap memakai Zulip**. Pada jalur tersebut,
+gunakan **runner** pada perangkat pengguna dengan dua mode runtime:
 **agent yang sudah tersedia** dan **agent bawaan yang memakai endpoint model**.
 Pada jalur Buzz, gunakan komponen upstream yang lulus pilot dan kerjakan hanya gap
 terhadap kontrak ini; jangan membangun ulang seluruh rancangan Django.
 
-Grow Runner berupa CLI atau layanan latar tanpa jendela aplikasi. Anggota tim
+Runner berupa CLI atau layanan latar tanpa jendela aplikasi. Anggota tim
 memakai browser untuk chat, memberi tugas, meninjau diff, dan memberi approval.
 Jika repository berada pada server, perangkat anggota tidak perlu memasang runner.
 Jika repository berada pada laptop, pemilik laptop memasang runner sekali agar
@@ -99,23 +99,23 @@ pada source. Ini bukan audit seluruh Zulip atau pemeriksaan ulang produksi.
 
 ## 3. Istilah
 
-| Istilah       | Arti dalam Grow Team                                                                                         |
-| ------------- | ------------------------------------------------------------------------------------------------------------ |
-| Runner        | Program pada laptop/server pengguna yang menerima pekerjaan dan mengelola proses agent.                      |
-| Agent         | Runtime yang membaca tugas, memanggil model, memakai tools, dan menghasilkan pekerjaan.                      |
-| Provider      | Layanan model dengan endpoint, metode autentikasi, model, dan kemampuan tertentu.                            |
-| Profil agent  | Konfigurasi agent yang dapat dipilih anggota: runtime, runner, provider opsional, repository, dan kebijakan. |
-| Control plane | Bagian Grow Team yang mengatur identitas, izin, job, approval, dan hasil.                                    |
-| Workspace     | Salinan kerja repository yang dikelola runner untuk satu attempt.                                            |
-| Job           | Satu permintaan pengguna dengan tujuan dan kriteria selesai.                                                 |
-| Attempt       | Satu usaha eksekusi job; memiliki lease, workspace, dan hasil pemeriksaan sendiri.                           |
-| Lease         | Hak eksekusi berjangka untuk satu attempt.                                                                   |
-| Fencing token | Nomor generasi yang menolak kiriman dari pemegang lease lama.                                                |
-| Artifact      | Diff, ringkasan, laporan tes, atau berkas hasil dengan akses terkontrol.                                     |
-| ACP           | Protokol antara pengendali dan coding agent. **[jalur code]**                                                 |
-| MCP           | Protokol antara agent dan layanan tools.                                                                     |
+| Istilah       | Arti dalam Sanji                                                                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Runner        | Program pada laptop/server pengguna yang menerima pekerjaan dan mengelola proses agent.                                                    |
+| Agent         | Runtime yang membaca tugas, memanggil model, memakai tools, dan menghasilkan pekerjaan.                                                    |
+| Provider      | Layanan model dengan endpoint, metode autentikasi, model, dan kemampuan tertentu.                                                          |
+| Profil agent  | Konfigurasi agent yang dapat dipilih anggota: runtime, runner, provider opsional, repository, dan kebijakan.                               |
+| Control plane | Bagian Sanji yang mengatur identitas, izin, job, approval, dan hasil.                                                                      |
+| Workspace     | Salinan kerja repository yang dikelola runner untuk satu attempt.                                                                          |
+| Job           | Satu permintaan pengguna dengan tujuan dan kriteria selesai.                                                                               |
+| Attempt       | Satu usaha eksekusi job; memiliki lease, workspace, dan hasil pemeriksaan sendiri.                                                         |
+| Lease         | Hak eksekusi berjangka untuk satu attempt.                                                                                                 |
+| Fencing token | Nomor generasi yang menolak kiriman dari pemegang lease lama.                                                                              |
+| Artifact      | Diff, ringkasan, laporan tes, atau berkas hasil dengan akses terkontrol.                                                                   |
+| ACP           | Protokol antara pengendali dan coding agent. **[jalur code]**                                                                              |
+| MCP           | Protokol antara agent dan layanan tools.                                                                                                   |
 | Jalur cepat   | Loop `@anthropic-ai/sdk` di proses runner untuk job `answer` dan `manage`. Lihat [spesifikasi jalur cepat](2026-09-24-agent-fast-lane.md). |
-| Jalur code    | Container, adapter ACP, dan endpoint child yang ada pada dokumen ini, untuk job `code`.                       |
+| Jalur code    | Container, adapter ACP, dan endpoint child yang ada pada dokumen ini, untuk job `code`.                                                    |
 
 ## 4. Sasaran, skenario, dan batas versi awal
 
@@ -124,7 +124,7 @@ pada source. Ini bukan audit seluruh Zulip atau pemeriksaan ulang produksi.
 1. Rama memasangkan runner di laptop, mendaftarkan repository, dan memilih agent.
 2. Anggota yang diberi akses menyebut profil agent pada topik pekerjaan.
 3. Agent membaca konteks yang diizinkan, menyiapkan workspace, mengubah kode, dan menjalankan pemeriksaan.
-4. Grow Team menampilkan progres, diff, hasil tes, serta tindakan yang membutuhkan keputusan pengguna.
+4. Sanji menampilkan progres, diff, hasil tes, serta tindakan yang membutuhkan keputusan pengguna.
 5. Laptop offline; job menampilkan status yang benar dan dapat dilanjutkan tanpa menggandakan tindakan eksternal.
 6. **[jalur code]** Pengguna menambahkan endpoint OpenAI-compatible dan menggunakannya melalui runtime agent bawaan pada runner yang dipilih.
 7. **[jalur cepat]** Anggota me-mention profil `answer` atau `manage`; runner memanggil koneksi model `anthropic_messages` sesuai [spesifikasi jalur cepat](2026-09-24-agent-fast-lane.md).
@@ -149,19 +149,19 @@ terstruktur pengguna, bukan ditebak dari isi percakapan.
 
 ### 4.3 Tahap berikutnya
 
-- Runner yang disediakan Grow Team, marketplace agent, penagihan, dan isolasi pelanggan komersial.
+- Runner yang disediakan Sanji, marketplace agent, penagihan, dan isolasi pelanggan komersial.
 - Eksekusi multi-agent untuk satu job; awalnya satu eksekutor agar kepemilikan workspace jelas.
 - Merge otomatis, deploy produksi, perubahan database produksi, dan terminal host tanpa pembatasan.
 - Penjadwalan proaktif yang dapat mengubah kode tanpa permintaan atau mandat pengguna.
 - Dukungan Windows dengan jaminan isolasi setara; pilot awal menargetkan Linux, lalu macOS setelah uji adapter dan sandbox.
-- Aplikasi desktop Grow Team; alur utama harus tersedia melalui browser.
+- Aplikasi desktop Sanji; alur utama harus tersedia melalui browser.
 
 Monitoring kanal pada FR-08 berarti menerima trigger terpilih. Keanggotaan kanal
 tidak otomatis memberi agent mandat untuk mengubah repository.
 
 ## 5. Pilihan arsitektur
 
-Dipensiunkan 2026-09-24: pemilik sudah memutuskan platform. Grow Team tetap
+Dipensiunkan 2026-09-24: pemilik sudah memutuskan platform. Sanji tetap
 memakai Zulip dengan control plane Django dan runner milik pengguna. Lihat
 [keputusan SDK agent](../agent-sdk-decision.md) dan
 [spesifikasi jalur cepat](2026-09-24-agent-fast-lane.md) untuk keputusan runtime
@@ -171,13 +171,13 @@ yang berlaku sekarang.
 
 ```mermaid
 flowchart TB
-    U[Browser Grow Team] --> API[Django: API agent dan pemeriksaan izin]
+    U[Browser Sanji] --> API[Django: API agent dan pemeriksaan izin]
     CHAT[Pesan atau mention] --> TR[Trigger terstruktur]
     TR --> DB[(PostgreSQL: job, attempt, approval, outbox)]
     API --> DB
     DB --> D[Dispatcher dan rekonsiliasi]
     D -. pemberitahuan .-> MQ[RabbitMQ]
-    R[Grow Runner milik pengguna] -->|HTTPS keluar: claim, event, heartbeat| API
+    R[Runner milik pengguna] -->|HTTPS keluar: claim, event, heartbeat| API
     R --> ACP["Adapter ACP [jalur code]"]
     R --> ER["Runtime endpoint [jalur code]"]
     R --> FL["Loop Anthropic SDK [jalur cepat]"]
@@ -193,20 +193,20 @@ flowchart TB
 
 ### 6.1 Penempatan komponen
 
-| Komponen              | Teknologi usulan                                                            | Tanggung jawab                                                                               |
-| --------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| API dan model kontrol | Python/Django yang sudah dipakai                                            | Auth, realm, ACL, policy, state machine, referensi konteks, artifact, approval.              |
-| Dispatcher            | Worker/management command Django terpisah                                   | Outbox, retry terjadwal, pemeriksaan lease, serta penerbitan hasil. Tidak menjalankan model. |
-| Antrean               | PostgreSQL sebagai sumber; RabbitMQ sebagai pemicu                          | Claim atomik, recovery ketika pemberitahuan hilang, dan pembagian kerja.                     |
-| Grow Runner           | TypeScript dengan Node yang dipatok saat implementasi                       | Pairing, claim, proses agent, supervisor, workspace, checkpoint lokal.                       |
-| Adapter ACP **[jalur code]** | SDK ACP TypeScript, versi dipatok                                    | Negosiasi kemampuan, prompt, progres, izin, dan cancel.                                      |
-| Runtime endpoint **[jalur code]** | Kandidat: subprocess `buzz-agent` atau modul TypeScript; pilih satu pada P0 | Loop model/tools, validasi argumen, budget, dan pemulihan konteks.                    |
-| Loop jalur cepat **[jalur cepat]** | `@anthropic-ai/sdk` di proses runner, versi terkunci                 | Streaming, loop alat, effort, dan cache sesuai spesifikasi jalur cepat.                       |
-| Tools coding          | Tool broker dan MCP lokal                                                   | Baca/edit berkas, pencarian, shell terisolasi, pemeriksaan, dan artifact.                    |
-| UI                    | TypeScript/jQuery/Handlebars existing                                       | Pengaturan koneksi dan panel tugas dalam aplikasi web.                                       |
+| Komponen                           | Teknologi usulan                                                            | Tanggung jawab                                                                               |
+| ---------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| API dan model kontrol              | Python/Django yang sudah dipakai                                            | Auth, realm, ACL, policy, state machine, referensi konteks, artifact, approval.              |
+| Dispatcher                         | Worker/management command Django terpisah                                   | Outbox, retry terjadwal, pemeriksaan lease, serta penerbitan hasil. Tidak menjalankan model. |
+| Antrean                            | PostgreSQL sebagai sumber; RabbitMQ sebagai pemicu                          | Claim atomik, recovery ketika pemberitahuan hilang, dan pembagian kerja.                     |
+| Runner                             | TypeScript dengan Node yang dipatok saat implementasi                       | Pairing, claim, proses agent, supervisor, workspace, checkpoint lokal.                       |
+| Adapter ACP **[jalur code]**       | SDK ACP TypeScript, versi dipatok                                           | Negosiasi kemampuan, prompt, progres, izin, dan cancel.                                      |
+| Runtime endpoint **[jalur code]**  | Kandidat: subprocess `buzz-agent` atau modul TypeScript; pilih satu pada P0 | Loop model/tools, validasi argumen, budget, dan pemulihan konteks.                           |
+| Loop jalur cepat **[jalur cepat]** | `@anthropic-ai/sdk` di proses runner, versi terkunci                        | Streaming, loop alat, effort, dan cache sesuai spesifikasi jalur cepat.                      |
+| Tools coding                       | Tool broker dan MCP lokal                                                   | Baca/edit berkas, pencarian, shell terisolasi, pemeriksaan, dan artifact.                    |
+| UI                                 | TypeScript/jQuery/Handlebars existing                                       | Pengaturan koneksi dan panel tugas dalam aplikasi web.                                       |
 
 Runner tidak mendapat koneksi PostgreSQL atau RabbitMQ aplikasi. Browser tidak
-memegang credential runner. Model tidak mendapat API key pengguna Grow Team.
+memegang credential runner. Model tidak mendapat API key pengguna Sanji.
 ACP digunakan pada koneksi lokal runner–agent; ACP stdio tidak diekspos langsung
 ke internet. MCP juga tidak menjadi mekanisme pairing perangkat.
 
@@ -218,17 +218,17 @@ memakai jalur cepat; lihat [spesifikasi jalur cepat](2026-09-24-agent-fast-lane.
 ### 7.1 Mode agent terpasang **[jalur code]**
 
 Pengguna memilih executable adapter yang sudah dipasang dan diizinkan secara
-lokal. Grow Team menyimpan alias adapter, bukan perintah shell bebas dari chat.
+lokal. Sanji menyimpan alias adapter, bukan perintah shell bebas dari chat.
 Runner memulai proses dengan argumen terstruktur dan working directory attempt.
 
 Kandidat adapter: Codex melalui `codex-acp`, Claude Code melalui
 `claude-agent-acp`, dan Goose melalui antarmuka ACP yang didukung versinya.
 Daftar ini adalah target sertifikasi, bukan klaim bahwa semuanya sudah lulus
-integrasi Grow Team. Paket adapter harus dipatok dan diuji sebelum ditawarkan
+integrasi Sanji. Paket adapter harus dipatok dan diuji sebelum ditawarkan
 sebagai pilihan siap coding.
 
 Autentikasi vendor berlangsung pada perangkat pengguna mengikuti kemampuan
-adapter. Grow Team tidak meminta password akun vendor. Dukungan langganan,
+adapter. Sanji tidak meminta password akun vendor. Dukungan langganan,
 API key, gateway, dan resume mengikuti adapter yang benar-benar diuji.
 Dokumentasi [codex-acp](https://github.com/agentclientprotocol/codex-acp/blob/main/README.md)
 dan [claude-agent-acp](https://github.com/agentclientprotocol/claude-agent-acp/blob/main/README.md)
@@ -237,7 +237,7 @@ menjadi titik awal, bukan pengganti uji versi rilis.
 ### 7.2 Mode endpoint OpenAI-compatible **[jalur code]**
 
 Pengguna menambahkan provider melalui UI, memilih runner, memasukkan model, lalu
-menjalankan tes koneksi. Grow Runner menjalankan agent bawaan yang memanggil
+menjalankan tes koneksi. Runner menjalankan agent bawaan yang memanggil
 provider tersebut dan memakai tool broker lokal untuk coding. Mode ini melayani
 job `code`. Job `answer` dan `manage` memakai loop `@anthropic-ai/sdk` dengan API
 Anthropic Messages pada jalur cepat; lihat
@@ -255,9 +255,9 @@ Tabel ini membandingkan dua mode jalur code. Kemampuan jalur cepat ada di
 | Kemampuan              | Agent terpasang                      | Runtime endpoint                                         |
 | ---------------------- | ------------------------------------ | -------------------------------------------------------- |
 | Percakapan dan progres | Negosiasi ACP, normalisasi event     | Implementasi loop dan event oleh runner                  |
-| Baca/edit repository   | Adapter dan batas sandbox yang diuji | Tool broker milik Grow Runner                            |
+| Baca/edit repository   | Adapter dan batas sandbox yang diuji | Tool broker milik runner                                 |
 | Shell dan pemeriksaan  | Diperiksa melalui kontrak adapter    | Proses terisolasi dengan batas resource                  |
-| Permission request     | Dipetakan ke policy Grow Team        | Diterapkan sebelum tool berjalan                         |
+| Permission request     | Dipetakan ke policy Sanji            | Diterapkan sebelum tool berjalan                         |
 | Resume native          | Hanya jika kemampuan tersedia        | Rekonstruksi dari checkpoint terstruktur                 |
 | Penggunaan token/biaya | Dapat tidak tersedia                 | Gunakan usage provider jika tersedia                     |
 | Pemadatan konteks      | Mengikuti kemampuan adapter          | Runtime membuat ringkasan dan mempertahankan tugas aktif |
@@ -273,7 +273,7 @@ keterbatasan izin adapter dengan konfigurasi otomatis yang mengizinkan semuanya.
 
 1. Buka **Pengaturan → Agent → Runner → Hubungkan perangkat**.
 2. Pasang paket runner yang sudah dirilis pada laptop/server pengguna.
-3. Jalankan perintah pairing dengan alamat Grow Team.
+3. Jalankan perintah pairing dengan alamat Sanji.
 4. Browser menampilkan nama perangkat, fingerprint, pemilik, dan izin yang diminta.
 5. Pengguna yang sedang login menyetujui pairing perangkat miliknya.
 6. Runner menyimpan credential pada penyimpanan lokal yang terlindungi.
@@ -305,7 +305,7 @@ jalur code. Nilai `anthropic_messages` menandai koneksi model jalur cepat; lihat
 
 Tombol **Uji koneksi** menjalankan probe pada runner yang dipilih. Ini penting
 untuk endpoint localhost, LAN, atau jaringan privat yang hanya dapat diakses
-perangkat pengguna. Grow Team menampilkan kemampuan yang lulus, bukan sekadar
+perangkat pengguna. Sanji menampilkan kemampuan yang lulus, bukan sekadar
 hasil HTTP 200. Jika runner offline, simpan konfigurasi sebagai belum diuji.
 
 ### 8.3 Memulai tugas coding
@@ -358,7 +358,7 @@ Credential tidak muncul dalam argumen proses, pesan chat, URL, atau log.
 
 Versi awal menggunakan HTTPS request singkat dan polling pekerjaan, dengan waktu
 tunggu maksimum 25 detik per request. Runner tidak membuka port inbound.
-Panggilan model dan proses coding berjalan lokal, di luar request HTTP Grow Team.
+Panggilan model dan proses coding berjalan lokal, di luar request HTTP Sanji.
 Tidak ada request publik yang ditahan selama seluruh pekerjaan coding.
 
 WebSocket dapat ditambahkan setelah kebutuhan latency terbukti. Jika ditambahkan,
@@ -382,7 +382,7 @@ Bagian 10.1–10.3 berlaku untuk **jalur code**. Koneksi model jalur cepat mengi
 
 Adapter melakukan `initialize`, mencatat versi dan kemampuan, lalu membuat sesi
 melalui `session/new`. Working directory harus merupakan path workspace attempt.
-Runner menerima `session/update` dan menormalkan progres ke event Grow Team.
+Runner menerima `session/update` dan menormalkan progres ke event Sanji.
 `session/load` hanya digunakan jika kemampuan `loadSession` tersedia.
 `session/cancel` diteruskan, disusul penghentian proses jika agent tidak merespons.
 Rujukan: [ACP overview](https://agentclientprotocol.com/protocol/v1/overview) dan
@@ -398,7 +398,7 @@ Rujukan: [ACP tool calls](https://agentclientprotocol.com/protocol/v1/tool-calls
 Adapter memiliki antarmuka internal usulan: `probe`, `start_session`,
 `send_turn`, `cancel`, `resume`, `close`, dan `capabilities`. Tidak semua metode
 wajib tersedia pada setiap adapter. `end_turn` hanya menutup turn model;
-completion verifier Grow Team tetap menentukan hasil job.
+completion verifier Sanji tetap menentukan hasil job.
 
 ### 10.2 Profil endpoint **[jalur code]**
 
@@ -502,7 +502,7 @@ utama memiliki perubahan dan menawarkan pemilihan commit yang jelas.
 | Edit    | Diff aktual dari workspace, bukan hanya daftar file yang diklaim model.                         |
 | Verify  | Perintah, working directory, exit code, waktu, hash tree, dan artifact keluaran.                |
 | Review  | Ringkasan diff, risiko, serta pemeriksaan yang lulus, gagal, atau belum dijalankan.             |
-| Deliver | Patch/diff pada Grow Team, atau branch/draft PR jika ada izin yang sesuai.                      |
+| Deliver | Patch/diff pada Sanji, atau branch/draft PR jika ada izin yang sesuai.                          |
 
 Model dapat mengusulkan perintah tes. Daftar pemeriksaan wajib berasal dari
 profil repository yang disetujui pemilik. Perubahan terhadap file tes atau
@@ -713,7 +713,7 @@ agent, cloud config, atau Docker socket pengguna ke sandbox.
 
 ### 15.2 Endpoint milik pengguna
 
-- Request model berasal dari runner terpilih, bukan fetch URL arbitrer dari server Grow Team.
+- Request model berasal dari runner terpilih, bukan fetch URL arbitrer dari server Sanji.
 - Gunakan HTTPS dan verifikasi sertifikat untuk endpoint jaringan publik.
 - HTTP loopback boleh untuk model lokal dengan pilihan eksplisit pemilik runner.
 - Endpoint LAN/Tailscale dapat diizinkan per hostname/port oleh pemilik; jangan memblokir semua alamat privat lalu menggagalkan kasus ini.
@@ -769,7 +769,7 @@ izin memicu coding.
 
 ### 16.3 Memori Titen
 
-- Titen menjadi memori bersama; database job tetap jurnal operasional Grow Team.
+- Titen menjadi memori bersama; database job tetap jurnal operasional Sanji.
 - Resolve origin Git lowercase melalui `titen_project_resolve` sebelum compile project.
 - Gunakan `user:rama` untuk Rama; pengguna lain memerlukan pemetaan subject manusia yang stabil.
 - Jangan memasukkan project, task, agent, atau run ke `subject_id`.
@@ -792,25 +792,25 @@ Gunakan model ORM dalam aplikasi Zulip yang sama dan migrasi aditif. Bagian ini
 mencakup entitas jalur code dan jalur cepat bersama; kolom yang bertanda
 **[jalur code]** hanya terisi pada attempt jalur code.
 
-| Entitas                 | Data pokok                                                                               | Aturan                                                                                                   |
-| ----------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `AgentRunner`           | ID, realm, pemilik, nama, fingerprint, versi, platform, last heartbeat, status           | Satu perangkat dapat memiliki registrasi terpisah per realm. Tidak ada credential lintas realm implisit. |
-| `AgentRunnerCredential` | Runner, hash token/refresh, expiry, revocation, rotation lineage                         | Secret tidak disimpan sebagai teks biasa.                                                                |
-| `AgentProvider`         | Pemilik, realm, runner, base URL, api mode (`chat_completions`/`responses` jalur code, atau `anthropic_messages` jalur cepat), model policy, config version | Provider pribadi dibagikan hanya melalui grant. Kunci jalur cepat tidak tersimpan di sini; lihat bagian 15.1. |
-| `AgentSecret`           | Ciphertext, key ID, secret type, pemilik, realm, versi                                   | API list/detail tidak mengembalikan plaintext. Tidak dipakai untuk kunci model jalur cepat.               |
-| `AgentRepository`       | Realm, owner, runner workspace alias, canonical origin, allowed refs, verify profile     | Path lokal dipetakan runner; server tidak dapat memilih path baru.                                       |
-| `AgentProfile`          | Bot user, runner, adapter **[jalur code]**, provider opsional, capability report, policy version | Mode ACP tidak wajib memiliki provider terpisah. Profil `answer`/`manage` tidak memakai `adapter`.        |
-| `AgentGrant`            | Principal/group, profil, repository, kanal/DM scope, tindakan, expiry                    | Izin admin platform tidak otomatis menjadi izin perangkat pengguna.                                      |
-| `AgentConversation`     | Realm, profil, anchor message, repository, session reference                             | Judul topik bukan primary key.                                                                           |
-| `AgentJob`              | Peminta, percakapan, tujuan, delivery target, idempotency key, status, phase, version    | Sumber status otoritatif; teks model bukan status.                                                       |
-| `AgentAttempt`          | Job, nomor attempt, runner, `lane` (`fast` atau `code`), adapter/provider version **[jalur code]**, base commit **[jalur code]**, lease epoch, deadline | Attempt yang sudah berakhir immutable untuk eksekusi. Server menulis `lane` saat claim; runner tidak memilihnya. |
-| `AgentContextRef`       | Job, jenis reference, message/file/repo reference, scope, waktu validasi                 | Snapshot izin bukan pengganti pemeriksaan akses baru.                                                    |
-| `AgentApproval`         | Job/attempt, operation hash, policy, approver, decision, expiry, consumed time           | Banyak approval per job; keputusan sekali pakai.                                                         |
-| `AgentOperation`        | Attempt, operation ID, tool class, argument digest, status, remote receipt               | Mendukung rekonsiliasi efek eksternal dan `outcome_unknown`.                                             |
-| `AgentArtifact`         | Attempt, jenis, checksum, size, storage ref, ACL, expiry                                 | Download melewati pemeriksaan akses; URL publik tidak digunakan.                                         |
-| `AgentCheckpoint`       | Attempt, base/tree hash, summary, context refs, next step, adapter session ref **[jalur code]** | Tidak berisi raw reasoning atau secret; isi ringkasan tidak dipercaya sebagai fakta. Jalur cepat tidak melanjutkan sesi model; lihat spesifikasi jalur cepat bagian 9. |
-| `AgentAuditEvent`       | Realm, job/attempt, sequence, aktor, jenis, timestamp, payload terbatas                  | Append-only pada API aplikasi; bukan klaim tahan manipulasi oleh administrator database.                 |
-| `AgentOutbox`           | Delivery key, event type, payload ref, attempt count, next attempt, status               | Recovery tidak bergantung pada queue broker yang masih menyimpan pesan.                                  |
+| Entitas                 | Data pokok                                                                                                                                                  | Aturan                                                                                                                                                                 |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AgentRunner`           | ID, realm, pemilik, nama, fingerprint, versi, platform, last heartbeat, status                                                                              | Satu perangkat dapat memiliki registrasi terpisah per realm. Tidak ada credential lintas realm implisit.                                                               |
+| `AgentRunnerCredential` | Runner, hash token/refresh, expiry, revocation, rotation lineage                                                                                            | Secret tidak disimpan sebagai teks biasa.                                                                                                                              |
+| `AgentProvider`         | Pemilik, realm, runner, base URL, api mode (`chat_completions`/`responses` jalur code, atau `anthropic_messages` jalur cepat), model policy, config version | Provider pribadi dibagikan hanya melalui grant. Kunci jalur cepat tidak tersimpan di sini; lihat bagian 15.1.                                                          |
+| `AgentSecret`           | Ciphertext, key ID, secret type, pemilik, realm, versi                                                                                                      | API list/detail tidak mengembalikan plaintext. Tidak dipakai untuk kunci model jalur cepat.                                                                            |
+| `AgentRepository`       | Realm, owner, runner workspace alias, canonical origin, allowed refs, verify profile                                                                        | Path lokal dipetakan runner; server tidak dapat memilih path baru.                                                                                                     |
+| `AgentProfile`          | Bot user, runner, adapter **[jalur code]**, provider opsional, capability report, policy version                                                            | Mode ACP tidak wajib memiliki provider terpisah. Profil `answer`/`manage` tidak memakai `adapter`.                                                                     |
+| `AgentGrant`            | Principal/group, profil, repository, kanal/DM scope, tindakan, expiry                                                                                       | Izin admin platform tidak otomatis menjadi izin perangkat pengguna.                                                                                                    |
+| `AgentConversation`     | Realm, profil, anchor message, repository, session reference                                                                                                | Judul topik bukan primary key.                                                                                                                                         |
+| `AgentJob`              | Peminta, percakapan, tujuan, delivery target, idempotency key, status, phase, version                                                                       | Sumber status otoritatif; teks model bukan status.                                                                                                                     |
+| `AgentAttempt`          | Job, nomor attempt, runner, `lane` (`fast` atau `code`), adapter/provider version **[jalur code]**, base commit **[jalur code]**, lease epoch, deadline     | Attempt yang sudah berakhir immutable untuk eksekusi. Server menulis `lane` saat claim; runner tidak memilihnya.                                                       |
+| `AgentContextRef`       | Job, jenis reference, message/file/repo reference, scope, waktu validasi                                                                                    | Snapshot izin bukan pengganti pemeriksaan akses baru.                                                                                                                  |
+| `AgentApproval`         | Job/attempt, operation hash, policy, approver, decision, expiry, consumed time                                                                              | Banyak approval per job; keputusan sekali pakai.                                                                                                                       |
+| `AgentOperation`        | Attempt, operation ID, tool class, argument digest, status, remote receipt                                                                                  | Mendukung rekonsiliasi efek eksternal dan `outcome_unknown`.                                                                                                           |
+| `AgentArtifact`         | Attempt, jenis, checksum, size, storage ref, ACL, expiry                                                                                                    | Download melewati pemeriksaan akses; URL publik tidak digunakan.                                                                                                       |
+| `AgentCheckpoint`       | Attempt, base/tree hash, summary, context refs, next step, adapter session ref **[jalur code]**                                                             | Tidak berisi raw reasoning atau secret; isi ringkasan tidak dipercaya sebagai fakta. Jalur cepat tidak melanjutkan sesi model; lihat spesifikasi jalur cepat bagian 9. |
+| `AgentAuditEvent`       | Realm, job/attempt, sequence, aktor, jenis, timestamp, payload terbatas                                                                                     | Append-only pada API aplikasi; bukan klaim tahan manipulasi oleh administrator database.                                                                               |
+| `AgentOutbox`           | Delivery key, event type, payload ref, attempt count, next attempt, status                                                                                  | Recovery tidak bergantung pada queue broker yang masih menyimpan pesan.                                                                                                |
 
 ```mermaid
 erDiagram
@@ -851,34 +851,34 @@ Zulip, daftarkan melalui pola API existing dan dokumentasikan dalam OpenAPI.
 Bedakan auth manusia dari credential perangkat. Runner tidak dapat memakai
 endpoint administratif hanya karena tokennya valid.
 
-| Endpoint relatif terhadap `/api/v1`    | Principal                            | Fungsi                                                     |
-| -------------------------------------- | ------------------------------------ | ---------------------------------------------------------- |
-| `POST /agent/pairings`                 | Runner belum terdaftar, rate-limited | Memulai pairing tanpa akses data organisasi.               |
-| `POST /agent/pairings/approve`         | Pengguna login                       | Menetapkan kepemilikan perangkat dari sesi sah.            |
-| `POST /agent/pairings/exchange`        | Pemegang rahasia pairing             | Menukar pairing yang sudah disetujui.                      |
-| `GET /agent/runners`                   | Pengguna                             | Daftar perangkat sesuai hak.                               |
-| `POST /agent/runners/{id}/revoke`      | Pemilik/admin dengan scope           | Mencabut koneksi tanpa menghapus data perangkat.           |
-| `POST /agent/runner/token/refresh`     | Runner                               | Rotasi credential perangkat.                               |
-| `POST /agent/runner/heartbeat`         | Runner                               | Liveness, kapasitas, dan lease aktif.                      |
-| `POST /agent/runner/claims`            | Runner                               | Claim pekerjaan yang memenuhi grant dan capability.        |
-| `GET /agent/runner/leases`             | Runner                               | Rekonsiliasi claim yang responsnya hilang.                 |
-| `GET /agent/runner/controls`           | Runner                               | Poll cancel, keputusan approval, dan perubahan policy.     |
-| `POST /agent/runner/events`            | Runner dan lease                     | Batch event terstruktur dengan deduplikasi.                |
-| `POST /agent/runner/context`           | Runner dan lease                     | Meminta reference yang diizinkan job.                      |
-| `POST /agent/runner/credential-access` | Runner dan grant aktif               | Mengambil secret untuk probe atau attempt yang ditentukan. |
-| `POST /agent/runner/operations/run` **[jalur cepat]** | Runner dan lease      | Jalankan satu alat baca dan kembalikan hasil dalam satu request. |
-| `POST /agent/providers`                | Pengguna                             | Menambah konfigurasi provider; credential write-only.      |
-| `POST /agent/providers/{id}/probe`     | Pemilik/pengguna berizin             | Mengantrekan probe pada runner terpilih.                   |
-| `POST /agent/profiles`                 | Pengguna berizin                     | Menambah profil agent dan binding yang sudah sah.          |
-| `GET /agent/jobs`                      | Pengguna                             | Daftar tugas dengan filter ACL sebelum pagination/count.   |
-| `POST /agent/jobs`                     | Pengguna                             | Membuat job dengan idempotency key.                        |
-| `GET /agent/jobs/{id}`                 | Pengguna berizin                     | Detail state, attempt, dan hasil.                          |
-| `GET /agent/jobs/{id}/events`          | Pengguna berizin                     | Progres setelah sequence tertentu.                         |
-| `POST /agent/jobs/{id}/cancel`         | Peminta/operator berizin             | Meminta penghentian.                                       |
-| `POST /agent/jobs/{id}/resume`         | Pengguna berizin                     | Membuat attempt baru setelah preflight.                    |
-| `POST /agent/approvals/{id}/decision`  | Approver berwenang                   | Keputusan terikat versi dan operation hash.                |
-| `POST /agent/runner/artifacts`         | Runner dan lease                     | Upload terbatas ukuran, checksum, dan tipe.                |
-| `GET /agent/artifacts/{id}`            | Pengguna berizin                     | Download dengan pemeriksaan akses saat request.            |
+| Endpoint relatif terhadap `/api/v1`                   | Principal                            | Fungsi                                                           |
+| ----------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------- |
+| `POST /agent/pairings`                                | Runner belum terdaftar, rate-limited | Memulai pairing tanpa akses data organisasi.                     |
+| `POST /agent/pairings/approve`                        | Pengguna login                       | Menetapkan kepemilikan perangkat dari sesi sah.                  |
+| `POST /agent/pairings/exchange`                       | Pemegang rahasia pairing             | Menukar pairing yang sudah disetujui.                            |
+| `GET /agent/runners`                                  | Pengguna                             | Daftar perangkat sesuai hak.                                     |
+| `POST /agent/runners/{id}/revoke`                     | Pemilik/admin dengan scope           | Mencabut koneksi tanpa menghapus data perangkat.                 |
+| `POST /agent/runner/token/refresh`                    | Runner                               | Rotasi credential perangkat.                                     |
+| `POST /agent/runner/heartbeat`                        | Runner                               | Liveness, kapasitas, dan lease aktif.                            |
+| `POST /agent/runner/claims`                           | Runner                               | Claim pekerjaan yang memenuhi grant dan capability.              |
+| `GET /agent/runner/leases`                            | Runner                               | Rekonsiliasi claim yang responsnya hilang.                       |
+| `GET /agent/runner/controls`                          | Runner                               | Poll cancel, keputusan approval, dan perubahan policy.           |
+| `POST /agent/runner/events`                           | Runner dan lease                     | Batch event terstruktur dengan deduplikasi.                      |
+| `POST /agent/runner/context`                          | Runner dan lease                     | Meminta reference yang diizinkan job.                            |
+| `POST /agent/runner/credential-access`                | Runner dan grant aktif               | Mengambil secret untuk probe atau attempt yang ditentukan.       |
+| `POST /agent/runner/operations/run` **[jalur cepat]** | Runner dan lease                     | Jalankan satu alat baca dan kembalikan hasil dalam satu request. |
+| `POST /agent/providers`                               | Pengguna                             | Menambah konfigurasi provider; credential write-only.            |
+| `POST /agent/providers/{id}/probe`                    | Pemilik/pengguna berizin             | Mengantrekan probe pada runner terpilih.                         |
+| `POST /agent/profiles`                                | Pengguna berizin                     | Menambah profil agent dan binding yang sudah sah.                |
+| `GET /agent/jobs`                                     | Pengguna                             | Daftar tugas dengan filter ACL sebelum pagination/count.         |
+| `POST /agent/jobs`                                    | Pengguna                             | Membuat job dengan idempotency key.                              |
+| `GET /agent/jobs/{id}`                                | Pengguna berizin                     | Detail state, attempt, dan hasil.                                |
+| `GET /agent/jobs/{id}/events`                         | Pengguna berizin                     | Progres setelah sequence tertentu.                               |
+| `POST /agent/jobs/{id}/cancel`                        | Peminta/operator berizin             | Meminta penghentian.                                             |
+| `POST /agent/jobs/{id}/resume`                        | Pengguna berizin                     | Membuat attempt baru setelah preflight.                          |
+| `POST /agent/approvals/{id}/decision`                 | Approver berwenang                   | Keputusan terikat versi dan operation hash.                      |
+| `POST /agent/runner/artifacts`                        | Runner dan lease                     | Upload terbatas ukuran, checksum, dan tipe.                      |
+| `GET /agent/artifacts/{id}`                           | Pengguna berizin                     | Download dengan pemeriksaan akses saat request.                  |
 
 API tambahan untuk update provider, grant, binding repository, atau penonaktifan
 profil mengikuti service permission yang sama. Endpoint pairing tidak menerima
@@ -1001,24 +1001,24 @@ hak atas merek upstream. Lihat [LICENSE Buzz](https://github.com/block/buzz/blob
 
 Nilai berikut adalah target pilot untuk diuji, bukan hasil benchmark.
 
-| Batas                        | Default usulan                                            | Perilaku saat tercapai                                       |
-| ---------------------------- | --------------------------------------------------------- | ------------------------------------------------------------ |
-| Job aktif per runner **[jalur code]** | 1                                                 | Job lain tetap queued.                                       |
-| Job aktif per runner **[jalur cepat]** | 4 (default)                                      | Job lain tetap queued.                                       |
-| Job aktif realm pilot **[jalur code]** | 2                                                | Tidak menambah proses coding pada server chat.               |
-| Job aktif realm pilot **[jalur cepat]** | 8                                               | Tidak menambah proses coding pada server chat.               |
-| Waktu kerja aktif job **[jalur code]** | 60 menit; batas konfigurasi awal 120 menit       | Checkpoint dan status terhenti; tidak memulai turn baru.     |
-| Tool rounds `code` **[jalur code]** | 40                                                  | Hentikan dengan alasan budget; jangan laporkan completed.    |
-| Tool rounds `answer` **[jalur cepat]** | 8                                                | Hentikan dengan alasan budget; jangan laporkan completed.    |
-| Tool rounds `manage` **[jalur cepat]** | 20                                               | Hentikan dengan alasan budget; jangan laporkan completed.    |
-| Timeout shell                | 2 menit; pemeriksaan yang diizinkan dapat sampai 20 menit | Hentikan process tree dan simpan hasil timeout.              |
-| Retry transport transient    | 2 retry per operasi                                       | Tampilkan error setelah rekonsiliasi yang diperlukan.        |
-| Recovery context overflow    | 2 usaha per turn                                          | Simpan checkpoint; hentikan bila tetap gagal.                |
-| Heartbeat/lease              | 15/90 detik                                               | Tandai koneksi tidak sehat dan hentikan efek baru.           |
-| Waktu tunggu approval        | 15 menit                                                  | Approval expired; job blocked tanpa menjalankan tindakan.    |
-| Event terstruktur            | 64 KiB per event                                          | Tolak atau ubah ke artifact sesuai schema.                   |
-| Keluaran tool ke model       | 50 KiB per hasil                                          | Potong dengan penanda; hasil penuh mengikuti batas artifact. |
-| Artifact pilot               | 10 MiB per berkas; 50 MiB per job                         | Tampilkan batas, tanpa upload otomatis ke layanan publik.    |
+| Batas                                   | Default usulan                                            | Perilaku saat tercapai                                       |
+| --------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------ |
+| Job aktif per runner **[jalur code]**   | 1                                                         | Job lain tetap queued.                                       |
+| Job aktif per runner **[jalur cepat]**  | 4 (default)                                               | Job lain tetap queued.                                       |
+| Job aktif realm pilot **[jalur code]**  | 2                                                         | Tidak menambah proses coding pada server chat.               |
+| Job aktif realm pilot **[jalur cepat]** | 8                                                         | Tidak menambah proses coding pada server chat.               |
+| Waktu kerja aktif job **[jalur code]**  | 60 menit; batas konfigurasi awal 120 menit                | Checkpoint dan status terhenti; tidak memulai turn baru.     |
+| Tool rounds `code` **[jalur code]**     | 40                                                        | Hentikan dengan alasan budget; jangan laporkan completed.    |
+| Tool rounds `answer` **[jalur cepat]**  | 8                                                         | Hentikan dengan alasan budget; jangan laporkan completed.    |
+| Tool rounds `manage` **[jalur cepat]**  | 20                                                        | Hentikan dengan alasan budget; jangan laporkan completed.    |
+| Timeout shell                           | 2 menit; pemeriksaan yang diizinkan dapat sampai 20 menit | Hentikan process tree dan simpan hasil timeout.              |
+| Retry transport transient               | 2 retry per operasi                                       | Tampilkan error setelah rekonsiliasi yang diperlukan.        |
+| Recovery context overflow               | 2 usaha per turn                                          | Simpan checkpoint; hentikan bila tetap gagal.                |
+| Heartbeat/lease                         | 15/90 detik                                               | Tandai koneksi tidak sehat dan hentikan efek baru.           |
+| Waktu tunggu approval                   | 15 menit                                                  | Approval expired; job blocked tanpa menjalankan tindakan.    |
+| Event terstruktur                       | 64 KiB per event                                          | Tolak atau ubah ke artifact sesuai schema.                   |
+| Keluaran tool ke model                  | 50 KiB per hasil                                          | Potong dengan penanda; hasil penuh mengikuti batas artifact. |
+| Artifact pilot                          | 10 MiB per berkas; 50 MiB per job                         | Tampilkan batas, tanpa upload otomatis ke layanan publik.    |
 
 Tetapkan batas token input/output per provider dan job. Ukuran konteks model
 harus berasal dari konfigurasi yang diperiksa; probe singkat tidak membuktikan
@@ -1065,49 +1065,49 @@ Gunakan fake agent ACP, provider HTTP sintetis, serta proses shell nyata yang
 terbatas. Tes tidak memerlukan credential provider produksi. Probe provider
 nyata dilakukan terpisah dengan izin, batas biaya, dan repository fixture.
 
-| ID    | Skenario                                            | Hasil yang diwajibkan                                                                                                   |
-| ----- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| AT-01 | Pairing normal                                      | Perangkat terikat pengguna dan realm yang menyetujui.                                                                   |
-| AT-02 | Kode pairing expired, replay, atau brute force      | Ditolak tanpa menerbitkan credential.                                                                                   |
-| AT-03 | Runner/token dicabut                                | Claim baru ditolak; lease dan eksekusi aktif masuk jalur penghentian.                                                   |
-| AT-04 | Agent ACP terpilih **[jalur code]**                 | Handshake, prompt, progres, izin, dan cancel sesuai kemampuan yang dinegosiasikan.                                      |
-| AT-05 | ACP tanpa `loadSession` **[jalur code]**            | Resume memakai sesi baru dan checkpoint; tidak memanggil metode yang tidak didukung.                                    |
-| AT-06 | Endpoint hanya Chat Completions **[jalur code]**    | Probe tool round-trip dan coding fixture lulus melalui mode tersebut. Dipensiunkan untuk jalur cepat 2026-09-24; jalur cepat memakai gerbang F0 (POST /v1/messages). |
-| AT-07 | Endpoint hanya Responses **[jalur code]**           | Probe dan coding lulus tanpa mengirim schema Chat Completions. Dipensiunkan untuk jalur cepat 2026-09-24; lihat AT-06.  |
-| AT-08 | Endpoint teks tanpa tools **[jalur code]**          | Siap chat; coding tidak diaktifkan.                                                                                     |
-| AT-08 (v2, 2026-09-24) | Koneksi model jalur cepat tanpa `tool_use` pada probe **[jalur cepat]** | Gerbang F0 gagal; profil `answer`/`manage` tidak diaktifkan sampai probe lulus. |
-| AT-09 | Endpoint localhost/private **[jalur code]**         | Request berasal dari runner yang dipilih, dengan policy jaringan yang sesuai.                                           |
-| AT-09 (v2, 2026-09-24) | Koneksi model localhost/private pada jalur cepat **[jalur cepat]** | `POST /v1/messages` berasal dari runner terpilih; policy egress fondasi tetap berlaku. |
-| AT-10 | JSON tool stream terpotong atau invalid **[jalur code]** | Tidak ada tool mutasi yang dijalankan.                                                                             |
-| AT-10 (v2, 2026-09-24) | Delta `input_json` sebagian pada `tool_use` **[jalur cepat]** | Delta `input_json` parsial tidak pernah menjalankan alat (AF-38, FL-14).           |
-| AT-11 | Mention di code block atau pesan dari bot           | Tidak membuat job coding.                                                                                               |
-| AT-12 | Trigger dikirim ulang                               | Hanya satu job logis terbentuk.                                                                                         |
-| AT-13 | Crash setelah commit sebelum queue publish          | Outbox dipulihkan; job tidak hilang.                                                                                    |
-| AT-14 | Claim berhasil tetapi respons hilang                | Runner menemukan lease yang sama; tidak ada attempt aktif kedua.                                                        |
-| AT-15 | Laptop offline ketika shell berjalan                | UI benar, tool baru ditahan, process tree dihentikan sesuai deadline.                                                   |
-| AT-16 | Event attempt lama setelah resume                   | Ditolak berdasarkan lease epoch.                                                                                        |
-| AT-17 | Cancel saat menunggu approval **[jalur code]**      | Approval tidak dipakai; request ACP diberi outcome yang sesuai.                                                         |
-| AT-18 | Process child membuat grandchild                    | Cancel/timeout menghentikan seluruh tree pada platform yang didukung.                                                   |
-| AT-19 | Working tree pengguna sudah dirty                   | WIP tetap utuh; pekerjaan berjalan pada salinan terpisah dari commit terpilih.                                          |
-| AT-20 | Symlink atau common Git dir keluar scope            | Akses tidak memperluas mount atau izin repository.                                                                      |
-| AT-21 | Member kehilangan akses kanal/repo                  | Pembacaan berikutnya dan publikasi ditolak sesuai scope baru.                                                           |
-| AT-22 | Permintaan lintas realm                             | List, count, detail, event, approval, dan download tidak membocorkan data.                                              |
-| AT-23 | Topik pindah dari privat ke audiens lebih luas      | Hasil ditahan sampai tujuan dan audiens disetujui.                                                                      |
-| AT-24 | Diff berubah setelah approval                       | Approval lama tidak dapat digunakan.                                                                                    |
-| AT-25 | Dua keputusan approval bersamaan                    | Tepat satu konsumsi operasi berhasil.                                                                                   |
-| AT-26 | Push/PR berhasil, respons terputus                  | Remote direkonsiliasi; efek tidak digandakan.                                                                           |
-| AT-27 | Model mengaku tes lulus tanpa proses tes            | Completion verifier menolak completed.                                                                                  |
-| AT-28 | Edit setelah tes                                    | Bukti tes yang sudah tidak sesuai tree dinyatakan stale.                                                                |
-| AT-29 | Konteks penuh, ringkasan gagal, atau provider error **[jalur code]** | Retry terbatas; tugas/checkpoint tetap dapat ditinjau.                                                    |
-| AT-29 (v2, 2026-09-24) | Idle timeout, provider error, atau `max_tokens` pada jalur cepat **[jalur cepat]** | Retry terbatas ke error transient; jawaban terpotong tetap terlihat dengan pesan lanjutan. |
-| AT-30 | Titen tidak tersedia                                | Pekerjaan yang aman dapat berjalan tanpa klaim recall berhasil.                                                         |
-| AT-31 | Reply akhir diulang karena worker restart           | Satu pesan hasil, dengan result message ID yang sama.                                                                   |
-| AT-32 | Secret sintetis pada error/header/output **[jalur code]** | Tidak muncul pada chat, event, artifact yang dibagikan, atau telemetry.                                          |
-| AT-32 (v2, 2026-09-24) | Secret sintetis pada snapshot draft yang terpotong di batas delta **[jalur cepat]** | Filter rahasia menahan buffer 64 karakter; rahasia tidak tampil di pesan draft atau hasil final (FL-18). |
-| AT-33 | UI dark/light, keyboard, layar sempit               | Semua state utama dan approval dapat dioperasikan.                                                                      |
-| AT-34 | Upgrade/rollback runner                             | Versi tidak kompatibel ditolak dengan pesan pemulihan; job lama tetap terbaca.                                          |
-| AT-35 | Pemulihan database dan artifact                     | Hubungan job, approval, result, dan checksum tetap konsisten.                                                           |
-| AT-36 | Anggota memakai browser tanpa aplikasi desktop      | Login, chat, pengaturan, trigger, review, approval, cancel, dan resume bekerja; job tetap berjalan setelah tab ditutup. |
+| ID                     | Skenario                                                                            | Hasil yang diwajibkan                                                                                                                                                |
+| ---------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AT-01                  | Pairing normal                                                                      | Perangkat terikat pengguna dan realm yang menyetujui.                                                                                                                |
+| AT-02                  | Kode pairing expired, replay, atau brute force                                      | Ditolak tanpa menerbitkan credential.                                                                                                                                |
+| AT-03                  | Runner/token dicabut                                                                | Claim baru ditolak; lease dan eksekusi aktif masuk jalur penghentian.                                                                                                |
+| AT-04                  | Agent ACP terpilih **[jalur code]**                                                 | Handshake, prompt, progres, izin, dan cancel sesuai kemampuan yang dinegosiasikan.                                                                                   |
+| AT-05                  | ACP tanpa `loadSession` **[jalur code]**                                            | Resume memakai sesi baru dan checkpoint; tidak memanggil metode yang tidak didukung.                                                                                 |
+| AT-06                  | Endpoint hanya Chat Completions **[jalur code]**                                    | Probe tool round-trip dan coding fixture lulus melalui mode tersebut. Dipensiunkan untuk jalur cepat 2026-09-24; jalur cepat memakai gerbang F0 (POST /v1/messages). |
+| AT-07                  | Endpoint hanya Responses **[jalur code]**                                           | Probe dan coding lulus tanpa mengirim schema Chat Completions. Dipensiunkan untuk jalur cepat 2026-09-24; lihat AT-06.                                               |
+| AT-08                  | Endpoint teks tanpa tools **[jalur code]**                                          | Siap chat; coding tidak diaktifkan.                                                                                                                                  |
+| AT-08 (v2, 2026-09-24) | Koneksi model jalur cepat tanpa `tool_use` pada probe **[jalur cepat]**             | Gerbang F0 gagal; profil `answer`/`manage` tidak diaktifkan sampai probe lulus.                                                                                      |
+| AT-09                  | Endpoint localhost/private **[jalur code]**                                         | Request berasal dari runner yang dipilih, dengan policy jaringan yang sesuai.                                                                                        |
+| AT-09 (v2, 2026-09-24) | Koneksi model localhost/private pada jalur cepat **[jalur cepat]**                  | `POST /v1/messages` berasal dari runner terpilih; policy egress fondasi tetap berlaku.                                                                               |
+| AT-10                  | JSON tool stream terpotong atau invalid **[jalur code]**                            | Tidak ada tool mutasi yang dijalankan.                                                                                                                               |
+| AT-10 (v2, 2026-09-24) | Delta `input_json` sebagian pada `tool_use` **[jalur cepat]**                       | Delta `input_json` parsial tidak pernah menjalankan alat (AF-38, FL-14).                                                                                             |
+| AT-11                  | Mention di code block atau pesan dari bot                                           | Tidak membuat job coding.                                                                                                                                            |
+| AT-12                  | Trigger dikirim ulang                                                               | Hanya satu job logis terbentuk.                                                                                                                                      |
+| AT-13                  | Crash setelah commit sebelum queue publish                                          | Outbox dipulihkan; job tidak hilang.                                                                                                                                 |
+| AT-14                  | Claim berhasil tetapi respons hilang                                                | Runner menemukan lease yang sama; tidak ada attempt aktif kedua.                                                                                                     |
+| AT-15                  | Laptop offline ketika shell berjalan                                                | UI benar, tool baru ditahan, process tree dihentikan sesuai deadline.                                                                                                |
+| AT-16                  | Event attempt lama setelah resume                                                   | Ditolak berdasarkan lease epoch.                                                                                                                                     |
+| AT-17                  | Cancel saat menunggu approval **[jalur code]**                                      | Approval tidak dipakai; request ACP diberi outcome yang sesuai.                                                                                                      |
+| AT-18                  | Process child membuat grandchild                                                    | Cancel/timeout menghentikan seluruh tree pada platform yang didukung.                                                                                                |
+| AT-19                  | Working tree pengguna sudah dirty                                                   | WIP tetap utuh; pekerjaan berjalan pada salinan terpisah dari commit terpilih.                                                                                       |
+| AT-20                  | Symlink atau common Git dir keluar scope                                            | Akses tidak memperluas mount atau izin repository.                                                                                                                   |
+| AT-21                  | Member kehilangan akses kanal/repo                                                  | Pembacaan berikutnya dan publikasi ditolak sesuai scope baru.                                                                                                        |
+| AT-22                  | Permintaan lintas realm                                                             | List, count, detail, event, approval, dan download tidak membocorkan data.                                                                                           |
+| AT-23                  | Topik pindah dari privat ke audiens lebih luas                                      | Hasil ditahan sampai tujuan dan audiens disetujui.                                                                                                                   |
+| AT-24                  | Diff berubah setelah approval                                                       | Approval lama tidak dapat digunakan.                                                                                                                                 |
+| AT-25                  | Dua keputusan approval bersamaan                                                    | Tepat satu konsumsi operasi berhasil.                                                                                                                                |
+| AT-26                  | Push/PR berhasil, respons terputus                                                  | Remote direkonsiliasi; efek tidak digandakan.                                                                                                                        |
+| AT-27                  | Model mengaku tes lulus tanpa proses tes                                            | Completion verifier menolak completed.                                                                                                                               |
+| AT-28                  | Edit setelah tes                                                                    | Bukti tes yang sudah tidak sesuai tree dinyatakan stale.                                                                                                             |
+| AT-29                  | Konteks penuh, ringkasan gagal, atau provider error **[jalur code]**                | Retry terbatas; tugas/checkpoint tetap dapat ditinjau.                                                                                                               |
+| AT-29 (v2, 2026-09-24) | Idle timeout, provider error, atau `max_tokens` pada jalur cepat **[jalur cepat]**  | Retry terbatas ke error transient; jawaban terpotong tetap terlihat dengan pesan lanjutan.                                                                           |
+| AT-30                  | Titen tidak tersedia                                                                | Pekerjaan yang aman dapat berjalan tanpa klaim recall berhasil.                                                                                                      |
+| AT-31                  | Reply akhir diulang karena worker restart                                           | Satu pesan hasil, dengan result message ID yang sama.                                                                                                                |
+| AT-32                  | Secret sintetis pada error/header/output **[jalur code]**                           | Tidak muncul pada chat, event, artifact yang dibagikan, atau telemetry.                                                                                              |
+| AT-32 (v2, 2026-09-24) | Secret sintetis pada snapshot draft yang terpotong di batas delta **[jalur cepat]** | Filter rahasia menahan buffer 64 karakter; rahasia tidak tampil di pesan draft atau hasil final (FL-18).                                                             |
+| AT-33                  | UI dark/light, keyboard, layar sempit                                               | Semua state utama dan approval dapat dioperasikan.                                                                                                                   |
+| AT-34                  | Upgrade/rollback runner                                                             | Versi tidak kompatibel ditolak dengan pesan pemulihan; job lama tetap terbaca.                                                                                       |
+| AT-35                  | Pemulihan database dan artifact                                                     | Hubungan job, approval, result, dan checksum tetap konsisten.                                                                                                        |
+| AT-36                  | Anggota memakai browser tanpa aplikasi desktop                                      | Login, chat, pengaturan, trigger, review, approval, cancel, dan resume bekerja; job tetap berjalan setelah tab ditutup.                                              |
 
 Pilot dinyatakan memenuhi kebutuhan inti bila AT-01–AT-32 yang relevan pada
 platform dan mode yang dirilis serta AT-36 lulus. AT-33–AT-35 harus lulus sebelum
@@ -1157,35 +1157,35 @@ memutuskan Zulip sebagai platform. Lihat [keputusan SDK agent](../agent-sdk-deci
 
 ## 27. Traceability dan keputusan sebelum implementasi
 
-| Kebutuhan                                | Bagian spesifikasi  | Bukti penerimaan utama    |
-| ---------------------------------------- | ------------------- | ------------------------- |
-| Agent pada laptop/server pengguna        | 7–9, 15             | AT-01–AT-05, AT-15, AT-18 |
-| Endpoint OpenAI-compatible **[jalur code]** | 7.2, 8.2, 10.2–10.4 | AT-06–AT-10             |
+| Kebutuhan                                    | Bagian spesifikasi                                                  | Bukti penerimaan utama        |
+| -------------------------------------------- | ------------------------------------------------------------------- | ----------------------------- |
+| Agent pada laptop/server pengguna            | 7–9, 15                                                             | AT-01–AT-05, AT-15, AT-18     |
+| Endpoint OpenAI-compatible **[jalur code]**  | 7.2, 8.2, 10.2–10.4                                                 | AT-06–AT-10                   |
 | Koneksi Anthropic Messages **[jalur cepat]** | Lihat [spesifikasi jalur cepat](2026-09-24-agent-fast-lane.md) §6.2 | AT-08–AT-10 (v2), FL-01–FL-30 |
-| Agent dapat coding                       | 11, 14, 23          | AT-19–AT-20, AT-27–AT-28  |
-| Antarmuka browser tanpa aplikasi desktop | 1, 5.2, 19          | AT-36                     |
-| FR-08/FR-09: monitor dan trigger         | 4, 8, 13            | AT-11–AT-12               |
-| FR-10: allowlist model/provider          | 10, 15              | AT-06–AT-10, AT-32        |
-| FR-11: job tahan restart                 | 12–13, 17           | AT-13–AT-16, AT-31        |
-| FR-12/FR-13: jalur panjang dan budget    | 9.2, 10.4, 21       | AT-15, AT-18, AT-29       |
-| FR-14: cancel/resume                     | 8.4, 12–13          | AT-05, AT-15–AT-18        |
-| FR-15: konteks sesuai izin               | 16                  | AT-21–AT-23               |
-| FR-16: approval                          | 14                  | AT-17, AT-24–AT-26        |
-| FR-17: audit dan hasil                   | 13.4, 17–19         | AT-27–AT-28, AT-31–AT-32  |
-| FR-18: runner terisolasi                 | 11, 15              | AT-18–AT-20, AT-32        |
-| FR-19: tenant boundary                   | 16–18               | AT-22                     |
+| Agent dapat coding                           | 11, 14, 23                                                          | AT-19–AT-20, AT-27–AT-28      |
+| Antarmuka browser tanpa aplikasi desktop     | 1, 5.2, 19                                                          | AT-36                         |
+| FR-08/FR-09: monitor dan trigger             | 4, 8, 13                                                            | AT-11–AT-12                   |
+| FR-10: allowlist model/provider              | 10, 15                                                              | AT-06–AT-10, AT-32            |
+| FR-11: job tahan restart                     | 12–13, 17                                                           | AT-13–AT-16, AT-31            |
+| FR-12/FR-13: jalur panjang dan budget        | 9.2, 10.4, 21                                                       | AT-15, AT-18, AT-29           |
+| FR-14: cancel/resume                         | 8.4, 12–13                                                          | AT-05, AT-15–AT-18            |
+| FR-15: konteks sesuai izin                   | 16                                                                  | AT-21–AT-23                   |
+| FR-16: approval                              | 14                                                                  | AT-17, AT-24–AT-26            |
+| FR-17: audit dan hasil                       | 13.4, 17–19                                                         | AT-27–AT-28, AT-31–AT-32      |
+| FR-18: runner terisolasi                     | 11, 15                                                              | AT-18–AT-20, AT-32            |
+| FR-19: tenant boundary                       | 16–18                                                               | AT-22                         |
 
 Arahan pengguna tentang dua mode koneksi dan antarmuka browser sudah pasti. Keputusan berikut tetap
 merupakan gate desain dengan rekomendasi dan cara penentuannya:
 
-| Keputusan                    | Rekomendasi                                                                         | Cara menutup keputusan                                                                             |
-| ---------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Platform produk              | **Diputuskan:** Zulip.                                                              | Lihat bagian 5.                                                                                     |
-| Runtime jalur cepat          | **Diputuskan (v2, 2026-09-24):** `@anthropic-ai/sdk` di proses runner.              | Lihat [keputusan SDK agent](../agent-sdk-decision.md).                                             |
-| Adapter pertama **[jalur code]** | Satu agent yang benar-benar digunakan tim, lalu tambah adapter setelah lulus suite. | Catat pilihan dan pin versi pada hasil sertifikasi jalur code.                                  |
-| OS awal                      | Linux, lalu macOS setelah isolasi diuji.                                            | Bukti process-tree cancellation, auth, dan sandbox pada OS yang dirilis.                           |
-| Secret provider              | Encrypted server storage untuk UI; referensi lokal sebagai pilihan.                 | Uji rotasi, restore, dan redaction sebelum memasukkan credential nyata.                            |
-| Durasi retensi               | Nilai pilot pada bagian 21.                                                         | Persetujuan pemilik data dan uji expiry tanpa menghilangkan hasil aktif.                           |
+| Keputusan                        | Rekomendasi                                                                         | Cara menutup keputusan                                                   |
+| -------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Platform produk                  | **Diputuskan:** Zulip.                                                              | Lihat bagian 5.                                                          |
+| Runtime jalur cepat              | **Diputuskan (v2, 2026-09-24):** `@anthropic-ai/sdk` di proses runner.              | Lihat [keputusan SDK agent](../agent-sdk-decision.md).                   |
+| Adapter pertama **[jalur code]** | Satu agent yang benar-benar digunakan tim, lalu tambah adapter setelah lulus suite. | Catat pilihan dan pin versi pada hasil sertifikasi jalur code.           |
+| OS awal                          | Linux, lalu macOS setelah isolasi diuji.                                            | Bukti process-tree cancellation, auth, dan sandbox pada OS yang dirilis. |
+| Secret provider                  | Encrypted server storage untuk UI; referensi lokal sebagai pilihan.                 | Uji rotasi, restore, dan redaction sebelum memasukkan credential nyata.  |
+| Durasi retensi                   | Nilai pilot pada bagian 21.                                                         | Persetujuan pemilik data dan uji expiry tanpa menghilangkan hasil aktif. |
 
 Tidak ada keputusan yang membenarkan klaim fitur telah tersedia. Implementasi
 berikutnya harus memecah pekerjaan berdasarkan platform terpilih, mempertahankan
@@ -1194,11 +1194,11 @@ WIP lain, dan menyertakan pemeriksaan yang relevan pada setiap perubahan.
 ## 28. Sumber primer dan batas penelitian
 
 Sumber diperiksa pada 2026-09-21. Source lokal dan arahan pengguna menjadi acuan
-untuk keadaan Grow Team. Dokumen produk membedakan kondisi source, laporan
+untuk keadaan Sanji. Dokumen produk membedakan kondisi source, laporan
 runtime sebelumnya, dan target. Halaman upstream dapat berubah setelah tanggal
 ini; pin versi saat implementasi.
 
-- [PRD Grow Team](../prd.md), [FRD](../frd.md), [Blueprint](../blueprint.md), [ERD](../erd.md), [Security](../security.md), dan [Roadmap](../roadmap.md).
+- [PRD Sanji](../prd.md), [FRD](../frd.md), [Blueprint](../blueprint.md), [ERD](../erd.md), [Security](../security.md), dan [Roadmap](../roadmap.md).
 - **[jalur cepat]** [Keputusan SDK agent](../agent-sdk-decision.md) dan
   [spesifikasi jalur cepat](2026-09-24-agent-fast-lane.md), diperiksa 2026-09-24.
   Rujukan ini menggantikan Buzz sebagai sumber utama untuk job `answer` dan `manage`.

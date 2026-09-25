@@ -1,4 +1,4 @@
-# Security Grow Team
+# Security Sanji
 
 Status dokumen: penyelarasan sementara, 2026-09-23. Kontrol source, preflight, dan bukti deploy chat tidak menjadi sertifikasi keamanan atau kesiapan AI produksi.
 
@@ -6,7 +6,7 @@ Status dokumen: penyelarasan sementara, 2026-09-23. Kontrol source, preflight, d
 
 - Aplikasi chat dipublikasi ke loopback melalui Cloudflare Tunnel.
 - Engine Docker, volumes, systemd services, limits, dan backup dipisahkan dari Hermes.
-- PostgreSQL 14, Redis, RabbitMQ, dan Memcached mendukung runtime chat Grow Team.
+- PostgreSQL 14, Redis, RabbitMQ, dan Memcached mendukung runtime chat `grow-team`.
 - Cloudflare Email Worker menolak request tanpa relay secret. Backend tidak mencatat isi email atau token.
 - Endpoint profil tanpa autentikasi memberi 401 dalam pemeriksaan terdahulu.
 - Backup memakai checksum. Restore database sementara diuji tanpa mengubah database aktif.

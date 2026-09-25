@@ -38,7 +38,7 @@ Team yang dapat langsung dipecah menjadi pekerjaan implementasi.
 
 Fondasi tetap mengikuti [spesifikasi koneksi dan coding harness](2026-09-21-agent-connections-and-coding-harness.md):
 
-- Grow Team memakai Zulip sebagai aplikasi web.
+- Sanji memakai Zulip sebagai aplikasi web.
 - Pengguna berinteraksi melalui browser tanpa aplikasi desktop.
 - Runner berjalan pada laptop/server milik pengguna sebagai layanan latar.
 - Job `answer` dan `manage` berjalan di jalur cepat: loop `@anthropic-ai/sdk`
@@ -63,7 +63,7 @@ Gunakan tiga jenis bukti secara berbeda:
 | Jenis bukti                | Makna                                                     | Cara memakai                                                                             |
 | -------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | Implementasi source        | Jalur dan perilaku ditemukan pada commit yang dipatok.    | Jadikan acuan pemisahan komponen dan urutan operasi.                                     |
-| Kasus tes                  | Upstream menulis pemeriksaan untuk suatu perilaku.        | Port skenario ke test harness Grow Team; jangan menganggap tes sudah dijalankan di sini. |
+| Kasus tes                  | Upstream menulis pemeriksaan untuk suatu perilaku.        | Port skenario ke test harness Sanji; jangan menganggap tes sudah dijalankan di sini. |
 | Draft atau catatan insiden | Usulan, pengalaman, atau batas yang dicatat penulis Buzz. | Ambil pelajarannya; jangan menyebutnya fitur yang sudah terbukti bekerja.                |
 
 Graf parsial dari penelitian sebelumnya dipakai untuk menemukan simbol queue dan
@@ -72,7 +72,7 @@ atas. Graf tersebut bukan inventaris lengkap source terbaru.
 
 ### 2.1 Temuan yang langsung memengaruhi alur
 
-| ID  | Bukti Buzz                                                                  | Temuan                                                                                                              | Keputusan Grow Team                                                                                                   |
+| ID  | Bukti Buzz                                                                  | Temuan                                                                                                              | Keputusan Sanji                                                                                                   |
 | --- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | B01 | [Pembuatan agent][buzz-create], [readiness][buzz-readiness]                 | Validasi, simpan identitas, start, dan sinkronisasi profil memiliki hasil yang berbeda.                             | Simpan profil sekali; tampilkan kegagalan setup sebagai status yang bisa diperbaiki.                                  |
 | B02 | [Attachment setelah create][buzz-attach]                                    | Agent yang berhasil dibuat dapat gagal ditambahkan ke kanal.                                                        | Retry akses kanal memakai profil yang sama; jangan membuat agent duplikat.                                            |
@@ -82,7 +82,7 @@ atas. Graf tersebut bukan inventaris lengkap source terbaru.
 | B06 | [Filter event][buzz-filter], [admission loop][buzz-ingress]                 | Author gate dan subscription filter mendahului antrean; mention memakai identitas terstruktur.                      | Gunakan parser Zulip dan grant, bukan pencarian teks nama agent.                                                      |
 | B07 | [SessionScope][buzz-scope]                                                  | Scope ditentukan sekali saat admission. Channel adalah default; thread merupakan pilihan eksplisit.                 | Turunkan `AgentConversation` stabil sekali; jangan memakai judul topik sebagai identitas sesi.                        |
 | B08 | [EventQueue][buzz-queue]                                                    | Antrean dipartisi menurut scope; kapasitas dan pekerjaan aktif dibatasi.                                            | Satu eksekutor per attempt; antrean tahan restart dan penolakan kapasitas yang terlihat.                              |
-| B09 | [ACP client][buzz-acp], [agent loop][buzz-agent]                            | Harness mengendalikan sesi; runtime memanggil model dan tools.                                                      | Grow Runner menjadi ACP client; provider model tidak merangkap pengelola job. Usang untuk jalur cepat 2026-09-24: loop Anthropic SDK menggantikan ACP client untuk `answer` dan `manage` [jalur cepat]. Baris ini tetap berlaku untuk jalur code [jalur code]. |
+| B09 | [ACP client][buzz-acp], [agent loop][buzz-agent]                            | Harness mengendalikan sesi; runtime memanggil model dan tools.                                                      | Runner menjadi ACP client; provider model tidak merangkap pengelola job. Usang untuk jalur cepat 2026-09-24: loop Anthropic SDK menggantikan ACP client untuk `answer` dan `manage` [jalur cepat]. Baris ini tetap berlaku untuk jalur code [jalur code]. |
 | B10 | [Context handoff][buzz-handoff], [regresi agent][buzz-regressions]          | Ada pemulihan konteks dan pemeriksaan pasangan tool/result saat cancel.                                             | Pertahankan input aktif, referensi, dan checkpoint; batasi recovery.                                                  |
 | B11 | [Availability][buzz-availability], [management provenance][buzz-provenance] | Presence, catatan proses, kepemilikan, dan hak lifecycle merupakan fakta berbeda.                                   | Pisahkan runner online, runtime ready, profil enabled, dan status tugas.                                              |
 | B12 | [Catatan kickoff][buzz-kickoff]                                             | Balasan pengakuan antaragent pernah membentuk loop; agent gagal start tidak dapat menjelaskan kegagalannya sendiri. | Pesan bot tidak memicu coding otomatis; aplikasi menampilkan error dari supervisor.                                   |
@@ -91,12 +91,12 @@ atas. Graf tersebut bukan inventaris lengkap source terbaru.
 
 ### 2.2 Bagian yang tidak disalin sebagai default
 
-- ACP client Buzz yang diperiksa memilih opsi `allow_once` bila tersedia. Grow Team harus memakai policy dan approval sendiri. [Implementasi permission][buzz-permission].
-- Queue Buzz dapat membuang event lama ketika kapasitas tercapai. Grow Team tidak boleh menghilangkan tugas yang sudah diakui diterima. [Queue][buzz-queue].
-- Author gate Buzz dapat menerima bot lain dari pemilik yang sama. Grow Team MVP menolak trigger otomatis dari semua bot. [Admission loop][buzz-ingress].
-- Balasan melalui CLI dan key relay Buzz tidak dibawa ke proses model Grow Team. Publikasi melewati broker Grow Team.
+- ACP client Buzz yang diperiksa memilih opsi `allow_once` bila tersedia. Sanji harus memakai policy dan approval sendiri. [Implementasi permission][buzz-permission].
+- Queue Buzz dapat membuang event lama ketika kapasitas tercapai. Sanji tidak boleh menghilangkan tugas yang sudah diakui diterima. [Queue][buzz-queue].
+- Author gate Buzz dapat menerima bot lain dari pemilik yang sama. Sanji MVP menolak trigger otomatis dari semua bot. [Admission loop][buzz-ingress].
+- Balasan melalui CLI dan key relay Buzz tidak dibawa ke proses model Sanji. Publikasi melewati broker Sanji.
 - Konfigurasi environment desktop, format identitas Nostr, dan local storage Buzz bukan pengganti auth/realm/database Zulip.
-- React desktop tidak ditempelkan ke frontend Grow Team. Pola interaksi diterapkan pada TypeScript/Handlebars existing.
+- React desktop tidak ditempelkan ke frontend Sanji. Pola interaksi diterapkan pada TypeScript/Handlebars existing.
 
 README dan komentar dapat tertinggal dari implementasi. Contohnya, komentar
 admission menyebut scope sebagai telemetry, sedangkan `EventQueue` sudah memakai
@@ -109,7 +109,7 @@ runtime yang diuji, bukan diagram vision.
 | Pilihan                                                          | Dampak                                                               | Keputusan                                                      |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------- |
 | Menjalankan seluruh `buzz-acp` dan relay Buzz di belakang Zulip  | Menambah identitas, routing, serta sinkronisasi dua sistem chat.     | Tidak dipilih untuk MVP.                                       |
-| Grow Runner menjadi ACP client dan memakai runtime yang tersedia | Memakai loop agent existing; Django tetap mengatur tugas dan izin.   | Dipakai untuk `code` [jalur code].                              |
+| Runner menjadi ACP client dan memakai runtime yang tersedia | Memakai loop agent existing; Django tetap mengatur tugas dan izin.   | Dipakai untuk `code` [jalur code].                              |
 | Menulis loop model/tools baru                                    | Memberi kontrol penuh, tetapi harus mengulang banyak kasus recovery. | Dipilih untuk `answer` dan `manage` sejak 2026-09-24: loop `@anthropic-ai/sdk` di proses runner [jalur cepat]. Lihat [keputusan SDK agent](../agent-sdk-decision.md). |
 
 Untuk mode endpoint pada jalur code, prioritaskan probe `buzz-agent` sebagai
@@ -205,8 +205,8 @@ tidak mengubah referensi pada pesan lama.
 sequenceDiagram
     actor U as Pengguna
     participant W as Browser
-    participant C as Grow Team
-    participant R as Grow Runner
+    participant C as Sanji
+    participant R as Runner
     participant A as Adapter, runtime endpoint, atau koneksi model
     U->>W: Simpan profil dengan scope
     W->>C: Create profile + idempotency key
@@ -291,7 +291,7 @@ mengandung identitas, melalui helper existing; nama tampilan tidak dipakai sebag
 key dispatch. Nama yang diketik sebagai teks biasa hanya menjadi mention bila
 parser server mengakuinya sebagai mention sah.
 
-Pemeriksaan source Grow Team menemukan batas penting:
+Pemeriksaan source Sanji menemukan batas penting:
 
 1. [MentionData](../../../zerver/lib/mention.py) mengumpulkan kandidat mention; kandidat belum membuktikan mention benar-benar dirender.
 2. [build_message_send_dict](../../../zerver/actions/message_send.py) memakai `render_incoming_message` untuk menentukan mention aktual.
@@ -349,8 +349,8 @@ UI membedakan “pesan terkirim” dari “tugas diterima”. Receipt penolakan 
 dapat dibaca peminta/operator yang sah dan tidak mengungkap detail profil privat.
 
 Klien Zulip lain yang belum mempunyai preflight tetap melewati pemeriksaan
-server yang sama. Panel Grow Team dapat menemukan receipt melalui message ID.
-Tidak adanya frontend Grow Team tidak boleh melewati grant atau menyebabkan
+server yang sama. Panel Sanji dapat menemukan receipt melalui message ID.
+Tidak adanya frontend Sanji tidak boleh melewati grant atau menyebabkan
 worker mengira semua mention sah untuk coding.
 
 ### 7.3 Snapshot dan pemulihan draft
@@ -497,7 +497,7 @@ antrean hanya karena request sudah ditulis ke pipe.
 
 ## 10. F06 — Antrean, cold start, dan pembatasan
 
-Ambil pola queue per scope dari Buzz, tetapi simpan job/input/outbox Grow Team
+Ambil pola queue per scope dari Buzz, tetapi simpan job/input/outbox Sanji
 dalam database. Reaction, timer frontend, koneksi WebSocket, serta map di browser
 bukan bukti durabilitas. Satu scope tidak dapat diproses dua executor aktif.
 
@@ -774,7 +774,7 @@ Service harus terpisah menurut tanggung jawab:
 | Profile service           | Config dan hak pengguna                    | Profile/revision/setup record       | Tidak spawn di dalam transaksi.                          |
 | Admission service         | Pesan tersimpan, provenance mention, grant | Receipt serta job/input/outbox      | Tidak memanggil LLM atau endpoint runner.                |
 | Scheduler                 | Job queued dan kapasitas                   | Attempt/lease                       | Tidak menentukan izin dari teks prompt.                  |
-| Runner supervisor         | Descriptor dan lease                       | Lifecycle proses, checkpoint, event | Tidak memegang credential admin Grow Team.               |
+| Runner supervisor         | Descriptor dan lease                       | Lifecycle proses, checkpoint, event | Tidak memegang credential admin Sanji.               |
 | Runtime adapter [jalur code] | Session/prompt/tools terbatas           | Event ACP dan stop reason           | Tidak menetapkan job completed.                          |
 | Loop Anthropic SDK [jalur cepat] | Prompt, alat baca, paket konteks       | Delta streaming, `result.draft`, `result.prepared`, `attempt.stopped` | Tidak menetapkan job completed; tidak menjalankan kode. |
 | Context/tool broker       | Permintaan dengan principal job            | Data/tool result sesuai scope       | Tidak menyediakan API key bot atau unrestricted signing. |
@@ -808,12 +808,12 @@ Status bukan animasi berdasarkan stopwatch. Timer hanya menentukan batas
 menunggu dan kapan melakukan pemeriksaan ulang; event nyata menentukan fase.
 Semua status dan CTA harus dapat dipakai dengan keyboard dan pembaca layar.
 
-## 16. Peta implementasi Grow Team
+## 16. Peta implementasi Sanji
 
 Path bertanda **baru** adalah usulan. Gunakan pola existing dan pisahkan perubahan
 metadata render dari perubahan admission agar regresi chat mudah dilacak.
 
-| Area             | Source Grow Team                                                                                                                                                      | Pekerjaan                                                                        |
+| Area             | Source Sanji                                                                                                                                                      | Pekerjaan                                                                        |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | Profil/bot       | [settings_bots.ts](../../../web/src/settings_bots.ts), model pada spec awal                                                                                           | Tambahkan pengaturan agent tanpa mengganti bot existing.                         |
 | Picker/composer  | [composebox_typeahead.ts](../../../web/src/composebox_typeahead.ts), [compose.ts](../../../web/src/compose.ts), [compose_state.ts](../../../web/src/compose_state.ts) | Profil yang sah, exact IDs, target job, preflight, dan recovery draft.           |
@@ -857,7 +857,7 @@ Assertion tidak cukup hanya memeriksa status string yang diisi mock.
 | [Shell tests][buzz-shell]                     | Timeout dan batas durasi shell.                                                                                                                 | Buktikan seluruh process tree berhenti pada OS yang didukung.                    |
 
 Jangan menyalin test double desktop Buzz sebagai bukti aplikasi web native
-bekerja. Banyak tes UI upstream memakai mock IPC. Grow Team membutuhkan smoke
+bekerja. Banyak tes UI upstream memakai mock IPC. Sanji membutuhkan smoke
 browser → Django → runner yang menguji wire contract sesungguhnya.
 
 ### 17.2 Kriteria penerimaan alur
@@ -955,7 +955,7 @@ hasil pemeriksaan. Jangan menyimpan secret atau raw prompt pengguna dalam lapora
 
 Gunakan pengguna pemilik runner, anggota berizin, anggota tanpa izin, satu
 repository fixture, serta satu kanal privat. Jalankan pada browser tanpa Buzz
-Desktop atau Grow Team Desktop.
+Desktop atau Sanji Desktop.
 
 Walkthrough jalur code [jalur code]:
 
@@ -990,7 +990,7 @@ pesan “done”, atau proses yang tercatat running tidak menggantikan bukti ter
 
 ## 20. Batas riset dan catatan handoff
 
-Yang sudah dilakukan: membaca source Grow Team yang relevan; menelusuri jalur
+Yang sudah dilakukan: membaca source Sanji yang relevan; menelusuri jalur
 Buzz untuk create, readiness, mention preparation/publication, queue, session,
 permission, dan recovery; membaca kasus regresi serta catatan desain/insiden.
 

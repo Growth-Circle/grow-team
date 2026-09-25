@@ -1,4 +1,4 @@
-# Grow Runner: rancangan containment Linux
+# Runner: rancangan containment Linux
 
 Audit 2026-09-21, diperbarui 2026-09-22. Tidak memakai credential nyata, menghubungi model berbayar, atau mengubah produksi.
 
@@ -121,7 +121,6 @@ Probe hanya membuktikan primitive UDS + network namespace + penghentian child te
 10. Push/PR tanpa approval, approval changed diff/ref/epoch, double use, dan remote outcome unknown ditolak atau direkonsiliasi.
 
 Kesimpulan: primitive Linux yang dibutuhkan tersedia dan satu probe sempit berhasil. Desain layak untuk implementasi dan conformance berikutnya; **belum tersertifikasi dan belum code_ready**.
-
 
 ## Base image Node yang tersedia
 

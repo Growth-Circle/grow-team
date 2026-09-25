@@ -1,6 +1,6 @@
-# Blueprint Grow Team
+# Blueprint Sanji
 
-Status dokumen: penyelarasan sementara, 2026-09-23. Grow Team mempertahankan chat Zulip untuk tim internal lima sampai enam anggota. Produk dapat masuk ke pasar klien setelah gate produk dan operasi selesai.
+Status dokumen: penyelarasan sementara, 2026-09-23. Sanji mempertahankan chat Zulip untuk tim internal lima sampai enam anggota. Produk dapat masuk ke pasar klien setelah gate produk dan operasi selesai.
 
 ## Tujuan
 
@@ -11,7 +11,7 @@ Anggota memakai browser untuk kanal, topik, DM, pencarian, berkas, dan tugas age
 ```mermaid
 flowchart LR
   Browser[Browser anggota] --> Tunnel[Cloudflare Tunnel]
-  Tunnel --> Zulip[Grow Team: fork Zulip 12.2]
+  Tunnel --> Zulip[Sanji: fork Zulip 12.2]
   Zulip --> PG[(PostgreSQL 14)]
   Zulip --> Redis[(Redis)]
   Zulip --> RabbitMQ[(RabbitMQ)]
@@ -19,7 +19,7 @@ flowchart LR
   Zulip --> Worker[Cloudflare Email Worker]
 ```
 
-Bukti deploy chat sebelumnya mencakup `team.growc.id`, Cloudflare Tunnel, Email Worker, PostgreSQL 14, Redis, RabbitMQ, Memcached, dan engine Docker khusus Grow Team. Bukti juga mencakup login, registrasi, reset password, aset, bantuan, sesi admin, tampilan pesan, event queue, dan identitas branding. Aplikasi dipublikasi dari loopback melalui tunnel. Engine, data, volume, systemd slice, dan tunnel dipisahkan dari Hermes. Catatan ini adalah bukti bertanggal untuk chat. Catatan ini bukan bukti rilis agent saat ini. Lihat [verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md).
+Bukti deploy chat sebelumnya mencakup `team.growc.id`, Cloudflare Tunnel, Email Worker, PostgreSQL 14, Redis, RabbitMQ, Memcached, dan engine Docker khusus `grow-team`. Bukti juga mencakup login, registrasi, reset password, aset, bantuan, sesi admin, tampilan pesan, event queue, dan identitas branding. Aplikasi dipublikasi dari loopback melalui tunnel. Engine, data, volume, systemd slice, dan tunnel dipisahkan dari Hermes. Catatan ini adalah bukti bertanggal untuk chat. Catatan ini bukan bukti rilis agent saat ini. Lihat [verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md).
 
 ## Arsitektur agent yang diterima
 
@@ -55,7 +55,7 @@ Endpoint model tidak memberi akses repository dengan sendirinya. Server dan runn
 
 | Area                        | Status                                                | Arti                                                                                                                                   |
 | --------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Chat dan branding Grow Team | Bukti deploy bertanggal tersedia                      | Runtime chat telah diverifikasi pada cakupan laporan branding. Bukti perlu diulang untuk perubahan rilis berikutnya.                   |
+| Chat dan branding Sanji | Bukti deploy bertanggal tersedia                      | Runtime chat telah diverifikasi pada cakupan laporan branding. Bukti perlu diulang untuk perubahan rilis berikutnya.                   |
 | Control plane agent         | Ada di source                                         | Model durable, protocol v1, pairing, secret, grant, lifecycle, dan audit tersedia.                                                     |
 | Runner dan containment      | Komponen selesai direview untuk Task 0–6              | Task 0–6 telah melalui review komponen. Ini belum menjadi sertifikasi produk penuh.                                                    |
 | Image runner                | Image `1c3ebcde3d7e` diuji sebagai intermediate image | Image ini bukan image rilis final. Paket, notice, recovery, dan gate rilis tetap perlu bukti final.                                    |

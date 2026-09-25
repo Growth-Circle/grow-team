@@ -7,6 +7,9 @@ memindahkan job `answer` dan `manage` ke jalur cepat dengan `@anthropic-ai/sdk`.
 Keputusan pada halaman ini tetap berlaku untuk jalur code. Lihat
 [spesifikasi jalur cepat](spec/2026-09-24-agent-fast-lane.md).
 
+Status tambahan 2026-09-25: produk sekarang bernama Sanji. Keputusan di halaman
+ini tidak berubah.
+
 **[jalur code]** **Rekomendasi: gunakan runtime endpoint TypeScript terbatas dengan tool broker milik Grow Runner. Gunakan SDK ACP 1.5.0 dan sertifikasi `@agentclientprotocol/codex-acp` 1.12.0 sebagai adapter awal.** Ini merupakan keputusan rekayasa berdasarkan source dan handshake nyata yang terbatas. Seluruh P0 belum lulus: browser integration, coding fixture, sandbox, provider nyata, dan recovery belum diuji pada laporan ini.
 
 ## Bukti yang sudah diperoleh
@@ -37,18 +40,18 @@ endpoint TypeScript yang sekarang menjadi jalur code. Jalur cepat (`answer`,
 `manage`) tidak dibahas di sini; lihat
 [keputusan SDK agent](agent-sdk-decision.md).
 
-| Sumbu | Buzz agent subprocess pada commit pinned | Runtime TypeScript terbatas |
-| --- | --- | --- |
-| Loop provider | Sudah memiliki Chat Completions dan Responses, usage/error parsing, tool pairing, compaction, bounded outputs. | Perlu implementasi dua dialect, validation, retries, usage, budgets, compaction, dan tests. |
-| Approval | Source pinned memiliki `PermissionBroker`: setiap LLM-issued MCP call meminta izin ACP sebelum eksekusi; deny/timeout/cancel fail closed. | Broker memeriksa scope/lease dan durable operation sebelum dispatch tool. Tidak ada gap protokol tambahan. |
-| Durability | Histori/session in-memory; tidak ada `session/load`. Grow tetap perlu local journal, checkpoint, replay rules, dan adapter rehydration. | Journal menyimpan state tepat sebelum/setelah tool; dapat membuat recovery bagian dari loop. |
-| Secret | Model key berada pada proses Rust; MCP env disaring, tetapi passthrough aktual mencakup SSH/Git/Buzz identity dan HOME. | Supervisor memegang key; sandbox tools tidak menerima secret environment. Boundary tetap perlu tes OS. |
-| Endpoint policy | HTTP client yang diperiksa tidak memasang policy DNS/IP/redirect khusus Grow. Perlu proxy/broker egress atau patch Rust. | Transport milik runner dapat menerapkan allowlist, per-connect DNS, credential origin, time/size bounds secara langsung. |
-| Streaming | Non-streaming HTTP. Agent emits ACP message chunks sesudah response; bukan streaming token provider. | Dapat memenuhi capability stream per provider, dengan buffering argumen dan eksekusi hanya setelah complete frame. |
-| Tools | Stdio MCP; custom Grow MCP broker bisa mengganti buzz-dev-mcp. | Tool broker dapat dipanggil langsung; MCP hanya untuk integrasi yang perlu. |
-| Packaging | Binary Rust tambahan; compile dari workspace pinned dan supply-chain provenance. No binary di target lokal yang diperiksa. | Satu stack Node dengan ACP package dan runner. Perlu pin Node/dependency dan lockfile. |
-| Cakupan dependency | buzz-agent sendiri tidak bergantung pada relay; tetap membawa provider/OAuth/catalog yang tak dibutuhkan awal. buzz-dev-mcp tergantung Buzz CLI/Git/Nostr. | Batasi dependency ke SDK ACP + validator + library transport yang diperlukan. |
-| Risiko | Runtime matang, tetapi kontrol Grow masih harus ditambahkan pada beberapa seam. Jangan menganggap README sebagai security proof. | Lebih banyak kode loop baru; conformance fixtures dan fault injection wajib sebelum code_ready. |
+| Sumbu              | Buzz agent subprocess pada commit pinned                                                                                                                   | Runtime TypeScript terbatas                                                                                              |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Loop provider      | Sudah memiliki Chat Completions dan Responses, usage/error parsing, tool pairing, compaction, bounded outputs.                                             | Perlu implementasi dua dialect, validation, retries, usage, budgets, compaction, dan tests.                              |
+| Approval           | Source pinned memiliki `PermissionBroker`: setiap LLM-issued MCP call meminta izin ACP sebelum eksekusi; deny/timeout/cancel fail closed.                  | Broker memeriksa scope/lease dan durable operation sebelum dispatch tool. Tidak ada gap protokol tambahan.               |
+| Durability         | Histori/session in-memory; tidak ada `session/load`. Grow tetap perlu local journal, checkpoint, replay rules, dan adapter rehydration.                    | Journal menyimpan state tepat sebelum/setelah tool; dapat membuat recovery bagian dari loop.                             |
+| Secret             | Model key berada pada proses Rust; MCP env disaring, tetapi passthrough aktual mencakup SSH/Git/Buzz identity dan HOME.                                    | Supervisor memegang key; sandbox tools tidak menerima secret environment. Boundary tetap perlu tes OS.                   |
+| Endpoint policy    | HTTP client yang diperiksa tidak memasang policy DNS/IP/redirect khusus Grow. Perlu proxy/broker egress atau patch Rust.                                   | Transport milik runner dapat menerapkan allowlist, per-connect DNS, credential origin, time/size bounds secara langsung. |
+| Streaming          | Non-streaming HTTP. Agent emits ACP message chunks sesudah response; bukan streaming token provider.                                                       | Dapat memenuhi capability stream per provider, dengan buffering argumen dan eksekusi hanya setelah complete frame.       |
+| Tools              | Stdio MCP; custom Grow MCP broker bisa mengganti buzz-dev-mcp.                                                                                             | Tool broker dapat dipanggil langsung; MCP hanya untuk integrasi yang perlu.                                              |
+| Packaging          | Binary Rust tambahan; compile dari workspace pinned dan supply-chain provenance. No binary di target lokal yang diperiksa.                                 | Satu stack Node dengan ACP package dan runner. Perlu pin Node/dependency dan lockfile.                                   |
+| Cakupan dependency | buzz-agent sendiri tidak bergantung pada relay; tetap membawa provider/OAuth/catalog yang tak dibutuhkan awal. buzz-dev-mcp tergantung Buzz CLI/Git/Nostr. | Batasi dependency ke SDK ACP + validator + library transport yang diperlukan.                                            |
+| Risiko             | Runtime matang, tetapi kontrol Grow masih harus ditambahkan pada beberapa seam. Jangan menganggap README sebagai security proof.                           | Lebih banyak kode loop baru; conformance fixtures dan fault injection wajib sebelum code_ready.                          |
 
 Rekomendasi TS berasal dari kesesuaian kebutuhan durable operation journal, policy jaringan pemilik, streaming capability, dan pemisahan secret/tool. Ini **bukan benchmark** bahwa TS lebih cepat atau lebih aman. Hindari dua runtime default. Pertahankan Buzz sebagai referensi perilaku dan regression cases; jangan fork seluruh harness atau membawa `buzz-dev-mcp` tanpa alasan.
 
@@ -66,15 +69,15 @@ Sumber primer pinned:
 
 ## Pin package dan lisensi
 
-| Package/runtime | Pin rekomendasi untuk conformance awal | Dasar |
-| --- | --- | --- |
-| Node | `24.18.0` | Versi runtime probe berhasil; jangan mengklaim semua Node 24 tanpa suite. |
-| `@agentclientprotocol/sdk` | `1.5.0` | Registry dan package.json tag sama; Apache-2.0. |
-| `@agentclientprotocol/codex-acp` | `1.12.0` | Official release 2026-09-15; Apache-2.0. |
-| `@openai/codex` | `0.154.0` | Basis update adapter 1.12.0; pin dependency override/lock agar `^0.154.0` tidak menggeser test target. Apache-2.0. |
-| `zod` | `4.6.5` | SDK accepts 3.25/4.x; installed conformance pin 4.6.5. MIT. |
-| Claude alternative | `@agentclientprotocol/claude-agent-acp@0.79.0` | Registry current; Node >=22, SDK exact 1.4.0, Claude Agent SDK exact 0.3.274. Belum diprobe; bukan supported release. |
-| `@anthropic-ai/sdk` **[jalur cepat]** | `0.128.0` (versi dikunci persis di `package-lock.json`; nilai pasti ditetapkan saat implementasi) | Dipilih pada [keputusan SDK agent](agent-sdk-decision.md) untuk loop model jalur cepat. |
+| Package/runtime                       | Pin rekomendasi untuk conformance awal                                                            | Dasar                                                                                                                 |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Node                                  | `24.18.0`                                                                                         | Versi runtime probe berhasil; jangan mengklaim semua Node 24 tanpa suite.                                             |
+| `@agentclientprotocol/sdk`            | `1.5.0`                                                                                           | Registry dan package.json tag sama; Apache-2.0.                                                                       |
+| `@agentclientprotocol/codex-acp`      | `1.12.0`                                                                                          | Official release 2026-09-15; Apache-2.0.                                                                              |
+| `@openai/codex`                       | `0.154.0`                                                                                         | Basis update adapter 1.12.0; pin dependency override/lock agar `^0.154.0` tidak menggeser test target. Apache-2.0.    |
+| `zod`                                 | `4.6.5`                                                                                           | SDK accepts 3.25/4.x; installed conformance pin 4.6.5. MIT.                                                           |
+| Claude alternative                    | `@agentclientprotocol/claude-agent-acp@0.79.0`                                                    | Registry current; Node >=22, SDK exact 1.4.0, Claude Agent SDK exact 0.3.274. Belum diprobe; bukan supported release. |
+| `@anthropic-ai/sdk` **[jalur cepat]** | `0.128.0` (versi dikunci persis di `package-lock.json`; nilai pasti ditetapkan saat implementasi) | Dipilih pada [keputusan SDK agent](agent-sdk-decision.md) untuk loop model jalur cepat.                               |
 
 Integrity utama dari registry:
 
@@ -169,7 +172,6 @@ Sumber: [AgentMode.ts pinned](https://github.com/agentclientprotocol/codex-acp/b
 - [ ] Pin runner image digest dan package lock ke hasil conformance yang benar-benar dirilis.
 
 P0 comparison saat ini berupa source comparison plus adapter handshake. Tidak ada benchmark kedua runtime, build Buzz pinned, atau klaim provider/coding lulus. Semua kode probe berada di `/tmp`; repository Grow Team tetap tidak diubah oleh pekerjaan ini.
-
 
 ## Base Linux untuk paket native
 

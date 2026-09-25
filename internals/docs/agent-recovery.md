@@ -111,7 +111,7 @@ rollback runner, atau pemulihan layanan produksi.
 ## Rekonsiliasi terjadwal
 
 `deploy/grow-team/reconcile-agents.sh` menjalankan `reconcile_agents --limit 100`
-sebagai user aplikasi melalui engine Grow Team. Timer menjalankannya setiap
+sebagai user aplikasi melalui engine `grow-team`. Timer menjalankannya setiap
 15 detik setelah proses sebelumnya selesai, dengan jeda acak maksimal 2 detik.
 Timer tidak menyalakan aplikasi yang sengaja dihentikan.
 
@@ -177,8 +177,8 @@ tetap menjadi syarat rilis.
 ## Perbandingan isolasi host
 
 `tools/grow-team/host-isolation.py snapshot` membaca hash konfigurasi Hermes,
-status timer, serta identitas dan kesehatan container Grow Team. Perintah memakai
-SSH tanpa terminal, batas waktu, dan socket Docker khusus Grow Team.
+status timer, serta identitas dan kesehatan container `grow-team`. Perintah memakai
+SSH tanpa terminal, batas waktu, dan socket Docker khusus `grow-team`.
 File bukti baru memakai mode `0600` dalam direktori `0700`.
 
 Bandingkan snapshot sebelum dan sesudah rilis dengan baseline yang ditetapkan:

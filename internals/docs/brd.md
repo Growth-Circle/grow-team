@@ -1,8 +1,8 @@
-# BRD Grow Team
+# BRD Sanji
 
 ## Konteks bisnis
 
-Grow Team dimulai sebagai workspace internal kecil. Arah yang diterima adalah kemungkinan penjualan B2B setelah produk, operasi, isolasi pelanggan, dan keamanan siap. Dokumen ini tidak menetapkan harga, pendapatan, SLA, ROI, atau kontrak dukungan.
+Sanji dimulai sebagai workspace internal kecil. Arah yang diterima adalah kemungkinan penjualan B2B setelah produk, operasi, isolasi pelanggan, dan keamanan siap. Dokumen ini tidak menetapkan harga, pendapatan, SLA, ROI, atau kontrak dukungan.
 
 ## Traceability
 
@@ -42,7 +42,7 @@ Jangan pilih model komersial sebelum gate keamanan, backup/restore, observabilit
 
 | Status | Keputusan |
 | --- | --- |
-| Bukti deploy bertanggal | Fork Zulip Grow Team berjalan pada `team.growc.id`. Laporan branding merekam browser checks dan isolasi deploy. |
+| Bukti deploy bertanggal | Fork Zulip Sanji berjalan pada `team.growc.id`. Laporan branding merekam browser checks dan isolasi deploy. |
 | Diterima | Arsitektur agent, dua jalur runtime (jalur cepat dengan Anthropic SDK dan jalur code dengan container/ACP), dan authority eksplisit tercatat dalam spesifikasi agent. |
 | Komponen selesai direview | Task 0–6 untuk control plane, runner, dan containment telah selesai dan lulus review komponen. Image `1c3ebcde3d7e` adalah intermediate image yang diuji. |
 | Pending gate rilis | UI, provider nyata, package dan notice final, recovery, capacity, migrasi live, dan activation realm/provider. |
