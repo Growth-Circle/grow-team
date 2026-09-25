@@ -3,30 +3,16 @@
     /* Exit buttons are sometimes Cancel, but sometimes
        other "Nah, forget it" actions. */
     --color-exit-button-text: hsl(0deg 0% 0%);
-    --color-exit-button-border: hsl(300deg 2% 11% / 30%);
     --color-exit-button-background: hsl(226deg 1% 42% / 20%);
     --color-exit-button-background-interactive: hsl(226deg 1% 42% / 27%);
 
     /* Since modals are also present in portico and billing pages, we define
        the modal related variables directly here in the modal.css — which is
        a part of the common.ts bundle shared between portico and main app. */
-    --color-background-modal-overlay: color-mix(
-        in oklch,
-        hsl(0deg 0% 0%) 25%,
-        transparent
-    );
-    --color-modal-heading-text: light-dark(
-        hsl(0deg 0% 15%),
-        color-mix(in oklch, hsl(0deg 0% 100%) 85%, transparent)
-    );
     --color-background-modal: light-dark(hsl(0deg 0% 93%), hsl(0deg 0% 14%));
     --color-background-modal-bar: light-dark(
         hsl(0deg 0% 96%),
         hsl(0deg 0% 20%)
-    );
-    --color-border-modal: light-dark(
-        hsl(0deg 0% 55%),
-        color-mix(in oklch, hsl(0deg 0% 100%) 15%, transparent)
     );
     --color-border-modal-bar: light-dark(
         hsl(0deg 0% 76%),
@@ -37,7 +23,8 @@
 .modal__overlay {
     position: fixed;
     inset: 0;
-    background: var(--color-background-modal-overlay);
+    /* The ink color of --sj-tinta at 50%, in the two themes. */
+    background: hsl(240deg 13.73% 10% / 50%);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -47,66 +34,56 @@
 .modal__container {
     display: flex;
     flex-direction: column;
-    background-color: var(--color-background-modal);
-    max-width: calc(100% - 32px);
-    max-height: 96%;
-    width: 37.1428em; /* 520px at 14px em */
-    overflow: hidden;
-    border: 1px solid var(--color-border-modal);
-    border-radius: var(--radius-xl, 7px);
+    background-color: var(--sj-bg);
+    /* min(560px, 92vw) and 86vh, plus the two 2px borders: the mockup
+       box is 564px wide. The max-width also limits a modal that sets a
+       larger width by id. */
+    width: calc(min(560px, 92vw) + 4px);
+    max-width: calc(92vw + 4px);
+    max-height: calc(86vh + 4px);
+    overflow: hidden auto;
+    border: var(--sj-border-strong);
+    border-radius: var(--sj-radius-24);
+    box-shadow: var(--sj-shadow-8);
     box-sizing: border-box;
 }
 
 .modal__header {
     display: grid;
-    /* The grid structure uses two grid columns to define the
-       area for the modal close button, with the rightmost column
-       being used for the close button and to also serve as the
-       right padding and the column to its left accounts for the
-       space of modal close button icon width - right padding. */
+    /* 22px at the two sides. The first and the last columns
+       make these sides. The header has no bar color and no line. */
     grid-template:
-        ". modal-header-content modal-close-button modal-close-button" 2.75em /* 44px at 16px/1em */
-        ". modal-header-content .                  ." minmax(0, auto)
+        ". modal-header-content modal-close-button ." minmax(0, auto)
         ". modal-tab-switcher   modal-tab-switcher ." minmax(0, auto)
-        / 1em minmax(0, 1fr) minmax(0, auto) 1em; /* 16px at 16px/1em */
-    background-color: var(--color-background-modal-bar);
-
-    &:has(+ .modal__content) {
-        border-bottom: 1px solid var(--color-border-modal-bar);
-    }
+        / 1.375em minmax(0, 1fr) minmax(0, auto) 1.375em; /* 22px at 16px/1em */
+    background-color: transparent;
 }
 
 .modal__header-content {
     grid-area: modal-header-content;
-    /* 10px at 16px/1em */
-    padding: 0.625em 0;
+    /* 20px above the title, 6px below it, at 16px/1em */
+    padding: 1.25em 0 0.375em;
 }
 
 .modal__footer {
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    /* 8px 16px 12px 16px at 16px/1em */
-    padding: 0.5em 1em 0.75em;
-    background-color: var(--color-background-modal-bar);
-}
-
-.modal__content + .modal__footer {
-    /* These styles apply only when the modal content
-       is present in the modal. */
-    padding: 0.75em 1em; /* 12px 16px at 16px/1em */
-    border-top: 1px solid var(--color-border-modal-bar);
+    gap: 0.5em; /* 8px at 16px/1em */
+    /* 6px 22px 20px at 16px/1em, with no line and no bar color */
+    padding: 0.375em 1.375em 1.25em;
+    background-color: transparent;
 }
 
 .modal__title {
     margin: 0;
-    /* 20px at 16px/1em */
-    font-size: 1.25em;
-    font-weight: 650;
-    line-height: 1.2; /* 24px at 20px/1em */
+    font-size: 1.5em; /* 24px at 16px/1em */
+    font-weight: 900;
+    letter-spacing: -0.035em;
+    line-height: 1.2;
     overflow: hidden;
     overflow-wrap: break-word;
-    color: var(--color-modal-heading-text);
+    color: var(--sj-text);
 
     .icon-button {
         /* 16px icon + 4px padding = 24px icon button,
@@ -135,36 +112,73 @@
 }
 
 .modal__subtitle {
-    margin-top: 0.875em; /* 14px at 16px/1em */
-    line-height: 1.25; /* 20px at 16px/1em */
+    margin-top: 0.2857em; /* 4px at 14px/1em */
+    font-size: 0.875em; /* 14px at 16px/1em */
+    line-height: 1.45;
+    color: var(--sj-text-2);
 }
 
-.modal__close {
+.modal__header .modal__close {
     grid-area: modal-close-button;
-    align-self: center;
+    align-self: start;
+    /* 20px above the ✕, and 12px between the title and the ✕,
+       at 16px/1em */
+    margin: 1.25em 0 0 0.75em;
+}
+
+/* The ✕ of a modal and of a drawer is a 32px
+   circle. This file loads before buttons.css. Thus these rules use
+   two classes, to win over the .icon-button rules of that file. */
+.micromodal .modal__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2em; /* 32px at 16px/1em */
+    height: 2em;
+    padding: 0;
+    border: var(--sj-border);
+    border-radius: var(--sj-radius-circle);
+    background: var(--sj-bg);
+    color: var(--sj-text);
+    clip-path: none;
 
     &:focus-visible {
-        outline-offset: -2px !important;
+        /* The transparent outline shows in forced colors mode. */
+        outline: 2px solid transparent !important;
+        box-shadow: var(--sj-ring-focus);
+        color: var(--sj-text);
+        clip-path: none;
+    }
+
+    &:active {
+        color: var(--sj-text);
+        clip-path: none;
+    }
+
+    &:hover {
+        background: var(--sj-kuning);
+        color: var(--sj-tinta);
     }
 }
 
 .modal__content {
     display: flex;
     flex-direction: column;
-    /* 14px 16px at 16px/1em */
-    padding: 0.875em 1em;
+    /* 16px 22px at 16px/1em. The mockup also has a 16px gap between
+       items. The old modal bodies set their own space between items,
+       thus this rule does not add the gap. */
+    padding: 1em 1.375em;
     /* Prevent the appearance of a horizontal
        native scrollbar at certain
        info-density/zoom levels. */
     overflow: hidden auto;
-    /* Set a max-width, less the 1em of left and right
-       padding specified above. */
-    max-width: calc(100% - 2em);
+    /* Set a max-width, less the left and right padding specified above. */
+    max-width: calc(100% - 2.75em);
 
     > .simplebar-wrapper {
-        /* Compensate the 3em reduced in modal_content so it positions
-           itself correctly */
-        max-width: calc(100% + 3em);
+        /* Compensate the 2.75em reduced in modal_content so it
+           positions itself correctly */
+        max-width: calc(100% + 2.75em);
     }
 }
 
@@ -213,24 +227,57 @@
     outline-offset: -1px;
 }
 
+/* The two footer buttons are 14px pills. The
+   "transform: none" rules stop the scale(1.05) of .modal__button on
+   hover and focus. The mockup buttons do not grow. */
+.dialog_exit_button,
+.dialog_submit_button {
+    font-size: 0.875em; /* 14px at 16px/1em */
+    line-height: normal;
+    border-radius: var(--sj-radius-pill);
+}
+
 .dialog_exit_button {
-    color: var(--color-exit-button-text);
-    background: var(--color-exit-button-background);
-    border: 1px solid var(--color-exit-button-border);
+    /* The Cancel button gets the height of the submit button. */
+    align-self: stretch;
+    font-weight: 700;
+    padding: 0.7857em 1.1429em; /* 11px 16px at 14px/1em */
+    border: var(--sj-border);
+    background: var(--sj-bg);
+    color: var(--sj-text);
+
+    &:hover,
+    &:focus {
+        transform: none;
+    }
 
     &:hover {
-        background: var(--color-exit-button-background-interactive);
+        background: var(--sj-kuning);
+        color: var(--sj-tinta);
     }
 }
 
 .dialog_submit_button {
-    margin-left: 12px;
+    font-weight: 800;
+    padding: 0.7857em 1.2857em; /* 11px 18px at 14px/1em */
+    border: var(--sj-border-strong);
     background-color: var(--sj-kaki);
     color: var(--sj-tinta);
+    box-shadow: var(--sj-shadow-press);
+
+    &:hover,
+    &:focus {
+        transform: none;
+    }
 
     &:hover {
         background-color: var(--sj-ink);
         color: var(--sj-on-ink);
+    }
+
+    &:active {
+        transform: translateY(2px);
+        box-shadow: var(--sj-shadow-press-active);
     }
 }
 
@@ -738,7 +785,11 @@
 }
 
 .micromodal[aria-hidden="false"] .modal__container {
-    animation: mmfadeIn 120ms cubic-bezier(0, 0, 0.2, 1);
+    /* The Sanji pop-in. modals.ts adds modal--open when the mmfadeIn
+       animation ends, thus keep mmfadeIn in the list. */
+    animation:
+        mmfadeIn var(--sj-duration-pop) ease-out,
+        sj-pop var(--sj-duration-pop) ease-out;
 }
 
 .micromodal .modal__container,
