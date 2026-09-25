@@ -113,6 +113,18 @@ class AgentRealmLockTests(ZulipTransactionTestCase):
             release.set()
             pending.result(timeout=5)
 
+    def test_stale_request_does_not_leak_a_realm_after_it_closes(self) -> None:
+        """two_factor's ThreadLocals never clears get_current_request()
+        once a request ends. Without _request_open, agent code that runs
+        in the same OS thread afterwards (a test, or a future in-process
+        worker) could inherit that request's user and its realm."""
+        from zerver.lib.agent_context import _resolve_realm_id
+
+        self.assertIsNone(_resolve_realm_id())
+        self.login("hamlet")
+        self.client_get("/json/users/me")
+        self.assertIsNone(_resolve_realm_id())
+
 
 class AgentBadgeCountTests(ZulipTestCase):
     """running_agent_job_count() and work_counts() now query in bulk

@@ -6,6 +6,7 @@ from contextvars import ContextVar
 from time import monotonic
 from uuid import UUID
 
+from django.core.signals import request_finished, request_started
 from django.db import OperationalError, connection, transaction
 from django.http import HttpRequest, HttpResponse
 from django.utils.log import log_response
@@ -81,6 +82,25 @@ _deadline: ContextVar[float | None] = ContextVar("agent_transaction_deadline", d
 # nothing with the whole-server key.
 _realm_id: ContextVar[int | None] = ContextVar("agent_realm_id", default=None)
 
+# two_factor's ThreadLocals never clears get_current_request() after a
+# request ends, so realm-less code in the same OS thread (a test, or a
+# future in-process worker) could otherwise inherit a finished request's
+# user. This flag tracks whether a request is actually open right now, so
+# _resolve_realm_id() can ignore a stale request instead of trusting it.
+_request_open: ContextVar[bool] = ContextVar("agent_transaction_request_open", default=False)
+
+
+def _mark_request_open(sender: object, **kwargs: object) -> None:
+    _request_open.set(True)
+
+
+def _mark_request_closed(sender: object, **kwargs: object) -> None:
+    _request_open.set(False)
+
+
+request_started.connect(_mark_request_open, dispatch_uid="agent_context_request_started")
+request_finished.connect(_mark_request_closed, dispatch_uid="agent_context_request_finished")
+
 
 @contextmanager
 def agent_realm(realm_id: int) -> Iterator[None]:
@@ -105,6 +125,8 @@ def _resolve_realm_id() -> int | None:
     realm_id = _realm_id.get()
     if realm_id is not None:
         return realm_id
+    if not _request_open.get():
+        return None
     user = getattr(get_current_request(), "user", None)
     if user is not None and user.is_authenticated:
         return user.realm_id
