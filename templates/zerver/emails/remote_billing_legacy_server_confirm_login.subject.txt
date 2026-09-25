@@ -1,1 +1,1 @@
-{% trans %}Log in to Grow Team plan management{% endtrans %}
+{% trans %}Log in to sanji plan management{% endtrans %}

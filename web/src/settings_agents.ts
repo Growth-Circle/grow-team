@@ -1475,7 +1475,7 @@ function render_runners(count: number): void {
         }
         if (runner.observed_presence !== "online") {
             $("<p class='agent-field-note'>")
-                .text($t({defaultMessage: "This device is not connected to Grow Team."}))
+                .text($t({defaultMessage: "This device is not connected to sanji."}))
                 .appendTo(card);
         }
         technical_details(card, (box) => {

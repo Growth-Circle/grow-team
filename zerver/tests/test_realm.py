@@ -693,10 +693,10 @@ class RealmTest(ZulipTestCase):
         self.assert_length(mail.outbox, 1)
         self.assert_length(mail.outbox, 1)
         self.assertIn(
-            f"Your Zulip organization {realm.name} has been deactivated", mail.outbox[0].subject
+            f"Your sanji organization {realm.name} has been deactivated", mail.outbox[0].subject
         )
         self.assertIn(
-            f"You have deactivated your Zulip demo organization, {realm.name},", mail.outbox[0].body
+            f"You have deactivated your sanji demo organization, {realm.name},", mail.outbox[0].body
         )
         self.assert_logged_in_user_id(None)
 
@@ -708,9 +708,9 @@ class RealmTest(ZulipTestCase):
         self.assertEqual(realm.deactivated, True)
         self.assert_length(mail.outbox, 1)
         self.assertIn(
-            "Your Zulip organization Zulip Dev has been deactivated", mail.outbox[0].subject
+            "Your sanji organization Zulip Dev has been deactivated", mail.outbox[0].subject
         )
-        self.assertIn("Your Zulip organization, Zulip Dev, was deactivated on", mail.outbox[0].body)
+        self.assertIn("Your sanji organization, Zulip Dev, was deactivated on", mail.outbox[0].body)
 
     def test_do_send_realm_deactivation_email_by_support(self) -> None:
         realm = get_realm("lear")
@@ -724,10 +724,10 @@ class RealmTest(ZulipTestCase):
         self.assertEqual(realm.deactivated, True)
         self.assert_length(mail.outbox, 1)
         self.assertIn(
-            "Your Zulip organization Lear & Co. has been deactivated", mail.outbox[0].subject
+            "Your sanji organization Lear & Co. has been deactivated", mail.outbox[0].subject
         )
         self.assertIn(
-            "Your Zulip organization, Lear & Co., was deactivated on",
+            "Your sanji organization, Lear & Co., was deactivated on",
             mail.outbox[0].body,
         )
 
@@ -748,17 +748,17 @@ class RealmTest(ZulipTestCase):
         for email in mail.outbox:
             if email.to[0] == "iago@zulip.com":
                 self.assertIn(
-                    "Your Zulip organization Zulip Dev has been deactivated", email.subject
+                    "Your sanji organization Zulip Dev has been deactivated", email.subject
                 )
                 self.assertIn(
-                    "You have deactivated your Zulip organization, Zulip Dev, on", email.body
+                    "You have deactivated your sanji organization, Zulip Dev, on", email.body
                 )
             else:
                 self.assertIn(
-                    "Your Zulip organization Zulip Dev has been deactivated", email.subject
+                    "Your sanji organization Zulip Dev has been deactivated", email.subject
                 )
                 self.assertIn(
-                    "Your Zulip organization, Zulip Dev, was deactivated by Iago on", email.body
+                    "Your sanji organization, Zulip Dev, was deactivated by Iago on", email.body
                 )
             self.assertIn(
                 "All data associated with this organization will be permanently deleted on",
@@ -783,8 +783,8 @@ class RealmTest(ZulipTestCase):
             mock_scrub_realm.assert_called_once_with(realm, acting_user=None)
             self.assert_length(mail.outbox, 1)
             email = mail.outbox[0]
-            self.assertIn("Your Zulip organization Zulip Dev has been deactivated", email.subject)
-            self.assertIn("You have deactivated your Zulip organization, Zulip Dev, on", email.body)
+            self.assertIn("Your sanji organization Zulip Dev has been deactivated", email.subject)
+            self.assertIn("You have deactivated your sanji organization, Zulip Dev, on", email.body)
             self.assertIn(
                 "All data associated with this organization has been permanently deleted.",
                 email.body,
@@ -805,7 +805,7 @@ class RealmTest(ZulipTestCase):
             self.email_display_from(mail.outbox[0]),
             rf"^testserver account security <{self.TOKENIZED_NOREPLY_REGEX}>\Z",
         )
-        self.assertIn("Reactivate your Zulip organization", mail.outbox[0].subject)
+        self.assertIn("Reactivate your sanji organization", mail.outbox[0].subject)
         self.assertIn("Dear former administrators", mail.outbox[0].body)
         admins = realm.get_human_admin_users()
         confirmation_url = self.get_confirmation_url_from_outbox(admins[0].delivery_email)

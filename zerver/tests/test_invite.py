@@ -200,7 +200,7 @@ class InviteUserBase(ZulipTestCase):
         if len(mail.outbox) == 0:
             return
 
-        self.assertIn("Zulip", self.email_display_from(mail.outbox[0]))
+        self.assertIn("sanji", self.email_display_from(mail.outbox[0]))
 
         self.assertEqual(self.email_envelope_from(mail.outbox[0]), settings.NOREPLY_EMAIL_ADDRESS)
         self.assertRegex(
@@ -634,7 +634,7 @@ class InviteUserTest(InviteUserBase):
         self.assert_json_error(
             result,
             (
-                "Some of those addresses are already using Zulip, so we didn't send them an"
+                "Some of those addresses are already using sanji, so we didn't send them an"
                 " invitation. We did send invitations to everyone else!"
             ),
         )
@@ -996,7 +996,7 @@ class InviteUserTest(InviteUserBase):
 
         verona = get_stream("Verona", realm)
         sandbox = get_stream("sandbox", realm)
-        zulip = get_stream("Zulip", realm)
+        zulip = get_stream(str(Realm.ZULIP_DISCUSSION_CHANNEL_NAME), realm)
         default_streams = get_slim_realm_default_streams(realm.id)
         self.assertEqual(default_streams, {verona, sandbox, zulip})
 
@@ -1343,7 +1343,7 @@ class InviteUserTest(InviteUserBase):
         )
 
         self.assertEqual(invitee_msg.sender.email, "welcome-bot@zulip.com")
-        self.assertTrue(invitee_msg.content.startswith("Hello, and welcome to Grow Team!"))
+        self.assertTrue(invitee_msg.content.startswith("Hello, and welcome to sanji!"))
         self.assertNotIn("demo organization", invitee_msg.content)
 
     def test_multi_user_invite(self) -> None:
@@ -1523,7 +1523,7 @@ earl-test@zulip.com""",
         # field, because we've included that field inside the mailto:
         # link for the sender.
         self.assertIn(
-            '<a href="mailto:hamlet@zulip.com" style="color: #5f5ec7;text-decoration: underline;">&lt;/a&gt; https://www.google.com (hamlet@zulip.com)</a> wants',
+            '<a href="mailto:hamlet@zulip.com" style="color: #16161d;text-decoration: underline;">&lt;/a&gt; https://www.google.com (hamlet@zulip.com)</a> wants',
             body,
         )
 
@@ -1542,7 +1542,7 @@ earl-test@zulip.com""",
         invitee_emails = "\n".join(existing + new)
         self.assert_json_error(
             self.invite(invitee_emails, ["Denmark"]),
-            "Some of those addresses are already using Zulip, \
+            "Some of those addresses are already using sanji, \
 so we didn't send them an invitation. We did send invitations to everyone else!",
         )
 
@@ -2206,7 +2206,7 @@ so we didn't send them an invitation. We did send invitations to everyone else!"
         received_welcome_bot_custom_message = self.get_last_message()
         self.assertEqual(received_initial_direct_message.sender.email, "welcome-bot@zulip.com")
         self.assertTrue(
-            received_initial_direct_message.content.startswith("Hello, and welcome to Grow Team!")
+            received_initial_direct_message.content.startswith("Hello, and welcome to sanji!")
         )
         self.assertEqual(received_welcome_bot_custom_message.sender.email, "welcome-bot@zulip.com")
         self.assertIn(welcome_message_custom_text, received_welcome_bot_custom_message.content)
@@ -2223,7 +2223,7 @@ so we didn't send them an invitation. We did send invitations to everyone else!"
         received_welcome_bot_custom_message = self.get_last_message()
         self.assertEqual(received_initial_direct_message.sender.email, "welcome-bot@zulip.com")
         self.assertTrue(
-            received_initial_direct_message.content.startswith("Hello, and welcome to Grow Team!")
+            received_initial_direct_message.content.startswith("Hello, and welcome to sanji!")
         )
         self.assertEqual(received_welcome_bot_custom_message.sender.email, "welcome-bot@zulip.com")
         self.assertIn(
@@ -2244,7 +2244,7 @@ so we didn't send them an invitation. We did send invitations to everyone else!"
         self.assertNotEqual(second_to_last_message.sender.email, "welcome-bot@zulip.com")
         self.assertEqual(received_initial_direct_message.sender.email, "welcome-bot@zulip.com")
         self.assertTrue(
-            received_initial_direct_message.content.startswith("Hello, and welcome to Grow Team!")
+            received_initial_direct_message.content.startswith("Hello, and welcome to sanji!")
         )
 
     def test_invite_welcome_bot_custom_message_from_member(self) -> None:
@@ -2274,7 +2274,7 @@ so we didn't send them an invitation. We did send invitations to everyone else!"
         received_welcome_bot_custom_message = self.get_last_message()
         self.assertEqual(received_initial_direct_message.sender.email, "welcome-bot@zulip.com")
         self.assertTrue(
-            received_initial_direct_message.content.startswith("Hello, and welcome to Grow Team!")
+            received_initial_direct_message.content.startswith("Hello, and welcome to sanji!")
         )
         self.assertEqual(received_welcome_bot_custom_message.sender.email, "welcome-bot@zulip.com")
         self.assertIn(
@@ -2305,7 +2305,7 @@ so we didn't send them an invitation. We did send invitations to everyone else!"
         self.assertNotEqual(second_to_last_message.sender.email, "welcome-bot@zulip.com")
         self.assertEqual(received_initial_direct_message.sender.email, "welcome-bot@zulip.com")
         self.assertTrue(
-            received_initial_direct_message.content.startswith("Hello, and welcome to Grow Team!")
+            received_initial_direct_message.content.startswith("Hello, and welcome to sanji!")
         )
 
     def test_invite_welcome_bot_custom_message_changed_after_invite(self) -> None:
@@ -2334,7 +2334,7 @@ so we didn't send them an invitation. We did send invitations to everyone else!"
         received_welcome_bot_custom_message = self.get_last_message()
         self.assertEqual(received_initial_direct_message.sender.email, "welcome-bot@zulip.com")
         self.assertTrue(
-            received_initial_direct_message.content.startswith("Hello, and welcome to Grow Team!")
+            received_initial_direct_message.content.startswith("Hello, and welcome to sanji!")
         )
         self.assertEqual(received_welcome_bot_custom_message.sender.email, "welcome-bot@zulip.com")
         self.assertIn(
@@ -3128,7 +3128,7 @@ class MultiuseInviteTest(ZulipTestCase):
         received_welcome_bot_custom_message = self.get_last_message()
         self.assertEqual(received_initial_direct_message.sender.email, "welcome-bot@zulip.com")
         self.assertTrue(
-            received_initial_direct_message.content.startswith("Hello, and welcome to Grow Team!")
+            received_initial_direct_message.content.startswith("Hello, and welcome to sanji!")
         )
         self.assertEqual(received_welcome_bot_custom_message.sender.email, "welcome-bot@zulip.com")
         self.assertIn(welcome_message_custom_text, received_welcome_bot_custom_message.content)
@@ -3143,7 +3143,7 @@ class MultiuseInviteTest(ZulipTestCase):
         received_welcome_bot_custom_message = self.get_last_message()
         self.assertEqual(received_initial_direct_message.sender.email, "welcome-bot@zulip.com")
         self.assertTrue(
-            received_initial_direct_message.content.startswith("Hello, and welcome to Grow Team!")
+            received_initial_direct_message.content.startswith("Hello, and welcome to sanji!")
         )
         self.assertEqual(received_welcome_bot_custom_message.sender.email, "welcome-bot@zulip.com")
         self.assertIn(
@@ -3164,11 +3164,11 @@ class MultiuseInviteTest(ZulipTestCase):
         second_to_last_message = self.get_second_to_last_message()
         received_initial_direct_message = self.get_last_message()
         self.assertFalse(
-            second_to_last_message.content.startswith("Hello, and welcome to Grow Team!")
+            second_to_last_message.content.startswith("Hello, and welcome to sanji!")
         )
         self.assertEqual(received_initial_direct_message.sender.email, "welcome-bot@zulip.com")
         self.assertTrue(
-            received_initial_direct_message.content.startswith("Hello, and welcome to Grow Team!")
+            received_initial_direct_message.content.startswith("Hello, and welcome to sanji!")
         )
 
     def test_multiuse_invite_welcome_bot_custom_message_from_member(self) -> None:
@@ -3201,7 +3201,7 @@ class MultiuseInviteTest(ZulipTestCase):
         received_welcome_bot_custom_message = self.get_last_message()
         self.assertEqual(received_initial_direct_message.sender.email, "welcome-bot@zulip.com")
         self.assertTrue(
-            received_initial_direct_message.content.startswith("Hello, and welcome to Grow Team!")
+            received_initial_direct_message.content.startswith("Hello, and welcome to sanji!")
         )
         self.assertEqual(received_welcome_bot_custom_message.sender.email, "welcome-bot@zulip.com")
         self.assertIn(
@@ -3228,11 +3228,11 @@ class MultiuseInviteTest(ZulipTestCase):
         second_to_last_message = self.get_second_to_last_message()
         received_initial_direct_message = self.get_last_message()
         self.assertFalse(
-            second_to_last_message.content.startswith("Hello, and welcome to Grow Team!")
+            second_to_last_message.content.startswith("Hello, and welcome to sanji!")
         )
         self.assertEqual(received_initial_direct_message.sender.email, "welcome-bot@zulip.com")
         self.assertTrue(
-            received_initial_direct_message.content.startswith("Hello, and welcome to Grow Team!")
+            received_initial_direct_message.content.startswith("Hello, and welcome to sanji!")
         )
 
     def test_multiuse_invite_welcome_bot_custom_message_changed_after_invite(self) -> None:
@@ -3258,7 +3258,7 @@ class MultiuseInviteTest(ZulipTestCase):
         received_welcome_bot_custom_message = self.get_last_message()
         self.assertEqual(received_initial_direct_message.sender.email, "welcome-bot@zulip.com")
         self.assertTrue(
-            received_initial_direct_message.content.startswith("Hello, and welcome to Grow Team!")
+            received_initial_direct_message.content.startswith("Hello, and welcome to sanji!")
         )
         self.assertEqual(received_welcome_bot_custom_message.sender.email, "welcome-bot@zulip.com")
         self.assertIn(
@@ -3461,7 +3461,7 @@ class MultiuseInviteTest(ZulipTestCase):
         default_streams = get_slim_realm_default_streams(self.realm.id)
         verona = get_stream("Verona", self.realm)
         sandbox = get_stream("sandbox", self.realm)
-        zulip = get_stream("Zulip", self.realm)
+        zulip = get_stream(str(Realm.ZULIP_DISCUSSION_CHANNEL_NAME), self.realm)
         self.assertEqual(default_streams, {verona, sandbox, zulip})
 
         # Check that user is subscribed to the streams that were set as default

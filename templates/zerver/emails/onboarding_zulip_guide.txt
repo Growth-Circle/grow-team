@@ -1,12 +1,12 @@
-{{ _("As you are getting started with Grow Team, we'd love to help you discover how it can work best for your needs. Check out this guide to key Grow Team features for organizations like yours!") }}
+{{ _("As you are getting started with sanji, we'd love to help you discover how it can work best for your needs. Check out this guide to key sanji features for organizations like yours!") }}
 
-{{ _("Open the Grow Team getting started guide") }}:
+{{ _("Open the sanji getting started guide") }}:
 <{{ zulip_guide_link }}>
 
 {% if corporate_enabled %}
     {% trans %}Do you have questions or feedback to share? Contact us at {{ support_email }} — we'd love to help!{% endtrans %}
 {% else %}
-    {% trans %}If you have any questions, please contact this Grow Team server's administrators at {{ support_email }}.{% endtrans %}
+    {% trans %}If you have any questions, please contact this sanji server's administrators at {{ support_email }}.{% endtrans %}
 {% endif %}
 
 ----

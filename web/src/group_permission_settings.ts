@@ -235,7 +235,7 @@ export function get_assigned_permission_object(
             ) {
                 assigned_permission_object.can_edit = false;
                 assigned_permission_object.tooltip_message = $t({
-                    defaultMessage: "Contact a Grow Team administrator to change this setting.",
+                    defaultMessage: "Contact a sanji administrator to change this setting.",
                 });
             }
             return assigned_permission_object;
@@ -285,7 +285,7 @@ export function get_assigned_permission_object(
         ) {
             assigned_permission_object.can_edit = false;
             assigned_permission_object.tooltip_message = $t({
-                defaultMessage: "Contact a Grow Team administrator to change this setting.",
+                defaultMessage: "Contact a sanji administrator to change this setting.",
             });
         }
         return assigned_permission_object;

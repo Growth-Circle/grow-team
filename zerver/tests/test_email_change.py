@@ -182,7 +182,7 @@ class EmailChangeTestCase(ZulipTestCase):
         do_deactivate_user(user_profile, acting_user=None)
         response = self.use_email_change_confirmation_link(activation_url)
         self.assertEqual(response.status_code, 401)
-        error_page_title = "<title>Account is deactivated | Zulip</title>"
+        error_page_title = "<title>Account is deactivated | sanji</title>"
         self.assert_in_response(error_page_title, response)
 
         do_reactivate_user(user_profile, acting_user=None)
@@ -423,7 +423,7 @@ class EmailChangeTestCase(ZulipTestCase):
         email_message = mail.outbox[0]
         self.assertEqual(
             email_message.subject,
-            "Verify your email address for your Zulip demo organization",
+            "Verify your email address for your sanji demo organization",
         )
         body = email_message.body
         self.assertIn(

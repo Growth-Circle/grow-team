@@ -1098,7 +1098,7 @@ export function initialize(): void {
         target: ".two-tier-billing-disabled",
         delay: LONG_HOVER_DELAY,
         onShow(instance) {
-            const content = $t({defaultMessage: "Contact a Grow Team administrator to enable this."});
+            const content = $t({defaultMessage: "Contact a sanji administrator to enable this."});
             instance.setContent(content);
         },
         appendTo: () => document.body,

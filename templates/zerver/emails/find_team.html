@@ -1,7 +1,7 @@
 {% extends "zerver/emails/email_base_default.html" %}
 
 {% block illustration %}
-<img src="{{ email_images_base_url }}/email_logo.png?v=grow-team-1" alt=""/>
+<img src="{{ email_images_base_url }}/email_logo.png?v=sanji-1" alt=""/>
 {% endblock %}
 
 {% block content %}
@@ -9,9 +9,9 @@
 <p>{{ _("Thanks for your request!") }}</p>
 
 {% if corporate_enabled %}
-<p>{% trans %}Your email address {{ email }} has accounts with the following Grow Team organizations:{% endtrans %}</p>
+<p>{% trans %}Your email address {{ email }} has accounts with the following sanji organizations:{% endtrans %}</p>
 {% else %}
-<p>{% trans %}Your email address {{ email }} has accounts with the following Grow Team organizations hosted by {{ external_host }}:{% endtrans %}</p>
+<p>{% trans %}Your email address {{ email }} has accounts with the following sanji organizations hosted by {{ external_host }}:{% endtrans %}</p>
 {% endif %}
 
 <ul>
@@ -25,11 +25,11 @@
 </p>
 {% else %}
 <p>
-    {{ _("You have requested a list of Grow Team accounts for this email address.") }}
+    {{ _("You have requested a list of sanji accounts for this email address.") }}
     {% if corporate_enabled %}
-    {{ _("Unfortunately, no Grow Team accounts were found.") }}
+    {{ _("Unfortunately, no sanji accounts were found.") }}
     {% else %}
-    {% trans%}Unfortunately, no accounts were found in Grow Team organizations hosted by {{external_host}}.{% endtrans %}
+    {% trans%}Unfortunately, no accounts were found in sanji organizations hosted by {{external_host}}.{% endtrans %}
     {% endif %}
 </p>
 

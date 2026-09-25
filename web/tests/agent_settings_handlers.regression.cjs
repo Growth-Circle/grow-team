@@ -707,7 +707,7 @@ async function main() {
         assert.match(device_text, /Declared category: Personal computer/);
         assert.match(device_text, /Observed presence: Connected/);
         assert.match(device_text, /Observed presence: Offline/);
-        assert.match(device_text, /This device is not connected to Grow Team\./);
+        assert.match(device_text, /This device is not connected to sanji\./);
         assert.equal(
             $("#agent-runner-list .agent-field-note").length,
             1,

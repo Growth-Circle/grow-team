@@ -435,7 +435,7 @@ class TestDevelopmentEmailsLog(ZulipTestCase):
 
             # assert_in_success_response() verifies that the content
             # we received from client_get includes the strings we expect
-            self.assert_in_success_response(["All emails sent in the Zulip"], result)
+            self.assert_in_success_response(["All emails sent in the sanji"], result)
 
 
 class TestMocking(ZulipTestCase):

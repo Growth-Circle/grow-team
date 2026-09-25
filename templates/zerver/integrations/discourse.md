@@ -1,6 +1,6 @@
-# Grow Team Discourse integration
+# sanji Discourse integration
 
-Forward new Discourse posts to Grow Team!
+Forward new Discourse posts to sanji!
 
 {start_tabs}
 
@@ -22,7 +22,7 @@ Forward new Discourse posts to Grow Team!
    like to receive notifications in, set **Subject** to the topic name, and
    click **Save Channel**.
 
-1. To filter the posts you'd like to forward to Grow Team,
+1. To filter the posts you'd like to forward to sanji,
    [configure the rules][configuring-rules] in your Discourse forum's
    **Chat Integrations** panel.
 

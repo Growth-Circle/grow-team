@@ -1,13 +1,13 @@
-# Grow Team Errbot integration
+# sanji Errbot integration
 
-Run your favorite chatbot in Grow Team!
+Run your favorite chatbot in sanji!
 
 {start_tabs}
 
 1. [Install errbot][install-errbot], and follow the instructions to set up a
    `config.py`.
 
-1. Clone the [Errbot integration package for Grow Team][errbot-package]
+1. Clone the [Errbot integration package for sanji][errbot-package]
    repository somewhere convenient, and install the requirements listed in
    `errbot-backend-zulip/requirements.txt`.
 
@@ -39,14 +39,14 @@ Run your favorite chatbot in Grow Team!
     Sections you need to edit are marked with `<>`. Replace the `<...>`
     placeholders with your own values, removing the `<` and `>` brackets.
 
-    Use the details of the Grow Team bot created above for the `BOT_IDENTITY`
+    Use the details of the sanji bot created above for the `BOT_IDENTITY`
     and `BOT_PREFIX` sections.
 
 1. [Start ErrBot][start-errbot].
 
 !!! tip ""
 
-    ErrBot uses the term "Rooms" for Grow Team channels.
+    ErrBot uses the term "Rooms" for sanji channels.
 
 {end_tabs}
 
@@ -57,7 +57,7 @@ Run your favorite chatbot in Grow Team!
 ### Related documentation
 
 - [Errbot Documentation](https://errbot.readthedocs.io/en/latest/)
-- [Errbot integration package for Grow Team][errbot-package]
+- [Errbot integration package for sanji][errbot-package]
 - [Python bindings Configuration][config-python-bindings]
 
 [install-errbot]: https://errbot.readthedocs.io/en/latest/user_guide/setup.html

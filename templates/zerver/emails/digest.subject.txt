@@ -1,1 +1,1 @@
-{% trans %}Grow Team digest for {{ realm_name }}{% endtrans %}
+{% trans %}sanji digest for {{ realm_name }}{% endtrans %}

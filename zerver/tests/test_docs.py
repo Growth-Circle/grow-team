@@ -680,7 +680,7 @@ class PlansPageTest(ZulipTestCase):
         non_existent_domain = "moo"
         result = self.client_get("/plans/", subdomain=non_existent_domain)
         self.assertEqual(result.status_code, 404)
-        self.assert_in_response("There is no Zulip organization at", result)
+        self.assert_in_response("There is no sanji organization at", result)
 
         realm = get_realm("zulip")
         realm.plan_type = Realm.PLAN_TYPE_STANDARD_FREE
@@ -924,10 +924,10 @@ class PrivacyTermsTest(ZulipTestCase):
         # line of the test would change if we were to adjust the
         # design.
         response = self.client_get("/policies/terms")
-        self.assert_not_in_success_response(["Back to Zulip"], response)
+        self.assert_not_in_success_response(["Back to sanji"], response)
 
         response = self.client_get("/policies/terms", {"nav": "no"})
-        self.assert_not_in_success_response(["Back to Zulip"], response)
+        self.assert_not_in_success_response(["Back to sanji"], response)
 
         response = self.client_get("/policies/privacy", {"nav": "no"})
-        self.assert_not_in_success_response(["Back to Zulip"], response)
+        self.assert_not_in_success_response(["Back to sanji"], response)

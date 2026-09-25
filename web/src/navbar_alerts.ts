@@ -187,7 +187,7 @@ const DESKTOP_NOTIFICATIONS_BANNER: AlertBanner = {
     intent: "brand",
     label: $t({
         defaultMessage:
-            "Grow Team needs your permission to enable desktop notifications for important messages.",
+            "sanji needs your permission to enable desktop notifications for important messages.",
     }),
     buttons: [
         {
@@ -215,7 +215,7 @@ const CONFIGURE_OUTGOING_MAIL_BANNER: AlertBanner = {
     intent: "warning",
     label: $t({
         defaultMessage:
-            "Grow Team needs to send email to confirm user addresses and send notifications.",
+            "sanji needs to send email to confirm user addresses and send notifications.",
     }),
     buttons: [
         {
@@ -251,7 +251,7 @@ const UNSUPPORTED_BROWSER_BANNER: AlertBanner = {
     intent: "warning",
     label: $t({
         defaultMessage:
-            "Because you use an unsupported or old browser, Grow Team may not work as expected.",
+            "Because you use an unsupported or old browser, sanji may not work as expected.",
     }),
     buttons: [
         {
@@ -303,7 +303,7 @@ const SERVER_NEEDS_UPGRADE_BANNER: AlertBanner = {
     process: "server-needs-upgrade",
     intent: "danger",
     label: $t({
-        defaultMessage: "This Grow Team server runs an old version and should be upgraded.",
+        defaultMessage: "This sanji server runs an old version and should be upgraded.",
     }),
     buttons: [
         {
@@ -412,7 +412,7 @@ const time_zone_update_offer_banner = (): AlertBanner => {
         label: $t(
             {
                 defaultMessage:
-                    "Your computer's time zone differs from your Grow Team profile. Update your time zone to {browser_time_zone}?",
+                    "Your computer's time zone differs from your sanji profile. Update your time zone to {browser_time_zone}?",
             },
             {
                 browser_time_zone,

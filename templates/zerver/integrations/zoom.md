@@ -1,4 +1,4 @@
-# Use Zoom as your call provider in Grow Team
+# Use Zoom as your call provider in sanji
 
 You can configure Zoom as the call provider for your organization. Users will be
 able to start a Zoom call and invite others using the **add video call** (<i
@@ -8,12 +8,12 @@ box](/help/start-a-call).
 
 ## Configure Zoom as your call provider
 
-By default, Grow Team integrates with
+By default, sanji integrates with
 [Jitsi Meet](https://jitsi.org/jitsi-meet/), a fully-encrypted, 100% open
-source video conferencing solution. You can configure Grow Team to use Zoom as your
+source video conferencing solution. You can configure sanji to use Zoom as your
 call provider instead.
 
-### Configure Zoom on Grow Team
+### Configure Zoom on sanji
 
 {start_tabs}
 

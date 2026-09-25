@@ -1,15 +1,15 @@
 {% if organization_type == "business" %}
-{{ _("Grow Team guide for businesses") }}
+{{ _("sanji guide for businesses") }}
 {% elif organization_type == "opensource" %}
-{{ _("Grow Team guide for open-source projects") }}
+{{ _("sanji guide for open-source projects") }}
 {% elif organization_type == "education" %}
-{{ _("Grow Team guide for education") }}
+{{ _("sanji guide for education") }}
 {% elif organization_type == "research" %}
-{{ _("Grow Team guide for research") }}
+{{ _("sanji guide for research") }}
 {% elif organization_type == "event" %}
-{{ _("Grow Team guide for events and conferences") }}
+{{ _("sanji guide for events and conferences") }}
 {% elif organization_type == "nonprofit" %}
-{{ _("Grow Team guide for non-profits") }}
+{{ _("sanji guide for non-profits") }}
 {% elif organization_type == "community" %}
-{{ _("Grow Team guide for communities") }}
+{{ _("sanji guide for communities") }}
 {% endif %}

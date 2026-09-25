@@ -159,7 +159,7 @@ def fix_emojis(fragment: lxml.html.HtmlElement, emojiset: str) -> None:
 
 def fix_spoilers_in_html(fragment: lxml.html.HtmlElement, language: str) -> None:
     with override_language(language):
-        spoiler_title: str = _("Open Grow Team to see the spoiler content")
+        spoiler_title: str = _("Open sanji to see the spoiler content")
     spoilers = fragment.find_class("spoiler-block")
     for spoiler in spoilers:
         header = spoiler.find_class("spoiler-header")[0]
@@ -181,7 +181,7 @@ def fix_spoilers_in_html(fragment: lxml.html.HtmlElement, language: str) -> None
 
 def fix_spoilers_in_text(content: str, language: str) -> str:
     with override_language(language):
-        spoiler_title: str = _("Open Grow Team to see the spoiler content")
+        spoiler_title: str = _("Open sanji to see the spoiler content")
     lines = content.split("\n")
     output = []
     open_fence = None
@@ -527,7 +527,7 @@ def do_send_missedmessage_events_reply_in_zulip(
     if reply_to_address == FromAddress.NOREPLY:
         reply_to_name = ""
     else:
-        reply_to_name = "Grow Team"
+        reply_to_name = "sanji"
 
     senders = list({m["message"].sender for m in missed_messages})
     message = missed_messages[0]["message"]

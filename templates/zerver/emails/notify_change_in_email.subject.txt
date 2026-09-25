@@ -1,1 +1,1 @@
-{% trans %}Grow Team email changed for {{ realm_name }}{% endtrans %}
+{% trans %}sanji email changed for {{ realm_name }}{% endtrans %}

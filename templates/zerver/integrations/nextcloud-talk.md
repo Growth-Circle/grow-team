@@ -1,4 +1,4 @@
-# Use Nextcloud Talk as your call provider in Grow Team
+# Use Nextcloud Talk as your call provider in sanji
 
 You can configure Nextcloud Talk as the call provider for your organization.
 Users will be able to start a Nextcloud Talk call and invite others using the
@@ -9,20 +9,20 @@ You'll need a Nextcloud server with the Talk app enabled.
 
 !!! warn ""
 
-    **Note:** This integration is not available in Grow Team.
+    **Note:** This integration is not available in sanji.
 
 ## Configure Nextcloud Talk as your call provider
 
-By default, Grow Team integrates with
+By default, sanji integrates with
 [Jitsi Meet](https://jitsi.org/jitsi-meet/), a fully-encrypted, 100% open
-source video conferencing solution. You can configure Grow Team to use Nextcloud
+source video conferencing solution. You can configure sanji to use Nextcloud
 Talk as your call provider instead.
 
 !!! warn ""
 
-    **Note:** Grow Team creates public Nextcloud Talk conversations with guest
+    **Note:** sanji creates public Nextcloud Talk conversations with guest
     access, allowing anyone to join by visiting a URL and entering their
-    name. This ensures that all Grow Team users can join calls regardless of
+    name. This ensures that all sanji users can join calls regardless of
     whether they have Nextcloud accounts.
 
 {start_tabs}
@@ -34,7 +34,7 @@ Talk as your call provider instead.
 1. Generate an app password in Nextcloud Talk for API access:
     - Go to your **Settings**, select **Personal Security** and navigate to
     the **Devices & sessions** section.
-    - Set the **App name** to a name of your choice, such as `Grow Team`.
+    - Set the **App name** to a name of your choice, such as `sanji`.
     - Click **Create new app password**, and copy the generated password.
 
 1. In `/etc/zulip/zulip-secrets.conf`, set `NEXTCLOUD_TALK_USERNAME` to your
@@ -44,7 +44,7 @@ Talk as your call provider instead.
 1. In `/etc/zulip/settings.py`, set `NEXTCLOUD_SERVER` to the URL of your
    Nextcloud server.
 
-1. Restart the Grow Team server with
+1. Restart the sanji server with
    `/home/zulip/deployments/current/scripts/restart-server`.
 
 {settings_tab|organization-settings}

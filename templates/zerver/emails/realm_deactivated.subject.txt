@@ -1,1 +1,1 @@
-{% trans %}Your Grow Team organization {{ realm_name }} has been deactivated{% endtrans %}
+{% trans %}Your sanji organization {{ realm_name }} has been deactivated{% endtrans %}

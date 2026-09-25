@@ -80,7 +80,7 @@ export function redraw_title(): void {
         " - " +
         realm.realm_name +
         " - " +
-        "Grow Team";
+        "sanji";
 
     document.title = new_title;
 }

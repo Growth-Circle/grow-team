@@ -148,7 +148,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
         if settings.EMAIL_GATEWAY_PATTERN != "":
             reply_to_addresses = [settings.EMAIL_GATEWAY_PATTERN % (t,) for t in tokens]
             reply_to_emails = [
-                str(Address(display_name="Zulip", addr_spec=address))
+                str(Address(display_name="sanji", addr_spec=address))
                 for address in reply_to_addresses
             ]
         else:
@@ -219,7 +219,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
             verify_body_include = [
                 "This email does not include message content because you have chosen to ",
                 "http://zulip.testserver/help/email-notifications#hide-message-content ",
-                "View or reply in Zulip Dev Zulip",
+                "View or reply in Zulip Dev sanji",
                 " Manage email preferences: http://zulip.testserver/#settings/notifications",
             ]
 
@@ -230,7 +230,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
                 "1 2 3 4 5 6 7 8 9 10 @**King Hamlet**",
                 "private",
                 "group",
-                "Reply to this email directly, or view it in Zulip Dev Zulip",
+                "Reply to this email directly, or view it in Zulip Dev sanji",
             ]
         self._test_cases(
             msg_id,
@@ -279,7 +279,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
             verify_body_include = [
                 "This email does not include message content because you have chosen to ",
                 "http://zulip.testserver/help/email-notifications#hide-message-content ",
-                "View or reply in Zulip Dev Zulip",
+                "View or reply in Zulip Dev sanji",
                 " Manage email preferences: http://zulip.testserver/#settings/notifications",
             ]
             email_subject = "New messages"
@@ -288,7 +288,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
                 "1 2 3 4 5 @**topic**",
                 "private",
                 "group",
-                "Reply to this email directly, or view it in Zulip Dev Zulip",
+                "Reply to this email directly, or view it in Zulip Dev sanji",
             ]
         self._test_cases(
             msg_id,
@@ -319,7 +319,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
             verify_body_include = [
                 "This email does not include message content because you have chosen to ",
                 "http://zulip.testserver/help/email-notifications#hide-message-content ",
-                "View or reply in Zulip Dev Zulip",
+                "View or reply in Zulip Dev sanji",
                 " Manage email preferences: http://zulip.testserver/#settings/notifications",
             ]
             email_subject = "New messages"
@@ -329,7 +329,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
                 "1 2 3 4 5 @**all**",
                 "private",
                 "group",
-                "Reply to this email directly, or view it in Zulip Dev Zulip",
+                "Reply to this email directly, or view it in Zulip Dev sanji",
             ]
         self._test_cases(
             msg_id,
@@ -378,7 +378,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
             verify_body_include = [
                 "This email does not include message content because you have chosen to ",
                 "http://zulip.testserver/help/email-notifications#hide-message-content ",
-                "View or reply in Zulip Dev Zulip",
+                "View or reply in Zulip Dev sanji",
                 " Manage email preferences: http://zulip.testserver/#settings/notifications",
             ]
             email_subject = "New messages"
@@ -387,7 +387,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
                 "1 2 3 4 5 @**topic**",
                 "private",
                 "group",
-                "Reply to this email directly, or view it in Zulip Dev Zulip",
+                "Reply to this email directly, or view it in Zulip Dev sanji",
             ]
         self._test_cases(
             msg_id,
@@ -418,7 +418,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
             verify_body_include = [
                 "This email does not include message content because you have chosen to ",
                 "http://zulip.testserver/help/email-notifications#hide-message-content ",
-                "View or reply in Zulip Dev Zulip",
+                "View or reply in Zulip Dev sanji",
                 " Manage email preferences: http://zulip.testserver/#settings/notifications",
             ]
             email_subject = "New messages"
@@ -428,7 +428,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
                 "1 2 3 4 5 @**all**",
                 "private",
                 "group",
-                "Reply to this email directly, or view it in Zulip Dev Zulip",
+                "Reply to this email directly, or view it in Zulip Dev sanji",
             ]
         self._test_cases(
             msg_id,
@@ -526,14 +526,14 @@ class TestMessageNotificationEmails(ZulipTestCase):
                 verify_body_include = [
                     "This email does not include message content because your organization",
                     "http://zulip.testserver/help/hide-message-content-in-emails",
-                    "View or reply in Zulip Dev Zulip",
+                    "View or reply in Zulip Dev sanji",
                     " Manage email preferences: http://zulip.testserver/#settings/notifications",
                 ]
             elif message_content_disabled_by_user:
                 verify_body_include = [
                     "This email does not include message content because you have chosen to ",
                     "http://zulip.testserver/help/email-notifications#hide-message-content ",
-                    "View or reply in Zulip Dev Zulip",
+                    "View or reply in Zulip Dev sanji",
                     " Manage email preferences: http://zulip.testserver/#settings/notifications",
                 ]
             email_subject = "New messages"
@@ -542,7 +542,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
                 "Extremely personal message!",
                 "mentioned",
                 "group",
-                "Reply to this email directly, or view it in Zulip Dev Zulip",
+                "Reply to this email directly, or view it in Zulip Dev sanji",
             ]
         self._test_cases(
             msg_id,
@@ -558,7 +558,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
             self.example_user("hamlet"),
             "Extremely personal message!",
         )
-        verify_body_include = ["Reply to this email directly, or view it in Zulip Dev Zulip"]
+        verify_body_include = ["Reply to this email directly, or view it in Zulip Dev sanji"]
         email_subject = "DMs with Othello, the Moor of Venice"
         self._test_cases(msg_id, verify_body_include, email_subject)
 
@@ -594,7 +594,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
             verify_body_include = [
                 "This email does not include message content because you have chosen to ",
                 "http://zulip.testserver/help/email-notifications#hide-message-content ",
-                "View or reply in Zulip Dev Zulip",
+                "View or reply in Zulip Dev sanji",
                 " Manage email preferences: http://zulip.testserver/#settings/notifications",
             ]
             email_subject = "New messages"
@@ -603,7 +603,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
                 "Othello, the Moor of Venice Othello, the Moor of Venice",
                 "Group personal message!",
                 "mentioned",
-                "Reply to this email directly, or view it in Zulip Dev Zulip",
+                "Reply to this email directly, or view it in Zulip Dev sanji",
             ]
         self._test_cases(
             msg_id,
@@ -1261,7 +1261,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
 
         encoded_name = "Cordelia,-Lear's-daughter"
         verify_body_include = [
-            f"view it in Zulip Dev Zulip: http://zulip.testserver/#narrow/dm/{cordelia.id}-{encoded_name}"
+            f"view it in Zulip Dev sanji: http://zulip.testserver/#narrow/dm/{cordelia.id}-{encoded_name}"
         ]
         email_subject = "DMs with Cordelia, Lear's daughter"
         self._test_cases(msg_id, verify_body_include, email_subject)
@@ -1297,7 +1297,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
         other_users = sorted([aaron, cordelia], key=lambda user: user.id)
         encoded_user_ids = ",".join([str(user.id) for user in other_users])
         verify_body_include = [
-            f"view it in Zulip Dev Zulip: http://zulip.testserver/#narrow/dm/{encoded_user_ids}-group"
+            f"view it in Zulip Dev sanji: http://zulip.testserver/#narrow/dm/{encoded_user_ids}-group"
         ]
         group_display_name = " and ".join([user.full_name for user in other_users])
         email_subject = "Group DMs with " + group_display_name
@@ -1697,7 +1697,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
         fragment = lxml.html.fromstring(test_data)
         fix_spoilers_in_html(fragment, "en")
         actual_output = lxml.html.tostring(fragment, encoding="unicode")
-        expected_output = '<div><div class="spoiler-block">\n\n<p><a>header</a> text <span class="spoiler-title" title="Open Grow Team to see the spoiler content">(Open Grow Team to see the spoiler content)</span></p>\n</div>\n\n<p>outside spoiler</p></div>'
+        expected_output = '<div><div class="spoiler-block">\n\n<p><a>header</a> text <span class="spoiler-title" title="Open sanji to see the spoiler content">(Open sanji to see the spoiler content)</span></p>\n</div>\n\n<p>outside spoiler</p></div>'
         self.assertEqual(actual_output, expected_output)
 
         # test against our markdown_test_cases so these features do not get out of sync.
@@ -1718,7 +1718,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
     def test_spoilers_in_text_emails(self) -> None:
         content = "@**King Hamlet**\n\n```spoiler header text\nsecret-text\n```"
         msg_id = self.send_stream_message(self.example_user("othello"), "Denmark", content)
-        verify_body_include = ["header text", "Open Grow Team to see the spoiler content"]
+        verify_body_include = ["header text", "Open sanji to see the spoiler content"]
         verify_body_does_not_include = ["secret-text"]
         email_subject = "#Denmark > test"
         self._test_cases(
@@ -1766,7 +1766,7 @@ class TestMessageNotificationEmails(ZulipTestCase):
             self.example_user("hamlet"),
             "```\n```",
         )
-        verify_body_include = ["view it in Zulip Dev Zulip"]
+        verify_body_include = ["view it in Zulip Dev sanji"]
         email_subject = "DMs with Othello, the Moor of Venice"
         self._test_cases(msg_id, verify_body_include, email_subject, verify_html_body=True)
 

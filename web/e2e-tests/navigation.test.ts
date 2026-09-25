@@ -4,7 +4,7 @@ import type {Page} from "puppeteer";
 
 import * as common from "./lib/common.ts";
 
-// The Grow Team navbar hides #message_view_header (message_view_header.css:
+// The sanji navbar hides #message_view_header (message_view_header.css:
 // "the top bar holds no view title or breadcrumb"), so a narrow change shows
 // through the browser tab title instead of a header icon. The title updates
 // only once the new narrow is in place (narrow_title.ts), including for a

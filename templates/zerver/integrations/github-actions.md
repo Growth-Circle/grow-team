@@ -1,6 +1,6 @@
-# Grow Team GitHub Actions integration
+# sanji GitHub Actions integration
 
-Get Grow Team notifications from GitHub Actions workflow runs!
+Get sanji notifications from GitHub Actions workflow runs!
 
 {start_tabs}
 
@@ -66,7 +66,7 @@ Get Grow Team notifications from GitHub Actions workflow runs!
 
 * [Configuring the Send Message Action][README]
 
-* [Grow Team GitHub Actions repository][repo]
+* [sanji GitHub Actions repository][repo]
 
 * [GitHub integration](/integrations/github)
 

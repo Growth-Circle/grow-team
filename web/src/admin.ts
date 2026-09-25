@@ -37,7 +37,7 @@ const admin_settings_label = {
     // Organization settings
     realm_new_stream_announcements_stream: $t({defaultMessage: "New channel announcements"}),
     realm_signup_announcements_stream: $t({defaultMessage: "New user announcements"}),
-    realm_zulip_update_announcements_stream: $t({defaultMessage: "Grow Team update announcements"}),
+    realm_zulip_update_announcements_stream: $t({defaultMessage: "sanji update announcements"}),
     realm_moderation_request_channel: $t({defaultMessage: "Moderation requests"}),
     realm_media_preview_size: $t({
         defaultMessage: "Size of images and videos in messages",
@@ -47,7 +47,7 @@ const admin_settings_label = {
     }),
     realm_inline_url_embed_preview: $t({defaultMessage: "Show previews of linked websites"}),
     realm_send_welcome_emails: $t({
-        defaultMessage: "Send emails introducing Grow Team to new users",
+        defaultMessage: "Send emails introducing sanji to new users",
     }),
     realm_require_e2ee_push_notifications: $t({
         defaultMessage: "Require end-to-end encryption for push notifications",

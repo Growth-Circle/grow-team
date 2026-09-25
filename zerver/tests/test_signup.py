@@ -804,7 +804,7 @@ class PasswordResetTest(ZulipTestCase):
 
         # check the redirect link telling you to check mail for password reset link
         self.assertEqual(result.status_code, 404)
-        self.assert_in_response("There is no Zulip organization at", result)
+        self.assert_in_response("There is no sanji organization at", result)
         self.assert_in_response("Please try a different URL", result)
 
         from django.core.mail import outbox
@@ -1046,7 +1046,7 @@ class LoginTest(ZulipTestCase):
     def test_login_invalid_subdomain(self) -> None:
         result = self.login_with_return(self.example_email("hamlet"), "xxx", subdomain="invalid")
         self.assertEqual(result.status_code, 404)
-        self.assert_in_response("There is no Zulip organization at", result)
+        self.assert_in_response("There is no sanji organization at", result)
         self.assert_in_response("Please try a different URL", result)
         self.assert_logged_in_user_id(None)
 
@@ -1401,7 +1401,7 @@ class UserSignUpTest(ZulipTestCase):
 
         # Visit the confirmation link.
         confirmation_url = self.get_confirmation_url_from_outbox(
-            email, email_body_contains="You recently signed up for Zulip. Awesome!"
+            email, email_body_contains="You recently signed up for sanji. Awesome!"
         )
         result = self.client_get(confirmation_url, **client_kwargs)
         self.assertEqual(result.status_code, 200)
@@ -1911,7 +1911,7 @@ class UserSignUpTest(ZulipTestCase):
 
         existing_default_streams = DefaultStream.objects.filter(realm=realm)
         self.assert_length(existing_default_streams, 3)
-        expected_default_streams = ["Zulip", "sandbox", "Verona"]
+        expected_default_streams = [str(Realm.ZULIP_DISCUSSION_CHANNEL_NAME), "sandbox", "Verona"]
         for i, expected_default_stream in enumerate(expected_default_streams):
             self.assertEqual(existing_default_streams[i].stream.name, expected_default_stream)
             default_streams.add(existing_default_streams[i].stream)
@@ -2161,7 +2161,7 @@ class UserSignUpTest(ZulipTestCase):
         )
         self.assert_in_success_response(
             [
-                "Import settings from existing Zulip account",
+                "Import settings from existing sanji account",
                 "selected >\n                                Zulip Dev",
                 "Enter your account details to complete registration.",
             ],
@@ -2304,7 +2304,7 @@ class UserSignUpTest(ZulipTestCase):
         with self.settings(BILLING_ENABLED=True):
             form = HomepageForm({"email": self.nonreg_email("test")}, realm=realm)
             self.assertIn(
-                "New members cannot join this organization because all Grow Team licenses",
+                "New members cannot join this organization because all sanji licenses",
                 form.errors["email"][0],
             )
             last_message = Message.objects.last()
@@ -2323,7 +2323,7 @@ class UserSignUpTest(ZulipTestCase):
         with self.settings(BILLING_ENABLED=True):
             form = HomepageForm({"email": self.nonreg_email("test")}, realm=realm)
             self.assertIn(
-                "New members cannot join this organization because all Grow Team licenses",
+                "New members cannot join this organization because all sanji licenses",
                 form.errors["email"][0],
             )
 
@@ -2333,7 +2333,7 @@ class UserSignUpTest(ZulipTestCase):
         with self.settings(BILLING_ENABLED=True):
             form = HomepageForm({"email": self.nonreg_email("test")}, realm=realm)
             self.assertIn(
-                "New members cannot join this organization because all Grow Team licenses",
+                "New members cannot join this organization because all sanji licenses",
                 form.errors["email"][0],
             )
             last_message = Message.objects.last()
@@ -2422,7 +2422,7 @@ class UserSignUpTest(ZulipTestCase):
 
     def test_access_signup_page_in_root_domain_without_realm(self) -> None:
         result = self.client_get("/register", subdomain="", follow=True)
-        self.assert_in_success_response(["Find your Zulip accounts"], result)
+        self.assert_in_success_response(["Find your sanji accounts"], result)
 
     @override_settings(
         AUTHENTICATION_BACKENDS=(
@@ -3619,7 +3619,7 @@ class UserSignUpTest(ZulipTestCase):
             sender__email="welcome-bot@zulip.com",
             recipient__type=Recipient.DIRECT_MESSAGE_GROUP,
         ).latest("id")
-        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to Grow Team!"))
+        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to sanji!"))
 
         # Organization type is education, and organization is a demo organization.
         self.assertNotIn("getting started guide", welcome_msg.content)
@@ -3794,7 +3794,7 @@ class TestLoginPage(ZulipTestCase):
 class TestFindMyTeam(ZulipTestCase):
     def test_template(self) -> None:
         result = self.client_get("/accounts/find/")
-        self.assertIn("Find your Zulip accounts", result.content.decode())
+        self.assertIn("Find your sanji accounts", result.content.decode())
 
     def test_result(self) -> None:
         # We capitalize a letter in cordelia's email to test that the search is case-insensitive.
@@ -3826,7 +3826,7 @@ class TestFindMyTeam(ZulipTestCase):
 
         self.assert_length(outbox, 1)
         message = outbox[0]
-        self.assertIn("Unfortunately, no Zulip Cloud accounts", message.body)
+        self.assertIn("Unfortunately, no sanji accounts were found", message.body)
 
     def test_find_team_reject_invalid_email(self) -> None:
         result = self.client_post("/accounts/find/", dict(emails="invalid_string"))
@@ -3865,7 +3865,7 @@ class TestFindMyTeam(ZulipTestCase):
 
         self.assert_length(outbox, 1)
         message = outbox[0]
-        self.assertIn("Unfortunately, no Zulip Cloud accounts", message.body)
+        self.assertIn("Unfortunately, no sanji accounts were found", message.body)
 
     def test_find_team_zero_emails(self) -> None:
         data = {"emails": ""}
@@ -3895,7 +3895,7 @@ class TestFindMyTeam(ZulipTestCase):
 
         self.assert_length(outbox, 1)
         message = outbox[0]
-        self.assertIn("Unfortunately, no Zulip Cloud accounts", message.body)
+        self.assertIn("Unfortunately, no sanji accounts were found", message.body)
 
     def test_find_team_deactivated_realm(self) -> None:
         do_deactivate_realm(
@@ -3911,7 +3911,7 @@ class TestFindMyTeam(ZulipTestCase):
 
         self.assert_length(outbox, 1)
         message = outbox[0]
-        self.assertIn("Unfortunately, no Zulip Cloud accounts", message.body)
+        self.assertIn("Unfortunately, no sanji accounts were found", message.body)
 
     def test_find_team_bot_email(self) -> None:
         data = {"emails": self.example_email("webhook_bot")}
@@ -3921,7 +3921,7 @@ class TestFindMyTeam(ZulipTestCase):
 
         self.assert_length(outbox, 1)
         message = outbox[0]
-        self.assertIn("Unfortunately, no Zulip Cloud accounts", message.body)
+        self.assertIn("Unfortunately, no sanji accounts were found", message.body)
 
     def test_find_team_more_than_ten_emails(self) -> None:
         data = {"emails": ",".join(f"hamlet-{i}@zulip.com" for i in range(11))}
@@ -4044,7 +4044,7 @@ class RealmRedirectTest(ZulipTestCase):
         self.assertEqual(result["Location"], "http://zephyr.testserver/login/")
 
         result = self.client_post("/accounts/go/", {"subdomain": "invalid"})
-        self.assert_in_success_response(["We couldn&#39;t find that Zulip organization."], result)
+        self.assert_in_success_response(["We couldn&#39;t find that sanji organization."], result)
 
     def test_realm_redirect_with_next_param(self) -> None:
         result = self.client_get("/accounts/go/", {"next": "billing"})

@@ -1,5 +1,5 @@
 {% if create_realm %}
-{{ _("Create your Grow Team organization") }}
+{{ _("Create your sanji organization") }}
 {% else %}
-{{ _("Activate your Grow Team account") }}
+{{ _("Activate your sanji account") }}
 {% endif %}

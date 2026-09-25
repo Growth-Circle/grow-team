@@ -1,12 +1,12 @@
-# Grow Team Mastodon integration
+# sanji Mastodon integration
 
 Fetch public posts (sometimes called “toots”) of individual accounts or
-federated hashtags from Mastodon in Grow Team!
+federated hashtags from Mastodon in sanji!
 
-While Grow Team doesn't integrate directly with ActivityPub or the overall
+While sanji doesn't integrate directly with ActivityPub or the overall
 Fediverse, some ActivityPub servers, like
 [Mastodon](https://joinmastodon.org/), publish RSS feeds that can be
-followed in Grow Team using the [Zapier][1] or [RSS][2] integrations.
+followed in sanji using the [Zapier][1] or [RSS][2] integrations.
 
 !!! warn ""
 
@@ -34,7 +34,7 @@ followed in Grow Team using the [Zapier][1] or [RSS][2] integrations.
 
 {!congrats.md!}
 
-![Mastodon posts in Grow Team via Zapier](/static/images/integrations/mastodon/001.png)
+![Mastodon posts in sanji via Zapier](/static/images/integrations/mastodon/001.png)
 
 [1]: ./zapier
 [2]: ./rss

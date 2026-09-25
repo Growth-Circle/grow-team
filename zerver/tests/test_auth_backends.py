@@ -1251,7 +1251,7 @@ class SocialAuthBase(DesktopFlowTestingLib, ZulipTestCase, ABC):
     def test_user_cannot_log_into_nonexisting_realm(self) -> None:
         account_data_dict = self.get_account_data_dict(email=self.email, name=self.name)
         result = self.social_auth_test(account_data_dict, subdomain="nonexistent")
-        self.assert_in_response("There is no Zulip organization at", result)
+        self.assert_in_response("There is no sanji organization at", result)
         self.assertEqual(result.status_code, 404)
 
     def test_user_cannot_log_into_wrong_subdomain(self) -> None:
@@ -6236,7 +6236,7 @@ class GoogleAuthBackendTest(SocialAuthBase):
         # Without the invite link, we can't create an account due to invite_required
         result = self.get_log_into_subdomain(data)
         self.assertEqual(result.status_code, 200)
-        self.assert_in_success_response(["Sign up for Zulip"], result)
+        self.assert_in_success_response(["Sign up for sanji"], result)
 
         # Now confirm an invitation link works
         referrer = self.example_user("hamlet")

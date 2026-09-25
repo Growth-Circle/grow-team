@@ -107,7 +107,7 @@ function show_navigation_tour_quickstart(update_recipient_row_attention_level: (
     if (ONE_TIME_NOTICES_TO_DISPLAY.has("navigation_tour_video")) {
         const modal_content_html = render_navigation_tour_video_modal();
         dialog_widget.launch({
-            modal_title_html: $t_html({defaultMessage: "Welcome to Grow Team!"}),
+            modal_title_html: $t_html({defaultMessage: "Welcome to sanji!"}),
             modal_content_html,
             on_click() {
                 // Do nothing

@@ -1,7 +1,7 @@
 {% extends "zerver/portico_error_pages/portico_error_page.html" %}
 
 {% block title %}
-<title>{{ _("Unsupported browser") }} | Grow Team</title>
+<title>{{ _("Unsupported browser") }} | sanji</title>
 {% endblock %}
 
 {% block error_page_content %}
@@ -11,12 +11,12 @@
         <h1 class="lead">{{ _('Unsupported browser') }}</h1>
         <p>
             {% trans %}
-            {{ browser_name }} is not supported by Grow Team.
+            {{ browser_name }} is not supported by sanji.
             {% endtrans %}
         </p>
         <p>
             {% trans supported_browsers_page_link="/help/supported-browsers" %}
-            Grow Team supports <a href="{{ supported_browsers_page_link }}">modern browsers</a>
+            sanji supports <a href="{{ supported_browsers_page_link }}">modern browsers</a>
             like Firefox, Chrome, and Edge.
             {% endtrans %}
         </p>

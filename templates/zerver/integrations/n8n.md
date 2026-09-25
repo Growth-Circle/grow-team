@@ -1,7 +1,7 @@
-# Grow Team n8n integration
+# sanji n8n integration
 
 n8n supports integrations with
-[hundreds of popular products](https://n8n.io/integrations/). Use the Grow Team
+[hundreds of popular products](https://n8n.io/integrations/). Use the sanji
 action node in n8n workflows to send notifications, manage messages, users,
 and channels.
 
@@ -14,7 +14,7 @@ and channels.
 
 1. Open your n8n workflow, and add the **Zulip** action node.
 
-1. Click **Set up credential**, and enter the **URL** for your Grow Team
+1. Click **Set up credential**, and enter the **URL** for your sanji
    organization, the bot's **email address**, and **API key** from the
    `zuliprc` file you downloaded above. Click **Save**, and close the
    credentials modal.
@@ -27,7 +27,7 @@ and channels.
 
 {end_tabs}
 
-You're done! You should now be able to interact with your Grow Team organization
+You're done! You should now be able to interact with your sanji organization
 via n8n workflows.
 
 ### Related documentation

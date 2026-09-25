@@ -1,1 +1,1 @@
-{{ string_id }}: Your organization has been downgraded to Grow Team Free
+{{ string_id }}: Your organization has been downgraded to sanji Free

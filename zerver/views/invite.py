@@ -195,7 +195,7 @@ def invite_users_backend(
     if skipped:
         raise InvitationError(
             _(
-                "Some of those addresses are already using Grow Team, "
+                "Some of those addresses are already using sanji, "
                 "so we didn't send them an invitation. We did send "
                 "invitations to everyone else!"
             ),

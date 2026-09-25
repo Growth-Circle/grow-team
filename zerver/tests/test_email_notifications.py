@@ -86,13 +86,13 @@ class TestCustomEmails(ZulipTestCase):
         # Verify that the HTML version contains the footer.
         assert isinstance(msg, EmailMultiAlternatives)
         self.assertIn(
-            "You are receiving this email to update you about important changes to Zulip",
+            "You are receiving this email to update you about important changes to sanji",
             str(msg.alternatives[0][0]),
         )
         self.assertIn("Unsubscribe", str(msg.alternatives[0][0]))
         # Verify that the Text version contains the footer.
         self.assertIn(
-            "You are receiving this email to update you about important changes to Zulip", msg.body
+            "You are receiving this email to update you about important changes to sanji", msg.body
         )
         self.assertIn("Unsubscribe", msg.body)
 
@@ -500,7 +500,7 @@ class TestFollowupEmails(ZulipTestCase):
         self.assert_length(outbox, 1)
 
         message = outbox[0]
-        self.assertIn("you have created a new Zulip organization", message.body)
+        self.assertIn("you have created a new sanji organization", message.body)
         self.assertNotIn("demo org", message.body)
 
     def test_onboarding_zulip_guide_with_invalid_org_type(self) -> None:

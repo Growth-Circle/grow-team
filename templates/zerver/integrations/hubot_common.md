@@ -1,6 +1,6 @@
-# Grow Team {{ integration_display_name }} integration
+# sanji {{ integration_display_name }} integration
 
-Get Grow Team notifications from {{ integration_display_name }} via Hubot!
+Get sanji notifications from {{ integration_display_name }} via Hubot!
 
 {start_tabs}
 

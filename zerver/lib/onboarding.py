@@ -103,7 +103,7 @@ To learn more, check out our [getting started guide]({getting_started_url})!
         if user.is_realm_admin:
             if education_organization:
                 organization_setup_string = _("""
-We also have a guide for [setting up Grow Team for a class]({organization_setup_url}).
+We also have a guide for [setting up sanji for a class]({organization_setup_url}).
 """).format(organization_setup_url="/help/setting-up-zulip-for-a-class")
             else:
                 organization_setup_string = _("""
@@ -146,7 +146,7 @@ Use the [help center](/help/) whenever you need a quick app overview.
             )
 
         content = _("""
-Hello, and welcome to Grow Team!👋 {inform_about_tracked_onboarding_messages_text}
+Hello, and welcome to sanji!👋 {inform_about_tracked_onboarding_messages_text}
 
 {getting_started_text} {organization_setup_text}
 
@@ -217,7 +217,7 @@ def select_welcome_bot_response(human_response_lower: str) -> str:
     if human_response_lower in ["app", "apps"]:
         return _("""
 You can [download](/apps/) the [mobile and desktop apps](/apps/).
-Grow Team also works great in a browser.
+sanji also works great in a browser.
 """)
     elif human_response_lower == "profile":
         return _("""
@@ -228,7 +228,7 @@ and edit your [profile information](/help/edit-your-profile).
         return _("""
 You can switch between [light and dark theme](/help/dark-theme), [pick your
 favorite emoji set](/help/emoji-and-emoticons#change-your-emoji-set), [change
-your language](/help/change-your-language), and otherwise customize your Grow Team
+your language](/help/change-your-language), and otherwise customize your sanji
 experience in your [Preferences](#settings/preferences).
 """)
     elif human_response_lower in ["stream", "streams", "channel", "channels"]:
@@ -240,8 +240,8 @@ it's common to have a channel for each team in an organization.
 """).format(help_link="/help/introduction-to-channels", settings_link="#channels/all")
     elif human_response_lower in ["topic", "topics"]:
         return _("""
-[Topics](/help/introduction-to-topics) summarize what each conversation in Grow Team
-is about. You can read Grow Team one topic at a time, seeing each message in
+[Topics](/help/introduction-to-topics) summarize what each conversation in sanji
+is about. You can read sanji one topic at a time, seeing each message in
 context, no matter how many other conversations are going on.
 
 When you start a conversation, label it with a new topic. For a good topic name,
@@ -252,7 +252,7 @@ discussed.
 """)
     elif human_response_lower in ["keyboard", "shortcuts", "keyboard shortcuts"]:
         return _("""
-Grow Team's [keyboard shortcuts](#keyboard-shortcuts) let you navigate the app
+sanji's [keyboard shortcuts](#keyboard-shortcuts) let you navigate the app
 quickly and efficiently.
 
 Press `?` any time to see a [cheat sheet](#keyboard-shortcuts).
@@ -377,7 +377,7 @@ or even move a topic [to a different channel]({move_content_another_channel_help
 """)
 
     content1_of_welcome_to_zulip_topic_name = _("""
-Grow Team is organized to help you communicate more efficiently. Conversations are
+sanji is organized to help you communicate more efficiently. Conversations are
 labeled with topics, which summarize what the conversation is about.
 
 For example, this message is in the “{topic_name}” topic in the
@@ -385,11 +385,11 @@ For example, this message is in the “{topic_name}” topic in the
 and above.
 """).format(
         zulip_discussion_channel_name=channel_name_map[OnboardingMessageTypeEnum.welcome_to_zulip],
-        topic_name=_("welcome to Grow Team!"),
+        topic_name=_("welcome to sanji!"),
     )
 
     content2_of_welcome_to_zulip_topic_name = _("""
-You can read Grow Team one conversation at a time, seeing each message in context,
+You can read sanji one conversation at a time, seeing each message in context,
 no matter how many other conversations are going on.
 """)
 
@@ -414,7 +414,7 @@ can we chat about…?”
 
     content1_of_experiments_topic_name = (
         _("""
-:point_right:  Use this topic to try out [Grow Team's messaging features]({format_message_help_url}).
+:point_right:  Use this topic to try out [sanji's messaging features]({format_message_help_url}).
 """)
     ).format(format_message_help_url="/help/format-your-message-using-markdown")
 
@@ -437,7 +437,7 @@ Link to a conversation: #**{zulip_discussion_channel_name}>{topic_name}**
 """)
     ).format(
         zulip_discussion_channel_name=channel_name_map[OnboardingMessageTypeEnum.welcome_to_zulip],
-        topic_name=_("welcome to Grow Team!"),
+        topic_name=_("welcome to sanji!"),
     )
 
     content1_of_greetings_topic_name = _("""
@@ -528,7 +528,7 @@ This **greetings** topic is a great place to say “hi” :wave: to your teammat
         welcome_messages += [
             {
                 "channel_name": welcome_to_zulip_channel_name,
-                "topic_name": _("welcome to Grow Team!"),
+                "topic_name": _("welcome to sanji!"),
                 "content": content,
             }
             for content in [

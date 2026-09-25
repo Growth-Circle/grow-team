@@ -1,13 +1,13 @@
-# Grow Team Tenor GIF integration
+# sanji Tenor GIF integration
 
 Send animated GIFs with your message using Tenor.
 
 Follow [these instructions][configure-tenor] to configure Tenor on a
-**self-hosted** Grow Team server.
+**self-hosted** sanji server.
 
 ### Related documentation
 
-* [Using GIFs in Grow Team][help-center-gifs]
+* [Using GIFs in sanji][help-center-gifs]
 
 [help-center-gifs]: /help/animated-gifs
 [configure-tenor]: https://zulip.readthedocs.io/en/latest/production/gif-picker-integrations.html#tenor

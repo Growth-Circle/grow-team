@@ -1,5 +1,5 @@
 {% if is_demo_organization %}
-{% trans %}Reactivate your Grow Team demo organization{% endtrans %}
+{% trans %}Reactivate your sanji demo organization{% endtrans %}
 {% else %}
-{% trans %}Reactivate your Grow Team organization{% endtrans %}
+{% trans %}Reactivate your sanji organization{% endtrans %}
 {% endif %}

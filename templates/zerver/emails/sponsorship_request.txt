@@ -7,7 +7,7 @@ Organization type: {{ organization_type }}
 Description:
 {{ description }}
 
-How do you plan to use Grow Team?
+How do you plan to use sanji?
 {{ plan_to_use_zulip }}
 
 Expected users:

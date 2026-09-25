@@ -81,7 +81,7 @@ class DemoCreationTest(ZulipTestCase):
             sender__email="welcome-bot@zulip.com",
             recipient__type=Recipient.DIRECT_MESSAGE_GROUP,
         ).latest("id")
-        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to Grow Team!"))
+        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to sanji!"))
         self.assertIn("getting started guide", welcome_msg.content)
         self.assertNotIn("class collaboration guide", welcome_msg.content)
         self.assertIn("demo organization", welcome_msg.content)
@@ -253,8 +253,8 @@ class RealmCreationTest(ZulipTestCase):
         # confirmation link and visit it
         confirmation_url = self.get_confirmation_url_from_outbox(
             email,
-            email_subject_contains="Create your Grow Team organization",
-            email_body_contains="You have requested a new Grow Team organization",
+            email_subject_contains="Create your sanji organization",
+            email_body_contains="You have requested a new sanji organization",
         )
         result = self.client_get(confirmation_url)
         self.assertEqual(result.status_code, 200)
@@ -647,7 +647,7 @@ class RealmCreationTest(ZulipTestCase):
             sender__email="welcome-bot@zulip.com",
             recipient__type=Recipient.DIRECT_MESSAGE_GROUP,
         ).latest("id")
-        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to Grow Team!"))
+        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to sanji!"))
 
         # Organization type is not education or education_nonprofit,
         # and organization is not a demo organization.
@@ -668,7 +668,7 @@ class RealmCreationTest(ZulipTestCase):
             sender__email="welcome-bot@zulip.com",
             recipient__type=Recipient.DIRECT_MESSAGE_GROUP,
         ).latest("id")
-        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to Grow Team!"))
+        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to sanji!"))
         self.assertNotIn("I've kicked off some conversations", welcome_msg.content)
 
     @override_settings(OPEN_REALM_CREATION=True)
@@ -715,7 +715,7 @@ class RealmCreationTest(ZulipTestCase):
             sender__email="welcome-bot@zulip.com",
             recipient__type=Recipient.DIRECT_MESSAGE_GROUP,
         ).latest("id")
-        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to Grow Team!"))
+        self.assertTrue(welcome_msg.content.startswith("Hello, and welcome to sanji!"))
 
         # Organization type is education.
         self.assertNotIn("getting started guide", welcome_msg.content)
