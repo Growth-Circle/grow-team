@@ -106,6 +106,43 @@ class AgentRealmSettings(AgentRecord):
     artifact_retention_days = models.PositiveIntegerField(default=7)
     approval_retention_days = models.PositiveIntegerField(default=90)
     send_retention_days = models.PositiveIntegerField(default=30)
+    brand_color = models.CharField(max_length=20, default="", db_default="")
+    timezone = models.CharField(max_length=40, default="Asia/Jakarta", db_default="Asia/Jakarta")
+    summary_default = models.BooleanField(default=False, db_default=False)
+    monthly_budget_microunits = models.PositiveBigIntegerField(null=True, default=None)
+    approval_ttl_minutes = models.PositiveIntegerField(default=120, db_default=120)
+    invite_expiry_days = models.PositiveIntegerField(null=True, default=7, db_default=7)
+    task_status_notices = models.BooleanField(default=False, db_default=False)
+    require_2fa = models.BooleanField(default=False, db_default=False)
+    task_id_prefix = models.CharField(max_length=10, default="", db_default="")
+    model_source = models.JSONField(default=dict, db_default={})
+    model_presets = models.JSONField(default=dict, db_default={})
+    model_guardrails = models.JSONField(default=dict, db_default={})
+    work_runner = models.ForeignKey(
+        "AgentRunner", on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    work_provider = models.ForeignKey(
+        "AgentProvider", on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    agent_language = models.CharField(
+        max_length=5, choices=[("id", "id"), ("en", "en")], default="id", db_default="id"
+    )
+    budget_alert_month = models.CharField(max_length=7, default="", db_default="")
+    mcp_default_mode = models.CharField(
+        max_length=20, default="research_first", db_default="research_first"
+    )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(agent_language__in=["id", "en"]),
+                name="agent_realm_settings_language_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(mcp_default_mode__in=["research_first", "direct"]),
+                name="agent_realm_settings_mcp_mode_valid",
+            ),
+        ]
 
 
 class AgentRunner(AgentRecord):

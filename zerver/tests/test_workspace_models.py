@@ -6,7 +6,7 @@ from django.utils.timezone import now as timezone_now
 from typing_extensions import override
 
 from zerver.lib.test_classes import ZulipTestCase
-from zerver.models import AgentProfile, AgentRunner, RoomDigest, RoomMeta
+from zerver.models import AgentProfile, AgentRealmSettings, AgentRunner, RoomDigest, RoomMeta
 
 
 class WorkspaceSchemaTests(ZulipTestCase):
@@ -120,3 +120,22 @@ class WorkspaceSchemaTests(ZulipTestCase):
                 adapter_version="1.0",
                 model_preset="ultra",
             )
+
+    # -- 0822 AgentRealmSettings workspace fields -----------------------
+
+    def test_agent_realm_settings_new_field_defaults(self) -> None:
+        settings_row = AgentRealmSettings.objects.create(realm=self.realm)
+        self.assertEqual(settings_row.timezone, "Asia/Jakarta")
+        self.assertEqual(settings_row.approval_ttl_minutes, 120)
+        self.assertEqual(settings_row.invite_expiry_days, 7)
+        self.assertEqual(settings_row.agent_language, "id")
+        self.assertEqual(settings_row.mcp_default_mode, "research_first")
+        self.assertEqual(settings_row.model_source, {})
+
+    def test_agent_realm_settings_rejects_bad_language(self) -> None:
+        with self.assertRaises(IntegrityError):
+            AgentRealmSettings.objects.create(realm=self.realm, agent_language="fr")
+
+    def test_agent_realm_settings_rejects_bad_mcp_mode(self) -> None:
+        with self.assertRaises(IntegrityError):
+            AgentRealmSettings.objects.create(realm=self.realm, mcp_default_mode="freeform")
