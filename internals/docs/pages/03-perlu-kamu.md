@@ -1,6 +1,6 @@
 # 03 · Perlu kamu (inbox triase)
 
-Status: spesifikasi halaman, belum kontrak. Konflik: lihat peta dokumen.
+Status: spesifikasi halaman, belum kontrak. Konflik: lihat [keputusan rebrand](../sanji-rebrand-decision.md#konflik-halaman-dan-keputusan).
 
 ## Tujuan
 

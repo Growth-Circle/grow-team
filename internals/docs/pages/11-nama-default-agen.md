@@ -1,6 +1,6 @@
 # 11 · Nama default agen (random name pool)
 
-Status: spesifikasi halaman, belum kontrak. Konflik: lihat peta dokumen.
+Status: spesifikasi halaman, belum kontrak. Konflik: lihat [keputusan rebrand](../sanji-rebrand-decision.md#konflik-halaman-dan-keputusan).
 
 Tanggal: 24 September 2026 · Dipakai di: halaman **Tambah agen** (Dashboard → Agen → "+ Buat agen"), onboarding workspace baru, dan agen yang dibuat lewat API tanpa nama.
 
@@ -92,13 +92,13 @@ pickAgentName(workspace, role?):
   return { name, category, shape, color }
 ```
 
-**Jika pool habis** (lebih dari 300 agen di satu workspace): tambahkan angka Jawa-halus di belakang, misalnya `Klepon Dua`. Bentuk ini tidak dipakai di MVP. Tampilkan pesan "Nama bawaan habis, tulis nama sendiri".
+**Jika pool habis** (lebih dari 299 agen di satu workspace): tambahkan angka Jawa-halus di belakang, misalnya `Klepon Dua`. Bentuk ini tidak dipakai di MVP. Tampilkan pesan "Nama bawaan habis, tulis nama sendiri".
 
 ## UX di halaman "Tambah agen"
 
 | Elemen                             | Perilaku                                                                                                                             |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Buka modal                         | Kolom **Nama** langsung terisi nama acak. Bentuk & warna ikut acak sesuai kategori. Pratinjau di atas langsung menampilkan hasilnya  |
+| Buka halaman                       | Kolom **Nama** langsung terisi nama acak. Bentuk & warna ikut acak sesuai kategori. Pratinjau di atas langsung menampilkan hasilnya  |
 | Tombol **🎲 Acak** di samping nama | Ganti ke nama acak lain (tanpa mengulang 10 nama terakhir). Bentuk & warna ikut berganti. Animasi ringan: pratinjau "pop"            |
 | Teks kecil di bawah kolom          | "Dari kategori _Jajanan_. Mention dengan @klepon"                                                                                    |
 | Pengguna mengetik sendiri          | Acak berhenti. Validasi: 2–20 karakter, satu kata, tidak bentrok nama yang ada (error inline: "Nama ini sudah dipakai di workspace") |

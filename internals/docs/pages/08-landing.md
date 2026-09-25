@@ -1,6 +1,6 @@
 # 08 · Landing publik (sanji.space)
 
-Status: spesifikasi halaman, belum kontrak. Konflik: lihat peta dokumen.
+Status: spesifikasi halaman, belum kontrak. Konflik: lihat [keputusan rebrand](../sanji-rebrand-decision.md#konflik-halaman-dan-keputusan).
 
 ## Tujuan
 

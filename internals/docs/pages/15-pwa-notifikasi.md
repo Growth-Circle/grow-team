@@ -1,6 +1,6 @@
 # 15 · PWA & notifikasi push (approval dari HP)
 
-Status: spesifikasi halaman, belum kontrak. Konflik: lihat peta dokumen.
+Status: spesifikasi halaman, belum kontrak. Konflik: lihat [keputusan rebrand](../sanji-rebrand-decision.md#konflik-halaman-dan-keputusan).
 
 Tanggal: 24 September 2026 · Keputusan owner: **perlu di MVP**.
 

@@ -1,6 +1,6 @@
 # 05 · Tugas (papan)
 
-Status: spesifikasi halaman, belum kontrak. Konflik: lihat peta dokumen.
+Status: spesifikasi halaman, belum kontrak. Konflik: lihat [keputusan rebrand](../sanji-rebrand-decision.md#konflik-halaman-dan-keputusan).
 
 ## Tujuan
 
@@ -54,5 +54,5 @@ Update status adalah bagian terbesar dari "work about work". Jika tugas manusia 
 
 ## Pertanyaan terbuka
 
-- Perlu drag-and-drop? Prototipe memakai tombol maju supaya aman di layar sentuh.
+- Drag-and-drop: keduanya. Desktop memakai drag HTML5, layar sentuh memakai tombol maju (Q-08).
 - Sinkronisasi dua arah dengan tracker eksternal (Linear/Jira)? Belum masuk MVP.

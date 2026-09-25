@@ -17,6 +17,7 @@ Keputusan rebrand dan domain kustom: [sanji-rebrand-decision.md](../sanji-rebran
 
 Berkas prototipe ini ada di luar repo ini. Repo ini publik, jadi berkas ini
 belum masuk repo (lihat D-09 di [keputusan rebrand](../sanji-rebrand-decision.md)).
+Lokasi: brand pack v2 (`sanji-brand-v2/`, zip dari Rama), di luar repo.
 
 | Berkas                            | SHA-256                                                            |
 | --------------------------------- | ------------------------------------------------------------------ |
@@ -27,25 +28,25 @@ belum masuk repo (lihat D-09 di [keputusan rebrand](../sanji-rebrand-decision.md
 
 ## Daftar halaman
 
-| #   | Halaman                                                                               | File                                                       | Status prototipe               |
-| --- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------ |
-| 01  | Shell: sidebar, pemilih workspace, navigasi ruang                                     | [`01-shell.md`](01-shell.md)                               | Interaktif                     |
-| 02  | Hari ini (home)                                                                       | [`02-hari-ini.md`](02-hari-ini.md)                         | Interaktif                     |
-| 03  | Perlu kamu (inbox triase)                                                             | [`03-perlu-kamu.md`](03-perlu-kamu.md)                     | Interaktif                     |
-| 04  | Ruang (percakapan + topik)                                                            | [`04-ruang.md`](04-ruang.md)                               | Interaktif                     |
-| 05  | Tugas (papan)                                                                         | [`05-tugas.md`](05-tugas.md)                               | Interaktif                     |
-| 06  | Agen                                                                                  | [`06-agen.md`](06-agen.md)                                 | Interaktif                     |
-| 07  | Drive                                                                                 | [`07-drive.md`](07-drive.md)                               | Interaktif                     |
-| 08  | Landing publik                                                                        | [`08-landing.md`](08-landing.md)                           | Interaktif                     |
-| 09  | **Spesifikasi interaksi semua tombol, menu, drawer, modal**                           | [`09-interaksi-ux.md`](09-interaksi-ux.md)                 | Referensi FE                   |
-| 10  | **Pengaturan & peran (role, matriks izin, undangan, runner, audit)**                  | [`10-pengaturan-dan-peran.md`](10-pengaturan-dan-peran.md) | Interaktif                     |
-| 11  | **Nama default agen: 300 nama + algoritma acak**                                      | [`11-nama-default-agen.md`](11-nama-default-agen.md)       | Interaktif (modal Buat agen)   |
-| 12  | **Halaman Tambah agen (wizard Kerja / Coding)**                                       | [`12-tambah-agen.md`](12-tambah-agen.md)                   | Interaktif                     |
-| 13  | **Pesan agen di ruang: kartu job, reaksi 👀, gagal + coba lagi**                      | [`13-pesan-agen-di-ruang.md`](13-pesan-agen-di-ruang.md)   | Interaktif                     |
-| 14  | **Runner: cloud sanji / VPS / lokal, device pairing, shell responsif**                | [`14-runner.md`](14-runner.md)                             | Interaktif                     |
-| 15  | **PWA & notifikasi push (approval dari HP)**                                          | [`15-pwa-notifikasi.md`](15-pwa-notifikasi.md)             | Interaktif (kartu di Hari ini) |
-| 16  | **Koneksi MCP: lingkup workspace/ruang/pribadi, kebijakan per tool, mode Riset dulu** | [`16-koneksi-mcp.md`](16-koneksi-mcp.md)                   | Interaktif                     |
-| 17  | **Model & API key (OpenRouter): sumber model, preset, guardrail, budget per agen**    | [`17-model-dan-api-key.md`](17-model-dan-api-key.md)       | Interaktif                     |
+| #   | Halaman                                                                               | File                                                       | Status prototipe                 |
+| --- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------- |
+| 01  | Shell: sidebar, pemilih workspace, navigasi ruang                                     | [`01-shell.md`](01-shell.md)                               | Interaktif                       |
+| 02  | Hari ini (home)                                                                       | [`02-hari-ini.md`](02-hari-ini.md)                         | Interaktif                       |
+| 03  | Perlu kamu (inbox triase)                                                             | [`03-perlu-kamu.md`](03-perlu-kamu.md)                     | Interaktif                       |
+| 04  | Ruang (percakapan + topik)                                                            | [`04-ruang.md`](04-ruang.md)                               | Interaktif                       |
+| 05  | Tugas (papan)                                                                         | [`05-tugas.md`](05-tugas.md)                               | Interaktif                       |
+| 06  | Agen                                                                                  | [`06-agen.md`](06-agen.md)                                 | Interaktif                       |
+| 07  | Drive                                                                                 | [`07-drive.md`](07-drive.md)                               | Interaktif                       |
+| 08  | Landing publik                                                                        | [`08-landing.md`](08-landing.md)                           | Interaktif                       |
+| 09  | **Spesifikasi interaksi semua tombol, menu, drawer, modal**                           | [`09-interaksi-ux.md`](09-interaksi-ux.md)                 | Referensi FE                     |
+| 10  | **Pengaturan & peran (role, matriks izin, undangan, runner, audit)**                  | [`10-pengaturan-dan-peran.md`](10-pengaturan-dan-peran.md) | Interaktif                       |
+| 11  | **Nama default agen: 299 nama + algoritma acak**                                      | [`11-nama-default-agen.md`](11-nama-default-agen.md)       | Interaktif (halaman Tambah agen) |
+| 12  | **Halaman Tambah agen (wizard Kerja / Coding)**                                       | [`12-tambah-agen.md`](12-tambah-agen.md)                   | Interaktif                       |
+| 13  | **Pesan agen di ruang: kartu job, reaksi 👀, gagal + coba lagi**                      | [`13-pesan-agen-di-ruang.md`](13-pesan-agen-di-ruang.md)   | Interaktif                       |
+| 14  | **Runner: cloud sanji / VPS / lokal, device pairing, shell responsif**                | [`14-runner.md`](14-runner.md)                             | Interaktif                       |
+| 15  | **PWA & notifikasi push (approval dari HP)**                                          | [`15-pwa-notifikasi.md`](15-pwa-notifikasi.md)             | Interaktif (kartu di Hari ini)   |
+| 16  | **Koneksi MCP: lingkup workspace/ruang/pribadi, kebijakan per tool, mode Riset dulu** | [`16-koneksi-mcp.md`](16-koneksi-mcp.md)                   | Interaktif                       |
+| 17  | **Model & API key (OpenRouter): sumber model, preset, guardrail, budget per agen**    | [`17-model-dan-api-key.md`](17-model-dan-api-key.md)       | Interaktif                       |
 
 ## Istilah
 
@@ -54,8 +55,8 @@ belum masuk repo (lihat D-09 di [keputusan rebrand](../sanji-rebrand-decision.md
 | Workspace  | Satu tenant (perusahaan/tim)                  | `Realm`                                     |
 | Ruang      | Tempat percakapan dengan tipe & pemilik       | `Stream` + tabel baru `RoomMeta`            |
 | Topik      | Sub-percakapan di dalam ruang                 | `topic` (bawaan Zulip)                      |
-| Agen       | Anggota non-manusia yang menjalankan tugas    | Bot user + `AgentProfile` (spec agent)      |
-| Job        | Satu tugas yang dikerjakan agen               | `AgentJob` / attempt (spec lifecycle)       |
+| Agen       | Anggota non-manusia yang menjalankan job      | Bot user + `AgentProfile` (spec agent)      |
+| Job        | Satu pekerjaan yang dikerjakan agen           | `AgentJob` / attempt (spec lifecycle)       |
 | Approval   | Permintaan persetujuan manusia atas aksi agen | Approval terikat attempt ([PRD](../prd.md)) |
 | Runner     | Mesin (laptop/server) yang menjalankan agen   | `grow-agent-runner`                         |
 

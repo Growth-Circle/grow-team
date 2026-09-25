@@ -1,10 +1,10 @@
 # 01 · Shell: sidebar, pemilih workspace, navigasi ruang
 
-Status: spesifikasi halaman, belum kontrak. Konflik: lihat peta dokumen.
+Status: spesifikasi halaman, belum kontrak. Konflik: lihat [keputusan rebrand](../sanji-rebrand-decision.md#konflik-halaman-dan-keputusan).
 
 ## Tujuan
 
-Kerangka yang selalu terlihat di setiap halaman. Fungsinya memberi tahu pengguna **sedang di workspace mana**, membawa ke 5 halaman utama (8 untuk Owner dan Admin), dan menampilkan ruang yang _relevan saja_.
+Kerangka yang selalu terlihat di setiap halaman. Fungsinya memberi tahu pengguna **sedang di workspace mana**, membawa ke 7 halaman utama (8 untuk Owner dan Admin), dan menampilkan ruang yang _relevan saja_.
 
 ## Kenapa
 
@@ -18,7 +18,7 @@ Kerangka yang selalu terlihat di setiap halaman. Fungsinya memberi tahu pengguna
    - Tombol "Buat workspace baru" dan "Pengaturan workspace".
    - Logo sanji.space kecil di bagian bawah.
 2. **Cari / tanya Kaki (⌘K):** pencarian global sekaligus tempat mengetik perintah ke agen perencana.
-3. **Navigasi utama:** Hari ini, Perlu kamu (badge jumlah), Tugas (badge jumlah tugas pribadi yang belum selesai), Agen, Drive. Untuk Owner dan Admin, tambah Koneksi MCP, Runner, dan Pengaturan.
+3. **Navigasi utama** (urutan tetap): Hari ini, Perlu kamu (badge), Tugas (badge tugas pribadi yang belum selesai), Agen, Koneksi MCP (badge koneksi yang perlu dicek), Runner (badge runner yang tidak online), Drive. Pengaturan hanya untuk Owner dan Admin.
 4. **Daftar Ruang**, dikelompokkan: Disematkan, Proyek, Klien, Tim. Setiap item menampilkan jumlah pesan belum dibaca. Ruang yang berisi pesan belum dibaca ditampilkan tebal.
 5. **Ruang sepi:** ruang yang tidak aktif lebih dari 30 hari dilipat ke tombol "N ruang sepi". Bila dibuka, tampil nama ruang dan lama tidak aktifnya.
 6. **Tombol + Ruang:** mengarahkan ke kotak "Mau bikin apa?". Ruang proyek sebaiknya dibuat oleh Kaki dari sebuah brief, bukan dibuat manual.

@@ -1,6 +1,6 @@
 # 13 · Pesan agen di ruang (chat UX)
 
-Status: spesifikasi halaman, belum kontrak. Konflik: lihat peta dokumen.
+Status: spesifikasi halaman, belum kontrak. Konflik: lihat [keputusan rebrand](../sanji-rebrand-decision.md#konflik-halaman-dan-keputusan).
 
 Tanggal: 24 September 2026 · Prototipe: Dashboard → buka ruang `# rilis-v2`, lalu kirim pesan dengan `@kaki` / `@ayame` / `@matcha`.
 
@@ -61,7 +61,7 @@ Tanggal: 24 September 2026 · Prototipe: Dashboard → buka ruang `# rilis-v2`, 
 | Satu pesan per job | Saat admission berhasil, broker membuat **satu** pesan bot dengan `sanji_job_id` di metadata pesan. Update status memakai **edit pesan** Zulip (`PATCH /messages/{id}`) atau event khusus `sanji_job_card`, **bukan** pesan baru                  |
 | Reaksi pengakuan   | Setelah admission: `POST /messages/{id}/reactions` dengan emoji `eyes` atas nama bot. Jika admission ditolak: reaksi 🚫 + pesan ephemeral ke pengirim saja, berisi alasan                                                                         |
 | Render kartu       | Frontend mendeteksi `sanji_job_id` dan merender kartu dari state job (realtime `sanji_job_progress`), sehingga teks pesan tidak perlu diedit tiap detik. Fallback untuk klien lain (email, mobile lama): teks singkat "Ayame · Selesai · PR #214" |
-| Alasan gagal       | Runner mengirim `failure_code` + pesan manusiawi: `runner_offline`, `runner_sleep`, `budget_exceeded`, `grant_revoked`, `timeout`, `tool_error`. Mapping teks Indonesia ada di frontend                                                           |
+| Alasan gagal       | Runner mengirim `failure_code` + pesan manusiawi: `runner_offline`, `budget_exceeded`, `grant_revoked`, `timeout`, `tool_error`. Mapping teks Indonesia ada di frontend                                                                           |
 | Coba lagi          | `POST /jobs/{id}/retry` → attempt baru pada job yang sama ([spec lifecycle §12.3](../spec/2026-09-21-agent-lifecycle-and-mention-flow.md#123-resume)), kartu yang sama diperbarui                                                                 |
 | Artefak            | `JobArtifact` (`type`: pr/file/task/check/draft, `label`, `url`), ditampilkan sebagai chip. Chip PR/file membuka tujuan, chip tugas membuka drawer Tugas                                                                                          |
 | Balasan teks       | Hanya satu balasan akhir di pesan yang sama. Pertanyaan lanjutan dari agen memakai `request_decision` (masuk **Perlu kamu**), bukan pesan baru                                                                                                    |

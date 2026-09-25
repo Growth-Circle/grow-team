@@ -1,6 +1,6 @@
 # 10 · Pengaturan & peran (role)
 
-Status: spesifikasi halaman, belum kontrak. Konflik: lihat peta dokumen.
+Status: spesifikasi halaman, belum kontrak. Konflik: lihat [keputusan rebrand](../sanji-rebrand-decision.md#konflik-halaman-dan-keputusan).
 
 Tanggal: 24 September 2026 · Prototipe: `Sanji Dashboard.dc.html` → menu **Pengaturan** (pakai Tweak **viewAs** untuk melihat tampilan tiap peran).
 

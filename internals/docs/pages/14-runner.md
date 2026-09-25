@@ -1,6 +1,6 @@
 # 14 · Runner: halaman, flow UI/UX, dan backend
 
-Status: spesifikasi halaman, belum kontrak. Konflik: lihat peta dokumen.
+Status: spesifikasi halaman, belum kontrak. Konflik: lihat [keputusan rebrand](../sanji-rebrand-decision.md#konflik-halaman-dan-keputusan).
 
 Tanggal: 24 September 2026 · Prototipe: Dashboard → sidebar **Runner** (atau Pengaturan → Agen & runner → "+ Pasangkan perangkat", atau Tambah agen coding → "+ Pasangkan perangkat").
 Dasar: [riset 04](../research/04-runner-cloud-vs-local.md) · tipe agen: [riset 03](../research/03-tipe-agen-kerja-vs-coding.md) · agen: [12](12-tambah-agen.md).
@@ -138,8 +138,8 @@ Checklist: siapkan VM di region → pasang runtime & image agen → uji koneksi 
 ### Aturan
 
 1. Runner **hanya outbound HTTPS/443** (long-poll/WebSocket ke broker). Tidak ada port masuk.
-2. **1 job = 1 container ephemeral**. Workspace & cache credential dihapus setelah job (sudah ada, lihat [agent-sandbox-design.md](../agent-sandbox-design.md)).
-3. **Heartbeat** tiap 15 dtk. Tanpa heartbeat 60 dtk → `offline`. 7 hari → `stale` (notifikasi pemilik). 30 hari → credential dicabut otomatis.
+2. **1 job = 1 container ephemeral** (hanya jalur code). Workspace & cache credential dihapus setelah job (sudah ada, lihat [agent-sandbox-design.md](../agent-sandbox-design.md)).
+3. **Heartbeat** tiap 15 dtk. Tanpa heartbeat 45 dtk → `offline`. 7 hari → `stale` (notifikasi pemilik). 30 hari → credential dicabut otomatis.
 4. **Failover:** job coding di runner offline menunggu maks. 30 menit (bisa diatur), lalu pindah ke runner online di **grup & label** yang sama jika pemilik agen mengizinkan. Jika tidak, kartu job BERHENTI + Coba lagi (doc 13).
 5. **Rate limit** `user_code`: 10 percobaan / 10 menit per IP & per workspace.
 6. Runner milik orang lain hanya bisa dipakai jika pemiliknya membagikan ke workspace/grup.

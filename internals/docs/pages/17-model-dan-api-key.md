@@ -1,6 +1,6 @@
 # 17 · Model & API key (OpenRouter)
 
-Status: spesifikasi halaman, belum kontrak. Konflik: lihat peta dokumen.
+Status: spesifikasi halaman, belum kontrak. Konflik: lihat [keputusan rebrand](../sanji-rebrand-decision.md#konflik-halaman-dan-keputusan).
 
 Tanggal: 24 September 2026 · Prototipe: **Pengaturan → Model & API key** (khusus Owner/Admin). Dasar: [riset 06](../research/06-openrouter.md) · harga: riset harga (privat).
 

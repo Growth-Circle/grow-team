@@ -1,6 +1,6 @@
 # 12 · Halaman Tambah agen
 
-Status: spesifikasi halaman, belum kontrak. Konflik: lihat peta dokumen.
+Status: spesifikasi halaman, belum kontrak. Konflik: lihat [keputusan rebrand](../sanji-rebrand-decision.md#konflik-halaman-dan-keputusan).
 
 Tanggal: 24 September 2026 · Prototipe: Dashboard → Agen → **+ Buat agen** (sekarang berupa halaman penuh, bukan modal). Mengedit agen yang sudah ada tetap memakai modal "Atur".
 
@@ -31,7 +31,7 @@ Memilih **coding** otomatis mengatur peran ke _Pembangun_, bentuk _Kotak_, dan w
 
 ### 2 · Identitas
 
-- **Nama** terisi acak dari pool 300 nama. **🎲 Acak** mengganti nama, kategori, dan warna. Keterangan: "Dari kategori X. Mention dengan @x". Nama yang diketik manual → "Nama buatan sendiri".
+- **Nama** terisi acak dari pool 299 nama. **🎲 Acak** mengganti nama, kategori, dan warna. Keterangan: "Dari kategori X. Mention dengan @x". Nama yang diketik manual → "Nama buatan sendiri".
 - **Peran** (Perencana/Pembangun/Peninjau/Custom), **Bentuk**, **Warna**.
 - **Instruksi** (textarea) + chip template yang mengisi teks siap pakai: Kerja = Analis riset / Penulis laporan klien / Notulis rapat. Coding = Engineer frontend / Reviewer kode / Penulis test.
 - Validasi: nama wajib diisi.
@@ -46,7 +46,7 @@ Memilih **coding** otomatis mengatur peran ke _Pembangun_, bentuk _Kotak_, dan w
 
 - **Runner** (kartu): nama, OS, pemilik, badge ONLINE/OFFLINE. Status mengikuti Pengaturan → Agen & runner.
 - Jika runner terpilih offline: banner merah muda + tombol **+ Pasangkan perangkat** (toast kode pairing). Tombol _Lanjut_ ditolak dengan toast.
-- **Harness via ACP** (kartu): Claude Code (`claude-agent-acp`, wajib `ANTHROPIC_API_KEY`), Codex CLI (`codex-acp`, dipin di image), atau Endpoint sendiri (OpenAI-compatible).
+- **Harness via ACP** (kartu): Claude Agent (`claude-agent-acp`, wajib `ANTHROPIC_API_KEY`; tampil hanya bila probe runner lulus, K-19/P-26), Codex CLI (`codex-acp`, dipin di image), atau Endpoint sendiri (OpenAI-compatible).
 - **Cek runner** (checklist otomatis): container rootless, adapter/endpoint + versi, API key ditemukan (tidak dikirim ke sanji), akses git ke repo, kapasitas job paralel. Gagal = baris merah muda dengan "!".
 - Catatan tetap: login langganan Claude Pro/Max tidak bisa dipakai.
 - **Repository**: pilih satu repo.

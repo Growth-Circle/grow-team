@@ -1,6 +1,6 @@
 # 09 · Spesifikasi interaksi (UX/UI) sanji.space dashboard
 
-Status: spesifikasi halaman, belum kontrak. Konflik: lihat peta dokumen.
+Status: spesifikasi halaman, belum kontrak. Konflik: lihat [keputusan rebrand](../sanji-rebrand-decision.md#konflik-halaman-dan-keputusan).
 
 Dokumen ini menjelaskan **apa yang terjadi saat setiap tombol, menu, dan kartu diklik** di `Sanji Dashboard.dc.html`: efek visual, animasi, state, dan aturan bisnis. Baca bersama file per halaman (01–07) untuk kebutuhan backend.
 
@@ -151,7 +151,7 @@ Tanggal: 24 September 2026
 
 | Elemen                                                      | Klik → efek                                                                                                                                                 |
 | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **+ Buat agen**                                             | Halaman _Tambah agen_ (D4)                                                                                                                                  |
+| **+ Buat agen**                                             | Halaman _Tambah agen_ ([`12-tambah-agen.md`](12-tambah-agen.md))                                                                                            |
 | Toggle **Aktif / Jeda**                                     | Aktif = hijau. Jeda = abu-abu, titik status abu-abu, teks "Dijeda. Tidak menerima tugas baru." Toast menjelaskan bahwa mention akan dibalas "sedang dijeda" |
 | **Log**                                                     | Menyaring _Log aktivitas_ di bawah ke agen itu (chip filter ikut aktif). FE: scroll ke bagian log                                                           |
 | **Atur**                                                    | Modal _Atur agen_ (D4) dengan isian terisi                                                                                                                  |
@@ -193,11 +193,12 @@ Tanggal: 24 September 2026
 - **Buat ruang** → ruang muncul di grup sidebar yang sesuai. View pindah ke ruang itu. Pesan pertama dari Kaki menjelaskan pemilik & tanggal arsip.
 - Pemilik = pembuat (wajib, sesuai 01-shell).
 
-### D4. Buat / Atur agen
+### D4. Atur agen
+
+Buat agen memakai halaman penuh, lihat 12-tambah-agen.md.
 
 - **Pratinjau** di atas: bentuk + warna + nama + peran · model, diperbarui langsung saat isian berubah.
-- **Nama**, **Peran** (Perencana/Pembangun/Peninjau/Custom), **Bentuk** (Lingkaran/Cincin/Kotak), **Warna** (4), **Instruksi** (textarea), **Akses** (multi-pilih, pil terpilih diberi ✓), **Model**: agen kerja pakai preset Cepat/Seimbang/Terbaik, agen coding pakai Claude Code/Codex CLI/Endpoint sendiri.
-- **Buat agen** → kartu baru di halaman Agen + chip filter log baru. Toast "Undang ke ruang dengan @Nama".
+- **Nama**, **Peran** (Perencana/Pembangun/Peninjau/Custom), **Bentuk** (Lingkaran/Cincin/Kotak), **Warna** (4), **Instruksi** (textarea), **Akses** (multi-pilih, pil terpilih diberi ✓), **Model**: agen kerja pakai preset Cepat/Seimbang/Terbaik, agen coding pakai Claude Agent/Codex CLI/Endpoint sendiri.
 - Mode **Atur**: tombol jadi _Simpan_. Nama, instruksi, akses, dan model diperbarui di kartu.
 - Backend: `AgentProfile` + `AgentGrant`. Akses di luar hak pembuat harus ditolak di server.
 
