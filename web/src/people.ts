@@ -760,22 +760,11 @@ export function gravatar_url_for_email(email: string): string {
 // avatar_source isn't sent to the client (see PersonAvatarFields on
 // the server), so this default can only be detected for current_user.
 //
-// Each user gets one of five identity colors, picked by user_id so
-// the color stays stable, each with a matching dark-theme variant
-// (mockup: frame 1a). Light values and the first two dark values are
-// exact frame values; the #087f70 entry keeps the app's original
-// single default-avatar color and its existing, already-tuned dark
-// variant.
-//
-// ponytail: frame 1a doesn't show a dark-mode example for the last
-// two entries, so their dark value is extrapolated from the same
-// hue with saturation -5 and lightness -7 (the exact delta the frame
-// uses for the first two entries). Replace with exact frame values
-// if a mockup ever shows them.
 // Sanji default avatar: ink circle with a paper initial (light theme),
-// swapped to a paper circle with an ink initial in dark theme
-// (map-brand.md §11.1, §10.2). A single entry, kept as an array so
-// `default_avatar_fill`'s `% length` indexing still works unchanged.
+// swapped to a paper circle with an ink initial in dark theme, so the
+// initial stays readable against the circle either way. A single
+// entry, kept as an array so `default_avatar_fill`'s `% length`
+// indexing still works unchanged.
 const DEFAULT_AVATAR_PALETTE: {light: string; dark: string}[] = [
     {light: "#16161d", dark: "#fffaf0"},
 ];

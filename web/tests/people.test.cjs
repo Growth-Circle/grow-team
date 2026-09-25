@@ -2146,10 +2146,10 @@ run_test("get_user_mentions_for_display", () => {
 });
 
 run_test("default_avatar_data_uri_matches_theme", ({override}) => {
-    // The jdenticon-style default avatar (map-brand.md §11.1, §10.2):
-    // an ink circle with a paper initial in light theme, swapped to a
-    // paper circle with an ink initial in dark theme, so the initial
-    // stays readable against the circle in both themes.
+    // The jdenticon-style default avatar: an ink circle with a paper
+    // initial in light theme, swapped to a paper circle with an ink
+    // initial in dark theme, so the initial stays readable against
+    // the circle in both themes.
     initialize();
     current_user.avatar_source = settings_config.default_avatar_source_values.jdenticon.code;
 
