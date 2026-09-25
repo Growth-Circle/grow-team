@@ -42,6 +42,11 @@ from zerver.models.groups import NamedUserGroup as NamedUserGroup
 from zerver.models.groups import UserGroup as UserGroup
 from zerver.models.groups import UserGroupMembership as UserGroupMembership
 from zerver.models.linkifiers import RealmFilter as RealmFilter
+from zerver.models.mcp import McpAgentGrant as McpAgentGrant
+from zerver.models.mcp import McpConnection as McpConnection
+from zerver.models.mcp import McpJobPlan as McpJobPlan
+from zerver.models.mcp import McpServer as McpServer
+from zerver.models.mcp import McpToolPolicy as McpToolPolicy
 from zerver.models.messages import AbstractAttachment as AbstractAttachment
 from zerver.models.messages import AbstractEmoji as AbstractEmoji
 from zerver.models.messages import AbstractMessage as AbstractMessage

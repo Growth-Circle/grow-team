@@ -1,6 +1,8 @@
 """Tests for the Sanji workspace schema: the additive tables and columns
 added in migrations 0820-0835."""
 
+from uuid import uuid4
+
 from django.db import IntegrityError, connection
 from django.utils.timezone import now as timezone_now
 from typing_extensions import override
@@ -14,10 +16,16 @@ from zerver.models import (
     AgentRunnerRegistrationToken,
     DriveFolderLink,
     ExternalAccount,
+    McpAgentGrant,
+    McpConnection,
+    McpJobPlan,
+    McpServer,
+    McpToolPolicy,
     RoomDigest,
     RoomMeta,
     Task,
     WebPushSubscription,
+    agents,
 )
 from zerver.models.tasks import TASK_SOURCE_MANUAL, TaskBoard, TaskBoardColumn
 
@@ -283,3 +291,122 @@ class WorkspaceSchemaTests(ZulipTestCase):
                 mode="write_only",
                 linked_by=self.owner,
             )
+
+    # -- 0828 MCP catalog / connections / policy / grants / plan ------------
+
+    def test_mcp_server_rejects_bad_auth_mode(self) -> None:
+        with self.assertRaises(IntegrityError):
+            McpServer.objects.create(
+                realm=self.realm,
+                slug="linear",
+                name="Linear",
+                added_by=self.owner,
+                auth_mode="basic",
+            )
+
+    def test_mcp_server_new_field_defaults(self) -> None:
+        server = McpServer.objects.create(
+            realm=self.realm, slug="linear", name="Linear", added_by=self.owner
+        )
+        self.assertFalse(server.verified)
+        self.assertEqual(server.version_pin, "")
+        self.assertEqual(server.supported_scopes, [])
+
+    def test_mcp_connection_rejects_bad_scope(self) -> None:
+        server = McpServer.objects.create(
+            realm=self.realm, slug="linear", name="Linear", added_by=self.owner
+        )
+        with self.assertRaises(IntegrityError):
+            McpConnection.objects.create(
+                realm=self.realm, server=server, scope="global", created_by=self.owner
+            )
+
+    def test_mcp_connection_scope_must_match_its_target(self) -> None:
+        server = McpServer.objects.create(
+            realm=self.realm, slug="linear", name="Linear", added_by=self.owner
+        )
+        with self.assertRaises(IntegrityError):
+            McpConnection.objects.create(
+                realm=self.realm,
+                server=server,
+                scope="room",
+                stream=None,
+                created_by=self.owner,
+            )
+
+    def test_mcp_connection_status_default_and_constraint(self) -> None:
+        server = McpServer.objects.create(
+            realm=self.realm, slug="linear", name="Linear", added_by=self.owner
+        )
+        connection_row = McpConnection.objects.create(
+            realm=self.realm, server=server, scope="workspace", created_by=self.owner
+        )
+        self.assertEqual(connection_row.status, "pending")
+        with self.assertRaises(IntegrityError):
+            McpConnection.objects.create(
+                realm=self.realm,
+                server=server,
+                scope="workspace",
+                created_by=self.owner,
+                status="disabled",
+            )
+
+    def test_mcp_tool_policy_unique_per_connection_and_tool(self) -> None:
+        server = McpServer.objects.create(
+            realm=self.realm, slug="linear", name="Linear", added_by=self.owner
+        )
+        connection_row = McpConnection.objects.create(
+            realm=self.realm, server=server, scope="workspace", created_by=self.owner
+        )
+        policy = McpToolPolicy.objects.create(connection=connection_row, tool_name="search_issues")
+        self.assertEqual(policy.hints, {})
+        self.assertIsNone(policy.reviewed_at)
+        with self.assertRaises(IntegrityError):
+            McpToolPolicy.objects.create(connection=connection_row, tool_name="search_issues")
+
+    def test_mcp_tool_policy_rejects_bad_policy(self) -> None:
+        server = McpServer.objects.create(
+            realm=self.realm, slug="linear", name="Linear", added_by=self.owner
+        )
+        connection_row = McpConnection.objects.create(
+            realm=self.realm, server=server, scope="workspace", created_by=self.owner
+        )
+        with self.assertRaises(IntegrityError):
+            McpToolPolicy.objects.create(
+                connection=connection_row, tool_name="search_issues", policy="warn"
+            )
+
+    def test_mcp_agent_grant_and_job_plan_defaults(self) -> None:
+        server = McpServer.objects.create(
+            realm=self.realm, slug="linear", name="Linear", added_by=self.owner
+        )
+        connection_row = McpConnection.objects.create(
+            realm=self.realm, server=server, scope="workspace", created_by=self.owner
+        )
+        McpAgentGrant.objects.create(connection=connection_row, agent_profile=self.profile)
+        job = self._make_agent_job()
+        plan = McpJobPlan.objects.create(job=job, tools={"search_issues": 3})
+        self.assertEqual(plan.status, "proposed")
+
+    def test_mcp_job_plan_rejects_bad_status(self) -> None:
+        job = self._make_agent_job()
+        with self.assertRaises(IntegrityError):
+            McpJobPlan.objects.create(job=job, tools={}, status="pending")
+
+    # -- helpers --------------------------------------------------------------
+
+    def _make_agent_job(self) -> agents.AgentJob:
+        conversation = agents.AgentConversation.objects.create(
+            realm=self.realm, profile=self.profile, anchor_message_id=self.message_id
+        )
+        return agents.AgentJob.objects.create(
+            realm=self.realm,
+            requester=self.owner,
+            conversation=conversation,
+            profile=self.profile,
+            runner=self.runner,
+            request="Explain",
+            idempotency_key=uuid4(),
+            payload_digest="a" * 64,
+            admission_revision=1,
+        )
