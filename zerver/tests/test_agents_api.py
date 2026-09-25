@@ -527,7 +527,8 @@ class AgentAPITests(ZulipTestCase):
     def profile_payload(self) -> dict[str, object]:
         return {
             "runner_id": str(self.runner.id),
-            "name": "Agent",
+            # Each agent needs its own name in the organization.
+            "name": f"Agent {uuid4().hex[:8]}",
             "adapter_id": "acp",
             "adapter_version": "1",
             "idempotency_key": str(uuid4()),
@@ -2900,7 +2901,7 @@ class AgentConcurrencyTests(ZulipTransactionTestCase):
                         data = {
                             "schema_version": 1,
                             "runner_id": str(runner.id),
-                            "name": "Race Agent",
+                            "name": f"Race Agent {int(conflicting)}",
                             "adapter_id": "acp",
                             "adapter_version": "1",
                             "idempotency_key": key,

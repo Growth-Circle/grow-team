@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 from django.db import transaction
 from django.db.models import F, Q
 from django.utils.timezone import now
+from django.utils.translation import gettext as _
 
 from zerver.actions.create_user import do_create_user
 from zerver.actions.streams import bulk_add_subscriptions
@@ -20,6 +21,7 @@ from zerver.lib.agent_events import (
     send_agent_runner_event,
     send_pairing_event,
 )
+from zerver.lib.agent_names import agent_name_available, bot_email_for_agent_name
 from zerver.lib.agent_policy import (
     AgentAccessDenied,
     _readable_scope,
@@ -31,11 +33,7 @@ from zerver.lib.agent_policy import (
 from zerver.lib.agent_requests import SetupResult
 from zerver.lib.agent_secrets import credential_matches, encrypt_agent_secret, hash_agent_credential
 from zerver.lib.streams import filter_stream_authorization_for_adding_subscribers
-from zerver.lib.users import (
-    check_can_create_bot,
-    check_full_name,
-    validate_short_name_and_construct_bot_email,
-)
+from zerver.lib.users import check_can_create_bot, check_full_name
 from zerver.models import Message, UserProfile, agents
 from zerver.models.groups import NamedUserGroup, UserGroup
 from zerver.models.realm_audit_logs import AuditLogEventType, RealmAuditLog
@@ -55,14 +53,21 @@ _INSTRUCTIONS_CREDENTIAL_PATTERN = re.compile(
 class AgentUserError(ValueError):
     """A user-facing rejection with a stable code the client can act on."""
 
-    def __init__(self, code: str) -> None:
-        super().__init__("Agent request rejected.")
+    def __init__(self, code: str, msg: str = "Agent request rejected.") -> None:
+        super().__init__(msg)
         self.code = code
+        self.msg = msg
 
 
 # A profile stores a 6-digit hex avatar color or no color. Clients put
 # the value in a style attribute, so the server accepts no other text.
 _AVATAR_COLOR_PATTERN = re.compile(r"(#[0-9A-Fa-f]{6})?")
+
+
+def _agent_name_unavailable() -> AgentUserError:
+    return AgentUserError(
+        "agent_name_unavailable", _("This name is already used in this workspace.")
+    )
 
 
 def _reject_credential_like_instructions(text: str) -> None:
@@ -859,6 +864,10 @@ def update_profile(
     budget_source = dict(_default_budget(provider)) if budget is None else budget
     budget_data = protocol.serialize_payload(protocol.Budget.model_validate(budget_source))
     name = check_full_name(name, user_profile=None, realm=None)
+    if name != profile.name and not agent_name_available(
+        name, owner.realm, exclude_user_id=profile.bot_user_id
+    ):
+        raise _agent_name_unavailable()
     _reject_credential_like_instructions(instructions)
     appearance_changed = (
         profile.agent_role != agent_role
@@ -1476,9 +1485,9 @@ def create_profile(
         return existing.profile
     check_can_create_bot(owner, UserProfile.DEFAULT_BOT)
     name = check_full_name(name, user_profile=None, realm=None)
-    _short_name, email = validate_short_name_and_construct_bot_email(
-        f"agent-{uuid.uuid4().hex}", owner.realm
-    )
+    if not agent_name_available(name, owner.realm, allow_reserved=is_builtin):
+        raise _agent_name_unavailable()
+    _short_name, email = bot_email_for_agent_name(name, owner.realm)
     bot = do_create_user(
         email,
         None,

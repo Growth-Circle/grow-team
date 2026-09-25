@@ -103,10 +103,7 @@ def safe_agent_endpoint(view: Callable[P, HttpResponse]) -> Callable[P, HttpResp
             )
         except actions.AgentUserError as error:
             return json_response(
-                "error",
-                "Agent request rejected.",
-                {"schema_version": 1, "code": error.code},
-                status=400,
+                "error", error.msg, {"schema_version": 1, "code": error.code}, status=400
             )
         except (ValueError, ValidationError, ObjectDoesNotExist, JsonableError, OSError):
             return json_response(

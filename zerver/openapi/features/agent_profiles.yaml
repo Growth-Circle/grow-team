@@ -432,15 +432,29 @@ paths:
                   work_tools: []
                 setup_id: 00000000-0000-4000-8000-000000000049
         "400":
-          description: The agent wrapper rejected a parsed request.
+          description: |
+            The agent wrapper rejected a parsed request. The error code
+            `agent_name_unavailable` means that an active user or bot in the
+            organization has this name, or that the name is reserved.
+
+            **Changes**: The `agent_name_unavailable` error code is new in
+            Zulip 12.0 (feature level ZF-4f1745).
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentHumanSafeError"
-              example:
-                result: error
-                msg: Agent request rejected.
-                schema_version: 1
+              examples:
+                rejected:
+                  value:
+                    result: error
+                    msg: Agent request rejected.
+                    schema_version: 1
+                name_unavailable:
+                  value:
+                    result: error
+                    msg: This name is already used in this workspace.
+                    schema_version: 1
+                    code: agent_name_unavailable
         "401":
           description:
             Authentication can fail before the agent wrapper. Standard authentication errors
@@ -1093,15 +1107,29 @@ paths:
                   work_skills: []
                   work_tools: []
         "400":
-          description: The agent wrapper rejected a parsed request.
+          description: |
+            The agent wrapper rejected a parsed request. The error code
+            `agent_name_unavailable` means that an active user or bot in the
+            organization has this name, or that the name is reserved.
+
+            **Changes**: The `agent_name_unavailable` error code is new in
+            Zulip 12.0 (feature level ZF-4f1745).
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentHumanSafeError"
-              example:
-                result: error
-                msg: Agent request rejected.
-                schema_version: 1
+              examples:
+                rejected:
+                  value:
+                    result: error
+                    msg: Agent request rejected.
+                    schema_version: 1
+                name_unavailable:
+                  value:
+                    result: error
+                    msg: This name is already used in this workspace.
+                    schema_version: 1
+                    code: agent_name_unavailable
         "401":
           description:
             Authentication can fail before the agent wrapper. Standard authentication errors

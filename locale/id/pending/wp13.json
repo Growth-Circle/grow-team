@@ -1,6 +1,7 @@
 {
   "frontend": {},
   "backend": {
+    "This name is already used in this workspace.": "Nama ini sudah dipakai di workspace.",
     "Fast": "Cepat",
     "Balanced": "Seimbang",
     "Best": "Terbaik"
