@@ -8,12 +8,14 @@ from uuid import uuid4
 from django.utils.timezone import now
 from typing_extensions import override
 
+from zerver.actions.agent_jobs import audit as audit_job_event
 from zerver.actions.agent_jobs import create_job
 from zerver.actions.agents import (
     create_agent_grant,
     create_profile,
     enable_profile,
     record_readiness,
+    share_agent_profile,
 )
 from zerver.actions.create_user import do_create_user
 from zerver.actions.users import do_change_user_role
@@ -298,6 +300,157 @@ class ProfileStatsTest(AgentDirectoryAPITestCase):
         result = self.assert_json_success(self.client_get("/json/agent/profiles/stats"))
         self.assertIn(str(profile.id), result["stats"])
         self.assertEqual(result["stats"][str(profile.id)]["tasks_per_week"], 0)
+
+
+class AuditFeedTest(AgentDirectoryAPITestCase):
+    @override
+    def setUp(self) -> None:
+        super().setUp()
+        self.profile = self.create_ready_profile()
+        self.job = self.make_job(self.profile)
+        # A "server" event: a test cannot sign a runner event envelope.
+        audit_job_event(
+            self.job,
+            "approval.requested",
+            {
+                "approval_id": str(uuid4()),
+                "operation_hash": "a" * 64,
+                "version": 1,
+                "decision": "pending",
+            },
+            actor=self.owner,
+        )
+        audit_job_event(
+            self.job,
+            "attempt.stop_requested",
+            {"status": "cancel_requested", "reason": ""},
+            actor=self.owner,
+        )
+
+    def add_tool_event(self, event_type: str, tool_class: str) -> agents.AgentAuditEvent:
+        """Store a runner tool event as the runner sends it, without its
+        signed envelope."""
+        self.job.event_sequence += 1
+        self.job.save(update_fields=["event_sequence"])
+        return agents.AgentAuditEvent.objects.create(
+            realm=self.job.realm,
+            job=self.job,
+            sequence=self.job.event_sequence,
+            authority="runner",
+            type=event_type,
+            payload={"tool_class": tool_class, "operation_id": str(uuid4())},
+        )
+
+    def feed(self, **params: object) -> dict[str, object]:
+        return self.assert_json_success(self.client_get("/json/agent/audit", params))
+
+    def test_owner_sees_categorized_events(self) -> None:
+        self.add_tool_event("tool.started", "repository.edit")
+        self.add_tool_event("tool.finished", "repository.edit")
+        self.add_tool_event("tool.finished", "shell.run")
+        self.add_tool_event("tool.finished", "context.read")
+        result = self.feed(profile_id=str(self.profile.id))
+        events = result["events"]
+        assert isinstance(events, list)
+        job_rows = [(event["type"], event["category"]) for event in events if event["job_id"]]
+        # Job lifecycle events and the start of a tool call do not show.
+        self.assertEqual(
+            job_rows,
+            [
+                ("tool.finished", "read"),
+                ("tool.finished", "written"),
+                ("tool.finished", "written"),
+                ("approval.requested", "review"),
+            ],
+        )
+        profile_rows = [event["type"] for event in events if not event["job_id"]]
+        self.assertEqual(profile_rows, ["profile.enabled", "profile.created"])
+        self.assertIsNone(result["next_before"])
+
+    def test_profile_filter_narrows_the_feed(self) -> None:
+        other = create_profile(
+            self.owner,
+            name="Other",
+            runner=self.runner,
+            adapter_id="acp",
+            adapter_version="1",
+            mode="acp",
+            default_mode="answer",
+            idempotency_key=uuid4(),
+        )
+        result = self.feed(profile_id=str(other.id))
+        # `other` has no job activity of its own yet, so its feed holds only
+        # its own creation, none of `self.profile`'s approval/stop events.
+        events = result["events"]
+        assert isinstance(events, list)
+        self.assertEqual([event["type"] for event in events], ["profile.created"])
+
+    def test_older_profile_rows_are_found_behind_newer_ones(self) -> None:
+        newer = self.create_ready_profile(name="Newer")
+        for _ in range(3):
+            enable_profile(self.owner, newer, expected_revision=newer.revision)
+        result = self.feed(profile_id=str(self.profile.id), limit=1)
+        events = result["events"]
+        assert isinstance(events, list)
+        self.assertEqual([event["type"] for event in events], ["approval.requested"])
+
+    def test_pages_follow_next_before_without_gaps(self) -> None:
+        for _ in range(4):
+            self.add_tool_event("tool.finished", "context.read")
+        # Two events share one time; a page must not split them.
+        stamp = now()
+        agents.AgentAuditEvent.objects.filter(job=self.job, type="tool.finished").update(
+            occurred_at=stamp
+        )
+        seen: list[object] = []
+        params: dict[str, object] = {"profile_id": str(self.profile.id), "limit": 2}
+        while True:
+            result = self.feed(**params)
+            events = result["events"]
+            assert isinstance(events, list)
+            seen += [event["id"] for event in events]
+            if result["next_before"] is None:
+                break
+            params["before"] = result["next_before"]
+        # 4 tool events, 1 approval request, 2 profile rows, each once.
+        self.assert_length(seen, 7)
+        self.assert_length(set(seen), 7)
+
+    def test_invalid_cursor_or_limit_is_rejected(self) -> None:
+        for params in ({"before": 2**60}, {"before": -1}, {"limit": 0}, {"limit": 201}):
+            result = self.client_get("/json/agent/audit", params)
+            self.assert_json_error(result, "Agent request rejected.")
+
+    def test_unrelated_member_sees_nothing(self) -> None:
+        self.login_user(self.example_user("cordelia"))
+        result = self.feed()
+        self.assertEqual(result["events"], [])
+
+    def test_profile_viewer_without_job_access_sees_no_job_events(self) -> None:
+        cordelia = self.example_user("cordelia")
+        stream = self.make_stream("owner-only", invite_only=True)
+        self.subscribe(self.owner, stream.name)
+        self.subscribe(self.profile.bot_user, stream.name)
+        private_job = self.make_job(self.profile, stream_name=stream.name)
+        audit_job_event(
+            private_job,
+            "approval.requested",
+            {
+                "approval_id": str(uuid4()),
+                "operation_hash": "b" * 64,
+                "version": 1,
+                "decision": "pending",
+            },
+            actor=self.owner,
+        )
+        share_agent_profile(self.owner, self.profile, principal_user=cordelia)
+
+        self.login_user(cordelia)
+        result = self.feed(profile_id=str(self.profile.id))
+        events = result["events"]
+        assert isinstance(events, list)
+        self.assertNotIn(str(private_job.id), {event["job_id"] for event in events})
+        self.assertIn("profile.shared", {event["type"] for event in events})
 
 
 class GuestGrantTest(AgentDirectoryAPITestCase):

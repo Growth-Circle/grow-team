@@ -502,6 +502,16 @@ class AgentProfileAuditTest(AgentDirectoryTestCase):
         self.assertEqual([row.extra_data["shared"] for row in rows], [True, False])
         self.assertEqual({row.modified_user_id for row in rows}, {self.member.id})
 
+    def test_profile_actions_show_in_the_audit_feed(self) -> None:
+        profile = self.enable_share_and_unshare()
+        feed = self.assert_json_success(
+            self.client_get("/json/agent/audit", {"profile_id": str(profile.id)})
+        )
+        self.assertEqual(
+            [event["type"] for event in feed["events"]],
+            ["profile.unshared", "profile.shared", "profile.enabled", "profile.created"],
+        )
+
 
 class AdminPauseTest(AgentDirectoryTestCase):
     @override

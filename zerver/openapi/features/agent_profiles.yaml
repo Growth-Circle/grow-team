@@ -4814,6 +4814,146 @@ paths:
                 result: error
                 msg: Agent authority is busy. Retry this request.
                 schema_version: 1
+  /agent/audit:
+    get:
+      operationId: get-agent-audit
+      tags:
+        - agents
+      summary: Get the access-filtered agent audit feed
+      description: |
+        Get the recent activity of the agents you can see, newest first.
+
+        The feed has the finished tool calls, approval requests and
+        decisions, input requests, and prepared results of each job whose
+        event log you can read. It also has the profile actions: create,
+        enable, pause, share, and unshare.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsAuditResponse"
+              example:
+                result: success
+                msg: ""
+                schema_version: 1
+                events:
+                  - id: "job:00000000-0000-4000-8000-000000000041"
+                    occurred_at: 1758700000
+                    profile_id: 00000000-0000-4000-8000-000000000040
+                    job_id: 00000000-0000-4000-8000-000000000042
+                    type: tool.finished
+                    category: read
+                    actor_id: 1
+                next_before: null
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      parameters:
+        - name: profile_id
+          in: query
+          description: Show the events of this agent profile only.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          description: |
+            The number of events to return. A page can have more events
+            when several events have the same time as the last one.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: before
+          in: query
+          description: |
+            Show events older than this cursor. Use the `next_before`
+            value of the previous page.
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 9007199254740991
 
 components:
   schemas:
@@ -6971,6 +7111,77 @@ components:
         - msg
         - schema_version
         - stats
+    AgentSettingsAuditResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        events:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              id:
+                type: string
+              occurred_at:
+                type: integer
+              profile_id:
+                type: string
+                format: uuid
+              job_id:
+                type: string
+                format: uuid
+                nullable: true
+              type:
+                type: string
+              category:
+                type: string
+                description: |
+                  `written` for a tool call that changed files or ran a
+                  command, `read` for any other tool call, `review` for an
+                  approval request, `waiting` for an input request, and
+                  `done` for a decision, a result, or a profile action.
+                enum:
+                  - written
+                  - review
+                  - waiting
+                  - done
+                  - read
+              actor_id:
+                type: integer
+                nullable: true
+            required:
+              - id
+              - occurred_at
+              - profile_id
+              - job_id
+              - type
+              - category
+              - actor_id
+        next_before:
+          type: integer
+          nullable: true
+          description: |
+            The `before` value for the next page, or `null` when there are
+            no older events.
+      required:
+        - result
+        - msg
+        - schema_version
+        - events
+        - next_before
     AgentSettingsProfileResponse:
       type: object
       additionalProperties: false

@@ -1,7 +1,9 @@
 """Human connection APIs use Zulip authentication and form-encoded payload JSON."""
 
+import heapq
 import ipaddress
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from typing import ParamSpec, TypeVar
 from urllib.parse import urlsplit
@@ -9,16 +11,18 @@ from uuid import UUID
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Model, Q
+from django.db.models.query import QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.utils.timezone import now
 from django.utils.translation import gettext as _
+from pydantic import Json
 
 from zerver.actions import agents as actions
 from zerver.actions.agent_approvals import OutcomeUnknownError
 from zerver.lib import agent_protocol as p
 from zerver.lib import agent_requests as r
-from zerver.lib.agent_context import AgentBusy, log_agent_busy
+from zerver.lib.agent_context import AgentBusy, log_agent_busy, require_job_access
 from zerver.lib.agent_policy import (
     _principal_matches,
     _readable_scope,
@@ -34,9 +38,11 @@ from zerver.lib.exceptions import JsonableError
 from zerver.lib.response import json_response, json_success
 from zerver.lib.stream_subscription import get_user_subscribed_streams
 from zerver.lib.streams import access_stream_by_id
+from zerver.lib.typed_endpoint import typed_endpoint
 from zerver.models import Subscription, UserProfile, agents
 from zerver.models.external_accounts import DriveFolderLink
 from zerver.models.mcp import McpAgentGrant
+from zerver.models.realm_audit_logs import AuditLogEventType, RealmAuditLog
 from zerver.models.streams import Stream
 
 P = ParamSpec("P")
@@ -124,6 +130,62 @@ def _agent_access_chips(
         for grant in grants
     ]
     return chips
+
+
+# spec 06-A4: the audit feed shows these job events only. A tool call
+# that changes files, the repository, or its dependencies is "written";
+# every other tool call only reads.
+_AUDIT_WRITE_ACTIONS = frozenset(
+    {
+        "repository.edit",
+        "git.commit",
+        "git.push",
+        "git.draft_pr",
+        "dependencies.install",
+        "shell.run",
+    }
+)
+_AUDIT_EVENT_CATEGORIES = {
+    "approval.requested": "review",
+    "input.requested": "waiting",
+    "result.prepared": "done",
+    "approval.resolved": "done",
+}
+_AUDIT_JOB_EVENT_TYPES = ["tool.finished", *_AUDIT_EVENT_CATEGORIES]
+# 06-D5: profile actions outside a job, and the type each one shows as.
+_PROFILE_AUDIT_EVENT_TYPES = {
+    AuditLogEventType.AGENT_PROFILE_CREATED: "profile.created",
+    AuditLogEventType.AGENT_PROFILE_PAUSED: "profile.paused",
+    AuditLogEventType.AGENT_PROFILE_ENABLED: "profile.enabled",
+    AuditLogEventType.AGENT_PROFILE_SHARED: "profile.shared",
+}
+_AUDIT_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+# The audit cursor counts microseconds. Keep it a safe JavaScript integer.
+_MAX_AUDIT_CURSOR = 2**53
+_AUDIT_CHUNK_SIZE = 100
+
+
+def _audit_event_category(event_type: str, payload_data: dict[str, object]) -> str:
+    if event_type == "tool.finished":
+        return "written" if payload_data.get("tool_class") in _AUDIT_WRITE_ACTIONS else "read"
+    return _AUDIT_EVENT_CATEGORIES[event_type]
+
+
+def _audit_cursor(when: datetime) -> int:
+    return (when - _AUDIT_EPOCH) // timedelta(microseconds=1)
+
+
+ModelT = TypeVar("ModelT", bound=Model)
+
+
+def _in_chunks(queryset: QuerySet[ModelT]) -> Iterator[ModelT]:
+    offset = 0
+    while True:
+        chunk = list(queryset[offset : offset + _AUDIT_CHUNK_SIZE])
+        yield from chunk
+        if len(chunk) < _AUDIT_CHUNK_SIZE:
+            return
+        offset += _AUDIT_CHUNK_SIZE
 
 
 def safe_agent_endpoint(view: Callable[P, HttpResponse]) -> Callable[P, HttpResponse]:
@@ -660,6 +722,111 @@ def recover_agent_profile(request: HttpRequest, user_profile: UserProfile) -> Ht
         request,
         {"profile": _profile_data(setup.profile, user_profile), "setup": _setup_data(setup)},
     )
+
+
+def _job_audit_rows(
+    actor: UserProfile, profile_ids: set[UUID], before_at: datetime | None
+) -> Iterator[tuple[int, dict[str, object]]]:
+    events = agents.AgentAuditEvent.objects.filter(
+        realm=actor.realm, job__profile_id__in=profile_ids, type__in=_AUDIT_JOB_EVENT_TYPES
+    ).select_related("job")
+    if before_at is not None:
+        events = events.filter(occurred_at__lt=before_at)
+    job_access: dict[UUID, bool] = {}
+    for event in _in_chunks(events.order_by("-occurred_at", "-id")):
+        if event.job_id not in job_access:
+            try:
+                require_job_access(actor, event.job)
+                job_access[event.job_id] = True
+            except JsonableError:
+                job_access[event.job_id] = False
+        if not job_access[event.job_id]:
+            continue
+        yield (
+            _audit_cursor(event.occurred_at),
+            {
+                "id": f"job:{event.event_id}",
+                "occurred_at": int(event.occurred_at.timestamp()),
+                "profile_id": str(event.job.profile_id),
+                "job_id": str(event.job_id),
+                "type": event.type,
+                "category": _audit_event_category(event.type, event.payload),
+                "actor_id": event.actor_id,
+            },
+        )
+
+
+def _profile_audit_rows(
+    actor: UserProfile, profile_ids: set[UUID], before_at: datetime | None
+) -> Iterator[tuple[int, dict[str, object]]]:
+    entries = RealmAuditLog.objects.filter(
+        realm=actor.realm,
+        event_type__in=_PROFILE_AUDIT_EVENT_TYPES,
+        extra_data__profile_id__in=[str(profile_id) for profile_id in profile_ids],
+    )
+    if before_at is not None:
+        entries = entries.filter(event_time__lt=before_at)
+    for entry in _in_chunks(entries.order_by("-event_time", "-id")):
+        event_type = _PROFILE_AUDIT_EVENT_TYPES[AuditLogEventType(entry.event_type)]
+        if event_type == "profile.shared" and entry.extra_data.get("shared") is False:
+            event_type = "profile.unshared"
+        yield (
+            _audit_cursor(entry.event_time),
+            {
+                "id": f"realm:{entry.id}",
+                "occurred_at": int(entry.event_time.timestamp()),
+                "profile_id": entry.extra_data["profile_id"],
+                "job_id": None,
+                "type": event_type,
+                "category": "done",
+                "actor_id": entry.acting_user_id,
+            },
+        )
+
+
+@safe_agent_endpoint
+@typed_endpoint
+def get_agent_audit(
+    request: HttpRequest,
+    user_profile: UserProfile,
+    *,
+    before: Json[int] | None = None,
+    limit: Json[int] = 50,
+    profile_id: str | None = None,
+) -> HttpResponse:
+    """06-A4, 06-D5: the job events of the agents the caller can see,
+    filtered by the same job access as each job's own event log, plus
+    the agents' profile actions (create, enable, pause, share)."""
+    if not 1 <= limit <= 200 or (before is not None and not 0 <= before < _MAX_AUDIT_CURSOR):
+        raise ValueError("Invalid audit filter.")
+    before_at = None if before is None else _AUDIT_EPOCH + timedelta(microseconds=before)
+
+    visible, _complete = _directory_profiles(user_profile)
+    if profile_id is not None:
+        target_id = UUID(profile_id)
+        if target_id not in visible:
+            raise ValueError("Profile is unavailable.")
+        profile_ids = {target_id}
+    else:
+        profile_ids = visible
+
+    rows = heapq.merge(
+        _job_audit_rows(user_profile, profile_ids, before_at),
+        _profile_audit_rows(user_profile, profile_ids, before_at),
+        key=lambda item: item[0],
+        reverse=True,
+    )
+    # The page ends at a time change, so the next page, which asks for
+    # events strictly before `next_before`, skips no event that shares
+    # the last time.
+    page: list[tuple[int, dict[str, object]]] = []
+    next_before = None
+    for item in rows:
+        if len(page) >= limit and item[0] != page[-1][0]:
+            next_before = page[-1][0]
+            break
+        page.append(item)
+    return _success(request, {"events": [row for _cursor, row in page], "next_before": next_before})
 
 
 @safe_agent_endpoint
