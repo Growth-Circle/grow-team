@@ -48,6 +48,7 @@ from zerver.models.mcp import McpConnection as McpConnection
 from zerver.models.mcp import McpJobPlan as McpJobPlan
 from zerver.models.mcp import McpServer as McpServer
 from zerver.models.mcp import McpToolPolicy as McpToolPolicy
+from zerver.models.meetings import Meeting as Meeting
 from zerver.models.messages import AbstractAttachment as AbstractAttachment
 from zerver.models.messages import AbstractEmoji as AbstractEmoji
 from zerver.models.messages import AbstractMessage as AbstractMessage

@@ -22,6 +22,7 @@ from zerver.models import (
     McpJobPlan,
     McpServer,
     McpToolPolicy,
+    Meeting,
     NeedResolution,
     RolePermission,
     RoomChannelLink,
@@ -514,6 +515,19 @@ class WorkspaceSchemaTests(ZulipTestCase):
             expires_at=timezone_now(),
         )
         self.assertIsNone(approval.email_reminder_sent_at)
+
+    # -- 0834 Meeting -----------------------------------------------------
+
+    def test_meeting_unique_per_realm_provider_and_external_id(self) -> None:
+        fields = dict(
+            realm=self.realm,
+            provider="google_calendar",
+            external_id="evt-1",
+            starts_at=timezone_now(),
+        )
+        Meeting.objects.create(**fields)
+        with self.assertRaises(IntegrityError):
+            Meeting.objects.create(**fields)
 
     # -- helpers --------------------------------------------------------------
 
