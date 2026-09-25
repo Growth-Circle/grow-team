@@ -25,12 +25,29 @@ from zerver.models.users import active_non_guest_user_ids, active_user_ids
 # The default board every realm starts with. The guide leaves the final
 # column names to each team, so these are only the starting point.
 DEFAULT_BOARD_NAME = "Task board"
-DEFAULT_COLUMNS: list[dict[str, Any]] = [
-    {"name": "Inbox", "work_limit": None, "done_window_days": None, "is_review": False},
-    {"name": "In progress", "work_limit": 3, "done_window_days": None, "is_review": False},
-    {"name": "Awaiting review", "work_limit": None, "done_window_days": None, "is_review": True},
-    {"name": "Done", "work_limit": None, "done_window_days": 7, "is_review": False},
+# T-27: the column shapes, in order, and their names for an English and
+# an Indonesian workspace. The language names the columns of a new board
+# only; a board that exists keeps its names.
+_DEFAULT_COLUMN_SHAPE: list[dict[str, Any]] = [
+    {"work_limit": None, "done_window_days": None, "is_review": False},
+    {"work_limit": 3, "done_window_days": None, "is_review": False},
+    {"work_limit": None, "done_window_days": None, "is_review": True},
+    {"work_limit": None, "done_window_days": 7, "is_review": False},
 ]
+_DEFAULT_COLUMN_NAMES_EN = ["Inbox", "In progress", "Awaiting review", "Done"]
+_DEFAULT_COLUMN_NAMES_ID = ["Belum", "Dikerjakan", "Review", "Selesai"]
+
+
+def _default_columns(realm: Realm) -> list[dict[str, Any]]:
+    settings = (
+        AgentRealmSettings.objects.filter(realm=realm)
+        .values_list("agent_language", flat=True)
+        .first()
+    )
+    names = _DEFAULT_COLUMN_NAMES_ID if settings == "id" else _DEFAULT_COLUMN_NAMES_EN
+    return [
+        {"name": name, **shape} for name, shape in zip(names, _DEFAULT_COLUMN_SHAPE, strict=True)
+    ]
 
 
 def get_or_create_default_board(realm: Realm) -> TaskBoard:
@@ -48,7 +65,7 @@ def get_or_create_default_board(realm: Realm) -> TaskBoard:
             done_window_days=column["done_window_days"],
             is_review=column["is_review"],
         )
-        for order, column in enumerate(DEFAULT_COLUMNS)
+        for order, column in enumerate(_default_columns(realm))
     )
     return board
 

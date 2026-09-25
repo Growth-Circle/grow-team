@@ -480,3 +480,18 @@ class TaskSourceTest(TaskBoardTestCase):
             {"title": "Bad source", "column_id": self.columns[0].id, "source": "nonsense"},
         )
         self.assert_json_error(result, "Invalid source")
+
+
+class TaskLocalizedColumnsTest(ZulipTestCase):
+    def test_new_board_uses_indonesian_columns_for_id_workspaces(self) -> None:
+        hamlet = self.example_user("hamlet")
+        AgentRealmSettings.objects.create(realm=hamlet.realm, agent_language="id")
+        board = get_or_create_default_board(hamlet.realm)
+        names = [column.name for column in board.columns.order_by("order")]
+        self.assertEqual(names, ["Belum", "Dikerjakan", "Review", "Selesai"])
+
+    def test_new_board_defaults_to_english_without_workspace_settings(self) -> None:
+        hamlet = self.example_user("hamlet")
+        board = get_or_create_default_board(hamlet.realm)
+        names = [column.name for column in board.columns.order_by("order")]
+        self.assertEqual(names, ["Inbox", "In progress", "Awaiting review", "Done"])
