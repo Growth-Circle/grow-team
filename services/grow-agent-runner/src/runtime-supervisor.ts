@@ -10,11 +10,18 @@ import {Journal, type JournalLog} from "./journal.js";
 import {OwnerRegistry} from "./owner.js";
 import {RootlessSandbox, type ExecutionGuard} from "./sandbox.js";
 import {prepareWorkspace, type Workspace} from "./workspace.js";
-import {ArtifactStore, ToolBroker, type Artifact, type BrokerPersistence} from "./tool-broker.js";
+import {
+    ArtifactStore,
+    ToolBroker,
+    validateTool,
+    type Artifact,
+    type BrokerPersistence,
+} from "./tool-broker.js";
 import {ModelBroker, ModelBudgetLedger, type ModelAuthority} from "./model-broker.js";
+import type {ToolCall, ToolDefinition} from "./codecs.js";
 import {SecretFilter} from "./redaction.js";
 import {ContainedEndpointRuntime} from "./contained-endpoint.js";
-import {RuntimeTools, toolCatalog, type Runtime} from "./runtime.js";
+import {RuntimeTools, ToolRejected, toolCatalog, type Runtime} from "./runtime.js";
 import {teamToolCatalog, teamToolExecutor, validateTeamToolCall} from "./team-tools.js";
 import {AcpRuntime} from "./acp-runtime.js";
 import {AnthropicRuntime} from "./anthropic-runtime.js";
@@ -79,6 +86,100 @@ interface Active {
     inputCursor: number;
     inputs: InputQueue;
     scopeStopConfirmed: boolean;
+    // True for an answer/manage attempt running the fast lane without a
+    // repository: no container ever started for it (FL-02). A repository-bound
+    // answer still starts the tool container for grow_read/grow_search, so this
+    // stays false for it even though the model loop itself runs in-process.
+    // grow_ask (internals/docs/spec/2026-09-24-agent-fast-lane.md §12 step 12a)
+    // parks its resolver here while it waits for the reply instead of a fresh
+    // chat turn.
+    fastLane: boolean;
+    question?: {resolve: (text: string) => void; reject: (error: unknown) => void};
+}
+// grow_ask (internals/docs/spec/2026-09-24-agent-fast-lane.md §12 step 12a): a
+// fast-lane-only tool that asks the requester a short question through the
+// existing input.requested event (02-R3, 03-D4) and waits for the reply
+// through the existing inputs route. No new message, and no v1 schema
+// change - both already exist.
+function growAskTool(
+    channel: AttemptChannel,
+    active: Active,
+): {
+    definition: ToolDefinition;
+    parse: (raw: Data) => Data;
+    execute: (request: Data) => Promise<string>;
+} {
+    return {
+        definition: {
+            name: "grow_ask",
+            description:
+                "Ask the requester a short question and wait for their reply before " +
+                "continuing. Give options for a closed choice (at most 10).",
+            parameters: {
+                type: "object",
+                properties: {
+                    question: {type: "string", minLength: 1, maxLength: 2048},
+                    options: {
+                        type: "array",
+                        items: {type: "string", minLength: 1, maxLength: 4096},
+                        maxItems: 10,
+                    },
+                },
+                required: ["question"],
+                additionalProperties: false,
+            },
+        },
+        parse: (raw) => {
+            const question = String(raw.question ?? "");
+            if (question.length < 1 || question.length > 2048)
+                throw new ToolRejected("question must be 1-2048 characters.");
+            if (raw.options === undefined) return {kind: "ask", question};
+            if (
+                !Array.isArray(raw.options) ||
+                raw.options.length < 1 ||
+                raw.options.length > 10 ||
+                raw.options.some(
+                    (o: unknown) => typeof o !== "string" || o.length < 1 || o.length > 4096,
+                )
+            )
+                throw new ToolRejected("options must be 1-10 strings of 1-4096 characters each.");
+            return {kind: "ask", question, options: raw.options};
+        },
+        execute: (request) =>
+            new Promise<string>((resolve, reject) => {
+                if (active.abort.signal.aborted) {
+                    reject(new Error("Runtime authority expired"));
+                    return;
+                }
+                // An earlier input still queued in active.inputs must reach the
+                // model before this question can be asked: applyInput below
+                // hands the next input to whichever question is open, and
+                // asking now would let this new question steal an answer meant
+                // for that earlier input instead (§12 step 12a).
+                if (active.inputs.hasPending()) {
+                    reject(
+                        new ToolRejected(
+                            "The requester sent a new message. End this turn to read it first.",
+                        ),
+                    );
+                    return;
+                }
+                active.abort.signal.addEventListener(
+                    "abort",
+                    () => reject(new Error("Runtime authority expired")),
+                    {once: true},
+                );
+                active.question = {resolve, reject};
+                void channel
+                    .event("input.requested", {
+                        question: request.question,
+                        ...(request.options ? {options: request.options} : {}),
+                    })
+                    .catch(reject);
+            }).finally(() => {
+                active.question = undefined;
+            }),
+    };
 }
 export class RuntimeSupervisor implements Supervisor {
     private active = new Map<string, Active>();
@@ -106,11 +207,19 @@ export class RuntimeSupervisor implements Supervisor {
             !/^sha256:[0-9a-f]{64}$/.test(config.model_image)
         )
             throw new Error("Approve the installed runtime configuration first");
+        // §9 "fast_lane per provider": an absent field means every provider
+        // keeps today's behavior (fast lane when fast_lane is true). A
+        // present-but-malformed value must fail closed instead of the
+        // Array.isArray check elsewhere silently reading it as "no allowlist".
+        for (const field of ["fast_lane_providers", "fast_lane_bearer_providers"])
+            if (config[field] !== undefined && !Array.isArray(config[field]))
+                throw new Error(`${field} must be a list of provider IDs`);
         if (process.versions.node !== "24.18.0") throw new Error("Pinned Node runtime is required");
         for (const [name, expected] of Object.entries({
             "@agentclientprotocol/sdk": "1.5.0",
             "@agentclientprotocol/codex-acp": "1.12.0",
             "@openai/codex": "0.154.0",
+            "@anthropic-ai/sdk": "0.128.0",
             zod: "4.6.5",
         })) {
             const installed = JSON.parse(
@@ -160,6 +269,7 @@ export class RuntimeSupervisor implements Supervisor {
         scope: string,
         kind: "attempt" | "probe",
         runtime?: Runtime,
+        skipContainer = false,
     ): Promise<{confirmed: true; runtimeCloseFailed: boolean}> {
         let closeError: unknown;
         try {
@@ -167,6 +277,12 @@ export class RuntimeSupervisor implements Supervisor {
         } catch (error) {
             closeError = error;
         }
+        // FL-02: the caller passes skipContainer only for a fast-lane attempt
+        // with no repository (Active.fastLane), which never started a tool
+        // container; the Docker call that would otherwise confirm its scope is
+        // stopped has nothing to confirm. A repository-bound fast-lane answer
+        // still runs the tool container and takes the branch below.
+        if (skipContainer) return {confirmed: true, runtimeCloseFailed: closeError !== undefined};
         let confirmed = false;
         try {
             confirmed = (await this.sandbox.stopScope(scope, kind)).confirmed;
@@ -193,6 +309,8 @@ export class RuntimeSupervisor implements Supervisor {
             await this.closeScope(
                 handle.attempt_id,
                 handle.attempt_id.startsWith("probe-") ? "probe" : "attempt",
+                undefined,
+                item?.fastLane ?? false,
             );
             confirmed = true;
         } catch {}
@@ -227,16 +345,34 @@ export class RuntimeSupervisor implements Supervisor {
             task: Promise.resolve(),
             inputCursor: descriptor.checkpoint?.input_cursor ?? 0,
             scopeStopConfirmed: false,
+            fastLane: false,
         };
         this.active.set(descriptor.attempt_id, active);
         // The model loop stays outside the Coordinator lane and control polling.
-        active.task = this.execute(active, channel).catch(async () => {
-            active.abort.abort();
-            if (!active.scopeStopConfirmed)
-                try {
-                    const closure = await this.closeScope(active.d.attempt_id, "attempt");
-                    active.scopeStopConfirmed = closure.confirmed;
-                } catch {
+        active.task = this.execute(active, channel)
+            .catch(async () => {
+                active.abort.abort();
+                if (!active.scopeStopConfirmed)
+                    try {
+                        const closure = await this.closeScope(
+                            active.d.attempt_id,
+                            "attempt",
+                            undefined,
+                            active.fastLane,
+                        );
+                        active.scopeStopConfirmed = closure.confirmed;
+                    } catch {
+                        // A failed containment check remains unknown. The coordinator retains
+                        // execution ownership until its normal stop path completes.
+                        await channel.event("attempt.interrupted", {
+                            process_state: "unknown",
+                            adapter_session_ref: null,
+                            stop_confirmed: false,
+                            summary: "",
+                        });
+                        return;
+                    }
+                if (!active.scopeStopConfirmed) {
                     // A failed containment check remains unknown. The coordinator retains
                     // execution ownership until its normal stop path completes.
                     await channel.event("attempt.interrupted", {
@@ -247,21 +383,19 @@ export class RuntimeSupervisor implements Supervisor {
                     });
                     return;
                 }
-            if (!active.scopeStopConfirmed) {
-                // A failed containment check remains unknown. The coordinator retains
-                // execution ownership until its normal stop path completes.
-                await channel.event("attempt.interrupted", {
-                    process_state: "unknown",
-                    adapter_session_ref: null,
-                    stop_confirmed: false,
-                    summary: "",
-                });
-                return;
-            }
-            // The coordinator retires the channel now and reports its valid stopped
-            // event after this active task settles. Do not call stop from this task.
-            channel.runtimeTerminated?.();
-        });
+                // The coordinator retires the channel now and reports its valid stopped
+                // event after this active task settles. Do not call stop from this task.
+                channel.runtimeTerminated?.();
+            })
+            .finally(() => {
+                // Only stop() (below) deletes otherwise. The FL-20 branch in
+                // execute() returns here without ever throwing, and this catch
+                // itself can return early on a failed containment check - both
+                // leave this entry (its descriptor, in-memory messages, and
+                // InputQueue) in the map until the runner process restarts.
+                if (this.active.get(descriptor.attempt_id) === active)
+                    this.active.delete(descriptor.attempt_id);
+            });
     }
     private async secret(
         d: Data,
@@ -464,64 +598,107 @@ export class RuntimeSupervisor implements Supervisor {
                 filter,
                 new ModelBudgetLedger(this.log, d.job_id),
             );
+            // FL-01/FL-02, internals/docs/spec/2026-09-24-agent-fast-lane.md §9
+            // "fast_lane per provider": an answer or manage job takes the fast
+            // lane only when runtime.json turns it on for this provider. An
+            // absent fast_lane_providers list keeps every provider on the fast
+            // lane (open() above rejects a present-but-non-array value).
+            const fastLaneEligible =
+                (d.job_kind === "answer" || d.job_kind === "manage") &&
+                this.config.fast_lane === true &&
+                (!Array.isArray(this.config.fast_lane_providers) ||
+                    this.config.fast_lane_providers.includes(d.provider.id));
+            // FL-02: only a fast-lane attempt with no repository ever skips the
+            // tool container - a repository-bound answer still runs grow_read
+            // and grow_search there (closeScope above), even on the fast lane.
+            active.fastLane = fastLaneEligible && !d.repository;
+            // §12 step 12: a provider that needs Authorization: Bearer instead
+            // of Anthropic's own x-api-key header (an OpenRouter-style
+            // Anthropic-compatible endpoint, WP36). fast_lane_bearer_providers
+            // absent or not listing this provider keeps the x-api-key default.
+            const bearerAuth =
+                fastLaneEligible &&
+                Array.isArray(this.config.fast_lane_bearer_providers) &&
+                this.config.fast_lane_bearer_providers.includes(d.provider.id);
+            const askTool = fastLaneEligible ? growAskTool(channel, active) : null;
             // A manage job has no repository or workspace (contract 2.5); it gets the
             // team-tool catalog and executor instead of the repository-bound one above.
-            const tools =
+            const baseCatalog = d.job_kind === "manage" ? teamToolCatalog() : toolCatalog(d);
+            const baseValidate: (call: ToolCall, raw: Data) => Data =
                 d.job_kind === "manage"
-                    ? new RuntimeTools(
-                          teamToolCatalog(),
+                    ? validateTeamToolCall
+                    : (call, raw) => validateTool({...raw, kind: call.name.slice(5)});
+            const baseExecute: (id: string, tool: Data) => Promise<string> =
+                d.job_kind === "manage"
+                    ? teamToolExecutor(
+                          channel,
+                          currentLease,
+                          active.abort.signal,
                           d.attempt_id,
-                          this.log,
-                          authority,
-                          filter,
-                          teamToolExecutor(
-                              channel,
-                              currentLease,
-                              active.abort.signal,
-                              d.attempt_id,
-                              d.lease_epoch,
-                          ),
-                          validateTeamToolCall,
+                          d.lease_epoch,
                       )
-                    : new RuntimeTools(
-                          toolCatalog(d),
-                          d.attempt_id,
-                          this.log,
-                          authority,
-                          filter,
-                          async (id, tool) => {
-                              if (!broker) throw new Error("No repository tool authority");
-                              const result = await broker.runSandboxedTool(id, tool);
-                              return result.result.output.toString("utf8");
-                          },
-                      );
-            // With `fast_lane` in runtime.json, an answer takes the fast lane: the
-            // Anthropic SDK loop in this process, without a model container,
+                    : async (id, tool) => {
+                          if (!broker) throw new Error("No repository tool authority");
+                          const result = await broker.runSandboxedTool(id, tool);
+                          return result.result.output.toString("utf8");
+                      };
+            const tools = new RuntimeTools(
+                askTool ? [...baseCatalog, askTool.definition] : baseCatalog,
+                d.attempt_id,
+                this.log,
+                authority,
+                filter,
+                askTool
+                    ? (id, req) =>
+                          req.kind === "ask" ? askTool.execute(req) : baseExecute(id, req)
+                    : baseExecute,
+                askTool
+                    ? (call, raw) =>
+                          call.name === "grow_ask" ? askTool.parse(raw) : baseValidate(call, raw)
+                    : baseValidate,
+            );
+            // With `fast_lane` in runtime.json, an answer or manage job takes the fast
+            // lane: the Anthropic SDK loop in this process, without a model container,
             // streaming drafts to the conversation.
-            const runtime: Runtime =
-                d.job_kind === "answer" && this.config.fast_lane === true
-                    ? new AnthropicRuntime(d, credential, tools, authority, filter, async (text) => {
+            // manage has no conversation message to edit (API-CONTRACTS.md "Team
+            // tools"): the server discards a draft against it after taking its
+            // global lock, so sending one is a wasted request every second.
+            const sendDraft: (text: string) => Promise<void> =
+                d.job_kind === "answer"
+                    ? async (text) => {
                           await request("/runner/drafts", {text});
-                      })
-                    : d.adapter.mode === "endpoint"
-                      ? new ContainedEndpointRuntime(
-                            d,
-                            model,
-                            tools,
-                            authority,
-                            this.sandbox,
-                            this.config.model_image,
-                            this.store.root,
-                        )
-                      : new AcpRuntime(
-                            d,
-                            model,
-                            tools,
-                            authority,
-                            this.sandbox,
-                            this.config.model_image,
-                            this.store.root,
-                        );
+                      }
+                    : async () => {};
+            const runtime: Runtime = fastLaneEligible
+                ? new AnthropicRuntime(
+                      d,
+                      credential,
+                      tools,
+                      authority,
+                      filter,
+                      sendDraft,
+                      undefined,
+                      bearerAuth,
+                  )
+                : d.adapter.mode === "endpoint"
+                  ? new ContainedEndpointRuntime(
+                        d,
+                        model,
+                        tools,
+                        authority,
+                        this.sandbox,
+                        this.config.model_image,
+                        this.store.root,
+                    )
+                  : new AcpRuntime(
+                        d,
+                        model,
+                        tools,
+                        authority,
+                        this.sandbox,
+                        this.config.model_image,
+                        this.store.root,
+                    );
             active.runtime = runtime;
             await runtime.startSession();
             if (d.checkpoint) await runtime.resume({...d.checkpoint, current_request: d.request});
@@ -646,12 +823,31 @@ export class RuntimeSupervisor implements Supervisor {
                     artifact_ids: result.artifact_ids,
                     tree_hash: result.tree_hash,
                 });
+                if (fastLaneEligible) {
+                    // FL-20 (internals/docs/spec/2026-09-24-agent-fast-lane.md §9
+                    // "Publikasi sesudah attempt.stopped"): ask again right away
+                    // instead of waiting for the coordinator's next controls
+                    // tick. Nothing pending means this answer is done - stop now
+                    // and report it through the same path a runtime error would.
+                    await channel.pollInputs?.();
+                    if (!active.inputs.hasPending()) {
+                        channel.runtimeTerminated?.();
+                        return;
+                    }
+                    current();
+                    continue;
+                }
                 await active.inputs.wait();
                 current();
             }
         } finally {
             clearTimeout(timer);
-            const closure = await this.closeScope(d.attempt_id, "attempt", active.runtime);
+            const closure = await this.closeScope(
+                d.attempt_id,
+                "attempt",
+                active.runtime,
+                active.fastLane,
+            );
             active.scopeStopConfirmed = closure.confirmed;
             if (closure.runtimeCloseFailed)
                 throw new Error("Runtime close failed; scope stop confirmed");
@@ -665,6 +861,19 @@ export class RuntimeSupervisor implements Supervisor {
         if (!active || active.abort.signal.aborted) throw new Error("Input attempt is unavailable");
         for (const key of ["job_id", "attempt_id", "lease_epoch"])
             if (active.d[key] !== d[key]) throw new Error("Input belongs to another attempt");
+        // grow_ask (internals/docs/spec/2026-09-24-agent-fast-lane.md §12 step
+        // 12a): while its question is outstanding, the next input answers it
+        // instead of starting a new chat turn - but only once every
+        // earlier-queued input has already been read. hasPending() should
+        // already be false whenever active.question is set (growAskTool's own
+        // guard above), but collectInputs (supervisor.ts) delivers inputs
+        // without awaiting each one, so this stays the authoritative check.
+        if (active.question && !active.inputs.hasPending()) {
+            const {resolve} = active.question;
+            active.question = undefined;
+            resolve(input.text);
+            return {outcome: "applied", receipt_id: randomUUID()};
+        }
         return active.inputs.submit(input);
     }
     async probe(
@@ -715,7 +924,8 @@ export class RuntimeSupervisor implements Supervisor {
             return needsSetup("auth_required", "adapter", "login_vendor");
         if (adapter.auth_state === "unchecked" || adapter.auth_state === "error")
             return needsSetup("auth_unknown", "adapter", "login_vendor");
-        if (!sandboxApproved) return needsSetup("sandbox_unavailable", "sandbox", "configure_sandbox");
+        if (!sandboxApproved)
+            return needsSetup("sandbox_unavailable", "sandbox", "configure_sandbox");
         this.registry.assertRuntime(d);
         await authority.validate();
         if (d.provider && !d.provider.data_scope.includes("synthetic"))

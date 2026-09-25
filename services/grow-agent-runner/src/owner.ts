@@ -426,6 +426,7 @@ export async function doctor(): Promise<Data> {
             "@agentclientprotocol/sdk": "1.5.0",
             "@agentclientprotocol/codex-acp": "1.12.0",
             "@openai/codex": "0.154.0",
+            "@anthropic-ai/sdk": "0.128.0",
             zod: "4.6.5",
         }).map(([name, expected]) => {
             try {
