@@ -1,7 +1,7 @@
 from django.urls.resolvers import URLPattern
 
-# agent_runner_extras owns its own API and page routes (see PLAN.md Sanji WP04, section
-# 4.2). This module starts empty; the work package that builds this area
-# fills it in without needing to touch zproject/urls.py again.
+# agent_runner_extras owns its own API and page routes. This module starts empty;
+# whichever feature is built in this area fills it in without needing
+# to touch zproject/urls.py again.
 api_patterns: list[URLPattern] = []
 page_patterns: list[URLPattern] = []

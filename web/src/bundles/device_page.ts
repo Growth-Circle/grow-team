@@ -1,3 +1,3 @@
-// Placeholder entry point for the "/device" page bundle. WP40 replaces
-// this with the pairing-code client.
+// Placeholder entry point for the "/device" page bundle, replaced once
+// the pairing-code client for this page is built.
 export const isPlaceholderBundle = true;

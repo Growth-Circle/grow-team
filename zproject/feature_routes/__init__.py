@@ -1,7 +1,7 @@
-# Route registry for Sanji feature areas (see PLAN.md Sanji WP04, section
-# 4.2). Each module below owns its own API and page routes, so adding a
-# new area never requires editing zproject/urls.py again. A module that
-# has not grown its own routes yet exports two empty lists.
+# Route registry for Sanji feature areas. Each module below owns its own
+# API and page routes, so adding a new area never requires editing
+# zproject/urls.py again. A module that has not grown its own routes yet
+# exports two empty lists.
 from django.urls.resolvers import URLPattern
 
 from zproject.feature_routes import (
