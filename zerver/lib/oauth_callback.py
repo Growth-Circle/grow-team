@@ -6,21 +6,22 @@
 #
 # `state` is instead a signed, stateless token carrying everything the
 # callback needs (realm, user, provider, and where to send the browser
-# back), plus a nonce that a cache entry marks used on first exchange. See
-# PLAN.md Sanji WP04 and critic finding 44.
+# back), plus a nonce that a cache entry marks used on first exchange.
 import secrets
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from django.conf import settings
 from django.core.cache import cache
 from django.core.signing import BadSignature, SignatureExpired, dumps, loads
 from django.http import HttpRequest
 
 from zerver.models import Realm, UserProfile
 
-STATE_SALT = "sanji.oauth_callback.state"
+STATE_SALT = "zerver.lib.oauth_callback.state"
 STATE_MAX_AGE_SECONDS = 10 * 60
-NONCE_CACHE_PREFIX = "sanji_oauth_callback_nonce:"
+NONCE_CACHE_PREFIX = "oauth_callback_nonce:"
+CODE_VERIFIER_CACHE_PREFIX = "oauth_callback_code_verifier:"
 
 
 class OAuthStateError(Exception):
@@ -33,16 +34,48 @@ class OAuthState:
     user_id: int
     provider: str
     return_hash: str
+    nonce: str
+    # Set only when the connect flow started with PKCE (sign_state's
+    # code_verifier argument); an exchanger that needs it for the token
+    # request reads it from here instead of threading it through `state`
+    # itself, which stays a fixed-shape, provider-agnostic token.
+    code_verifier: str | None
 
 
-def sign_state(realm: Realm, user: UserProfile, provider: str, return_hash: str) -> str:
-    """Build the signed `state` value a connect button sends the provider."""
+def callback_url(realm: Realm, provider: str) -> str:
+    """The redirect URI to register with `provider`: this always points at
+    the fixed callback host (or, with no such host configured, at the
+    calling realm's own host, for a single-host dev setup)."""
+    host = settings.OAUTH_CALLBACK_HOST or realm.host
+    return f"{settings.EXTERNAL_URI_SCHEME}{host}/oauth/callback/{provider}"
+
+
+def sign_state(
+    realm: Realm,
+    user: UserProfile,
+    provider: str,
+    return_hash: str,
+    *,
+    code_verifier: str | None = None,
+) -> str:
+    """Build the signed `state` value a connect button sends the provider.
+
+    `return_hash` must be a URL fragment (starting with "#"): the callback
+    appends it directly to the trusted realm URL to build the redirect
+    target, and only a fragment cannot change which host or path that
+    redirect lands on.
+    """
+    if not return_hash.startswith("#"):
+        raise ValueError("return_hash must be a URL fragment starting with '#'.")
+    nonce = secrets.token_urlsafe(18)
+    if code_verifier is not None:
+        cache.set(CODE_VERIFIER_CACHE_PREFIX + nonce, code_verifier, STATE_MAX_AGE_SECONDS)
     payload = {
         "realm_id": realm.id,
         "user_id": user.id,
         "provider": provider,
         "return_hash": return_hash,
-        "nonce": secrets.token_urlsafe(18),
+        "nonce": nonce,
     }
     return dumps(payload, salt=STATE_SALT)
 
@@ -75,12 +108,14 @@ def verify_state(state: str, *, provider: str) -> OAuthState:
             user_id=payload["user_id"],
             provider=payload["provider"],
             return_hash=payload["return_hash"],
+            nonce=nonce,
+            code_verifier=cache.get(CODE_VERIFIER_CACHE_PREFIX + nonce),
         )
     except KeyError:
         raise OAuthStateError("invalid")
 
 
-ExchangeCallback = Callable[[HttpRequest, str, OAuthState], None]
+ExchangeCallback = Callable[[HttpRequest, str, UserProfile, OAuthState], None]
 
 _exchangers: dict[str, ExchangeCallback] = {}
 
@@ -88,7 +123,7 @@ _exchangers: dict[str, ExchangeCallback] = {}
 def register(provider: str, exchange: ExchangeCallback) -> None:
     """Register the function that turns an OAuth `code` for `provider`
     into a stored credential. Called once at import time by the feature
-    that owns that provider (WP25, WP36, WP44)."""
+    that owns that provider."""
     assert provider not in _exchangers, f"OAuth provider already registered: {provider}"
     _exchangers[provider] = exchange
 
