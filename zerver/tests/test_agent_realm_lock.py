@@ -7,8 +7,10 @@ which now filters candidates in SQL before checking each one, instead of
 checking every running job in the realm.
 """
 
+import json
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from threading import Event
 from time import sleep
 from uuid import uuid4
@@ -21,9 +23,11 @@ from zerver.actions.agent_jobs import create_job
 from zerver.actions.agents import create_profile, enable_profile, record_readiness
 from zerver.actions.tasks import do_create_task
 from zerver.lib.agent_context import AgentBusy, agent_realm, agent_transaction
+from zerver.lib.agent_secrets import hash_agent_credential
 from zerver.lib.tasks import get_or_create_default_board, running_agent_job_count, work_counts
 from zerver.lib.test_classes import ZulipTestCase, ZulipTransactionTestCase
-from zerver.models import Message, Realm, agents
+from zerver.models import Client, Message, Realm, UserProfile, agents
+from zerver.models.realms import get_realm
 
 
 def _retry_on_lock_contention(attempt: Callable[[], None]) -> None:
@@ -40,6 +44,101 @@ def _retry_on_lock_contention(attempt: Callable[[], None]) -> None:
             if remaining == 0:
                 raise
             sleep(0.1)
+
+
+def _ready_profile(
+    owner: UserProfile, *, name: str, fingerprint: str
+) -> tuple[agents.AgentRunner, agents.AgentProfile]:
+    """A minimal enabled profile with a working runner, for tests that need
+    a real job or a real runner credential, not only the lock machinery."""
+    agents.AgentRealmSettings.objects.update_or_create(
+        realm=owner.realm, defaults={"enabled": True}
+    )
+    runner = agents.AgentRunner.objects.create(
+        realm=owner.realm,
+        owner=owner,
+        name=name,
+        fingerprint=fingerprint,
+        catalog_report={
+            "revision": 1,
+            "adapters": [
+                {
+                    "id": "acp",
+                    "version": "1",
+                    "auth_state": "ready",
+                    "capabilities": {"config_version": 1},
+                }
+            ],
+            "sandboxes": [
+                {
+                    "alias": "default",
+                    "image_digest": "sha256:" + "a" * 64,
+                    "toolchain_digest": "b" * 64,
+                    "catalog_revision": 1,
+                    "cpu_millicores": 100,
+                    "memory_bytes": 67108864,
+                    "pids_limit": 16,
+                    "temporary_bytes": 1048576,
+                }
+            ],
+        },
+    )
+    profile = create_profile(
+        owner,
+        name=name,
+        runner=runner,
+        adapter_id="acp",
+        adapter_version="1",
+        idempotency_key=uuid4(),
+    )
+    setup = agents.AgentSetupOperation.objects.get(profile=profile)
+    record_readiness(
+        runner,
+        setup,
+        {
+            "schema_version": 1,
+            "profile_id": str(profile.id),
+            "profile_revision": 1,
+            "runner_id": str(runner.id),
+            "descriptor_digest": setup.descriptor_digest,
+            "configuration_digest": setup.configuration_digest,
+            "state": "ready",
+            "capabilities": {"chat_ready": True, "config_version": 1},
+        },
+    )
+    profile.refresh_from_db()
+    enable_profile(owner, profile, expected_revision=profile.revision)
+    return runner, profile
+
+
+def _cleanup_ready_profile(
+    runner: agents.AgentRunner,
+    profile: agents.AgentProfile,
+    *,
+    settings_existed: bool,
+    jobs: list[agents.AgentJob] = [],  # noqa: B006
+) -> None:
+    """Undo _ready_profile() (and any jobs made with it) for a
+    ZulipTransactionTestCase, which commits for real and so is not
+    rolled back between tests the way ZulipTestCase is."""
+    bot_user = profile.bot_user
+    for job in jobs:
+        conversation_id = job.conversation_id
+        agents.AgentAttempt.objects.filter(job=job).delete()
+        agents.AgentContextRef.objects.filter(job=job).delete()
+        agents.AgentAuditEvent.objects.filter(job=job).delete()
+        agents.AgentOutbox.objects.filter(job=job).delete()
+        agents.AgentJob.objects.filter(id=job.id).update(follows_job=None, resume_checkpoint=None)
+        job.delete()
+        agents.AgentConversation.objects.filter(id=conversation_id).delete()
+    agents.AgentGrant.objects.filter(profile=profile).delete()
+    agents.AgentProbeGrant.objects.filter(setup_operation__profile=profile).delete()
+    agents.AgentSetupOperation.objects.filter(profile=profile).delete()
+    profile.delete()
+    bot_user.delete()
+    runner.delete()
+    if not settings_existed:
+        agents.AgentRealmSettings.objects.filter(realm=runner.realm).delete()
 
 
 class AgentRealmLockTests(ZulipTransactionTestCase):
@@ -204,6 +303,156 @@ class AgentRealmLockTests(ZulipTransactionTestCase):
         self.login("hamlet")
         self.client_get("/json/users/me")
         self.assertIsNone(_resolve_realm_id())
+
+    def test_unknown_credential_is_rejected_before_any_lock(self) -> None:
+        """A Bearer token that matches no AgentRunnerCredential must never
+        reach agent_transaction(): endpoint() (agent_runner.py) looks the
+        token up by hash and rejects it outright, instead of falling
+        through to a view that would take a lock before ever checking
+        it. Holding the whole-server shared slot proves this: the old
+        fallback (return view(request)) would have taken the realm-less,
+        exclusive branch of that same key and failed busy (503)."""
+        held, release = Event(), Event()
+
+        def hold_shared_slot() -> None:
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT pg_advisory_lock_shared(174621, 0)")
+                held.set()
+                assert release.wait(3)
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT pg_advisory_unlock_shared(174621, 0)")
+            finally:
+                connections.close_all()
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pending = pool.submit(hold_shared_slot)
+            self.assertTrue(held.wait(3))
+            response = self.client_get(
+                "/api/v1/agent/runner/leases", HTTP_AUTHORIZATION="Bearer " + "z" * 40
+            )
+            release.set()
+            pending.result(timeout=5)
+        self.assertEqual(response.status_code, 401)
+
+    def test_view_without_agent_realm_locks_the_logged_in_users_realm(self) -> None:
+        """cancel_job() (zerver/actions/agent_jobs.py) never calls
+        agent_realm(): it relies on _resolve_realm_id()'s fallback to the
+        logged-in request's user. A lock on a different realm must not
+        block it; a lock on the user's own realm must."""
+        hamlet = self.example_user("hamlet")
+        self.login_user(hamlet)
+        settings_existed = agents.AgentRealmSettings.objects.filter(realm=hamlet.realm).exists()
+        clients_before = set(Client.objects.values_list("id", flat=True))
+        runner, profile = _ready_profile(hamlet, name="Cancel probe", fingerprint="d" * 64)
+        message = Message.objects.get(
+            id=self.send_stream_message(hamlet, "Denmark", "Please answer")
+        )
+        job = create_job(
+            hamlet,
+            profile=profile,
+            source=message,
+            request="Please answer",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        body = json.dumps({"schema_version": 1, "expected_version": job.version})
+
+        def cancel() -> int:
+            url = f"/json/agent/jobs/{job.id}/cancel"
+            return self.client_post(url, {"payload": body}).status_code
+
+        def hold(realm_id: int, held: Event, release: Event) -> None:
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT pg_advisory_lock(174622, %s)", [realm_id])
+                held.set()
+                assert release.wait(3)
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT pg_advisory_unlock(174622, %s)", [realm_id])
+            finally:
+                connections.close_all()
+
+        try:
+            for realm_id, expected in [(get_realm("lear").id, 200), (hamlet.realm_id, 503)]:
+                held, release = Event(), Event()
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    pending = pool.submit(hold, realm_id, held, release)
+                    self.assertTrue(held.wait(3))
+                    self.assertEqual(cancel(), expected)
+                    release.set()
+                    pending.result(timeout=5)
+        finally:
+            # ZulipTransactionTestCase commits for real (needed above so
+            # the locking thread's own connection sees these rows); undo
+            # them here instead of leaving them for the next test.
+            _cleanup_ready_profile(
+                runner, profile, settings_existed=settings_existed, jobs=[job]
+            )
+            Client.objects.exclude(id__in=clients_before).delete()
+
+    def test_endpoint_decorator_locks_the_runners_own_realm(self) -> None:
+        """endpoint() (agent_runner.py) wraps a valid credential's view
+        call in agent_realm(runner.realm_id). A lock on a different realm
+        must not block a runner call; a lock on the runner's own realm,
+        or on the whole-server shared slot, must."""
+        hamlet = self.example_user("hamlet")
+        # leases() only reads AgentAttempt rows through the runner; it
+        # needs no profile, so a bare runner keeps this test's cleanup
+        # (below) to the two rows it actually creates.
+        runner = agents.AgentRunner.objects.create(
+            realm=hamlet.realm,
+            owner=hamlet,
+            name="Leases probe",
+            fingerprint="e" * 64,
+            catalog_report={"revision": 1, "adapters": [], "sandboxes": []},
+        )
+        token = "synthetic-leases-token-" + "a" * 40
+        credential = agents.AgentRunnerCredential.objects.create(
+            runner=runner,
+            realm=hamlet.realm,
+            token_hash=hash_agent_credential(token),
+            refresh_hash=hash_agent_credential("refresh" + token),
+            expires_at=timezone_now() + timedelta(hours=1),
+            refresh_expires_at=timezone_now() + timedelta(days=1),
+        )
+
+        def leases() -> int:
+            return self.client_get(
+                "/api/v1/agent/runner/leases", HTTP_AUTHORIZATION=f"Bearer {token}"
+            ).status_code
+
+        def hold(key: tuple[int, int], held: Event, release: Event) -> None:
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT pg_advisory_lock(%s, %s)", list(key))
+                held.set()
+                assert release.wait(3)
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT pg_advisory_unlock(%s, %s)", list(key))
+            finally:
+                connections.close_all()
+
+        try:
+            for key, expected in [
+                ((174622, get_realm("lear").id), 200),
+                ((174622, hamlet.realm_id), 503),
+                ((174621, 0), 503),
+            ]:
+                held, release = Event(), Event()
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    pending = pool.submit(hold, key, held, release)
+                    self.assertTrue(held.wait(3))
+                    self.assertEqual(leases(), expected)
+                    release.set()
+                    pending.result(timeout=5)
+        finally:
+            # ZulipTransactionTestCase commits for real (needed above so
+            # the locking thread's own connection sees these rows); undo
+            # them here instead of leaving them for the next test.
+            credential.delete()
+            runner.delete()
 
 
 class AgentBadgeCountTests(ZulipTestCase):

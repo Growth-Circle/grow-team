@@ -21,7 +21,7 @@ from zerver.lib import agent_protocol as p
 from zerver.lib.agent_context import agent_realm, agent_transaction, selected_context
 from zerver.lib.agent_requests import RunnerMetadataUpdate
 from zerver.lib.agent_results import publish_draft, store_artifact
-from zerver.lib.agent_secrets import decrypt_agent_secret
+from zerver.lib.agent_secrets import decrypt_agent_secret, hash_agent_credential
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.response import json_response
 from zerver.models import agents
@@ -50,12 +50,24 @@ def endpoint(
             try:
                 realm_id = runner(request).realm_id
             except RunnerCredentialError:
-                # A handful of views (stop evidence) accept a narrower,
-                # revocation-tolerant proof straight from the raw token, so
-                # a rejected credential here does not mean the view will
-                # reject it too. Let the view make that call, as it did
-                # before agent writes were locked per realm.
-                return view(request)
+                # A known token names its realm even when revoked or
+                # expired; only one view (stop evidence) accepts such a
+                # token, and it decides that on its own. An unrecognized
+                # token names no realm, so it is rejected here: letting it
+                # through would take this realm-scoped lock's whole-server
+                # fallback for a request nobody has authenticated.
+                token = _device_token(request)
+                assert token is not None
+                credential_realm_id = (
+                    agents.AgentRunnerCredential.objects.filter(
+                        token_hash=hash_agent_credential(token)
+                    )
+                    .values_list("realm_id", flat=True)
+                    .first()
+                )
+                if credential_realm_id is None:
+                    raise RunnerCredentialError("credential_invalid")
+                realm_id = credential_realm_id
             with agent_realm(realm_id):
                 return view(request)
 
