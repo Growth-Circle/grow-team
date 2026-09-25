@@ -7,6 +7,7 @@ from typing_extensions import override
 
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.models import (
+    AgentPairing,
     AgentProfile,
     AgentRealmSettings,
     AgentRunner,
@@ -213,3 +214,19 @@ class WorkspaceSchemaTests(ZulipTestCase):
                 runner_kind="local",
                 expires_at=timezone_now(),
             )
+
+    # -- 0825 AgentPairing meta -------------------------------------------
+
+    def test_agent_pairing_requested_meta_defaults_to_empty_dict(self) -> None:
+        pairing = AgentPairing.objects.create(
+            realm=self.realm,
+            owner=self.owner,
+            device_name="Laptop",
+            fingerprint="e" * 64,
+            polling_secret_hash="f" * 40,
+            user_code_hash="g" * 40,
+            expires_at=timezone_now(),
+            approved_at=timezone_now(),
+        )
+        self.assertEqual(pairing.requested_meta, {})
+        self.assertIsNone(pairing.denied_at)

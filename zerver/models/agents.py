@@ -240,6 +240,8 @@ class AgentPairing(AgentRecord):
     exchanged_at = models.DateTimeField(null=True)
     failed_attempts = models.PositiveIntegerField(default=0)
     state = models.CharField(max_length=20, default="pending")
+    requested_meta = models.JSONField(default=dict, db_default={})
+    denied_at = models.DateTimeField(null=True, default=None)
 
     class Meta:
         constraints = [
