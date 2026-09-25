@@ -135,7 +135,8 @@ paths:
       summary: Create an agent job
       description: |
         **Changes**: In Zulip 12.0, added `result_message_id`, `step_label`,
-        `progress`, and `artifacts` to the returned job object (feature level
+        `progress`, and `artifacts` to the returned job object. A user whose
+        role cannot give tasks to agents gets an error (feature level
         ZF-157392).
       responses:
         "200":
@@ -427,6 +428,9 @@ paths:
       tags:
         - agents
       summary: Get a message's agent dispatch receipts
+      description: |
+        **Changes**: In Zulip 12.0, added the `profile_paused` and
+        `role_not_allowed` rejection reasons (feature level ZF-157392).
       responses:
         "200":
           description: Success.
@@ -4080,6 +4084,11 @@ components:
             - rejected
         reason:
           type: string
+          description:
+            Why the agent did not accept the task, or why an accepted task
+            waits. A rejection has not_shared, command_not_allowed, queue_full,
+            admission_denied, profile_paused (the agent is paused), or
+            role_not_allowed (the sender's role cannot give tasks to agents).
         job_id:
           type: string
           format: uuid

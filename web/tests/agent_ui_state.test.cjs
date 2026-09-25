@@ -357,6 +357,8 @@ run_test("a dispatch receipt reason maps to a sentence, or defers when unknown",
         dispatch_receipt_reason_label("command_not_allowed"),
         /Ask an organization administrator/,
     );
+    assert.match(dispatch_receipt_reason_label("profile_paused"), /This agent is paused/);
+    assert.match(dispatch_receipt_reason_label("role_not_allowed"), /Your role cannot give tasks/);
     assert.equal(dispatch_receipt_reason_label(""), undefined);
     assert.equal(dispatch_receipt_reason_label("runner_busy"), undefined);
 });

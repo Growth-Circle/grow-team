@@ -1,5 +1,8 @@
 {
-  "frontend": {},
+  "frontend": {
+    "This agent is paused.": "Agen sedang dijeda.",
+    "Your role cannot give tasks to agents. Ask an organization administrator for access.": "Peranmu tidak bisa memberi tugas ke agen. Minta akses ke admin organisasi."
+  },
   "backend": {
     "{name} · Queued": "{name} · Antre",
     "{name} · Working": "{name} · Bekerja",

@@ -8,6 +8,7 @@ from zerver.lib.agent_context import AgentBusy, agent_transaction
 from zerver.lib.agent_policy import AgentAccessDenied, check_agent_access
 from zerver.lib.agent_presence import observed_runner_status
 from zerver.lib.exceptions import JsonableError
+from zerver.lib.role_permissions import has_role_permission
 from zerver.models import Message, Recipient, UserProfile, agents
 from zerver.models.recipients import get_direct_message_group_user_ids
 
@@ -112,7 +113,7 @@ def _receipt(
     reason: str = "",
     job: agents.AgentJob | None = None,
 ) -> agents.AgentDispatchReceipt:
-    receipt, _created = agents.AgentDispatchReceipt.objects.get_or_create(
+    receipt, created = agents.AgentDispatchReceipt.objects.get_or_create(
         realm=message.realm,
         source_message=message,
         profile=profile,
@@ -124,6 +125,10 @@ def _receipt(
             "job": job,
         },
     )
+    if created and decision == "rejected":
+        # 13-R5: the sender-only receipt already carries the reason; this
+        # adds the same "no" signal to the message everyone else can see.
+        agent_jobs.react_after_commit(profile.bot_user, message.id, "prohibited")
     return receipt
 
 
@@ -136,6 +141,13 @@ def admit_message(
     targets = _targets(message, personal_mention_user_ids)
     if not targets:
         return []
+    if not has_role_permission(message.sender, "agent_task"):
+        # 10-L3/spec 06: a role without task permission (a guest, by default)
+        # never reaches admission at all, for any mentioned agent.
+        return [
+            _receipt(message, profile, message.sender, trigger_kind, "rejected", "role_not_allowed")
+            for profile, trigger_kind in targets.items()
+        ]
     receipts = []
     # Keep the bounded database limits until do_send_messages commits. PostgreSQL
     # keeps the associated locks to that outer commit in either case.
@@ -189,9 +201,14 @@ def admit_message(
                 )
                 continue
             except (JsonableError, ValueError, agents.AgentRealmSettings.DoesNotExist) as error:
-                reason = (
-                    "queue_full" if str(error) == "Agent queue is full." else "admission_denied"
-                )
+                if str(error) == "Agent queue is full.":
+                    reason = "queue_full"
+                elif profile.desired_state == "paused":
+                    # 06-P2: refine the generic admission_denied a stale-
+                    # readiness ValueError would otherwise produce.
+                    reason = "profile_paused"
+                else:
+                    reason = "admission_denied"
                 receipts.append(
                     _receipt(message, profile, message.sender, trigger_kind, "rejected", reason)
                 )

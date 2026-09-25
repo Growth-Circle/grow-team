@@ -45,6 +45,7 @@ from zerver.lib.agent_policy import (
 )
 from zerver.lib.agent_presence import observed_runner_status
 from zerver.lib.exceptions import JsonableError, ReactionExistsError
+from zerver.lib.role_permissions import has_role_permission
 from zerver.models import Message, UserProfile, agents
 
 TERMINAL = {"completed", "cancelled", "failed", "interrupted", "blocked"}
@@ -283,6 +284,10 @@ def create_job(
     allow_blocked: bool = False,
     follows_job: agents.AgentJob | None = None,
 ) -> agents.AgentJob:
+    # 10-M11: every path that starts a task checks the role, not only a
+    # chat mention (agent_dispatch.admit_message).
+    if not has_role_permission(actor, "agent_task"):
+        raise AgentAccessDenied("Agent access denied.")
     if not request or len(request) > 20000:
         raise ValueError("Invalid request.")
     if job_kind not in {"answer", "code", "manage"} or (job_kind in ("answer", "manage")) != (

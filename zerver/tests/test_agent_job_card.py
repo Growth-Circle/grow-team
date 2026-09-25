@@ -732,3 +732,43 @@ class AgentJobCardTests(ZulipTestCase):
         ):
             actions.cancel_job(self.owner, job.id, job.version)
         self.assertEqual(refresh.call_count, 8)
+
+    # ---- rejected admissions (13-R5, 06-P2, 10-M11) ----
+
+    def test_guest_mention_is_rejected_with_role_not_allowed(self) -> None:
+        guest = self.example_user("polonius")
+        self.assertEqual(guest.role, UserProfile.ROLE_GUEST)
+        message_id = self._ask(guest)
+        reaction = Reaction.objects.get(message_id=message_id)
+        self.assertEqual(reaction.emoji_name, "prohibited")
+        receipt = agents.AgentDispatchReceipt.objects.get()
+        self.assertEqual((receipt.decision, receipt.reason), ("rejected", "role_not_allowed"))
+        self.assertEqual(agents.AgentJob.objects.count(), 0)
+
+    def test_guest_cannot_create_a_job_through_the_api(self) -> None:
+        guest = self.example_user("polonius")
+        source_id = self.send_personal_message(guest, self.profile.bot_user, "Hello")
+        self.login_user(guest)
+        response = self.client_post(
+            "/json/agent/jobs",
+            {
+                "payload": json.dumps(
+                    {
+                        "schema_version": 1,
+                        "profile_id": str(self.profile.id),
+                        "source_message_id": source_id,
+                        "request": "Please answer",
+                        "idempotency_key": str(uuid4()),
+                    }
+                )
+            },
+        )
+        self.assert_json_error(response, "Agent request rejected.")
+        self.assertEqual(agents.AgentJob.objects.count(), 0)
+
+    def test_paused_agent_mention_is_rejected_with_profile_paused(self) -> None:
+        agents.AgentProfile.objects.filter(id=self.profile.id).update(desired_state="paused")
+        message_id = self._ask()
+        self.assertEqual(Reaction.objects.get(message_id=message_id).emoji_name, "prohibited")
+        receipt = agents.AgentDispatchReceipt.objects.get()
+        self.assertEqual((receipt.decision, receipt.reason), ("rejected", "profile_paused"))

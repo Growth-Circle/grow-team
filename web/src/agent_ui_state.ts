@@ -383,6 +383,13 @@ export function dispatch_receipt_reason_label(reason: string): string | undefine
                 defaultMessage:
                     "You cannot give tasks to this agent. Ask an organization administrator for access.",
             });
+        case "profile_paused":
+            return $t({defaultMessage: "This agent is paused."});
+        case "role_not_allowed":
+            return $t({
+                defaultMessage:
+                    "Your role cannot give tasks to agents. Ask an organization administrator for access.",
+            });
         default:
             return undefined;
     }
