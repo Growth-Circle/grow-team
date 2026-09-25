@@ -21,6 +21,24 @@ def format_task_id(counter: int) -> str:
     return f"{TASK_ID_PREFIX}-{counter}"
 
 
+# Where a card was made from.
+TASK_SOURCE_MANUAL = "manual"
+TASK_SOURCE_BRIEF = "brief"
+TASK_SOURCE_MEETING = "meeting"
+TASK_SOURCE_WHATSAPP = "whatsapp"
+TASK_SOURCE_AGENT = "agent"
+
+TASK_SOURCES = [
+    TASK_SOURCE_MANUAL,
+    TASK_SOURCE_BRIEF,
+    TASK_SOURCE_MEETING,
+    TASK_SOURCE_WHATSAPP,
+    TASK_SOURCE_AGENT,
+]
+
+TASK_SOURCE_CHOICES = [(source, source) for source in TASK_SOURCES]
+
+
 class TaskBoard(models.Model):
     MAX_NAME_LENGTH = 60
 
@@ -106,6 +124,13 @@ class Task(models.Model):
     agent_profile = models.ForeignKey(AgentProfile, on_delete=models.SET_NULL, null=True)
     agent_job = models.ForeignKey(AgentJob, on_delete=models.SET_NULL, null=True)
 
+    source = models.CharField(
+        max_length=20,
+        choices=TASK_SOURCE_CHOICES,
+        default=TASK_SOURCE_MANUAL,
+        db_default=TASK_SOURCE_MANUAL,
+    )
+
     labels = models.JSONField(default=list)
     checklist = models.JSONField(default=list)
     due_at = models.DateTimeField(null=True, default=None)
@@ -118,6 +143,7 @@ class Task(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["realm", "counter"], name="task_counter_unique"),
+            models.CheckConstraint(condition=Q(source__in=TASK_SOURCES), name="task_source_valid"),
         ]
         indexes = [models.Index(fields=["board", "column", "position"])]
 

@@ -6,7 +6,8 @@ from django.utils.timezone import now as timezone_now
 from typing_extensions import override
 
 from zerver.lib.test_classes import ZulipTestCase
-from zerver.models import AgentProfile, AgentRealmSettings, AgentRunner, RoomDigest, RoomMeta
+from zerver.models import AgentProfile, AgentRealmSettings, AgentRunner, RoomDigest, RoomMeta, Task
+from zerver.models.tasks import TASK_SOURCE_MANUAL, TaskBoard, TaskBoardColumn
 
 
 class WorkspaceSchemaTests(ZulipTestCase):
@@ -139,3 +140,32 @@ class WorkspaceSchemaTests(ZulipTestCase):
     def test_agent_realm_settings_rejects_bad_mcp_mode(self) -> None:
         with self.assertRaises(IntegrityError):
             AgentRealmSettings.objects.create(realm=self.realm, mcp_default_mode="freeform")
+
+    # -- 0823 Task.source ------------------------------------------------
+
+    def test_task_source_default_is_manual(self) -> None:
+        board = TaskBoard.objects.create(realm=self.realm, name="Board")
+        column = TaskBoardColumn.objects.create(board=board, name="Todo", order=1)
+        task = Task.objects.create(
+            realm=self.realm,
+            board=board,
+            column=column,
+            counter=1,
+            title="Card",
+            creator=self.owner,
+        )
+        self.assertEqual(task.source, TASK_SOURCE_MANUAL)
+
+    def test_task_rejects_bad_source(self) -> None:
+        board = TaskBoard.objects.create(realm=self.realm, name="Board2")
+        column = TaskBoardColumn.objects.create(board=board, name="Todo", order=1)
+        with self.assertRaises(IntegrityError):
+            Task.objects.create(
+                realm=self.realm,
+                board=board,
+                column=column,
+                counter=1,
+                title="Card",
+                creator=self.owner,
+                source="carrier_pigeon",
+            )
