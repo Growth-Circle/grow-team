@@ -40,9 +40,15 @@ async function checkFile(file: string): Promise<void> {
     }
 
     const root = doc.contents;
-    if (!(root instanceof YAMLMap && root.has("openapi"))) {
+    if (!(root instanceof YAMLMap)) {
         return;
     }
+    // A per-area fragment (zerver/openapi/features/*.yaml) documents
+    // paths and components that get merged into the real spec at load
+    // time; it has no "openapi" root key of its own and is not a
+    // complete document, so full standalone validation below does not
+    // apply to it. It still gets the structural and formatting checks.
+    const isCompleteDocument = root.has("openapi");
 
     let ok = true;
     const reformats = new Map<
@@ -169,6 +175,10 @@ async function checkFile(file: string): Promise<void> {
             }
         }
         await fs.promises.writeFile(file, tokens.map((token) => CST.stringify(token)).join(""));
+    }
+
+    if (!isCompleteDocument) {
+        return;
     }
 
     try {

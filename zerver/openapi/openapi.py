@@ -5,6 +5,7 @@
 # definitions and validate that Zulip's implementation matches what is
 # described in our documentation.
 
+import glob
 import json
 import os
 import re
@@ -21,6 +22,49 @@ from pydantic import BaseModel
 OPENAPI_SPEC_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "../openapi/zulip.yaml")
 )
+
+# Feature areas document their own routes and OpenAPI paths in
+# zerver/openapi/features/*.yaml, so that adding an area never requires
+# editing zulip.yaml again (see PLAN.md Sanji WP04). Only the real spec
+# gets fragments merged in; other OpenAPI documents (e.g. the test
+# fixture testing.yaml, which lives in the same directory) stay
+# self-contained.
+FEATURES_DIRNAME = "features"
+
+
+def get_fragment_paths(openapi_path: str) -> list[str]:
+    if os.path.basename(openapi_path) != "zulip.yaml":
+        return []
+    features_dir = os.path.join(os.path.dirname(openapi_path), FEATURES_DIRNAME)
+    return sorted(glob.glob(os.path.join(features_dir, "*.yaml")))
+
+
+def merge_openapi_fragment(
+    openapi: dict[str, Any], fragment_path: str, fragment: dict[str, Any]
+) -> None:
+    paths = openapi.setdefault("paths", {})
+    for path, path_item in (fragment.get("paths") or {}).items():
+        if path in paths:
+            raise AssertionError(f"Duplicate OpenAPI path {path!r} found in {fragment_path}")
+        paths[path] = path_item
+
+    schemas = openapi.setdefault("components", {}).setdefault("schemas", {})
+    for name, schema in ((fragment.get("components") or {}).get("schemas") or {}).items():
+        if name in schemas:
+            raise AssertionError(f"Duplicate OpenAPI schema {name!r} found in {fragment_path}")
+        schemas[name] = schema
+
+    # A fragment may add new realtime event types to document; each one
+    # is appended to the `oneOf` list of the GET /events response, the
+    # same list that new event types were previously added to directly
+    # in zulip.yaml.
+    new_events = fragment.get("events")
+    if new_events:
+        event_schema = openapi["paths"]["/events"]["get"]["responses"]["200"]["content"][
+            "application/json"
+        ]["schema"]
+        event_schema["allOf"][1]["properties"]["events"]["items"]["oneOf"].extend(new_events)
+
 
 # A list of endpoint-methods such that the endpoint
 # has documentation but not with this particular method.
@@ -95,14 +139,22 @@ class OpenAPISpec:
         import yaml
         from jsonref import JsonRef
 
-        with open(self.openapi_path) as f:
-            mtime = os.fstat(f.fileno()).st_mtime
-            # Using == rather than >= to cover the corner case of users placing an
-            # earlier version than the current one
-            if self.mtime == mtime:
-                return
+        fragment_paths = get_fragment_paths(self.openapi_path)
+        # mtime is the maximum across the spec and every fragment merged
+        # into it, so editing any one of them triggers a reload.
+        # Using == rather than >= to cover the corner case of users placing an
+        # earlier version than the current one
+        mtime = max(os.stat(path).st_mtime for path in [self.openapi_path, *fragment_paths])
+        if self.mtime == mtime:
+            return
 
+        with open(self.openapi_path) as f:
             openapi = yaml.load(f, Loader=yaml.CSafeLoader)
+
+        for fragment_path in fragment_paths:
+            with open(fragment_path) as f:
+                fragment = yaml.load(f, Loader=yaml.CSafeLoader) or {}
+            merge_openapi_fragment(openapi, fragment_path, fragment)
 
         spec = OpenAPI.from_dict(openapi)
         self._spec = spec

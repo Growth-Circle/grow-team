@@ -101,10 +101,13 @@ def update_feature_level_in_api_docs(new_feature_level: int) -> None:
     num_replaces = 0
     current_version = get_current_major_version()
 
-    # Get all the markdown files in api_docs folder along with zulip.yaml.
+    # Get all the markdown files in api_docs folder along with zulip.yaml
+    # and the per-area OpenAPI fragments that can carry the same
+    # placeholder feature-level references.
     api_docs_folder = Path("api_docs")
     api_docs_paths = list(api_docs_folder.glob("*.md"))
     api_docs_paths.append(Path("zerver/openapi/zulip.yaml"))
+    api_docs_paths.extend(sorted(Path("zerver/openapi/features").glob("*.yaml")))
 
     for api_docs_path in api_docs_paths:
         with open(api_docs_path) as file:
