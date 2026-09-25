@@ -1,6 +1,6 @@
 # The sanji API
 
-sanji uses the compatible sanji API protocol. These APIs allow you to
+sanji uses the Zulip-compatible API protocol. These APIs allow you to
 integrate other services with sanji. This
 guide should help you find the API you need:
 

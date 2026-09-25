@@ -5,7 +5,7 @@ in your favorite language.
 
 ## Official libraries
 
-These upstream sanji libraries can work with the sanji API protocol. The
+These upstream Zulip libraries can work with the sanji API. The
 Python library is the most complete and best documented.
 
 * [Python](https://github.com/zulip/python-zulip-api)

@@ -1,6 +1,6 @@
 # Configuring the Python bindings
 
-sanji provides a set of tools that allows interacting with its API more
+Zulip provides a set of tools that allows interacting with its API more
 easily, called the [Python bindings](https://pypi.python.org/pypi/zulip/).
 One of the most notable use cases for these bindings are bots developed
 using sanji's [bot framework](/help/writing-bots).

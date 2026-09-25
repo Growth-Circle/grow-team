@@ -1,7 +1,7 @@
 # sanji URLs
 
 This page details how to construct and parse URLs used by the sanji web app.
-sanji preserves this sanji-compatible URL format.
+sanji preserves this Zulip-compatible URL format.
 
 Because other clients needs to be able to resolve and process these
 links in order to implement equivalent behavior that navigates
@@ -98,7 +98,7 @@ redirect to `zulip://login` with the following query parameters:
 - `user_id`: The sanji user ID for the authenticated account.
 
 **Changes**: The `user_id` field was added to the set of included
-query parameters in sanji 5.0 (feature level 128).
+query parameters in Zulip 5.0 (feature level 128).
 
 ## Related articles
 

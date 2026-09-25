@@ -36,7 +36,7 @@ contain other keys with further details that are useful for clients. The
 specific keys present depend on the error `code`, and are documented at
 the API endpoints where these particular errors appear.
 
-**Changes**: Before sanji 5.0 (feature level 76), all error responses
+**Changes**: Before Zulip 5.0 (feature level 76), all error responses
 did not contain a `code` key, and its absence indicated that no specific
 error `code` had been allocated for that error.
 

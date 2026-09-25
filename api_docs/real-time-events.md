@@ -2,7 +2,7 @@
 
 sanji's real-time events API lets you write software that reacts
 immediately to events happening in sanji.  This API is what powers the
-real-time updates in the sanji web and mobile apps.  As a result, the
+real-time updates in the sanji web app.  As a result, the
 events available via this API cover all changes to data displayed in
 the sanji product, from new messages to channel descriptions to
 emoji reactions to changes in user or organization-level settings.
@@ -21,7 +21,7 @@ of long-polling, error handling, exponential backoff in retries, etc.
 It's cousin, `call_on_each_message`, provides an even simpler
 interface for processing sanji messages.
 
-More complex applications (like a sanji terminal client) may need to
+More complex applications (like a terminal client) may need to
 instead use the raw [register](/api/register-queue) and
 [events](/api/get-events) endpoints.
 

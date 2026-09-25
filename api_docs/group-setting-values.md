@@ -11,7 +11,7 @@ configuration than the older [roles](/api/roles-and-permissions) system.
     `server_supported_permission_settings`, pending web app UI
     changes to fully support group-setting values.
 
-    **Changes**: Before sanji 10.0 (feature level 309), only system
+    **Changes**: Before Zulip 10.0 (feature level 309), only system
     groups were permitted values for group-setting values in
     production environments, regardless of the values in
     `server_supported_permission_settings`.

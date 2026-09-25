@@ -47,18 +47,18 @@ statistics](/help/analytics), and on rare occasions, for
 backwards-compatibility logic to preserve support for older versions
 of official clients.
 
-Official sanji clients and integrations use a `User-Agent` that starts
+Official Zulip clients and integrations use a `User-Agent` that starts
 with something like `ZulipMobile/20.0.103 `, encoding the name of the
 application and it's version.
 
-sanji's official API bindings have reasonable defaults for
-`User-Agent`. For example, the official sanji Python bindings have a
+Zulip's official API bindings have reasonable defaults for
+`User-Agent`. For example, the official Zulip Python bindings have a
 default `User-Agent` starting with `ZulipPython/{version}`, where
 `version` is the version of the library.
 
 You can give your bot/integration its own name by passing the `client`
 parameter when initializing the Python bindings. For example, the
-official sanji Nagios integration is initialized like this:
+official Zulip Nagios integration is initialized like this:
 
 ``` python
 client = zulip.Client(
@@ -68,7 +68,7 @@ client = zulip.Client(
 
 If you are working on an integration that you plan to share outside
 your organization, you can get help picking a good name in
-[#integrations][integrations-channel] in the [sanji development
+[#integrations][integrations-channel] in the [Zulip development
 community](https://zulip.com/development-community/).
 
 ## Rate-limiting response headers

@@ -1,7 +1,7 @@
 # The sanji REST API
 
 The sanji REST API powers the sanji web app. It remains compatible with
-the sanji API protocol. To use this API:
+the Zulip API protocol. To use this API:
 
 * You'll need to [get an API key](/api/api-keys).  You will likely
   want to [create a bot](/help/add-a-bot-or-integration), unless you're
