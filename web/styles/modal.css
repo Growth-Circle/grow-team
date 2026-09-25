@@ -230,6 +230,7 @@
 
     &:hover {
         background-color: var(--sj-ink);
+        color: var(--sj-on-ink);
     }
 }
 

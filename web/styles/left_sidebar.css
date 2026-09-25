@@ -1,3 +1,11 @@
+/* The left sidebar keeps a dark surface in both app themes (P-16), but
+   its light-dark() text tokens follow the page color-scheme, not the
+   sidebar's own fixed-dark background. Force the dark branch here so
+   sidebar text stays readable in the light theme too. */
+.left-sidebar {
+    color-scheme: dark;
+}
+
 .left-sidebar-title {
     color: var(--color-text-sidebar-heading);
     /* Full opacity so the chosen heading color reads at full
@@ -2136,8 +2144,8 @@ li.active-sub-filter {
 .sidebar-topic-check {
     grid-area: starting-anchor-element;
     place-self: center end;
-    /* 15px at 16px/1em */
-    font-size: 0.9375em;
+    /* 15px at 14px/1em */
+    font-size: 1.0714em;
     /* Use background to mask part of grouping bracket. */
     padding-left: 3px;
     /* Keep background from affecting rounded corners on
@@ -2207,8 +2215,8 @@ li.active-sub-filter {
    "N more topics" summary row keeps its real count, since it
    totals multiple topics rather than marking a single one. */
 li.topic-list-item:not(.show-more-topics) .unread_count {
-    width: 0.5em; /* 8px at 16px/1em */
-    height: 0.5714em;
+    width: 0.6154em; /* 8px at 13px/1em (own font-size) */
+    height: 0.6154em; /* 8px at 13px/1em (own font-size) */
     padding: 0;
     color: transparent;
     background-color: var(--color-background-unread-counter-dot);

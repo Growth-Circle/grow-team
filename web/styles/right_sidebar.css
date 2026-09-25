@@ -4,10 +4,12 @@
 }
 
 .right-sidebar {
-    /* Sidebar surface: white in light mode, a slightly lighter
-       surface tone in dark mode, set off from the canvas behind
-       it by a left border. Both values come from light-dark()
-       tokens, so dark mode needs no separate rule here. */
+    /* Sidebar surface: a fixed dark tone in both app themes (P-16),
+       set off from the canvas behind it by a left border. Force the
+       dark color-scheme branch here too, so light-dark() text tokens
+       inside the sidebar follow its fixed-dark background instead of
+       the page theme. */
+    color-scheme: dark;
     background-color: var(--color-background-sidebar);
     border-left: 1px solid var(--color-border-sidebar);
 

@@ -169,12 +169,17 @@
         background-color: var(
             --color-background-brand-solid-action-button-hover
         );
+        /* The hover/focus background is --sj-ink, not the accent
+           color the resting label color was picked for, so the
+           label needs its own light-dark() pairing here too. */
+        color: var(--sj-on-ink);
     }
 
     &:active {
         background-color: var(
             --color-background-brand-solid-action-button-active
         );
+        color: var(--sj-on-ink);
     }
 }
 
@@ -191,9 +196,10 @@
     }
 
     &:active {
-        background-color: var(
-            --color-background-brand-subtle-action-button-active
-        );
+        /* A stronger accent than the resting/hover tint, so a press
+           reads as its own step instead of repeating the hover. */
+        background-color: var(--sj-kuning);
+        color: var(--sj-on-accent);
     }
 }
 
