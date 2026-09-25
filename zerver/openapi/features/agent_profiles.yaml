@@ -4709,6 +4709,111 @@ paths:
                 contentType: application/json
       x-agent-payload-schema:
         $ref: "#/components/schemas/AgentSettingsSelectionResolveRequest"
+  /agent/profiles/stats:
+    get:
+      operationId: get-agent-profile-stats
+      tags:
+        - agents
+      summary: Get task and approval stats for every visible agent profile
+      description: |
+        Get `tasks_per_week` and `approve_rate` for every agent profile that
+        [`GET /agent/profiles`](/api/list-agent-profiles) can show you.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsProfileStatsResponse"
+              example:
+                result: success
+                msg: ""
+                schema_version: 1
+                stats:
+                  00000000-0000-4000-8000-000000000040:
+                    tasks_per_week: 3
+                    approve_rate: 0.8
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
 
 components:
   schemas:
@@ -6820,6 +6925,52 @@ components:
         - schema_version
         - count
         - profiles
+    AgentSettingsProfileStatsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        stats:
+          type: object
+          description: Keyed by profile id (a UUID string).
+          additionalProperties:
+            type: object
+            additionalProperties: false
+            properties:
+              tasks_per_week:
+                type: integer
+                minimum: 0
+                description: |
+                  The number of cards assigned to the agent that were done
+                  in the last 7 days.
+              approve_rate:
+                type: number
+                minimum: 0
+                maximum: 1
+                nullable: true
+                description: |
+                  The share of the agent's approval requests in the last
+                  30 days that a person approved, or `null` when there
+                  were none.
+            required:
+              - tasks_per_week
+              - approve_rate
+      required:
+        - result
+        - msg
+        - schema_version
+        - stats
     AgentSettingsProfileResponse:
       type: object
       additionalProperties: false

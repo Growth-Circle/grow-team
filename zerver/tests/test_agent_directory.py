@@ -2,8 +2,10 @@
 stats, the access-filtered audit feed, guest grants, task links to agent
 jobs, and the ensure_builtin_agents command (spec 05, 06, 10, 11; §4.5)."""
 
+from datetime import timedelta
 from uuid import uuid4
 
+from django.utils.timezone import now
 from typing_extensions import override
 
 from zerver.actions.agent_jobs import create_job
@@ -21,10 +23,13 @@ from zerver.lib.agent_names import (
     bot_email_for_agent_name,
 )
 from zerver.lib.agent_policy import _principal_matches
+from zerver.lib.agent_stats import profile_stats
+from zerver.lib.tasks import get_or_create_default_board
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.lib.user_groups import get_role_based_system_groups_dict
 from zerver.models import agents
 from zerver.models.messages import Message
+from zerver.models.tasks import Task
 from zerver.models.users import UserProfile
 
 
@@ -210,6 +215,89 @@ class AgentDirectoryAPITestCase(ZulipTestCase):
             job_kind="answer",
             delivery_target="answer",
         )
+
+
+class ProfileStatsTest(AgentDirectoryAPITestCase):
+    def make_card(self, counter: int, **fields: object) -> Task:
+        board = get_or_create_default_board(self.owner.realm)
+        column = board.columns.order_by("order").first()
+        assert column is not None
+        return Task.objects.create(
+            realm=self.owner.realm,
+            board=board,
+            column=column,
+            counter=counter,
+            title=f"Card {counter}",
+            creator=self.owner,
+            **fields,
+        )
+
+    def make_approval(self, job: agents.AgentJob, decision: str) -> agents.AgentApproval:
+        attempt = agents.AgentAttempt.objects.filter(job=job).first()
+        if attempt is None:
+            attempt = agents.AgentAttempt.objects.create(
+                realm=job.realm,
+                job=job,
+                runner=self.runner,
+                number=1,
+                lease_epoch=1,
+                lease_expires_at=now(),
+                descriptor_digest="a" * 64,
+            )
+        operation = agents.AgentOperation.objects.create(
+            realm=job.realm,
+            attempt=attempt,
+            operation_id=uuid4(),
+            tool_class="send_message",
+            argument_digest="a" * 64,
+            arguments={"action": "send_message"},
+        )
+        consumed = decision == "consumed"
+        return agents.AgentApproval.objects.create(
+            realm=job.realm,
+            job=job,
+            attempt=attempt,
+            operation=operation,
+            approver=self.owner if decision != "pending" else None,
+            operation_hash="a" * 64,
+            policy_version=1,
+            tree_hash="a" * 64,
+            expires_at=now(),
+            decision=decision,
+            decided_at=now(),
+            consumed_at=now() if consumed else None,
+        )
+
+    def test_tasks_per_week_counts_cards_the_agent_finished(self) -> None:
+        profile = self.create_ready_profile()
+        self.make_card(1, agent_profile=profile, completed_at=now())
+        # 05-D8: a card assigned to the agent's bot counts too.
+        self.make_card(2, assignee=profile.bot_user, completed_at=now())
+        # A card that is not done, or was done earlier, does not count.
+        self.make_card(3, agent_profile=profile)
+        self.make_card(4, agent_profile=profile, completed_at=now() - timedelta(days=8))
+        self.make_card(5, assignee=self.owner, completed_at=now())
+
+        stats = profile_stats([profile.id])
+        self.assertEqual(stats[profile.id]["tasks_per_week"], 2)
+        self.assertIsNone(stats[profile.id]["approve_rate"])
+
+    def test_approve_rate_counts_consumed_approvals_as_approved(self) -> None:
+        profile = self.create_ready_profile()
+        job = self.make_job(profile)
+        for decision in ("approved", "consumed", "consumed", "rejected", "pending"):
+            self.make_approval(job, decision)
+        old = self.make_approval(job, "rejected")
+        agents.AgentApproval.objects.filter(id=old.id).update(created_at=now() - timedelta(days=31))
+
+        stats = profile_stats([profile.id])
+        self.assertEqual(stats[profile.id]["approve_rate"], 0.6)
+
+    def test_stats_endpoint_lists_every_visible_profile(self) -> None:
+        profile = self.create_ready_profile()
+        result = self.assert_json_success(self.client_get("/json/agent/profiles/stats"))
+        self.assertIn(str(profile.id), result["stats"])
+        self.assertEqual(result["stats"][str(profile.id)]["tasks_per_week"], 0)
 
 
 class GuestGrantTest(AgentDirectoryAPITestCase):

@@ -29,6 +29,7 @@ from zerver.lib.agent_policy import (
 )
 from zerver.lib.agent_presence import observed_runner_status
 from zerver.lib.agent_selection import resolve_agent_selection
+from zerver.lib.agent_stats import profile_stats
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.response import json_response, json_success
 from zerver.lib.stream_subscription import get_user_subscribed_streams
@@ -602,6 +603,17 @@ def list_agent_profiles(request: HttpRequest, user_profile: UserProfile) -> Http
             ],
         },
     )
+
+
+@safe_agent_endpoint
+def get_agent_profile_stats(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
+    """spec 06-S1/S2: tasks_per_week and approve_rate for every profile the
+    caller can currently see, in the same directory scope as the list."""
+    if request.GET:
+        raise ValueError("Invalid stats request.")
+    visible, _complete = _directory_profiles(user_profile)
+    stats = profile_stats(visible)
+    return _success(request, {"stats": {str(pid): data for pid, data in stats.items()}})
 
 
 @safe_agent_endpoint

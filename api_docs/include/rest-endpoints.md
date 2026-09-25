@@ -92,6 +92,7 @@
 * [Recover an interrupted agent profile setup](/api/recover-agent-profile)
 * [Get an agent profile](/api/get-agent-profile)
 * [Update an agent profile](/api/update-agent-profile)
+* [Get task and approval stats for every visible agent profile](/api/get-agent-profile-stats)
 * [List agent model providers](/api/list-agent-providers)
 * [Create an agent model provider](/api/create-agent-provider)
 * [Get an agent model provider](/api/get-agent-provider)
