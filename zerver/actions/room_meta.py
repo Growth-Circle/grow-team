@@ -1,6 +1,7 @@
-"""Room metadata actions: effective owner, edit permissions, and the meta
-mutation (spec 01, 04; PLAN.md WP14)."""
+"""Room metadata actions: effective owner, edit permissions, the meta
+mutation, and the quiet-room nudge DM (spec 01, 04; PLAN.md WP14)."""
 
+from collections import defaultdict
 from datetime import date
 
 from django.db import transaction
@@ -8,10 +9,11 @@ from django.utils.timezone import now as timezone_now
 from django.utils.translation import gettext as _
 from django.utils.translation import override as override_language
 
-from zerver.actions.message_send import internal_send_stream_message
+from zerver.actions.message_send import internal_send_private_message, internal_send_stream_message
 from zerver.actions.streams import bulk_add_subscriptions
 from zerver.lib.agent_events import send_room_meta_event
 from zerver.lib.exceptions import JsonableError
+from zerver.lib.quiet_rooms import QuietRoomNotice, rooms_needing_notice
 from zerver.lib.role_permissions import has_role_permission
 from zerver.lib.streams import access_stream_for_send_message, channel_events_topic_name
 from zerver.models import AgentProfile, Realm, RealmAuditLog, RoomMeta, Stream, UserProfile
@@ -189,3 +191,59 @@ def do_update_room_meta(
     if announce:
         _send_room_announce(stream, room_meta, acting_user=acting_user)
     return room_meta
+
+
+def _quiet_room_notice_text(notices: list[QuietRoomNotice]) -> str:
+    lines = []
+    for notice in notices:
+        if notice.due_date_passed:
+            lines.append(
+                _("* #**{stream_name}**: past its due date. Consider archiving it.").format(
+                    stream_name=notice.stream.name
+                )
+            )
+        else:
+            lines.append(
+                _("* #**{stream_name}**: no activity for 30+ days. Consider archiving it.").format(
+                    stream_name=notice.stream.name
+                )
+            )
+    header = _("These channels may be ready to archive:")
+    return header + "\n" + "\n".join(lines)
+
+
+def send_quiet_room_notices(realm: Realm) -> int:
+    """Kaki DMs each owner once for the rooms that just went quiet or
+    passed their project due date (PLAN.md WP14 step 5, P-31/Q-02: Kaki
+    only ever suggests, never archives). Returns how many owners were
+    actually DMed (WP14 review defect 15: a failed send must not be
+    counted, or mark the room as notified)."""
+    sender = _find_builtin_agent_bot(realm, "Kaki")
+    if sender is None:
+        return 0
+    notices = rooms_needing_notice(realm)
+    if not notices:
+        return 0
+    by_owner: dict[int, list[QuietRoomNotice]] = defaultdict(list)
+    for notice in notices:
+        owner = get_room_owner(notice.stream)
+        if owner is not None and owner.is_active:
+            by_owner[owner.id].append(notice)
+    if not by_owner:
+        return 0
+    owners = {user.id: user for user in UserProfile.objects.filter(id__in=by_owner)}
+    notified_at = timezone_now()
+    notified_owners = 0
+    with transaction.atomic(savepoint=False):
+        for owner_id, owner_notices in by_owner.items():
+            owner = owners[owner_id]
+            with override_language(owner.default_language):
+                content = _quiet_room_notice_text(owner_notices)
+            message_id = internal_send_private_message(sender, owner, content)
+            if message_id is None:
+                continue
+            notified_owners += 1
+            for notice in owner_notices:
+                notice.room_meta.quiet_notified_at = notified_at
+                notice.room_meta.save(update_fields=["quiet_notified_at"])
+    return notified_owners

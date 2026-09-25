@@ -210,6 +210,61 @@ paths:
                   - $ref: "#/components/schemas/InvalidChannelError"
                   - description: |
                       An example JSON response for when the channel ID is not valid:
+
+  /channels/quiet:
+    get:
+      operationId: get-quiet-channels
+      tags: ["channels"]
+      summary: Get quiet channels
+      description: |
+        Fetch the channels the requesting user can see that have had no
+        message in the last `threshold_days` days.
+
+        A guest always gets an empty list.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-98ffbd).
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      threshold_days:
+                        type: integer
+                        description: How many days of silence make a channel quiet.
+                      quiet_channels:
+                        type: array
+                        description: The quiet channels, in no particular order.
+                        items:
+                          type: object
+                          additionalProperties: false
+                          required:
+                            - stream_id
+                            - last_message_at
+                          properties:
+                            stream_id:
+                              type: integer
+                              description: The channel's ID.
+                            last_message_at:
+                              type: integer
+                              description: |
+                                When the channel last had a message, as a Unix
+                                timestamp. When the channel has never had a
+                                message, this is when it was created.
+              example:
+                result: success
+                msg: ""
+                threshold_days: 30
+                quiet_channels:
+                  - stream_id: 7
+                    last_message_at: 1727150000
 components:
   schemas:
     RoomMetaResponse:

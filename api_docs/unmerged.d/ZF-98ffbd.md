@@ -8,3 +8,5 @@
 * [`GET /streams/{stream_id}/topics`](/api/get-room-topics): New endpoint
   lists a room's 50 most recently active topics, each with its message
   count.
+* [`GET /channels/quiet`](/api/get-quiet-channels): New endpoint lists
+  channels with no message in the last 30 days.
