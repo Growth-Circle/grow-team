@@ -1,0 +1,174 @@
+/* Sanji brand tokens (map-brand.md §11). Imported once from
+   web/src/bundles/common.ts, so both app.ts and legacy_portico_bundle.ts
+   get these custom properties. */
+
+:root {
+    /* Primitif brand */
+    --sj-kaki: #ff6a3d;
+    --sj-ayame: #8b74ff;
+    --sj-matcha: #16c784;
+    --sj-kuning: #ffd84d;
+    --sj-malam: #14141a;
+    --sj-kertas: #fffaf0;
+    --sj-tinta: #16161d;
+    --sj-tinta-2: #4a4a55;
+    --sj-redup: #6b6a73;
+    --sj-garis-gelap: #a8a6b0;
+    --sj-garis: #e2dfd7;
+    --sj-permukaan: #ffffff;
+
+    /* Primitif tambahan dari Dashboard */
+    --sj-kaki-muda: #ffe1d4;
+    --sj-ayame-muda: #e7e1ff;
+    --sj-matcha-muda: #d2f7e5;
+    --sj-kuning-muda: #fff1b8;
+    --sj-pasir: #f0ede6;
+    --sj-krem: #fff6e6;
+    --sj-bahaya: #c2410c;
+    --sj-ayame-teks: #5b45d6;
+    --sj-gelap-1: #1f1f27;
+    --sj-gelap-2: #2a2a33;
+    --sj-gelap-3: #33333d;
+    --sj-gelap-4: #3a3a45;
+    --sj-teks-gelap-1: #e6e4ea;
+    --sj-teks-gelap-2: #c9c7d0;
+    --sj-teks-gelap-3: #8a8894;
+
+    /* Semantik: light-dark(terang, gelap). Semua nilai gelap = PROPOSAL. */
+    --sj-bg: light-dark(var(--sj-kertas), var(--sj-gelap-1));
+    --sj-surface: light-dark(var(--sj-permukaan), var(--sj-gelap-2));
+    --sj-surface-raised: light-dark(var(--sj-kertas), var(--sj-gelap-3));
+    --sj-surface-muted: light-dark(var(--sj-pasir), #2c2c33);
+    --sj-surface-warm: light-dark(var(--sj-krem), #312e2a);
+    --sj-text: light-dark(var(--sj-tinta), var(--sj-kertas));
+    --sj-text-2: light-dark(var(--sj-tinta-2), var(--sj-teks-gelap-2));
+    --sj-text-muted: light-dark(var(--sj-redup), var(--sj-garis-gelap));
+    --sj-outline: light-dark(var(--sj-tinta), var(--sj-teks-gelap-2));
+    --sj-divider: light-dark(var(--sj-garis), var(--sj-gelap-4));
+    --sj-ink: light-dark(var(--sj-tinta), var(--sj-kertas));
+    --sj-on-ink: light-dark(var(--sj-kertas), var(--sj-tinta));
+    --sj-on-accent: var(--sj-tinta);
+    --sj-tint-kaki: light-dark(var(--sj-kaki-muda), #4c2e2b);
+    --sj-tint-ayame: light-dark(var(--sj-ayame-muda), #353052);
+    --sj-tint-matcha: light-dark(var(--sj-matcha-muda), #1d413a);
+    --sj-tint-kuning: light-dark(var(--sj-kuning-muda), #4c442f);
+    --sj-text-ayame: light-dark(var(--sj-ayame-teks), #a897ff);
+    /* PROPOSAL: brand #2e8e6b hanya 3,88:1 di Kertas. */
+    --sj-text-matcha: light-dark(#1f7a5a, var(--sj-matcha));
+    --sj-text-bahaya: light-dark(var(--sj-bahaya), #ff8a65);
+    --sj-shadow-color: light-dark(var(--sj-tinta), #000000);
+    --sj-scrim: light-dark(rgb(22 22 29 / 45%), rgb(0 0 0 / 60%));
+
+    /* Sidebar: gelap di kedua tema */
+    --sj-sidebar-bg: var(--sj-tinta);
+    --sj-sidebar-hover: var(--sj-gelap-2);
+    --sj-sidebar-hover-card: var(--sj-gelap-1);
+    --sj-sidebar-border: var(--sj-gelap-2);
+    --sj-sidebar-text: var(--sj-teks-gelap-1);
+    --sj-sidebar-text-strong: var(--sj-kertas);
+    --sj-sidebar-text-muted: var(--sj-garis-gelap);
+    --sj-sidebar-label: var(--sj-teks-gelap-3);
+    --sj-sidebar-badge: var(--sj-gelap-4);
+
+    /* Huruf */
+    --sj-font-sans:
+        "Schibsted Grotesk Variable", "Schibsted Grotesk", system-ui, sans-serif;
+    --sj-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+    --sj-font-size-page-title: clamp(2em, 3.6vw, 3em); /* 32–48px at 16px em */
+
+    /* Radius */
+    --sj-radius-5: 5px;
+    --sj-radius-10: 10px;
+    --sj-radius-12: 12px;
+    --sj-radius-14: 14px;
+    --sj-radius-16: 16px;
+    --sj-radius-18: 18px;
+    --sj-radius-20: 20px;
+    --sj-radius-22: 22px;
+    --sj-radius-24: 24px;
+    --sj-radius-pill: 999px;
+    --sj-radius-circle: 50%;
+    --sj-radius-kotak: 28%;
+
+    /* Garis */
+    --sj-border: 1.5px solid var(--sj-outline);
+    --sj-border-strong: 2px solid var(--sj-outline);
+
+    /* Bayangan */
+    --sj-shadow-press: 0 3px 0 var(--sj-shadow-color);
+    --sj-shadow-press-active: 0 1px 0 var(--sj-shadow-color);
+    --sj-shadow-3: 3px 3px 0 var(--sj-shadow-color);
+    --sj-shadow-4: 4px 4px 0 var(--sj-shadow-color);
+    --sj-shadow-5: 5px 5px 0 var(--sj-shadow-color);
+    --sj-shadow-6: 6px 6px 0 var(--sj-shadow-color);
+    --sj-shadow-8: 8px 8px 0 var(--sj-shadow-color);
+    --sj-shadow-kaki-5: 5px 5px 0 var(--sj-kaki);
+    --sj-shadow-toast: 0 12px 30px rgb(22 22 29 / 30%);
+    --sj-shadow-drawer: -10px 0 30px rgb(22 22 29 / 15%);
+    --sj-ring-focus: 0 0 0 3px var(--sj-kuning);
+
+    /* Gerak */
+    --sj-duration-pop: 200ms;
+    --sj-duration-toast: 250ms;
+    --sj-ease-spring: cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes sj-pop {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* Same as sj-pop, for elements centered with `transform` (dropdown,
+   drawer, modal, palette, toast): sj-pop's translateY alone would
+   clobber their translate(-50%, ...) centering. map-mockup-a.md §3.8,
+   bug R3. */
+@keyframes sj-pop-center {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+@keyframes sj-dots {
+    0%,
+    80%,
+    100% {
+        opacity: 0.25;
+    }
+
+    40% {
+        opacity: 1;
+    }
+}
+
+@keyframes sj-stripe {
+    to {
+        background-position: 28px 0;
+    }
+}
+
+@keyframes sj-blink {
+    50% {
+        opacity: 0;
+    }
+}
+
+/* PROPOSAL: hormati pengaturan gerak OS. */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --sj-duration-pop: 0ms;
+        --sj-duration-toast: 0ms;
+    }
+}
