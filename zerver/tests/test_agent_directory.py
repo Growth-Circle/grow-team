@@ -18,6 +18,7 @@ from zerver.actions.agents import (
     share_agent_profile,
 )
 from zerver.actions.create_user import do_create_user
+from zerver.actions.tasks import do_create_task, do_update_task, link_tasks_to_job, sync_agent_task
 from zerver.actions.users import do_change_user_role
 from zerver.lib.agent_names import (
     RESERVED_AGENT_NAMES,
@@ -499,3 +500,72 @@ class GuestGrantTest(AgentDirectoryAPITestCase):
         )
         do_change_user_role(member, UserProfile.ROLE_GUEST, acting_user=None, notify=False)
         self.assertFalse(_principal_matches(member, grant))
+
+
+class TaskAgentLinkTest(AgentDirectoryAPITestCase):
+    def test_cards_from_the_source_message_follow_the_job(self) -> None:
+        profile = self.create_ready_profile()
+        board = get_or_create_default_board(self.owner.realm)
+        columns = list(board.columns.order_by("order"))
+        source = Message.objects.get(
+            id=self.send_stream_message(self.owner, "Verona", "Please draft the deck")
+        )
+        card = do_create_task(
+            user_profile=self.owner,
+            board=board,
+            column=columns[0],
+            title="Draft the deck",
+            origin_message_id=source.id,
+        )
+        people_card = do_create_task(
+            user_profile=self.owner,
+            board=board,
+            column=columns[0],
+            title="Owner's own card",
+            origin_message_id=source.id,
+            assignee=self.owner,
+        )
+        job = create_job(
+            self.owner,
+            profile=profile,
+            source=source,
+            request="Draft the deck",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+        link_tasks_to_job(job)
+        card.refresh_from_db()
+        people_card.refresh_from_db()
+        self.assertEqual(card.agent_job_id, job.id)
+        self.assertEqual(card.agent_profile_id, profile.id)
+        self.assertIsNone(people_card.agent_job_id)
+
+        job.status = "running"
+        job.save(update_fields=["status"])
+        sync_agent_task(job)
+        card.refresh_from_db()
+        people_card.refresh_from_db()
+        self.assertEqual(card.column_id, columns[1].id)
+        self.assertEqual(people_card.column_id, columns[0].id)
+
+    def test_assigning_an_agent_sets_the_card_s_agent(self) -> None:
+        profile = self.create_ready_profile()
+        board = get_or_create_default_board(self.owner.realm)
+        column = board.columns.order_by("order").first()
+        assert column is not None
+        card = do_create_task(
+            user_profile=self.owner,
+            board=board,
+            column=column,
+            title="Agent card",
+            assignee=profile.bot_user,
+        )
+        self.assertEqual(card.agent_profile_id, profile.id)
+
+        card = do_update_task(user_profile=self.owner, task=card, changes={"assignee": self.owner})
+        self.assertIsNone(card.agent_profile_id)
+        card = do_update_task(
+            user_profile=self.owner, task=card, changes={"assignee": profile.bot_user}
+        )
+        self.assertEqual(Task.objects.get(id=card.id).agent_profile_id, profile.id)

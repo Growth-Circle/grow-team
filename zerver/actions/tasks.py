@@ -9,7 +9,7 @@ from typing import Any
 
 from django.conf import settings as django_settings
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.utils.timezone import now as timezone_now
 from django.utils.translation import gettext as _
 from django.utils.translation import override as override_language
@@ -105,6 +105,31 @@ def _code_span(text: str) -> str:
     return "`" + text.replace("`", "'") + "`"
 
 
+def agent_profile_for(user: UserProfile | None) -> agents.AgentProfile | None:
+    """The agent profile behind a bot user, or None for any other user."""
+    if user is None or not user.is_bot:
+        return None
+    return agents.AgentProfile.objects.filter(bot_user=user).first()
+
+
+def link_tasks_to_job(job: agents.AgentJob) -> None:
+    """05-D8: link the cards made from the job's source message to the job.
+
+    sync_agent_task (05-R1) then moves those cards as the job runs. A card
+    that a person or another agent owns keeps its own status.
+    """
+    if job.source_message_id is None:
+        return
+    tasks = Task.objects.filter(
+        realm_id=job.realm_id, origin_message_id=job.source_message_id
+    ).filter(Q(assignee__isnull=True) | Q(assignee_id=job.profile.bot_user_id))
+    for task in tasks:
+        task.agent_job = job
+        task.agent_profile_id = job.profile_id
+        task.save(update_fields=["agent_job", "agent_profile"])
+        send_task_event(task.realm, task, "update")
+
+
 def record_history(
     task: Task, acting_user: UserProfile | None, kind: str, extra_data: dict[str, Any]
 ) -> TaskHistory:
@@ -145,6 +170,7 @@ def do_create_task(
         origin_message_id=origin_message_id,
         creator=user_profile,
         assignee=assignee,
+        agent_profile=agent_profile_for(assignee),
         reviewer=reviewer,
         labels=labels or [],
         checklist=checklist or [],
@@ -307,6 +333,8 @@ def do_update_task(
         return task
 
     assignee_changed = "assignee" in changes and changes["assignee"] != task.assignee
+    if assignee_changed:
+        changes = {**changes, "agent_profile": agent_profile_for(changes["assignee"])}
     for field, value in changes.items():
         setattr(task, field, value)
     task.last_updated = timezone_now()
