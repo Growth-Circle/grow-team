@@ -9,6 +9,7 @@ from uuid import UUID
 from django.db import OperationalError, connection, transaction
 from django.http import HttpRequest, HttpResponse
 from django.utils.log import log_response
+from two_factor.middleware.threadlocals import get_current_request
 
 from zerver.lib import agent_protocol as p
 from zerver.lib.agent_policy import AgentAccessDenied, _owner_or_grant, check_agent_access
@@ -70,6 +71,45 @@ def log_agent_busy(request: HttpRequest, response: HttpResponse) -> None:
 
 _deadline: ContextVar[float | None] = ContextVar("agent_transaction_deadline", default=None)
 
+# Key 174621 subkey 0 tells apart whole-server work from realm-scoped work:
+# realm-scoped work takes it SHARED (many realms hold it together), and
+# realm-less work (reconcile, migrations) takes it exclusive, which then
+# conflicts with every realm's shared hold and blocks all agent writes.
+# Key 174622, subkeyed by realm_id, serializes writes within one realm.
+# The two classes never collide, so a realm whose id happens to equal a
+# subkey used elsewhere (previously the fork hardcoded (174621, 3)) shares
+# nothing with the whole-server key.
+_realm_id: ContextVar[int | None] = ContextVar("agent_realm_id", default=None)
+
+
+@contextmanager
+def agent_realm(realm_id: int) -> Iterator[None]:
+    """Bind the realm a command or worker is acting for.
+
+    agent_transaction() calls made inside this block take realm_id's lock
+    instead of the whole-server lock, so one realm's agent work does not
+    block another's."""
+    token = _realm_id.set(realm_id)
+    try:
+        yield
+    finally:
+        _realm_id.reset(token)
+
+
+def _resolve_realm_id() -> int | None:
+    """Which realm agent_transaction() should lock for.
+
+    A command or worker sets this explicitly with agent_realm(). An HTTP
+    view that never called agent_realm() falls back to the realm of its
+    already-authenticated request, if any."""
+    realm_id = _realm_id.get()
+    if realm_id is not None:
+        return realm_id
+    user = getattr(get_current_request(), "user", None)
+    if user is not None and user.is_authenticated:
+        return user.realm_id
+    return None
+
 
 def ensure_budget() -> None:
     deadline = _deadline.get()
@@ -83,19 +123,36 @@ def agent_transaction(
 ) -> Iterator[None]:
     """Use bounded rollback on contention; this is not a deadlock-free lock order.
 
-    A read-only caller keeps the time limits but takes neither the realm-wide
-    advisory lock nor the ACL table locks. Those locks serialize every agent
-    write, so a slow task list page held them for 10 seconds and every runner
-    request in that window failed as busy."""
+    A read-only caller keeps the time limits but takes neither the advisory
+    lock nor the ACL table locks. Those locks serialize agent writes within
+    a realm (or, with no realm on hand, across the whole server), so a slow
+    task list page held them for 10 seconds and every runner request in
+    that window failed as busy."""
     outermost = not connection.in_atomic_block
     token = _deadline.set(_deadline.get() or monotonic() + 5)
     try:
         with transaction.atomic():
             with connection.cursor() as cursor:
                 if not read_only:
-                    cursor.execute("SELECT pg_try_advisory_xact_lock(174621, 3)")
-                    if not cursor.fetchone()[0]:
+                    realm_id = _resolve_realm_id()
+                    if realm_id is None:
+                        cursor.execute("SELECT pg_try_advisory_xact_lock(174621, 0)")
+                        acquired = cursor.fetchone()[0]
+                    else:
+                        cursor.execute("SELECT pg_try_advisory_xact_lock_shared(174621, 0)")
+                        acquired = cursor.fetchone()[0]
+                        if acquired:
+                            cursor.execute(
+                                "SELECT pg_try_advisory_xact_lock(174622, %s)", [realm_id]
+                            )
+                            acquired = cursor.fetchone()[0]
+                    if not acquired:
                         raise AgentBusy("Agent authority is busy. Retry this request.")
+                    # ponytail: table-wide SHARE can still hold up an unrelated
+                    # INSERT into zerver_message for up to statement_timeout
+                    # (2.5s) below. Move to row-level locks on the touched
+                    # rows if a realm with many concurrent human writers
+                    # makes that wait visible.
                     cursor.execute("LOCK TABLE " + ", ".join(ACL_TABLES) + " IN SHARE MODE NOWAIT")
                 cursor.execute(
                     "SELECT name, setting FROM pg_settings WHERE name IN ('lock_timeout', 'statement_timeout')"
