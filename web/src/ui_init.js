@@ -100,6 +100,7 @@ import * as onboarding_steps from "./onboarding_steps.ts";
 import * as overlays from "./overlays.ts";
 import {page_params} from "./page_params.ts";
 import * as people from "./people.ts";
+import * as permissions from "./permissions.ts";
 import * as personal_menu_popover from "./personal_menu_popover.ts";
 import * as playground_links_popover from "./playground_links_popover.ts";
 import * as pm_conversations from "./pm_conversations.ts";
@@ -642,6 +643,9 @@ export async function initialize_everything(state_data) {
         center_views.register({id, hash, show: mod.show, hide: mod.hide, title: mod.title});
     }
     app_frame.initialize();
+    if (!page_params.is_spectator) {
+        void permissions.initialize();
+    }
 
     alert_words.initialize(state_data.alert_words);
     saved_snippets.initialize(state_data.saved_snippets);

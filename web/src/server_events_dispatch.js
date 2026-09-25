@@ -28,6 +28,7 @@ import * as inbox_util from "./inbox_util.ts";
 import * as information_density from "./information_density.ts";
 import * as left_sidebar_navigation_area from "./left_sidebar_navigation_area.ts";
 import * as linkifiers from "./linkifiers.ts";
+import * as live_updates from "./live_updates.ts";
 import * as message_edit from "./message_edit.ts";
 import * as message_events from "./message_events.ts";
 import * as message_lists from "./message_lists.ts";
@@ -43,6 +44,7 @@ import * as onboarding_steps from "./onboarding_steps.ts";
 import * as overlays from "./overlays.ts";
 import * as peer_data from "./peer_data.ts";
 import * as people from "./people.ts";
+import * as permissions from "./permissions.ts";
 import * as pm_list from "./pm_list.ts";
 import * as reactions from "./reactions.ts";
 import * as realm_icon from "./realm_icon.ts";
@@ -474,6 +476,9 @@ export function dispatch_normal_event(event) {
                             );
                             break;
                     }
+                    // Any realm setting can change the permission
+                    // matrix, so reload it for every update_dict.
+                    permissions.refetch();
                     break;
                 case "deactivated":
                     // This handler is likely unnecessary, in that if we
@@ -644,6 +649,11 @@ export function dispatch_normal_event(event) {
                     if (people.is_valid_bot_user(event.person.user_id)) {
                         settings_bots.update_bot_data(event.person.user_id);
                     }
+                    if (event.person.user_id === current_user.user_id) {
+                        // The current user's role can change, and
+                        // the permission matrix depends on it.
+                        permissions.refetch();
+                    }
                     break;
                 case "remove": {
                     const user_id = event.person.user_id;
@@ -805,6 +815,16 @@ export function dispatch_normal_event(event) {
             break;
         case "task_board":
             task_board_ui.handle_task_board_event(event);
+            break;
+        // The five Sanji event types. live_updates.ts passes each
+        // event to every module that called live_updates.on() for
+        // its type.
+        case "agent_job":
+        case "agent_runner":
+        case "room_meta":
+        case "realm_permissions":
+        case "agent_realm_settings":
+            live_updates.dispatch(event);
             break;
         case "submessage": {
             // The fields in the event don't quite exactly
