@@ -84,3 +84,20 @@ returned `server_receipt` (`tool`, `outcome`, `summary`, `objects`, `error`) bac
 tool's output text. A rejected, expired, or cancelled approval is not a runner failure: it becomes that
 same receipt shape with `outcome: "failed"`, so the model can tell the commander what happened instead
 of the attempt ending.
+
+## `grow_ask` (fast lane, `answer` and `manage`)
+
+Both fast-lane job kinds get one extra local tool, `grow_ask`, alongside their
+existing catalog: `{question: string (1-2048 chars), options?: string[]}` (1-10
+options, each 1-4096 chars). It does not add a route or an operation kind. The
+runner sends the existing `input.requested` event (`InputRequestPayload`,
+already in the v1 schema) with the same fields, then waits for the reply. The
+question opening the job's status to `waiting_for_input` posts one short notice
+in the conversation ("This task needs your answer."); the reply itself creates
+no new message. The reply arrives through the existing `/runner/inputs` route
+like any other input; while the question is open, the next delivered input
+answers it and becomes the tool's return value, instead of starting a new chat
+turn - but only once every earlier-queued input has already reached the model,
+so a message that arrived before the question is never read as its answer. A
+pending question is rejected, not left open, once the attempt's own authority
+ends (deadline, cancellation, or an external stop).

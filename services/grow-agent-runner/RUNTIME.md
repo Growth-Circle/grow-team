@@ -9,6 +9,25 @@ without a container. See the
 The CLI uses `RuntimeSupervisor`. It keeps model turns outside the control callback queue.
 Task 8 supplies remote Git effects and final publication. Task 11 certifies real providers and coding readiness.
 
+**Fast lane status.** Sections marked **[fast lane, Target]** below describe the
+planned v2 protocol (`model_policy`, `context_bundle`, `POST /runner/operations/run`,
+`agent_job_ready`) and do not exist in code yet. Sections marked plain **[fast
+lane]** describe the current v1-schema fast lane: `runtime.json` `fast_lane` (with
+an optional `fast_lane_providers` allowlist) selects it for `answer` and `manage`;
+`src/anthropic-runtime.ts` runs the `@anthropic-ai/sdk` loop.
+
+**[fast lane]** `fast_lane_bearer_providers` is a second, separate optional
+array of provider IDs. A provider in that list authenticates with
+`Authorization: Bearer <key>` (the SDK's `authToken`) instead of Anthropic's
+own `x-api-key` header (the SDK's `apiKey`); this covers an Anthropic-Messages-
+compatible endpoint that expects Bearer auth, such as an OpenRouter endpoint.
+The client always passes an explicit `null` for whichever style a request does
+not use, and `logLevel: "off"`: the SDK falls back to `ANTHROPIC_AUTH_TOKEN`,
+`ANTHROPIC_API_KEY`, or `ANTHROPIC_LOG` in the runner's own process environment
+only when an option is left unset, never when it is `null`. The fetch used for
+every fast lane request also drops whichever auth header style a request does
+not use, in case `ANTHROPIC_CUSTOM_HEADERS` in that same environment added one.
+
 ## Install and build **[code lane]**
 
 Use Node 24.18.0 on Linux x64. Install the exact production dependencies from `package-lock.json`.
@@ -85,8 +104,10 @@ Tool and provider reservations survive journal restart. Uncertain effects and up
 
 **[fast lane]** The same rule applies to the SDK message stream: the runner
 assembles the complete response before any tool effect. A partial `input_json`
-delta never dispatches a tool. Read tools go through `POST /runner/operations/run`
-in one request; team tools still use `propose` and `execute`. See the
+delta never dispatches a tool. A `manage` job's team tools use `propose` and
+`execute`, exactly as in the code lane. **[Target]** A single-request
+`POST /runner/operations/run` for read tools does not exist yet; an `answer`
+job's read tools still use the repository tool broker. See the
 [fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md) section 6.5.
 
 Known secrets are removed before shared artifact retention, checksums, answers, and tool output receipts.
@@ -115,18 +136,31 @@ Input accepted before this boundary invalidates the result and keeps execution a
 Confirmed stop evidence then permits result publication. Publication still requires empty containment.
 
 **[fast lane]** Publication does not wait for confirmed stop evidence or empty
-containment; there is no container. The server publishes the result immediately
-after `result.prepared`. The runner sends `attempt.stopped` right after the loop
-ends, but publication has already happened by then. See the
-[fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md) section 8.1.
+containment; there is no container. **[Target]** The server publishing the result
+immediately after `result.prepared`, on its own commit hook, does not exist yet.
+Today the runner closes that gap from its own side: right after `result.prepared`,
+it asks once more for any input already waiting, and if none is pending it ends
+the attempt immediately and reports the stop, instead of sitting on the
+coordinator's regular controls tick.
+See the [fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md) section 8.1.
 A later input wakes the queue. The original active deadline remains in force.
 The runner stops on cancellation or deadline. A stopped interrupted attempt requires explicit recovery.
 **[code lane]** `attemptDeadline(d)` derives the attempt ceiling from the lease expiry and the active-second budget, minus a five-second margin. `execute()` uses the smaller of that ceiling and the local budget deadline for the guard, the model authority, and the abort timer. Every socket request to the tool and model broker waits for that same remaining time, with no separate margin for a tool call. The sandbox shell timeout still bounds each command.
 
-**[fast lane]** Timeout ceilings come from `model_policy` per job kind instead:
-`idle_timeout_s` (30), `turn_timeout_s` (120 for `answer`, 180 for `manage`), and
-`attempt_timeout_s` (180 for `answer`, 900 for `manage`). See the
+**[fast lane, Target]** Timeout ceilings come from `model_policy` per job kind
+instead: `idle_timeout_s` (30), `turn_timeout_s` (120 for `answer`, 180 for
+`manage`), and `attempt_timeout_s` (180 for `answer`, 900 for `manage`). See the
 [fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md) section 6.3.
+
+**[fast lane]** Today the attempt ceiling is the same `attemptDeadline(d)` used by
+the code lane. Independently of that, each model stream is aborted after 30
+seconds without a single SDK event - not only without text, since a tool-argument
+stream sends no text deltas - so a stalled provider connection fails the turn
+instead of holding the attempt for its full `active_seconds` budget. A reply that
+stops at `stop_reason: "max_tokens"` fails the turn with its own error type
+(`ModelOutputLimitError`); it is never returned as a truncated answer. A tool call
+that raises an error becomes a `tool_result` with `is_error: true` back to the
+model, so one bad call does not end the whole attempt.
 
 Each published repository checkpoint retains a local immutable snapshot under the owner-only runner state directory.
 Recovery accepts only the server-selected checkpoint with matching job, source attempt, repository policy, base commit, and complete checkpoint record.

@@ -114,12 +114,24 @@ The runtime verifies Node, locked adapter dependencies, image approval, and the 
 The catalog must report the matching adapter and sandbox image, toolchain digest, and revision.
 A changed catalog needs a new revision. Update the profile sandbox selection after that report.
 
-**[fast lane]** Create owner-only `model-connection.json` in the same runner state
-directory before `run`. Set `api` to the fixed value `anthropic_messages`, `base_url`
-to the Anthropic Messages endpoint, `api_key` to the provider key, `model` to the
-model ID, and `max_output` to the owner-approved `max_tokens` ceiling. The runner
-keeps this file at mode 0600 and never sends `api_key` to the server. See the
+**[fast lane, Target]** A future release reads a separate owner-only
+`model-connection.json`: `api` fixed to `anthropic_messages`, `base_url` for the
+Anthropic Messages endpoint, `api_key` for the provider key, `model` for the model
+ID, and `max_output` for the owner-approved `max_tokens` ceiling. See the
 [fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md) section 6.2.
+
+**[fast lane]** Today, an `answer` or `manage` job takes the fast lane when the
+existing `runtime.json` has `fast_lane: true`. An optional `fast_lane_providers`
+array of provider IDs restricts it further to those providers; when the field is
+absent, every provider takes the fast lane. A provider outside a present list
+keeps the old container path. A `fast_lane_providers` value that is present but
+not an array is rejected at startup instead of silently matching every provider.
+Run `ANTHROPIC_API_KEY=... node scripts/probe-anthropic-endpoint.mjs --base-url <url>
+--model <id>` against a candidate endpoint before adding it, to check it streams
+and returns a `tool_use` block before jobs depend on it. A separate optional
+`fast_lane_bearer_providers` array names providers that need `Authorization:
+Bearer <key>` instead of Anthropic's own `x-api-key` header, such as an
+OpenRouter Anthropic-compatible endpoint; see [RUNTIME.md](RUNTIME.md).
 
 Use this owner sequence for coding work:
 
@@ -206,9 +218,10 @@ Local receipts require the stopped latest attempt and a valid workspace observat
 All receipts remain immutable. Recovery does not resume a job or authorize another effect.
 
 Idle polling sends an empty-lease heartbeat after containment and credential checks. Presence does not certify runtime readiness.
-For fast lane jobs, the `agent_job_ready` event is the primary wake signal. Idle
-polling is a fallback claim path for when the event queue disconnects; it is not
-the primary path. See the [fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md) section 5.1.
+**[Target]** A future release adds an `agent_job_ready` push event as the primary
+wake signal, with idle polling kept only as the fallback claim path for a
+disconnected event queue. Today the poll interval is the only wake signal for any
+job kind. See the [fast lane spec](../../internals/docs/spec/2026-09-24-agent-fast-lane.md) section 5.1.
 The coordinator checks controls, heartbeats, and lease expiry. A separate expiry timer stops effects during a blocked request.
 Transport or credential failure confirms local containment before polling backoff or reconnect. Current authority must still be checked at each broker effect.
 Reserved environment values are not inherited. Only the fixed owner-approved environment allowlist reaches adapters.
