@@ -3,8 +3,13 @@ stats, the access-filtered audit feed, guest grants, task links to agent
 jobs, and the ensure_builtin_agents command (spec 05, 06, 10, 11; §4.5)."""
 
 from datetime import timedelta
+from io import StringIO
+from unittest import mock
 from uuid import uuid4
 
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.db.models import Q
 from django.utils.timezone import now
 from typing_extensions import override
 
@@ -20,6 +25,7 @@ from zerver.actions.agents import (
 from zerver.actions.create_user import do_create_user
 from zerver.actions.tasks import do_create_task, do_update_task, link_tasks_to_job, sync_agent_task
 from zerver.actions.users import do_change_user_role
+from zerver.lib import agent_policy
 from zerver.lib.agent_names import (
     RESERVED_AGENT_NAMES,
     agent_name_available,
@@ -30,6 +36,11 @@ from zerver.lib.agent_stats import profile_stats
 from zerver.lib.tasks import get_or_create_default_board
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.lib.user_groups import get_role_based_system_groups_dict
+from zerver.management.commands.ensure_builtin_agents import (
+    BUILTIN_AGENTS,
+    live_builtin,
+    wait_for_readiness,
+)
 from zerver.models import agents
 from zerver.models.messages import Message
 from zerver.models.tasks import Task
@@ -569,3 +580,187 @@ class TaskAgentLinkTest(AgentDirectoryAPITestCase):
             user_profile=self.owner, task=card, changes={"assignee": profile.bot_user}
         )
         self.assertEqual(Task.objects.get(id=card.id).agent_profile_id, profile.id)
+
+
+class EnsureBuiltinAgentsCommandTest(AgentDirectoryAPITestCase):
+    @override
+    def setUp(self) -> None:
+        super().setUp()
+        self.provider = self.make_provider()
+
+    def call(self, *args: str) -> str:
+        out = StringIO()
+        call_command(
+            "ensure_builtin_agents", "--realm", str(self.owner.realm.id), *args, stdout=out
+        )
+        return out.getvalue()
+
+    def ensure(self, *args: str, ready: bool = False) -> str:
+        """Run the command. With `ready`, the runner answers every probe."""
+
+        def answer_probe(profile: agents.AgentProfile, **kwargs: object) -> bool:
+            if ready:
+                self.report_ready(agents.AgentProfile.objects.get(id=profile.id))
+            return ready
+
+        with mock.patch(
+            "zerver.management.commands.ensure_builtin_agents.wait_for_readiness",
+            side_effect=answer_probe,
+        ):
+            return self.call(
+                "--runner", str(self.runner.id), "--provider", str(self.provider.id), *args
+            )
+
+    def builtins(self) -> list[agents.AgentProfile]:
+        profiles = []
+        for spec in BUILTIN_AGENTS:
+            profile = live_builtin(self.owner.realm.id, spec.agent_role)
+            assert profile is not None
+            profiles.append(profile)
+        return profiles
+
+    def test_create_then_rerun_does_not_duplicate(self) -> None:
+        output = self.ensure()
+        self.assertIn("Kaki: readiness failed; not enabled.", output)
+        self.assertEqual(agents.AgentProfile.objects.filter(is_builtin=True).count(), 3)
+        for spec, profile in zip(BUILTIN_AGENTS, self.builtins(), strict=True):
+            # A runner that never answers the probe leaves the agent
+            # created, but not enabled.
+            self.assertNotEqual(profile.desired_state, "enabled")
+            self.assertEqual(profile.name, spec.name)
+            self.assertEqual(profile.agent_role, spec.agent_role)
+            self.assertEqual(profile.avatar_color, spec.avatar_color)
+            self.assertEqual(profile.model_preset, "balanced")
+            self.assertEqual(profile.adapter_version, "0.1.0")
+            self.assertEqual(profile.provider_id, self.provider.id)
+            self.assertEqual(profile.owner_id, self.owner.id)
+            self.assertEqual(profile.description, str(spec.description))
+
+        # A rerun starts a new probe for each agent that is not ready.
+        setups = agents.AgentSetupOperation.objects.filter(profile__is_builtin=True).count()
+        self.ensure()
+        self.assertEqual(agents.AgentProfile.objects.filter(is_builtin=True).count(), 3)
+        self.assertEqual(
+            agents.AgentSetupOperation.objects.filter(profile__is_builtin=True).count(),
+            setups + 3,
+        )
+
+        # A rename does not hide a built-in from the next run.
+        kaki = self.builtins()[0]
+        agents.AgentProfile.objects.filter(id=kaki.id).update(name="Kaki Baru")
+        self.ensure(ready=True)
+        self.assertEqual(agents.AgentProfile.objects.filter(is_builtin=True).count(), 3)
+        for profile in self.builtins():
+            self.assertEqual(profile.desired_state, "enabled")
+
+    def test_ensure_archive_ensure(self) -> None:
+        self.ensure(ready=True)
+        first = {profile.id for profile in self.builtins()}
+        self.assertIn("archived.", self.call("--archive"))
+        self.assertIsNone(live_builtin(self.owner.realm.id, "planner"))
+        # Archiving again is a no-op, not an error.
+        self.assertIn("already archived.", self.call("--archive"))
+
+        output = self.ensure(ready=True)
+        self.assertIn("Kaki: created", output)
+        second = self.builtins()
+        self.assertTrue(first.isdisjoint({profile.id for profile in second}))
+        for profile in second:
+            self.assertEqual(profile.desired_state, "enabled")
+        # The archived agents keep their history; only their bots stop.
+        archived = agents.AgentProfile.objects.filter(id__in=first)
+        self.assertEqual({profile.desired_state for profile in archived}, {"archived"})
+        self.assertFalse(any(profile.bot_user.is_active for profile in archived))
+
+    def test_share_group_and_team_default(self) -> None:
+        output = self.ensure("--share-group", "role:members", "--set-default", ready=True)
+        self.assertIn("Kaki: set as team default.", output)
+        kaki = self.builtins()[0]
+        settings = agents.AgentRealmSettings.objects.get(realm=self.owner.realm)
+        self.assertEqual(settings.default_profile_id, kaki.id)
+        members = get_role_based_system_groups_dict(self.owner.realm)["role:members"]
+        granted = {
+            grant.target_kind: set(grant.actions)
+            for grant in agents.AgentGrant.objects.filter(
+                principal_group_id=members.id, revoked_at__isnull=True
+            ).filter(Q(profile=kaki) | Q(runner=self.runner) | Q(provider=self.provider))
+        }
+        self.assertEqual(
+            granted,
+            {
+                "profile": {"profile.use", "context.read"},
+                "runner": {"runner.use"},
+                "provider": {"provider.use"},
+            },
+        )
+        # A member can now use Kaki.
+        agent_policy.check_agent_access(
+            self.example_user("cordelia"), kaki, None, None, "profile.use"
+        )
+
+        # A rerun gives back a grant that someone revoked since.
+        agents.AgentGrant.objects.filter(profile=kaki, principal_group_id=members.id).update(
+            revoked_at=now()
+        )
+        self.ensure("--share-group", "role:members")
+        self.assertTrue(
+            agents.AgentGrant.objects.filter(
+                profile=kaki, principal_group_id=members.id, revoked_at__isnull=True
+            ).exists()
+        )
+
+    def test_owner_option_sets_the_owner(self) -> None:
+        # Iago has no runner grant, so the built-ins go on the work runner.
+        agents.AgentRealmSettings.objects.filter(realm=self.owner.realm).update(
+            work_runner=self.runner, work_provider=self.provider
+        )
+        iago = self.example_user("iago")
+        self.ensure("--owner", str(iago.id))
+        self.assertEqual({profile.owner_id for profile in self.builtins()}, {iago.id})
+
+    def test_readiness_timeout_returns_false_quickly(self) -> None:
+        profile = self.create_ready_profile()
+        agents.AgentProfile.objects.filter(id=profile.id).update(readiness_state="unchecked")
+        profile.refresh_from_db()
+        self.assertFalse(
+            wait_for_readiness(profile, timeout_seconds=0.05, poll_interval_seconds=0.01)
+        )
+
+    def test_readiness_already_met_returns_immediately(self) -> None:
+        profile = self.create_ready_profile()
+        self.assertTrue(
+            wait_for_readiness(profile, timeout_seconds=0.05, poll_interval_seconds=0.01)
+        )
+
+    def test_runner_and_provider_required_without_archive(self) -> None:
+        with self.assertRaises(CommandError):
+            self.call()
+
+    def test_unknown_share_group_is_rejected(self) -> None:
+        with self.assertRaises(CommandError):
+            self.ensure("--share-group", "role:nobody-here")
+
+    def test_runner_without_endpoint_adapter_is_rejected(self) -> None:
+        report = catalog_report()
+        report["adapters"] = [
+            {
+                "id": "acp",
+                "version": "1",
+                "auth_state": "ready",
+                "capabilities": {"config_version": 1},
+            }
+        ]
+        self.runner.catalog_report = report
+        self.runner.save(update_fields=["catalog_report"])
+        with self.assertRaises(CommandError):
+            self.ensure()
+        self.assertFalse(agents.AgentProfile.objects.filter(is_builtin=True).exists())
+
+    def test_set_default_needs_an_active_owner(self) -> None:
+        UserProfile.objects.filter(
+            realm=self.owner.realm, role=UserProfile.ROLE_REALM_OWNER
+        ).update(role=UserProfile.ROLE_REALM_ADMINISTRATOR)
+        output = self.ensure("--set-default", ready=True)
+        self.assertIn("--set-default: no active Owner found.", output)
+        settings = agents.AgentRealmSettings.objects.get(realm=self.owner.realm)
+        self.assertIsNone(settings.default_profile_id)
