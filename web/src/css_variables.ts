@@ -13,6 +13,10 @@ const ms = 320; // Mobile small
 // Breakpoints for middle column
 const mc = 849; // Middle column as wide as it appears after the `sm` breakpoint
 
+// Sanji app shell: below this width the sidebar becomes a drawer
+// (map-docs.md I-02, PLAN.md §2.6 item 11).
+const shell_narrow = 820;
+
 // Base em unit for container_breakpoints conversion
 const base_em_px = 16;
 
@@ -32,6 +36,7 @@ export const media_breakpoints = {
     ml_min: ml + "px",
     mm_min: mm + "px",
     ms_min: ms + "px",
+    shell_narrow_min: shell_narrow + "px",
     short_navbar_cutoff_height: "600px",
     settings_overlay_sidebar_collapse_breakpoint:
         settings_overlay_sidebar_collapse_breakpoint / 14 + "em",
@@ -57,5 +62,6 @@ export const media_breakpoints_num = {
     ml,
     mm,
     ms,
+    shell_narrow,
     settings_overlay_sidebar_collapse_breakpoint,
 };
