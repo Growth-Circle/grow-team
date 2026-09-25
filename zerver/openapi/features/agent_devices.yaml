@@ -3101,13 +3101,12 @@ paths:
       parameters:
         - name: offset
           in: query
-          description: Number of results to skip.
+          description: Number of setup records to skip.
           required: false
           schema:
             type: integer
             minimum: 0
             default: 0
-          description: Number of setup records to skip.
   /agent/runner/setups/claim:
     post:
       operationId: agent-runtime-setups-claim
@@ -4630,10 +4629,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/JsonSuccess"
+                $ref: "#/components/schemas/AgentSettingsEmptyResponse"
               example:
                 result: success
                 msg: ""
+                schema_version: 1
         "400":
           description: Malformed input, stale versions, unavailable resources, or rejected authority.
           content:
@@ -4691,20 +4691,3112 @@ paths:
               job_version: 1
               text: Draft text visible on the job card.
 components:
+  securitySchemes:
+    AgentRunnerBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque runner credential
+      description: |
+        An active agent runner access credential. Send this credential only in the
+        `Authorization: Bearer` header. Do not send Zulip Basic credentials or a
+        browser session to agent runner device endpoints.
   schemas:
     AgentRuntimeDraftRequest:
-      type: object
       additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        job_id:
+          format: uuid
+          title: Job Id
+          type: string
+        attempt_id:
+          format: uuid
+          title: Attempt Id
+          type: string
+        lease_epoch:
+          minimum: 1
+          title: Lease Epoch
+          type: integer
+        job_version:
+          minimum: 1
+          title: Job Version
+          type: integer
+        text:
+          maxLength: 10000
+          minLength: 1
+          title: Text
+          type: string
       required:
+        - schema_version
         - job_id
         - attempt_id
         - lease_epoch
         - job_version
         - text
+      title: Draft
+      type: object
+    AgentRuntimeClaimRequest:
+      additionalProperties: false
       properties:
         schema_version:
+          title: Schema Version
           type: integer
-          example: 1
+          enum:
+            - 1
+        claim_key:
+          format: uuid
+          title: Claim Key
+          type: string
+        capacity:
+          default: 1
+          maximum: 1
+          minimum: 1
+          title: Capacity
+          type: integer
+        runner_version:
+          maxLength: 4096
+          minLength: 1
+          title: Runner Version
+          type: string
+      required:
+        - schema_version
+        - claim_key
+        - runner_version
+      title: Claim
+      type: object
+      description:
+        Capacity is one. The current handler selects work by claim_key. It does not use runner_version
+        to negotiate a protocol.
+    AgentRuntimeLeaseRequestRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        job_id:
+          format: uuid
+          title: Job Id
+          type: string
+        attempt_id:
+          format: uuid
+          title: Attempt Id
+          type: string
+        lease_epoch:
+          minimum: 1
+          title: Lease Epoch
+          type: integer
+        job_version:
+          minimum: 1
+          title: Job Version
+          type: integer
+      required:
+        - schema_version
+        - job_id
+        - attempt_id
+        - lease_epoch
+        - job_version
+      title: LeaseRequest
+      type: object
+    AgentRuntimeLeaseIdentity:
+      additionalProperties: false
+      properties:
+        job_id:
+          format: uuid
+          title: Job Id
+          type: string
+        attempt_id:
+          format: uuid
+          title: Attempt Id
+          type: string
+        lease_epoch:
+          minimum: 1
+          title: Lease Epoch
+          type: integer
+      required:
+        - job_id
+        - attempt_id
+        - lease_epoch
+      title: LeaseIdentity
+      type: object
+    AgentRuntimeHeartbeatRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        leases:
+          items:
+            $ref: "#/components/schemas/AgentRuntimeLeaseIdentity"
+          maxItems: 100
+          title: Leases
+          type: array
+      required:
+        - schema_version
+      title: Heartbeat
+      type: object
+    AgentRuntimeRunnerEvent:
+      oneOf:
+        - additionalProperties: false
+          properties:
+            schema_version:
+              default: 1
+              title: Schema Version
+              type: integer
+              enum:
+                - 1
+            job_id:
+              format: uuid
+              title: Job Id
+              type: string
+            attempt_id:
+              format: uuid
+              title: Attempt Id
+              type: string
+            lease_epoch:
+              minimum: 1
+              title: Lease Epoch
+              type: integer
+            event_id:
+              format: uuid
+              title: Event Id
+              type: string
+            sequence:
+              minimum: 1
+              title: Sequence
+              type: integer
+            type:
+              type: string
+              enum:
+                - workspace.prepared
+            occurred_at:
+              format: date-time
+              title: Occurred At
+              type: string
+            payload:
+              additionalProperties: false
+              properties:
+                repository_id:
+                  format: uuid
+                  title: Repository Id
+                  type: string
+                workspace_reference:
+                  pattern: ^[a-zA-Z0-9_-]{1,200}$
+                  title: Workspace Reference
+                  type: string
+                base_ref:
+                  maxLength: 4096
+                  minLength: 1
+                  title: Base Ref
+                  type: string
+                base_commit:
+                  pattern: ^[0-9a-f]{40}([0-9a-f]{24})?$
+                  title: Base Commit
+                  type: string
+                tree_hash:
+                  pattern: ^[0-9a-f]{40}([0-9a-f]{24})?$
+                  title: Tree Hash
+                  type: string
+                user_worktree_dirty:
+                  title: User Worktree Dirty
+                  type: boolean
+              required:
+                - repository_id
+                - workspace_reference
+                - base_ref
+                - base_commit
+                - tree_hash
+                - user_worktree_dirty
+              title: WorkspacePreparedPayload
+              type: object
+          required:
+            - job_id
+            - attempt_id
+            - lease_epoch
+            - event_id
+            - sequence
+            - type
+            - occurred_at
+            - payload
+          title: RunnerEvent
+          type: object
+        - additionalProperties: false
+          properties:
+            schema_version:
+              default: 1
+              title: Schema Version
+              type: integer
+              enum:
+                - 1
+            job_id:
+              format: uuid
+              title: Job Id
+              type: string
+            attempt_id:
+              format: uuid
+              title: Attempt Id
+              type: string
+            lease_epoch:
+              minimum: 1
+              title: Lease Epoch
+              type: integer
+            event_id:
+              format: uuid
+              title: Event Id
+              type: string
+            sequence:
+              minimum: 1
+              title: Sequence
+              type: integer
+            type:
+              type: string
+              enum:
+                - attempt.starting
+            occurred_at:
+              format: date-time
+              title: Occurred At
+              type: string
+            payload:
+              additionalProperties: false
+              properties:
+                process_state:
+                  type: string
+                  enum:
+                    - starting
+                adapter_session_ref:
+                  default: null
+                  title: Adapter Session Ref
+                  type: string
+                  nullable: true
+                stop_confirmed:
+                  type: boolean
+                  enum:
+                    - false
+                summary:
+                  default: ""
+                  maxLength: 2048
+                  title: Summary
+                  type: string
+              required:
+                - process_state
+              title: ProcessPayload
+              type: object
+          required:
+            - job_id
+            - attempt_id
+            - lease_epoch
+            - event_id
+            - sequence
+            - type
+            - occurred_at
+            - payload
+          title: RunnerEvent
+          type: object
+        - additionalProperties: false
+          properties:
+            schema_version:
+              default: 1
+              title: Schema Version
+              type: integer
+              enum:
+                - 1
+            job_id:
+              format: uuid
+              title: Job Id
+              type: string
+            attempt_id:
+              format: uuid
+              title: Attempt Id
+              type: string
+            lease_epoch:
+              minimum: 1
+              title: Lease Epoch
+              type: integer
+            event_id:
+              format: uuid
+              title: Event Id
+              type: string
+            sequence:
+              minimum: 1
+              title: Sequence
+              type: integer
+            type:
+              type: string
+              enum:
+                - attempt.started
+            occurred_at:
+              format: date-time
+              title: Occurred At
+              type: string
+            payload:
+              additionalProperties: false
+              properties:
+                process_state:
+                  type: string
+                  enum:
+                    - active
+                adapter_session_ref:
+                  default: null
+                  title: Adapter Session Ref
+                  type: string
+                  nullable: true
+                stop_confirmed:
+                  type: boolean
+                  enum:
+                    - false
+                summary:
+                  default: ""
+                  maxLength: 2048
+                  title: Summary
+                  type: string
+              required:
+                - process_state
+              title: ProcessPayload
+              type: object
+          required:
+            - job_id
+            - attempt_id
+            - lease_epoch
+            - event_id
+            - sequence
+            - type
+            - occurred_at
+            - payload
+          title: RunnerEvent
+          type: object
+        - additionalProperties: false
+          properties:
+            schema_version:
+              default: 1
+              title: Schema Version
+              type: integer
+              enum:
+                - 1
+            job_id:
+              format: uuid
+              title: Job Id
+              type: string
+            attempt_id:
+              format: uuid
+              title: Attempt Id
+              type: string
+            lease_epoch:
+              minimum: 1
+              title: Lease Epoch
+              type: integer
+            event_id:
+              format: uuid
+              title: Event Id
+              type: string
+            sequence:
+              minimum: 1
+              title: Sequence
+              type: integer
+            type:
+              type: string
+              enum:
+                - attempt.stopped
+            occurred_at:
+              format: date-time
+              title: Occurred At
+              type: string
+            payload:
+              additionalProperties: false
+              properties:
+                process_state:
+                  type: string
+                  enum:
+                    - stopped
+                adapter_session_ref:
+                  type: object
+                  nullable: true
+                  enum:
+                    - null
+                stop_confirmed:
+                  type: boolean
+                  enum:
+                    - true
+                summary:
+                  type: string
+                  enum:
+                    - ""
+              required:
+                - process_state
+                - stop_confirmed
+              title: ProcessPayload
+              type: object
+          required:
+            - job_id
+            - attempt_id
+            - lease_epoch
+            - event_id
+            - sequence
+            - type
+            - occurred_at
+            - payload
+          title: RunnerEvent
+          type: object
+        - additionalProperties: false
+          properties:
+            schema_version:
+              default: 1
+              title: Schema Version
+              type: integer
+              enum:
+                - 1
+            job_id:
+              format: uuid
+              title: Job Id
+              type: string
+            attempt_id:
+              format: uuid
+              title: Attempt Id
+              type: string
+            lease_epoch:
+              minimum: 1
+              title: Lease Epoch
+              type: integer
+            event_id:
+              format: uuid
+              title: Event Id
+              type: string
+            sequence:
+              minimum: 1
+              title: Sequence
+              type: integer
+            type:
+              type: string
+              enum:
+                - attempt.interrupted
+            occurred_at:
+              format: date-time
+              title: Occurred At
+              type: string
+            payload:
+              additionalProperties: false
+              properties:
+                process_state:
+                  type: string
+                  enum:
+                    - unknown
+                adapter_session_ref:
+                  type: object
+                  nullable: true
+                  enum:
+                    - null
+                stop_confirmed:
+                  type: boolean
+                  enum:
+                    - false
+                summary:
+                  type: string
+                  enum:
+                    - ""
+              required:
+                - process_state
+              title: ProcessPayload
+              type: object
+          required:
+            - job_id
+            - attempt_id
+            - lease_epoch
+            - event_id
+            - sequence
+            - type
+            - occurred_at
+            - payload
+          title: RunnerEvent
+          type: object
+        - additionalProperties: false
+          properties:
+            schema_version:
+              default: 1
+              title: Schema Version
+              type: integer
+              enum:
+                - 1
+            job_id:
+              format: uuid
+              title: Job Id
+              type: string
+            attempt_id:
+              format: uuid
+              title: Attempt Id
+              type: string
+            lease_epoch:
+              minimum: 1
+              title: Lease Epoch
+              type: integer
+            event_id:
+              format: uuid
+              title: Event Id
+              type: string
+            sequence:
+              minimum: 1
+              title: Sequence
+              type: integer
+            type:
+              type: string
+              enum:
+                - input.applied
+            occurred_at:
+              format: date-time
+              title: Occurred At
+              type: string
+            payload:
+              additionalProperties: false
+              properties:
+                input_id:
+                  format: uuid
+                  title: Input Id
+                  type: string
+                input_sequence:
+                  minimum: 1
+                  title: Input Sequence
+                  type: integer
+                delivery_state:
+                  type: string
+                  enum:
+                    - applied
+              required:
+                - input_id
+                - input_sequence
+                - delivery_state
+              title: InputPayload
+              type: object
+          required:
+            - job_id
+            - attempt_id
+            - lease_epoch
+            - event_id
+            - sequence
+            - type
+            - occurred_at
+            - payload
+          title: RunnerEvent
+          type: object
+        - additionalProperties: false
+          properties:
+            schema_version:
+              default: 1
+              title: Schema Version
+              type: integer
+              enum:
+                - 1
+            job_id:
+              format: uuid
+              title: Job Id
+              type: string
+            attempt_id:
+              format: uuid
+              title: Attempt Id
+              type: string
+            lease_epoch:
+              minimum: 1
+              title: Lease Epoch
+              type: integer
+            event_id:
+              format: uuid
+              title: Event Id
+              type: string
+            sequence:
+              minimum: 1
+              title: Sequence
+              type: integer
+            type:
+              type: string
+              enum:
+                - input.delivery_uncertain
+            occurred_at:
+              format: date-time
+              title: Occurred At
+              type: string
+            payload:
+              additionalProperties: false
+              properties:
+                input_id:
+                  format: uuid
+                  title: Input Id
+                  type: string
+                input_sequence:
+                  minimum: 1
+                  title: Input Sequence
+                  type: integer
+                delivery_state:
+                  type: string
+                  enum:
+                    - delivery_uncertain
+              required:
+                - input_id
+                - input_sequence
+                - delivery_state
+              title: InputPayload
+              type: object
+          required:
+            - job_id
+            - attempt_id
+            - lease_epoch
+            - event_id
+            - sequence
+            - type
+            - occurred_at
+            - payload
+          title: RunnerEvent
+          type: object
+        - additionalProperties: false
+          properties:
+            schema_version:
+              default: 1
+              title: Schema Version
+              type: integer
+              enum:
+                - 1
+            job_id:
+              format: uuid
+              title: Job Id
+              type: string
+            attempt_id:
+              format: uuid
+              title: Attempt Id
+              type: string
+            lease_epoch:
+              minimum: 1
+              title: Lease Epoch
+              type: integer
+            event_id:
+              format: uuid
+              title: Event Id
+              type: string
+            sequence:
+              minimum: 1
+              title: Sequence
+              type: integer
+            type:
+              type: string
+              enum:
+                - tool.started
+            occurred_at:
+              format: date-time
+              title: Occurred At
+              type: string
+            payload:
+              additionalProperties: false
+              properties:
+                operation_id:
+                  format: uuid
+                  title: Operation Id
+                  type: string
+                tool_class:
+                  enum:
+                    - context.read
+                    - repository.read
+                    - repository.edit
+                    - checks.run
+                    - shell.run
+                    - dependencies.install
+                    - git.commit
+                    - git.push
+                    - git.draft_pr
+                  title: Tool Class
+                  type: string
+                argument_digest:
+                  pattern: ^[0-9a-f]{64}$
+                  title: Argument Digest
+                  type: string
+                status:
+                  type: string
+                  enum:
+                    - started
+                artifact_id:
+                  default: null
+                  title: Artifact Id
+                  format: uuid
+                  type: string
+                  nullable: true
+                exit_code:
+                  default: null
+                  title: Exit Code
+                  type: integer
+                  nullable: true
+                summary:
+                  default: ""
+                  maxLength: 2048
+                  title: Summary
+                  type: string
+              required:
+                - operation_id
+                - tool_class
+                - argument_digest
+                - status
+              title: ToolPayload
+              type: object
+          required:
+            - job_id
+            - attempt_id
+            - lease_epoch
+            - event_id
+            - sequence
+            - type
+            - occurred_at
+            - payload
+          title: RunnerEvent
+          type: object
+        - additionalProperties: false
+          properties:
+            schema_version:
+              default: 1
+              title: Schema Version
+              type: integer
+              enum:
+                - 1
+            job_id:
+              format: uuid
+              title: Job Id
+              type: string
+            attempt_id:
+              format: uuid
+              title: Attempt Id
+              type: string
+            lease_epoch:
+              minimum: 1
+              title: Lease Epoch
+              type: integer
+            event_id:
+              format: uuid
+              title: Event Id
+              type: string
+            sequence:
+              minimum: 1
+              title: Sequence
+              type: integer
+            type:
+              type: string
+              enum:
+                - tool.finished
+            occurred_at:
+              format: date-time
+              title: Occurred At
+              type: string
+            payload:
+              additionalProperties: false
+              properties:
+                operation_id:
+                  format: uuid
+                  title: Operation Id
+                  type: string
+                tool_class:
+                  enum:
+                    - context.read
+                    - repository.read
+                    - repository.edit
+                    - checks.run
+                    - shell.run
+                    - dependencies.install
+                    - git.commit
+                    - git.push
+                    - git.draft_pr
+                  title: Tool Class
+                  type: string
+                argument_digest:
+                  pattern: ^[0-9a-f]{64}$
+                  title: Argument Digest
+                  type: string
+                status:
+                  type: string
+                  enum:
+                    - succeeded
+                    - failed
+                    - outcome_unknown
+                    - cancelled
+                artifact_id:
+                  default: null
+                  title: Artifact Id
+                  format: uuid
+                  type: string
+                  nullable: true
+                exit_code:
+                  default: null
+                  title: Exit Code
+                  type: integer
+                  nullable: true
+                summary:
+                  default: ""
+                  maxLength: 2048
+                  title: Summary
+                  type: string
+              required:
+                - operation_id
+                - tool_class
+                - argument_digest
+                - status
+              title: ToolPayload
+              type: object
+          required:
+            - job_id
+            - attempt_id
+            - lease_epoch
+            - event_id
+            - sequence
+            - type
+            - occurred_at
+            - payload
+          title: RunnerEvent
+          type: object
+        - additionalProperties: false
+          properties:
+            schema_version:
+              default: 1
+              title: Schema Version
+              type: integer
+              enum:
+                - 1
+            job_id:
+              format: uuid
+              title: Job Id
+              type: string
+            attempt_id:
+              format: uuid
+              title: Attempt Id
+              type: string
+            lease_epoch:
+              minimum: 1
+              title: Lease Epoch
+              type: integer
+            event_id:
+              format: uuid
+              title: Event Id
+              type: string
+            sequence:
+              minimum: 1
+              title: Sequence
+              type: integer
+            type:
+              type: string
+              enum:
+                - verification.finished
+            occurred_at:
+              format: date-time
+              title: Occurred At
+              type: string
+            payload:
+              additionalProperties: false
+              properties:
+                operation_id:
+                  format: uuid
+                  title: Operation Id
+                  type: string
+                check_id:
+                  maxLength: 4096
+                  minLength: 1
+                  title: Check Id
+                  type: string
+                command:
+                  items:
+                    maxLength: 4096
+                    minLength: 1
+                    type: string
+                  maxItems: 64
+                  minItems: 1
+                  title: Command
+                  type: array
+                cwd:
+                  maxLength: 4096
+                  minLength: 1
+                  title: Cwd
+                  type: string
+                exit_code:
+                  title: Exit Code
+                  type: integer
+                  nullable: true
+                started_at:
+                  format: date-time
+                  title: Started At
+                  type: string
+                finished_at:
+                  format: date-time
+                  title: Finished At
+                  type: string
+                tree_hash:
+                  pattern: ^[0-9a-f]{40}([0-9a-f]{24})?$
+                  title: Tree Hash
+                  type: string
+                artifact_id:
+                  format: uuid
+                  title: Artifact Id
+                  type: string
+                timed_out:
+                  default: false
+                  title: Timed Out
+                  type: boolean
+              required:
+                - operation_id
+                - check_id
+                - command
+                - cwd
+                - exit_code
+                - started_at
+                - finished_at
+                - tree_hash
+                - artifact_id
+              title: VerificationRecord
+              type: object
+          required:
+            - job_id
+            - attempt_id
+            - lease_epoch
+            - event_id
+            - sequence
+            - type
+            - occurred_at
+            - payload
+          title: RunnerEvent
+          type: object
+        - additionalProperties: false
+          properties:
+            schema_version:
+              default: 1
+              title: Schema Version
+              type: integer
+              enum:
+                - 1
+            job_id:
+              format: uuid
+              title: Job Id
+              type: string
+            attempt_id:
+              format: uuid
+              title: Attempt Id
+              type: string
+            lease_epoch:
+              minimum: 1
+              title: Lease Epoch
+              type: integer
+            event_id:
+              format: uuid
+              title: Event Id
+              type: string
+            sequence:
+              minimum: 1
+              title: Sequence
+              type: integer
+            type:
+              type: string
+              enum:
+                - input.requested
+            occurred_at:
+              format: date-time
+              title: Occurred At
+              type: string
+            payload:
+              additionalProperties: false
+              properties:
+                question:
+                  maxLength: 2048
+                  minLength: 1
+                  title: Question
+                  type: string
+                options:
+                  items:
+                    maxLength: 4096
+                    minLength: 1
+                    type: string
+                  maxItems: 10
+                  title: Options
+                  type: array
+              required:
+                - question
+              title: InputRequestPayload
+              type: object
+          required:
+            - job_id
+            - attempt_id
+            - lease_epoch
+            - event_id
+            - sequence
+            - type
+            - occurred_at
+            - payload
+          title: RunnerEvent
+          type: object
+        - additionalProperties: false
+          properties:
+            schema_version:
+              default: 1
+              title: Schema Version
+              type: integer
+              enum:
+                - 1
+            job_id:
+              format: uuid
+              title: Job Id
+              type: string
+            attempt_id:
+              format: uuid
+              title: Attempt Id
+              type: string
+            lease_epoch:
+              minimum: 1
+              title: Lease Epoch
+              type: integer
+            event_id:
+              format: uuid
+              title: Event Id
+              type: string
+            sequence:
+              minimum: 1
+              title: Sequence
+              type: integer
+            type:
+              type: string
+              enum:
+                - result.prepared
+            occurred_at:
+              format: date-time
+              title: Occurred At
+              type: string
+            payload:
+              additionalProperties: false
+              properties:
+                artifact_ids:
+                  items:
+                    format: uuid
+                    type: string
+                  maxItems: 100
+                  minItems: 1
+                  title: Artifact Ids
+                  type: array
+                tree_hash:
+                  default: null
+                  title: Tree Hash
+                  pattern: ^[0-9a-f]{40}([0-9a-f]{24})?$
+                  type: string
+                  nullable: true
+                summary:
+                  maxLength: 4096
+                  title: Summary
+                  type: string
+              required:
+                - artifact_ids
+                - summary
+              title: ResultPayload
+              type: object
+          required:
+            - job_id
+            - attempt_id
+            - lease_epoch
+            - event_id
+            - sequence
+            - type
+            - occurred_at
+            - payload
+          title: RunnerEvent
+          type: object
+      description:
+        The event type selects its payload. Process, input, and tool states must match the event
+        type. Stopped and interrupted cleanup events require an empty summary and a null adapter session reference.
+        Each serialized event has a 65,536-byte limit.
+    AgentRuntimeEventBatchRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        events:
+          items:
+            $ref: "#/components/schemas/AgentRuntimeRunnerEvent"
+          maxItems: 100
+          minItems: 1
+          title: Events
+          type: array
+        job_version:
+          minimum: 1
+          title: Job Version
+          type: integer
+      required:
+        - schema_version
+        - events
+        - job_version
+      title: EventBatch
+      type: object
+    AgentRuntimeStopEvidenceRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        event:
+          additionalProperties: false
+          properties:
+            schema_version:
+              default: 1
+              title: Schema Version
+              type: integer
+              enum:
+                - 1
+            job_id:
+              format: uuid
+              title: Job Id
+              type: string
+            attempt_id:
+              format: uuid
+              title: Attempt Id
+              type: string
+            lease_epoch:
+              minimum: 1
+              title: Lease Epoch
+              type: integer
+            event_id:
+              format: uuid
+              title: Event Id
+              type: string
+            sequence:
+              minimum: 1
+              title: Sequence
+              type: integer
+            type:
+              type: string
+              enum:
+                - attempt.stopped
+            occurred_at:
+              format: date-time
+              title: Occurred At
+              type: string
+            payload:
+              additionalProperties: false
+              properties:
+                process_state:
+                  type: string
+                  enum:
+                    - stopped
+                adapter_session_ref:
+                  type: object
+                  nullable: true
+                  enum:
+                    - null
+                stop_confirmed:
+                  type: boolean
+                  enum:
+                    - true
+                summary:
+                  type: string
+                  enum:
+                    - ""
+              required:
+                - process_state
+                - stop_confirmed
+              title: ProcessPayload
+              type: object
+          required:
+            - job_id
+            - attempt_id
+            - lease_epoch
+            - event_id
+            - sequence
+            - type
+            - occurred_at
+            - payload
+          title: RunnerEvent
+          type: object
+      required:
+        - schema_version
+        - event
+      title: StopEvidence
+      type: object
+    AgentRuntimeContextRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        job_id:
+          format: uuid
+          title: Job Id
+          type: string
+        attempt_id:
+          format: uuid
+          title: Attempt Id
+          type: string
+        lease_epoch:
+          minimum: 1
+          title: Lease Epoch
+          type: integer
+        job_version:
+          minimum: 1
+          title: Job Version
+          type: integer
+        reference_ids:
+          items:
+            format: uuid
+            type: string
+          maxItems: 100
+          minItems: 1
+          title: Reference Ids
+          type: array
+      required:
+        - schema_version
+        - job_id
+        - attempt_id
+        - lease_epoch
+        - job_version
+        - reference_ids
+      title: Context
+      type: object
+    AgentRuntimeContextFileRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        job_id:
+          format: uuid
+          title: Job Id
+          type: string
+        attempt_id:
+          format: uuid
+          title: Attempt Id
+          type: string
+        lease_epoch:
+          minimum: 1
+          title: Lease Epoch
+          type: integer
+        job_version:
+          minimum: 1
+          title: Job Version
+          type: integer
+        reference_id:
+          format: uuid
+          title: Reference Id
+          type: string
+      required:
+        - schema_version
+        - job_id
+        - attempt_id
+        - lease_epoch
+        - job_version
+        - reference_id
+      title: ContextFile
+      type: object
+    AgentRuntimeProposalRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        job_id:
+          format: uuid
+          title: Job Id
+          type: string
+        attempt_id:
+          format: uuid
+          title: Attempt Id
+          type: string
+        lease_epoch:
+          minimum: 1
+          title: Lease Epoch
+          type: integer
+        job_version:
+          minimum: 1
+          title: Job Version
+          type: integer
+        operation_id:
+          format: uuid
+          title: Operation Id
+          type: string
+        arguments:
+          oneOf:
+            - $ref: "#/components/schemas/AgentRuntimePushArguments"
+            - $ref: "#/components/schemas/AgentRuntimeDraftPRArguments"
+            - $ref: "#/components/schemas/AgentRuntimeToolArguments"
+            - $ref: "#/components/schemas/AgentRuntimeContextReadArguments"
+            - $ref: "#/components/schemas/AgentRuntimeRepositoryReadArguments"
+            - $ref: "#/components/schemas/AgentRuntimeRepositoryEditArguments"
+            - $ref: "#/components/schemas/AgentRuntimeChecksArguments"
+            - $ref: "#/components/schemas/AgentRuntimeCommitArguments"
+          title: Arguments
+        tree_hash:
+          default: null
+          title: Tree Hash
+          pattern: ^[0-9a-f]{40}([0-9a-f]{24})?$
+          type: string
+          nullable: true
+        diff_artifact_id:
+          default: null
+          title: Diff Artifact Id
+          format: uuid
+          type: string
+          nullable: true
+      required:
+        - schema_version
+        - job_id
+        - attempt_id
+        - lease_epoch
+        - job_version
+        - operation_id
+        - arguments
+      title: Proposal
+      type: object
+    AgentRuntimeConsumeRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        job_id:
+          format: uuid
+          title: Job Id
+          type: string
+        attempt_id:
+          format: uuid
+          title: Attempt Id
+          type: string
+        lease_epoch:
+          minimum: 1
+          title: Lease Epoch
+          type: integer
+        job_version:
+          minimum: 1
+          title: Job Version
+          type: integer
+        operation_id:
+          format: uuid
+          title: Operation Id
+          type: string
+        expected_version:
+          minimum: 1
+          title: Expected Version
+          type: integer
+        operation_hash:
+          pattern: ^[0-9a-f]{64}$
+          title: Operation Hash
+          type: string
+        nonce:
+          default: null
+          title: Nonce
+          format: uuid
+          type: string
+          nullable: true
+      required:
+        - schema_version
+        - job_id
+        - attempt_id
+        - lease_epoch
+        - job_version
+        - operation_id
+        - expected_version
+        - operation_hash
+      title: Consume
+      type: object
+    AgentRuntimeRemoteReceipt:
+      additionalProperties: false
+      properties:
+        remote:
+          maxLength: 4096
+          minLength: 1
+          title: Remote
+          type: string
+        branch:
+          maxLength: 4096
+          minLength: 1
+          title: Branch
+          type: string
+        commit:
+          pattern: ^[0-9a-f]{40}([0-9a-f]{24})?$
+          title: Commit
+          type: string
+        operation_id:
+          format: uuid
+          title: Operation Id
+          type: string
+        pull_request_id:
+          default: null
+          title: Pull Request Id
+          type: string
+          nullable: true
+        pull_request_url:
+          default: null
+          title: Pull Request Url
+          type: string
+          nullable: true
+        observed_at:
+          format: date-time
+          title: Observed At
+          type: string
+      required:
+        - remote
+        - branch
+        - commit
+        - operation_id
+        - observed_at
+      title: RemoteReceipt
+      type: object
+    AgentRuntimeReconcileRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        job_id:
+          format: uuid
+          title: Job Id
+          type: string
+        attempt_id:
+          format: uuid
+          title: Attempt Id
+          type: string
+        lease_epoch:
+          minimum: 1
+          title: Lease Epoch
+          type: integer
+        job_version:
+          minimum: 1
+          title: Job Version
+          type: integer
+        operation_id:
+          format: uuid
+          title: Operation Id
+          type: string
+        receipt:
+          $ref: "#/components/schemas/AgentRuntimeRemoteReceipt"
+      required:
+        - schema_version
+        - job_id
+        - attempt_id
+        - lease_epoch
+        - job_version
+        - operation_id
+        - receipt
+      title: Reconcile
+      type: object
+    AgentRuntimeLocalOperationReceipt:
+      additionalProperties: false
+      properties:
+        operation_id:
+          format: uuid
+          title: Operation Id
+          type: string
+        argument_digest:
+          pattern: ^[0-9a-f]{64}$
+          title: Argument Digest
+          type: string
+        base_commit:
+          title: Base Commit
+          pattern: ^[0-9a-f]{40}([0-9a-f]{24})?$
+          type: string
+          nullable: true
+        tree_hash:
+          title: Tree Hash
+          pattern: ^[0-9a-f]{40}([0-9a-f]{24})?$
+          type: string
+          nullable: true
+        outcome:
+          enum:
+            - succeeded
+            - failed
+            - no_effect
+          title: Outcome
+          type: string
+        observed_at:
+          format: date-time
+          title: Observed At
+          type: string
+      required:
+        - operation_id
+        - argument_digest
+        - base_commit
+        - tree_hash
+        - outcome
+        - observed_at
+      title: LocalOperationReceipt
+      type: object
+    AgentRuntimeReconcileLocalRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        job_id:
+          format: uuid
+          title: Job Id
+          type: string
+        attempt_id:
+          format: uuid
+          title: Attempt Id
+          type: string
+        lease_epoch:
+          minimum: 1
+          title: Lease Epoch
+          type: integer
+        job_version:
+          minimum: 1
+          title: Job Version
+          type: integer
+        receipt:
+          $ref: "#/components/schemas/AgentRuntimeLocalOperationReceipt"
+      required:
+        - schema_version
+        - job_id
+        - attempt_id
+        - lease_epoch
+        - job_version
+        - receipt
+      title: ReconcileLocal
+      type: object
+    AgentRuntimeCheckpoint:
+      additionalProperties: false
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+        source_attempt_id:
+          format: uuid
+          title: Source Attempt Id
+          type: string
+        base_commit:
+          default: null
+          title: Base Commit
+          pattern: ^[0-9a-f]{40}([0-9a-f]{24})?$
+          type: string
+          nullable: true
+        tree_hash:
+          default: null
+          title: Tree Hash
+          pattern: ^[0-9a-f]{40}([0-9a-f]{24})?$
+          type: string
+          nullable: true
+        summary:
+          maxLength: 20000
+          title: Summary
+          type: string
+        context_ref_ids:
+          items:
+            format: uuid
+            type: string
+          maxItems: 100
+          title: Context Ref Ids
+          type: array
+        artifact_ids:
+          items:
+            format: uuid
+            type: string
+          maxItems: 100
+          title: Artifact Ids
+          type: array
+        remaining_work:
+          items:
+            maxLength: 4096
+            minLength: 1
+            type: string
+          maxItems: 100
+          title: Remaining Work
+          type: array
+        next_step:
+          maxLength: 4096
+          minLength: 1
+          title: Next Step
+          type: string
+        adapter_session_ref:
+          default: null
+          title: Adapter Session Ref
+          type: string
+          nullable: true
+        input_cursor:
+          default: 0
+          minimum: 0
+          title: Input Cursor
+          type: integer
+      required:
+        - id
+        - source_attempt_id
+        - summary
+        - next_step
+      title: Checkpoint
+      type: object
+    AgentRuntimeCheckpointRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        job_id:
+          format: uuid
+          title: Job Id
+          type: string
+        attempt_id:
+          format: uuid
+          title: Attempt Id
+          type: string
+        lease_epoch:
+          minimum: 1
+          title: Lease Epoch
+          type: integer
+        job_version:
+          minimum: 1
+          title: Job Version
+          type: integer
+        checkpoint:
+          $ref: "#/components/schemas/AgentRuntimeCheckpoint"
+      required:
+        - schema_version
+        - job_id
+        - attempt_id
+        - lease_epoch
+        - job_version
+        - checkpoint
+      title: Checkpoint
+      type: object
+    AgentRuntimeCredentialRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        job_id:
+          format: uuid
+          title: Job Id
+          type: string
+        attempt_id:
+          format: uuid
+          title: Attempt Id
+          type: string
+        lease_epoch:
+          minimum: 1
+          title: Lease Epoch
+          type: integer
+        job_version:
+          minimum: 1
+          title: Job Version
+          type: integer
+        provider_id:
+          format: uuid
+          title: Provider Id
+          type: string
+        secret_version:
+          minimum: 1
+          title: Secret Version
+          type: integer
+      required:
+        - schema_version
+        - job_id
+        - attempt_id
+        - lease_epoch
+        - job_version
+        - provider_id
+        - secret_version
+      title: Credential
+      type: object
+    AgentRuntimeProbeAuthorityRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        setup_id:
+          format: uuid
+          title: Setup Id
+          type: string
+        claim_key:
+          format: uuid
+          title: Claim Key
+          type: string
+        lease_epoch:
+          minimum: 1
+          title: Lease Epoch
+          type: integer
+        descriptor_digest:
+          pattern: ^[0-9a-f]{64}$
+          title: Descriptor Digest
+          type: string
+        configuration_digest:
+          pattern: ^[0-9a-f]{64}$
+          title: Configuration Digest
+          type: string
+      required:
+        - schema_version
+        - setup_id
+        - claim_key
+        - lease_epoch
+        - descriptor_digest
+        - configuration_digest
+      title: ProbeAuthority
+      type: object
+    AgentRuntimeProbeCredentialRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        setup_id:
+          format: uuid
+          title: Setup Id
+          type: string
+        claim_key:
+          format: uuid
+          title: Claim Key
+          type: string
+        lease_epoch:
+          minimum: 1
+          title: Lease Epoch
+          type: integer
+        descriptor_digest:
+          pattern: ^[0-9a-f]{64}$
+          title: Descriptor Digest
+          type: string
+        configuration_digest:
+          pattern: ^[0-9a-f]{64}$
+          title: Configuration Digest
+          type: string
+        provider_id:
+          format: uuid
+          title: Provider Id
+          type: string
+        secret_version:
+          minimum: 1
+          title: Secret Version
+          type: integer
+      required:
+        - schema_version
+        - setup_id
+        - claim_key
+        - lease_epoch
+        - descriptor_digest
+        - configuration_digest
+        - provider_id
+        - secret_version
+      title: ProbeCredential
+      type: object
+    AgentRuntimeInputReconciliationRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        job_id:
+          format: uuid
+          title: Job Id
+          type: string
+        attempt_id:
+          format: uuid
+          title: Attempt Id
+          type: string
+        lease_epoch:
+          minimum: 1
+          title: Lease Epoch
+          type: integer
+        job_version:
+          minimum: 1
+          title: Job Version
+          type: integer
+        input_id:
+          format: uuid
+          title: Input Id
+          type: string
+        input_sequence:
+          minimum: 1
+          title: Input Sequence
+          type: integer
+        outcome:
+          enum:
+            - applied
+            - not_applied
+          title: Outcome
+          type: string
+        receipt_id:
+          format: uuid
+          title: Receipt Id
+          type: string
+      required:
+        - schema_version
+        - job_id
+        - attempt_id
+        - lease_epoch
+        - job_version
+        - input_id
+        - input_sequence
+        - outcome
+        - receipt_id
+      title: InputReconciliation
+      type: object
+    AgentRuntimeSetupClaimRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        setup_id:
+          format: uuid
+          title: Setup Id
+          type: string
+        claim_key:
+          format: uuid
+          title: Claim Key
+          type: string
+      required:
+        - schema_version
+        - setup_id
+        - claim_key
+      title: SetupClaim
+      type: object
+    AgentRuntimeCapabilityReport:
+      additionalProperties: false
+      properties:
+        chat_ready:
+          default: false
+          title: Chat Ready
+          type: boolean
+        code_ready:
+          default: false
+          title: Code Ready
+          type: boolean
+        tool_calling:
+          default: unknown
+          enum:
+            - passed
+            - unsupported
+            - unknown
+          title: Tool Calling
+          type: string
+        team_tools:
+          default: unknown
+          enum:
+            - passed
+            - unsupported
+            - unknown
+          title: Team Tools
+          type: string
+        streaming:
+          default: unknown
+          enum:
+            - passed
+            - unsupported
+            - unknown
+          title: Streaming
+          type: string
+        usage:
+          default: unknown
+          enum:
+            - passed
+            - unsupported
+            - unknown
+          title: Usage
+          type: string
+        native_resume:
+          default: unknown
+          enum:
+            - passed
+            - unsupported
+            - unknown
+          title: Native Resume
+          type: string
+        steering:
+          default: unknown
+          enum:
+            - passed
+            - unsupported
+            - unknown
+          title: Steering
+          type: string
+        sandbox:
+          default: unknown
+          enum:
+            - passed
+            - unsupported
+            - unknown
+          title: Sandbox
+          type: string
+        probed_at:
+          default: null
+          title: Probed At
+          format: date-time
+          type: string
+          nullable: true
+        runner_version:
+          default: ""
+          title: Runner Version
+          type: string
+        adapter_version:
+          default: ""
+          title: Adapter Version
+          type: string
+        config_version:
+          default: 1
+          minimum: 1
+          title: Config Version
+          type: integer
+      title: CapabilityReport
+      type: object
+    AgentRuntimeSetupResultRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        setup_id:
+          format: uuid
+          title: Setup Id
+          type: string
+        claim_key:
+          format: uuid
+          title: Claim Key
+          type: string
+        lease_epoch:
+          minimum: 1
+          title: Lease Epoch
+          type: integer
+        descriptor_digest:
+          pattern: ^[0-9a-f]{64}$
+          title: Descriptor Digest
+          type: string
+        configuration_digest:
+          pattern: ^[0-9a-f]{64}$
+          title: Configuration Digest
+          type: string
+        state:
+          enum:
+            - ready
+            - needs_action
+            - failed
+          title: State
+          type: string
+        capabilities:
+          $ref: "#/components/schemas/AgentRuntimeCapabilityReport"
+        requirements:
+          items:
+            $ref: "#/components/schemas/AgentRuntimeRequirement"
+          maxItems: 32
+          title: Requirements
+          type: array
+      required:
+        - schema_version
+        - setup_id
+        - claim_key
+        - lease_epoch
+        - descriptor_digest
+        - configuration_digest
+        - state
+        - capabilities
+      title: SetupResult
+      type: object
+      description:
+        Record measured probe evidence. The server validates readiness, requirements, and descriptor
+        identity together.
+    AgentRuntimeAdapterConfig:
+      additionalProperties: false
+      properties:
+        id:
+          pattern: ^[a-zA-Z0-9_-]{1,80}$
+          title: Id
+          type: string
+        version:
+          maxLength: 4096
+          minLength: 1
+          title: Version
+          type: string
+        mode:
+          enum:
+            - acp
+            - endpoint
+          title: Mode
+          type: string
+      required:
+        - id
+        - version
+        - mode
+      title: AdapterConfig
+      type: object
+    AgentRuntimeAudienceBinding:
+      additionalProperties: false
+      properties:
+        conversation_id:
+          format: uuid
+          title: Conversation Id
+          type: string
+        epoch:
+          minimum: 1
+          title: Epoch
+          type: integer
+        realm_id:
+          minimum: 1
+          title: Realm Id
+          type: integer
+        profile_id:
+          format: uuid
+          title: Profile Id
+          type: string
+        requester_user_id:
+          minimum: 1
+          title: Requester User Id
+          type: integer
+        bot_user_id:
+          minimum: 1
+          title: Bot User Id
+          type: integer
+        anchor_message_id:
+          minimum: 1
+          title: Anchor Message Id
+          type: integer
+        recipient_id:
+          minimum: 1
+          title: Recipient Id
+          type: integer
+        kind:
+          enum:
+            - stream
+            - direct
+          title: Kind
+          type: string
+        stream_id:
+          default: null
+          title: Stream Id
+          minimum: 1
+          type: integer
+          nullable: true
+        invite_only:
+          default: null
+          title: Invite Only
+          type: boolean
+          nullable: true
+        is_web_public:
+          default: null
+          title: Is Web Public
+          type: boolean
+          nullable: true
+        history_public_to_subscribers:
+          default: null
+          title: History Public To Subscribers
+          type: boolean
+          nullable: true
+        audience_user_ids:
+          items:
+            minimum: 1
+            type: integer
+          maxItems: 10000
+          minItems: 1
+          title: Audience User Ids
+          type: array
+      required:
+        - conversation_id
+        - epoch
+        - realm_id
+        - profile_id
+        - requester_user_id
+        - bot_user_id
+        - anchor_message_id
+        - recipient_id
+        - kind
+        - audience_user_ids
+      title: AudienceBinding
+      type: object
+    AgentRuntimeContextReference:
+      additionalProperties: false
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+        kind:
+          enum:
+            - message
+            - attachment
+            - repository
+          title: Kind
+          type: string
+        message_id:
+          default: null
+          title: Message Id
+          minimum: 1
+          type: integer
+          nullable: true
+        attachment_id:
+          default: null
+          title: Attachment Id
+          minimum: 1
+          type: integer
+          nullable: true
+        repository_id:
+          default: null
+          title: Repository Id
+          format: uuid
+          type: string
+          nullable: true
+        scope:
+          $ref: "#/components/schemas/AgentRuntimeConversationScope"
+        validated_at:
+          format: date-time
+          title: Validated At
+          type: string
+      required:
+        - id
+        - kind
+        - scope
+        - validated_at
+      title: ContextReference
+      type: object
+    AgentRuntimeEffectiveProvider:
+      additionalProperties: false
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+        config_version:
+          minimum: 1
+          title: Config Version
+          type: integer
+        base_url:
+          title: Base Url
+          type: string
+        api_mode:
+          enum:
+            - chat_completions
+            - responses
+          title: Api Mode
+          type: string
+        model_id:
+          title: Model Id
+          type: string
+        allowed_models:
+          items:
+            type: string
+          title: Allowed Models
+          type: array
+        credential_ref:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeSecretReference"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+        context_window_tokens:
+          minimum: 1
+          title: Context Window Tokens
+          type: integer
+        max_output_tokens:
+          minimum: 1
+          title: Max Output Tokens
+          type: integer
+        data_scope:
+          items:
+            type: string
+          title: Data Scope
+          type: array
+        network:
+          $ref: "#/components/schemas/AgentRuntimeNetworkPolicy"
+      required:
+        - id
+        - config_version
+        - base_url
+        - api_mode
+        - model_id
+        - allowed_models
+        - credential_ref
+        - context_window_tokens
+        - max_output_tokens
+        - data_scope
+        - network
+      title: EffectiveProvider
+      type: object
+    AgentRuntimeExecutionConfiguration:
+      additionalProperties: false
+      properties:
+        schema_version:
+          default: 1
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        runner_id:
+          format: uuid
+          title: Runner Id
+          type: string
+        profile_revision:
+          minimum: 1
+          title: Profile Revision
+          type: integer
+        adapter:
+          $ref: "#/components/schemas/AgentRuntimeAdapterConfig"
+        provider:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeEffectiveProvider"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+        workspace_binding:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeWorkspaceBinding"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+        policy_version:
+          minimum: 1
+          title: Policy Version
+          type: integer
+        actions:
+          items:
+            enum:
+              - context.read
+              - repository.read
+              - repository.edit
+              - checks.run
+              - shell.run
+              - dependencies.install
+              - git.commit
+              - git.push
+              - git.draft_pr
+            type: string
+          title: Actions
+          type: array
+        sandbox:
+          $ref: "#/components/schemas/AgentRuntimeSandboxConfig"
+        network:
+          $ref: "#/components/schemas/AgentRuntimeNetworkPolicy"
+        hard_cost_cap:
+          title: Hard Cost Cap
+          type: boolean
+        budget:
+          $ref: "#/components/schemas/AgentRuntimeBudget"
+        instructions_digest:
+          default: null
+          title: Instructions Digest
+          pattern: ^[0-9a-f]{64}$
+          type: string
+          nullable: true
+      required:
+        - runner_id
+        - profile_revision
+        - adapter
+        - provider
+        - workspace_binding
+        - policy_version
+        - actions
+        - sandbox
+        - network
+        - hard_cost_cap
+        - budget
+      title: ExecutionConfiguration
+      type: object
+    AgentRuntimeInputRecord:
+      additionalProperties: false
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+        author_user_id:
+          minimum: 1
+          title: Author User Id
+          type: integer
+        source_message_id:
+          default: null
+          title: Source Message Id
+          minimum: 1
+          type: integer
+          nullable: true
+        client_key:
+          format: uuid
+          title: Client Key
+          type: string
+        sequence:
+          minimum: 1
+          title: Sequence
+          type: integer
+        input_type:
+          enum:
+            - steering
+            - answer
+            - replan
+          title: Input Type
+          type: string
+        text:
+          maxLength: 20000
+          minLength: 1
+          title: Text
+          type: string
+        delivery_state:
+          enum:
+            - pending
+            - delivered
+            - applied
+            - delivery_uncertain
+            - cancelled
+          title: Delivery State
+          type: string
+      required:
+        - id
+        - author_user_id
+        - client_key
+        - sequence
+        - input_type
+        - text
+        - delivery_state
+      title: InputRecord
+      type: object
+    AgentRuntimePolicy:
+      additionalProperties: false
+      properties:
+        version:
+          minimum: 1
+          title: Version
+          type: integer
+        actions:
+          items:
+            enum:
+              - context.read
+              - repository.read
+              - repository.edit
+              - checks.run
+              - shell.run
+              - dependencies.install
+              - git.commit
+              - git.push
+              - git.draft_pr
+            type: string
+          title: Actions
+          type: array
+        grant_ids:
+          items:
+            format: uuid
+            type: string
+          maxItems: 100
+          title: Grant Ids
+          type: array
+        scope:
+          $ref: "#/components/schemas/AgentRuntimeConversationScope"
+        sandbox:
+          $ref: "#/components/schemas/AgentRuntimeSandboxConfig"
+        network:
+          $ref: "#/components/schemas/AgentRuntimeNetworkPolicy"
+        hard_cost_cap:
+          default: false
+          title: Hard Cost Cap
+          type: boolean
+      required:
+        - version
+        - actions
+        - scope
+        - sandbox
+        - network
+      title: Policy
+      type: object
+    AgentRuntimeProviderConfig:
+      additionalProperties: false
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+        owner_user_id:
+          minimum: 1
+          title: Owner User Id
+          type: integer
+        runner_id:
+          format: uuid
+          title: Runner Id
+          type: string
+        name:
+          maxLength: 4096
+          minLength: 1
+          title: Name
+          type: string
+        base_url:
+          maxLength: 2048
+          pattern: ^https?://[^\s]+$
+          title: Base Url
+          type: string
+        api_mode:
+          enum:
+            - chat_completions
+            - responses
+          title: Api Mode
+          type: string
+        model_id:
+          maxLength: 4096
+          minLength: 1
+          title: Model Id
+          type: string
+        allowed_models:
+          items:
+            maxLength: 4096
+            minLength: 1
+            type: string
+          maxItems: 100
+          minItems: 1
+          title: Allowed Models
+          type: array
+        credential_ref:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeSecretReference"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+          default: null
+        context_window_tokens:
+          minimum: 1
+          title: Context Window Tokens
+          type: integer
+        max_output_tokens:
+          minimum: 1
+          title: Max Output Tokens
+          type: integer
+        config_version:
+          minimum: 1
+          title: Config Version
+          type: integer
+        data_scope:
+          items:
+            enum:
+              - synthetic
+              - selected_chat
+              - selected_repository
+            type: string
+          minItems: 1
+          title: Data Scope
+          type: array
+        network:
+          $ref: "#/components/schemas/AgentRuntimeNetworkPolicy"
+        capability_report:
+          $ref: "#/components/schemas/AgentRuntimeCapabilityReport"
+      required:
+        - id
+        - owner_user_id
+        - runner_id
+        - name
+        - base_url
+        - api_mode
+        - model_id
+        - allowed_models
+        - context_window_tokens
+        - max_output_tokens
+        - config_version
+        - data_scope
+        - network
+        - capability_report
+      title: ProviderConfig
+      type: object
+    AgentRuntimeRepositoryConfig:
+      additionalProperties: false
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+        owner_user_id:
+          minimum: 1
+          title: Owner User Id
+          type: integer
+        runner_id:
+          format: uuid
+          title: Runner Id
+          type: string
+        workspace_alias:
+          pattern: ^[a-zA-Z0-9_-]{1,80}$
+          title: Workspace Alias
+          type: string
+        canonical_origin:
+          default: null
+          title: Canonical Origin
+          type: string
+          nullable: true
+        allowed_refs:
+          items:
+            maxLength: 4096
+            minLength: 1
+            type: string
+          maxItems: 100
+          minItems: 1
+          title: Allowed Refs
+          type: array
+        base_ref:
+          maxLength: 4096
+          minLength: 1
+          title: Base Ref
+          type: string
+        base_commit:
+          title: Base Commit
+          pattern: ^[0-9a-f]{40}([0-9a-f]{24})?$
+          type: string
+          nullable: true
+        policy_version:
+          minimum: 1
+          title: Policy Version
+          type: integer
+        required_checks:
+          items:
+            $ref: "#/components/schemas/AgentRuntimeRequiredCheck"
+          maxItems: 64
+          title: Required Checks
+          type: array
+      required:
+        - id
+        - owner_user_id
+        - runner_id
+        - workspace_alias
+        - allowed_refs
+        - base_ref
+        - base_commit
+        - policy_version
+      title: RepositoryConfig
+      type: object
+    AgentRuntimeSandboxConfig:
+      additionalProperties: false
+      properties:
+        kind:
+          default: rootless_container
+          title: Kind
+          type: string
+          enum:
+            - rootless_container
+        alias:
+          pattern: ^[a-zA-Z0-9_-]{1,80}$
+          title: Alias
+          type: string
+        image_digest:
+          pattern: ^sha256:[0-9a-f]{64}$
+          title: Image Digest
+          type: string
+        toolchain_digest:
+          pattern: ^[0-9a-f]{64}$
+          title: Toolchain Digest
+          type: string
+        catalog_revision:
+          minimum: 1
+          title: Catalog Revision
+          type: integer
+        cpu_millicores:
+          maximum: 64000
+          minimum: 100
+          title: Cpu Millicores
+          type: integer
+        memory_bytes:
+          maximum: 137438953472
+          minimum: 67108864
+          title: Memory Bytes
+          type: integer
+        pids_limit:
+          maximum: 4096
+          minimum: 16
+          title: Pids Limit
+          type: integer
+        temporary_bytes:
+          maximum: 10737418240
+          minimum: 1048576
+          title: Temporary Bytes
+          type: integer
+        network_mode:
+          default: none
+          title: Network Mode
+          type: string
+          enum:
+            - none
+        read_only_root:
+          default: true
+          title: Read Only Root
+          type: boolean
+          enum:
+            - true
+        drop_all_capabilities:
+          default: true
+          title: Drop All Capabilities
+          type: boolean
+          enum:
+            - true
+      required:
+        - alias
+        - image_digest
+        - toolchain_digest
+        - catalog_revision
+        - cpu_millicores
+        - memory_bytes
+        - pids_limit
+        - temporary_bytes
+      title: SandboxConfig
+      type: object
+    AgentRuntimeSecretReference:
+      additionalProperties: false
+      properties:
+        kind:
+          enum:
+            - server
+            - local
+          title: Kind
+          type: string
+        id:
+          maxLength: 4096
+          minLength: 1
+          title: Id
+          type: string
+        version:
+          minimum: 1
+          title: Version
+          type: integer
+      required:
+        - kind
+        - id
+        - version
+      title: SecretReference
+      type: object
+    AgentRuntimeWorkspaceBinding:
+      additionalProperties: false
+      properties:
+        canonical_origin:
+          title: Canonical Origin
+          maxLength: 4096
+          minLength: 1
+          type: string
+          nullable: true
+        repository_id:
+          format: uuid
+          title: Repository Id
+          type: string
+        workspace_alias:
+          pattern: ^[a-zA-Z0-9_-]{1,80}$
+          title: Workspace Alias
+          type: string
+        policy_version:
+          minimum: 1
+          title: Policy Version
+          type: integer
+        checks_digest:
+          pattern: ^[0-9a-f]{64}$
+          title: Checks Digest
+          type: string
+        allowed_refs:
+          items:
+            maxLength: 4096
+            minLength: 1
+            type: string
+          title: Allowed Refs
+          type: array
+      required:
+        - canonical_origin
+        - repository_id
+        - workspace_alias
+        - policy_version
+        - checks_digest
+        - allowed_refs
+      title: WorkspaceBinding
+      type: object
+    AgentRuntimeAttemptDescriptor:
+      additionalProperties: false
+      properties:
+        schema_version:
+          default: 1
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        job_id:
+          format: uuid
+          title: Job Id
+          type: string
+        attempt_id:
+          format: uuid
+          title: Attempt Id
+          type: string
+        lease_epoch:
+          minimum: 1
+          title: Lease Epoch
+          type: integer
+        audience:
+          $ref: "#/components/schemas/AgentRuntimeAudienceBinding"
+        tested_configuration:
+          $ref: "#/components/schemas/AgentRuntimeExecutionConfiguration"
+        profile_id:
+          format: uuid
+          title: Profile Id
+          type: string
+        profile_revision:
+          minimum: 1
+          title: Profile Revision
+          type: integer
+        descriptor_digest:
+          pattern: ^[0-9a-f]{64}$
+          title: Descriptor Digest
+          type: string
+        configuration_digest:
+          pattern: ^[0-9a-f]{64}$
+          title: Configuration Digest
+          type: string
+        lease_expires_at:
+          format: date-time
+          title: Lease Expires At
+          type: string
+        job_kind:
+          enum:
+            - answer
+            - code
+            - manage
+          title: Job Kind
+          type: string
+        delivery_target:
+          enum:
+            - answer
+            - patch
+            - draft_pr
+          title: Delivery Target
+          type: string
+        request:
+          maxLength: 20000
+          minLength: 1
+          title: Request
+          type: string
+        runner_id:
+          format: uuid
+          title: Runner Id
+          type: string
+        adapter:
+          $ref: "#/components/schemas/AgentRuntimeAdapterConfig"
+        provider:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeProviderConfig"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+        repository:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeRepositoryConfig"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+        policy:
+          $ref: "#/components/schemas/AgentRuntimePolicy"
+        budget:
+          $ref: "#/components/schemas/AgentRuntimeBudget"
+        context_refs:
+          items:
+            $ref: "#/components/schemas/AgentRuntimeContextReference"
+          maxItems: 100
+          title: Context Refs
+          type: array
+        inputs:
+          items:
+            $ref: "#/components/schemas/AgentRuntimeInputRecord"
+          maxItems: 100
+          title: Inputs
+          type: array
+        checkpoint:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeCheckpoint"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+          default: null
+        instructions:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeAttemptInstructions"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+          default: null
+      required:
+        - job_id
+        - attempt_id
+        - lease_epoch
+        - audience
+        - tested_configuration
+        - profile_id
+        - profile_revision
+        - descriptor_digest
+        - configuration_digest
+        - lease_expires_at
+        - job_kind
+        - delivery_target
+        - request
+        - runner_id
+        - adapter
+        - provider
+        - repository
+        - policy
+        - budget
+      title: AttemptDescriptor
+      type: object
+      description:
+        Frozen execution configuration with selected context, input, and checkpoint data. Cross-field
+        identity, digest, scope, budget, and provider constraints also apply.
+    AgentRuntimeInstructionText:
+      additionalProperties: false
+      properties:
+        revision:
+          minimum: 1
+          title: Revision
+          type: integer
+        text:
+          maxLength: 8000
+          minLength: 1
+          title: Text
+          type: string
+      required:
+        - revision
+        - text
+      title: InstructionText
+      type: object
+    AgentRuntimeAttemptInstructions:
+      additionalProperties: false
+      properties:
+        team:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeInstructionText"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+          default: null
+        profile:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeInstructionText"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+          default: null
+      title: AttemptInstructions
+      type: object
+    AgentRuntimeProbeGrant:
+      additionalProperties: false
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+        runner_id:
+          format: uuid
+          title: Runner Id
+          type: string
+        provider_id:
+          title: Provider Id
+          format: uuid
+          type: string
+          nullable: true
+        provider_config_version:
+          title: Provider Config Version
+          minimum: 1
+          type: integer
+          nullable: true
+        profile_revision:
+          minimum: 1
+          title: Profile Revision
+          type: integer
+        expires_at:
+          format: date-time
+          title: Expires At
+          type: string
+        actions:
+          items:
+            type: string
+            enum:
+              - probe
+          maxItems: 1
+          minItems: 1
+          title: Actions
+          type: array
+      required:
+        - id
+        - runner_id
+        - provider_id
+        - provider_config_version
+        - profile_revision
+        - expires_at
+        - actions
+      title: ProbeGrant
+      type: object
+    AgentRuntimeProbeDescriptor:
+      additionalProperties: false
+      properties:
+        schema_version:
+          default: 1
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        setup_operation_id:
+          format: uuid
+          title: Setup Operation Id
+          type: string
+        profile_id:
+          title: Profile Id
+          format: uuid
+          type: string
+          nullable: true
+        profile_revision:
+          minimum: 1
+          title: Profile Revision
+          type: integer
+        runner_id:
+          format: uuid
+          title: Runner Id
+          type: string
+        descriptor_digest:
+          pattern: ^[0-9a-f]{64}$
+          title: Descriptor Digest
+          type: string
+        configuration_digest:
+          pattern: ^[0-9a-f]{64}$
+          title: Configuration Digest
+          type: string
+        adapter:
+          $ref: "#/components/schemas/AgentRuntimeAdapterConfig"
+        provider:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeProviderConfig"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+        grant:
+          $ref: "#/components/schemas/AgentRuntimeProbeGrant"
+        workspace_binding:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeWorkspaceBinding"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+          default: null
+        policy:
+          $ref: "#/components/schemas/AgentRuntimePolicy"
+        budget:
+          $ref: "#/components/schemas/AgentRuntimeBudget"
+        instructions_digest:
+          default: null
+          title: Instructions Digest
+          pattern: ^[0-9a-f]{64}$
+          type: string
+          nullable: true
+      required:
+        - setup_operation_id
+        - profile_id
+        - profile_revision
+        - runner_id
+        - descriptor_digest
+        - configuration_digest
+        - adapter
+        - provider
+        - grant
+        - policy
+        - budget
+      title: ProbeDescriptor
+      type: object
+      description:
+        Scoped setup configuration. Runner, provider revision, and profile revision must match
+        the probe grant.
+    AgentRuntimeEventReceipt:
+      type: object
+      additionalProperties: false
+      properties:
+        event_sequence:
+          type: integer
+          minimum: 1
+        job_version:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+            - draft
+            - queued
+            - running
+            - waiting_for_input
+            - waiting_for_approval
+            - blocked
+            - verifying
+            - cancel_requested
+            - cancelled
+            - interrupted
+            - failed
+            - completed
+      required:
+        - event_sequence
+        - job_version
+        - status
+    AgentRuntimeLeaseStatus:
+      type: object
+      additionalProperties: false
+      properties:
+        descriptor:
+          $ref: "#/components/schemas/AgentRuntimeAttemptDescriptor"
+        job_version:
+          type: integer
+          minimum: 1
+        lease_expires_at:
+          type: string
+          format: date-time
+        process_state:
+          type: string
+          enum:
+            - starting
+            - active
+            - stopping
+            - stopped
+            - unknown
+        event_cursor:
+          type: integer
+          minimum: 0
+      required:
+        - descriptor
+        - job_version
+        - lease_expires_at
+        - process_state
+        - event_cursor
+    AgentRuntimeControl:
+      type: object
+      additionalProperties: false
+      properties:
         job_id:
           type: string
           format: uuid
@@ -4713,11 +7805,1745 @@ components:
           format: uuid
         lease_epoch:
           type: integer
+          minimum: 1
         job_version:
           type: integer
-        text:
+          minimum: 1
+        control:
           type: string
-          description: |
-            Draft text to show on the job's card. Minimum length 1, maximum length 10000.
+          enum:
+            - stop
+            - continue
+        approvals:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              id:
+                type: string
+                format: uuid
+              operation_id:
+                type: string
+                format: uuid
+              decision:
+                type: string
+                enum:
+                  - pending
+                  - approved
+                  - rejected
+                  - expired
+                  - cancelled
+                  - consumed
+              version:
+                type: integer
+                minimum: 1
+              nonce:
+                type: string
+                format: uuid
+            required:
+              - id
+              - operation_id
+              - decision
+              - version
+              - nonce
+      required:
+        - job_id
+        - attempt_id
+        - lease_epoch
+        - job_version
+        - control
+        - approvals
+    AgentRuntimeHeartbeatLease:
+      type: object
+      additionalProperties: false
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        attempt_id:
+          type: string
+          format: uuid
+        lease_epoch:
+          type: integer
+          minimum: 1
+        job_version:
+          type: integer
+          minimum: 1
+        lease_expires_at:
+          type: string
+          format: date-time
+        control:
+          type: string
+          enum:
+            - stop
+            - continue
+      required:
+        - job_id
+        - attempt_id
+        - lease_epoch
+        - job_version
+        - lease_expires_at
+        - control
+    AgentRuntimeOperationScope:
+      type: object
+      additionalProperties: false
+      properties:
+        attempt_id:
+          type: string
+          format: uuid
+        lease_epoch:
+          type: integer
+          minimum: 1
+        policy_version:
+          type: integer
+          minimum: 1
+        tree_hash:
+          type: string
+          pattern: ^[0-9a-f]{40}([0-9a-f]{24})?$
+          nullable: true
+        diff_artifact_id:
+          type: string
+          format: uuid
+          nullable: true
+        diff_checksum:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          nullable: true
+        audience:
+          $ref: "#/components/schemas/AgentRuntimeAudienceBinding"
+      required:
+        - attempt_id
+        - lease_epoch
+        - policy_version
+        - tree_hash
+        - diff_artifact_id
+        - diff_checksum
+        - audience
+    AgentRuntimeOperation:
+      type: object
+      additionalProperties: false
+      properties:
+        operation_id:
+          type: string
+          format: uuid
+        operation_hash:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+        version:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+            - proposed
+            - authorized
+            - started
+            - succeeded
+            - failed
+            - outcome_unknown
+            - cancelled
+        arguments:
+          $ref: "#/components/schemas/AgentRuntimeOperationArguments"
+        scope:
+          $ref: "#/components/schemas/AgentRuntimeOperationScope"
+        approval_id:
+          type: string
+          format: uuid
+          nullable: true
+        approval_version:
+          type: integer
+          minimum: 1
+          nullable: true
+        nonce:
+          type: string
+          format: uuid
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        server_receipt:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeTeamReceipt"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+      required:
+        - operation_id
+        - operation_hash
+        - version
+        - status
+        - arguments
+        - scope
+        - approval_id
+        - approval_version
+        - nonce
+        - expires_at
+    AgentRuntimeOperationWithReceipt:
+      type: object
+      additionalProperties: false
+      properties:
+        operation_id:
+          type: string
+          format: uuid
+        operation_hash:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+        version:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+            - proposed
+            - authorized
+            - started
+            - succeeded
+            - failed
+            - outcome_unknown
+            - cancelled
+        arguments:
+          $ref: "#/components/schemas/AgentRuntimeOperationArguments"
+        scope:
+          $ref: "#/components/schemas/AgentRuntimeOperationScope"
+        approval_id:
+          type: string
+          format: uuid
+          nullable: true
+        approval_version:
+          type: integer
+          minimum: 1
+          nullable: true
+        nonce:
+          type: string
+          format: uuid
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        receipt:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeRemoteReceipt"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+        server_receipt:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeTeamReceipt"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+      required:
+        - operation_id
+        - operation_hash
+        - version
+        - status
+        - arguments
+        - scope
+        - approval_id
+        - approval_version
+        - nonce
+        - expires_at
+        - receipt
+    AgentRuntimeTeamReceiptObjects:
+      type: object
+      additionalProperties: false
+      properties:
+        channel_id:
+          default: null
+          minimum: 1
+          title: Channel Id
+          type: integer
+          nullable: true
+        group_id:
+          default: null
+          minimum: 1
+          title: Group Id
+          type: integer
+          nullable: true
+        message_id:
+          default: null
+          minimum: 1
+          title: Message Id
+          type: integer
+          nullable: true
+        user_ids:
+          default: null
+          items:
+            minimum: 1
+            type: integer
+          title: User Ids
+          type: array
+          nullable: true
+    AgentRuntimeTeamReceipt:
+      type: object
+      additionalProperties: false
+      properties:
+        tool:
+          title: Tool
+          type: string
+          enum:
+            - team.find
+            - channel.create
+            - channel.subscribe
+            - channel.unsubscribe
+            - group.create
+            - group.add_members
+            - group.remove_members
+            - topic.post
+            - topic.add_person
+            - topic.resolve
+            - topic.move
+        outcome:
+          title: Outcome
+          type: string
+          enum:
+            - succeeded
+            - failed
+        summary:
+          maxLength: 2048
+          title: Summary
+          type: string
+        objects:
+          $ref: "#/components/schemas/AgentRuntimeTeamReceiptObjects"
+        error:
+          maxLength: 2048
+          title: Error
+          type: string
+          nullable: true
+      required:
+        - tool
+        - outcome
+        - summary
+        - objects
+        - error
+    AgentRuntimeSelectedContext:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+              format: uuid
+            kind:
+              type: string
+              enum:
+                - message
+            message_id:
+              type: integer
+              minimum: 1
+            text:
+              type: string
+          required:
+            - id
+            - kind
+            - message_id
+            - text
+        - type: object
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+              format: uuid
+            kind:
+              type: string
+              enum:
+                - attachment
+            attachment_id:
+              type: integer
+              minimum: 1
+            name:
+              type: string
+            size:
+              type: integer
+              minimum: 0
+          required:
+            - id
+            - kind
+            - attachment_id
+            - name
+            - size
+        - type: object
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+              format: uuid
+            kind:
+              type: string
+              enum:
+                - repository
+            repository_id:
+              type: string
+              format: uuid
+          required:
+            - id
+            - kind
+            - repository_id
+    AgentRuntimeClaimResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        attempt:
+          anyOf:
+            - $ref: "#/components/schemas/AgentRuntimeAttemptDescriptor"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+        job_version:
+          type: integer
+          minimum: 1
+          nullable: true
+      required:
+        - result
+        - msg
+        - schema_version
+        - attempt
+        - job_version
+    AgentRuntimeLeasesResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        leases:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentRuntimeLeaseStatus"
+          maxItems: 100
+      required:
+        - result
+        - msg
+        - schema_version
+        - leases
+    AgentRuntimeControlsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        controls:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentRuntimeControl"
+          maxItems: 100
+      required:
+        - result
+        - msg
+        - schema_version
+        - controls
+    AgentRuntimeHeartbeatResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        leases:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentRuntimeHeartbeatLease"
+          maxItems: 100
+      required:
+        - result
+        - msg
+        - schema_version
+        - leases
+    AgentRuntimeEventsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        receipts:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentRuntimeEventReceipt"
+          maxItems: 100
+          minItems: 1
+      required:
+        - result
+        - msg
+        - schema_version
+        - receipts
+    AgentRuntimeStopEvidenceResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        receipt:
+          $ref: "#/components/schemas/AgentRuntimeEventReceipt"
+      required:
+        - result
+        - msg
+        - schema_version
+        - receipt
+    AgentRuntimeContextResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        references:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentRuntimeSelectedContext"
+          maxItems: 100
+          minItems: 1
+      required:
+        - result
+        - msg
+        - schema_version
+        - references
+    AgentRuntimeInputsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        inputs:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentRuntimeInputRecord"
+          maxItems: 100
+      required:
+        - result
+        - msg
+        - schema_version
+        - inputs
+    AgentRuntimeInputReconciliationResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        input:
+          $ref: "#/components/schemas/AgentRuntimeInputRecord"
+      required:
+        - result
+        - msg
+        - schema_version
+        - input
+    AgentRuntimeArtifactResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        artifact_id:
+          type: string
+          format: uuid
+        checksum:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+        size:
+          type: integer
+          minimum: 0
+          maximum: 10485760
+      required:
+        - result
+        - msg
+        - schema_version
+        - artifact_id
+        - checksum
+        - size
+    AgentRuntimeOperationResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        operation:
+          $ref: "#/components/schemas/AgentRuntimeOperation"
+      required:
+        - result
+        - msg
+        - schema_version
+        - operation
+    AgentRuntimeOperationsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        operations:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentRuntimeOperationWithReceipt"
+          maxItems: 100
+      required:
+        - result
+        - msg
+        - schema_version
+        - operations
+    AgentRuntimeCheckpointResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        checkpoint_id:
+          type: string
+          format: uuid
+      required:
+        - result
+        - msg
+        - schema_version
+        - checkpoint_id
+    AgentRuntimeAuthorityResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        job_id:
+          type: string
+          format: uuid
+        attempt_id:
+          type: string
+          format: uuid
+        lease_epoch:
+          type: integer
+          minimum: 1
+        job_version:
+          type: integer
+          minimum: 1
+        expires_at:
+          type: string
+          format: date-time
+      required:
+        - result
+        - msg
+        - schema_version
+        - job_id
+        - attempt_id
+        - lease_epoch
+        - job_version
+        - expires_at
+    AgentRuntimeCredentialResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        secret:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+      required:
+        - result
+        - msg
+        - schema_version
+        - secret
+        - expires_at
+    AgentRuntimeProbeCredentialResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        secret:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - result
+        - msg
+        - schema_version
+        - secret
+        - expires_at
+    AgentRuntimeProbeAuthorityResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        setup_id:
+          type: string
+          format: uuid
+        claim_key:
+          type: string
+          format: uuid
+        lease_epoch:
+          type: integer
+          minimum: 1
+        descriptor_digest:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+        configuration_digest:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+        grant_id:
+          type: string
+          format: uuid
+        expires_at:
+          type: string
+          format: date-time
+      required:
+        - result
+        - msg
+        - schema_version
+        - setup_id
+        - claim_key
+        - lease_epoch
+        - descriptor_digest
+        - configuration_digest
+        - grant_id
+        - expires_at
+    AgentRuntimeSetupsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        setups:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              setup_id:
+                type: string
+                format: uuid
+              phase:
+                type: string
+                enum:
+                  - pending
+                  - claimed
+                  - probing
+              profile_revision:
+                type: integer
+                minimum: 1
+              provider_config_version:
+                type: integer
+                minimum: 1
+                nullable: true
+            required:
+              - setup_id
+              - phase
+              - profile_revision
+              - provider_config_version
+          maxItems: 100
+      required:
+        - result
+        - msg
+        - schema_version
+        - setups
+    AgentRuntimeSetupClaimResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        setup_id:
+          type: string
+          format: uuid
+        claim_key:
+          type: string
+          format: uuid
+        lease_epoch:
+          type: integer
+          minimum: 1
+        lease_expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        descriptor:
+          $ref: "#/components/schemas/AgentRuntimeProbeDescriptor"
+      required:
+        - result
+        - msg
+        - schema_version
+        - setup_id
+        - claim_key
+        - lease_epoch
+        - lease_expires_at
+        - descriptor
+    AgentRuntimeSetupResultResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        setup_id:
+          type: string
+          format: uuid
+        phase:
+          type: string
+          enum:
+            - ready
+            - needs_action
+            - failed
+      required:
+        - result
+        - msg
+        - schema_version
+        - setup_id
+        - phase
+    AgentSettingsPairingApprovalRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        pairing_id:
+          format: uuid
+          title: Pairing Id
+          type: string
+        user_code:
+          maxLength: 4096
           minLength: 1
-          maxLength: 10000
+          title: User Code
+          type: string
+      required:
+        - schema_version
+        - pairing_id
+        - user_code
+      title: PairingApproval
+      type: object
+    AgentSettingsPairingPreviewRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        pairing_id:
+          format: uuid
+          title: Pairing Id
+          type: string
+        user_code:
+          maxLength: 4096
+          minLength: 1
+          title: User Code
+          type: string
+      required:
+        - schema_version
+        - pairing_id
+        - user_code
+      title: PairingPreview
+      type: object
+    AgentSettingsRunnerMetadataUpdateRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        expected_metadata_revision:
+          minimum: 1
+          title: Expected Metadata Revision
+          type: integer
+        name:
+          maxLength: 200
+          minLength: 1
+          title: Name
+          type: string
+          pattern: ^[^/\\\x00-\x1f\x7f]+$
+          description: Use at most 200 characters. Do not use path separators or control characters.
+        host_kind:
+          enum:
+            - workstation
+            - server
+            - unknown
+          title: Host Kind
+          type: string
+      required:
+        - schema_version
+        - expected_metadata_revision
+        - name
+        - host_kind
+      title: RunnerMetadataUpdate
+      type: object
+    AgentSettingsRunnersResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        count:
+          type: integer
+          minimum: 0
+        runners:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentSettingsRunner"
+      required:
+        - result
+        - msg
+        - schema_version
+        - count
+        - runners
+    AgentSettingsRunnerResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        runner:
+          $ref: "#/components/schemas/AgentSettingsRunner"
+      required:
+        - result
+        - msg
+        - schema_version
+        - runner
+    AgentSettingsPairingResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        pairing:
+          type: object
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+              format: uuid
+            state:
+              type: string
+          required:
+            - id
+            - state
+      required:
+        - result
+        - msg
+        - schema_version
+        - pairing
+    AgentSettingsPairingPreviewResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        pairing:
+          type: object
+          additionalProperties: false
+          properties:
+            device_name:
+              type: string
+            fingerprint_prefix:
+              type: string
+              description: The first 16 characters of the device fingerprint.
+            realm_name:
+              type: string
+            expires_at:
+              type: string
+              format: date-time
+          required:
+            - device_name
+            - fingerprint_prefix
+            - realm_name
+            - expires_at
+      required:
+        - result
+        - msg
+        - schema_version
+        - pairing
+    AgentSettingsRunnerMetadataResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        metadata:
+          type: object
+          additionalProperties: false
+          properties:
+            name:
+              type: string
+            host_kind:
+              type: string
+              enum:
+                - workstation
+                - server
+                - unknown
+            metadata_revision:
+              type: integer
+              minimum: 1
+          required:
+            - name
+            - host_kind
+            - metadata_revision
+      required:
+        - result
+        - msg
+        - schema_version
+        - metadata
+    AgentDeviceError:
+      allOf:
+        - $ref: "#/components/schemas/JsonResponseBase"
+        - additionalProperties: false
+          required:
+            - result
+            - msg
+            - schema_version
+          properties:
+            result:
+              enum: [error]
+            msg:
+              type: string
+            schema_version:
+              type: integer
+              enum: [1]
+    AgentRunnerCredentialError:
+      allOf:
+        - $ref: "#/components/schemas/JsonResponseBase"
+        - additionalProperties: false
+          required:
+            - result
+            - msg
+            - schema_version
+            - code
+          properties:
+            result:
+              enum: [error]
+            msg:
+              type: string
+            schema_version:
+              type: integer
+              enum: [1]
+            code:
+              type: string
+              enum: [credential_invalid, credential_expired, credential_revoked]
+    AgentRuntimeOutcomeUnknownError:
+      allOf:
+        - $ref: "#/components/schemas/JsonResponseBase"
+        - additionalProperties: false
+          required:
+            - result
+            - msg
+            - schema_version
+            - code
+          properties:
+            result:
+              enum: [error]
+            msg:
+              type: string
+            schema_version:
+              type: integer
+              enum: [1]
+            code:
+              type: string
+              enum: [outcome_unknown]
+    AgentPairingStartRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - device_name
+        - fingerprint
+        - polling_secret
+      properties:
+        schema_version:
+          type: integer
+          enum: [1]
+        device_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        fingerprint:
+          type: string
+          minLength: 1
+          maxLength: 128
+        polling_secret:
+          type: string
+          minLength: 32
+          maxLength: 512
+          writeOnly: true
+        user_code:
+          type: string
+          minLength: 4
+          maxLength: 64
+          writeOnly: true
+          description: |
+            An optional legacy code. Omit this field to receive a new server-generated
+            code in the response.
+    AgentPairingCredentialRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - pairing_id
+        - polling_secret
+      properties:
+        schema_version:
+          type: integer
+          enum: [1]
+        pairing_id:
+          type: string
+          format: uuid
+        polling_secret:
+          type: string
+          minLength: 1
+          writeOnly: true
+    AgentRunnerRefreshRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - refresh_token
+      properties:
+        schema_version:
+          type: integer
+          enum: [1]
+        refresh_token:
+          type: string
+          minLength: 1
+          writeOnly: true
+    AgentPairingStartResponse:
+      allOf:
+        - $ref: "#/components/schemas/JsonSuccessBase"
+        - additionalProperties: false
+          required:
+            - result
+            - msg
+            - schema_version
+            - pairing_id
+            - state
+            - user_code
+            - expires_at
+          properties:
+            result: {}
+            msg: {}
+            ignored_parameters_unsupported: {}
+            schema_version:
+              type: integer
+              enum: [1]
+            pairing_id:
+              type: string
+              format: uuid
+            state:
+              type: string
+              enum: [pending]
+            user_code:
+              type: string
+              description: Display this code to the owner for separate approval.
+            expires_at:
+              type: string
+              format: date-time
+    AgentPairingStatusResponse:
+      allOf:
+        - $ref: "#/components/schemas/JsonSuccessBase"
+        - additionalProperties: false
+          required:
+            - result
+            - msg
+            - schema_version
+            - pairing_id
+            - state
+            - expires_at
+            - runner_id
+            - recovery
+          properties:
+            result: {}
+            msg: {}
+            ignored_parameters_unsupported: {}
+            schema_version:
+              type: integer
+              enum: [1]
+            pairing_id:
+              type: string
+              format: uuid
+            state:
+              type: string
+              enum: [pending, approved, exchanged, expired, rejected]
+            expires_at:
+              type: string
+              format: date-time
+            runner_id:
+              type: string
+              format: uuid
+              nullable: true
+            recovery:
+              type: string
+              enum: [poll, re_pair, re_pair_and_revoke_orphan]
+    AgentRunnerCredentialResponse:
+      allOf:
+        - $ref: "#/components/schemas/JsonSuccessBase"
+        - additionalProperties: false
+          required:
+            - result
+            - msg
+            - schema_version
+            - token
+            - refresh_token
+            - runner_id
+            - expires_at
+            - refresh_expires_at
+          properties:
+            result: {}
+            msg: {}
+            ignored_parameters_unsupported: {}
+            schema_version:
+              type: integer
+              enum: [1]
+            token:
+              type: string
+              readOnly: true
+              description: An access credential returned once in this response. Store it only in private device storage.
+            refresh_token:
+              type: string
+              readOnly: true
+              description: A refresh credential returned once in this response. Store it only in private device storage.
+            runner_id:
+              type: string
+              format: uuid
+            expires_at:
+              type: string
+              format: date-time
+            refresh_expires_at:
+              type: string
+              format: date-time
+    AgentRunnerWorkspaceRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - workspace_alias
+        - allowed_refs
+        - revision
+      properties:
+        schema_version:
+          type: integer
+          enum: [1]
+        workspace_alias:
+          type: string
+          pattern: "^[a-zA-Z0-9_-]{1,80}$"
+        canonical_origin:
+          type: string
+          nullable: true
+          description: |
+            An optional HTTPS or SSH origin. It cannot include credentials, query,
+            fragment, a local path, `file:`, or a home prefix.
+        allowed_refs:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: string
+            minLength: 1
+            maxLength: 4096
+        required_checks:
+          type: array
+          maxItems: 64
+          items:
+            $ref: "#/components/schemas/AgentRunnerRequiredCheck"
+        revision:
+          type: integer
+          minimum: 1
+    AgentRunnerRequiredCheck:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - argv
+      properties:
+        id:
+          type: string
+          pattern: "^[a-zA-Z0-9_-]{1,80}$"
+        argv:
+          type: array
+          minItems: 1
+          maxItems: 64
+          items:
+            type: string
+            minLength: 1
+            maxLength: 4096
+        cwd:
+          type: string
+          maxLength: 512
+          default: "."
+          description: A relative directory inside the registered workspace.
+        timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 1200
+          default: 120
+    AgentRunnerWorkspaceResponse:
+      allOf:
+        - $ref: "#/components/schemas/JsonSuccessBase"
+        - additionalProperties: false
+          required:
+            - result
+            - msg
+            - schema_version
+            - repository
+          properties:
+            result: {}
+            msg: {}
+            ignored_parameters_unsupported: {}
+            schema_version:
+              type: integer
+              enum: [1]
+            repository:
+              type: object
+              additionalProperties: false
+              required:
+                - id
+                - workspace_alias
+                - revision
+                - policy_version
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                workspace_alias:
+                  type: string
+                revision:
+                  type: integer
+                  minimum: 1
+                policy_version:
+                  type: integer
+                  minimum: 1
+    AgentRunnerCatalogRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - catalog
+      properties:
+        schema_version:
+          type: integer
+          enum: [1]
+        catalog:
+          $ref: "#/components/schemas/AgentRunnerCatalog"
+    AgentRunnerCatalog:
+      type: object
+      additionalProperties: false
+      required:
+        - revision
+      properties:
+        revision:
+          type: integer
+          minimum: 1
+        reported_at:
+          type: string
+          format: date-time
+          nullable: true
+        adapters:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - version
+              - auth_state
+              - capabilities
+            properties:
+              id:
+                type: string
+                pattern: "^[a-zA-Z0-9_-]{1,80}$"
+              version:
+                type: string
+                minLength: 1
+                maxLength: 4096
+              auth_state:
+                type: string
+                enum: [unchecked, ready, login_required, expired, error]
+              capabilities:
+                $ref: "#/components/schemas/AgentRunnerCapabilityReport"
+        sandboxes:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/AgentRunnerSandbox"
+    AgentRunnerCapabilityReport:
+      type: object
+      additionalProperties: false
+      properties:
+        chat_ready:
+          type: boolean
+          default: false
+        code_ready:
+          type: boolean
+          default: false
+        tool_calling:
+          type: string
+          enum: [passed, unsupported, unknown]
+          default: unknown
+        team_tools:
+          type: string
+          enum: [passed, unsupported, unknown]
+          default: unknown
+        streaming:
+          type: string
+          enum: [passed, unsupported, unknown]
+          default: unknown
+        usage:
+          type: string
+          enum: [passed, unsupported, unknown]
+          default: unknown
+        native_resume:
+          type: string
+          enum: [passed, unsupported, unknown]
+          default: unknown
+        steering:
+          type: string
+          enum: [passed, unsupported, unknown]
+          default: unknown
+        sandbox:
+          type: string
+          enum: [passed, unsupported, unknown]
+          default: unknown
+        probed_at:
+          type: string
+          format: date-time
+          nullable: true
+        runner_version:
+          type: string
+          default: ""
+        adapter_version:
+          type: string
+          default: ""
+        config_version:
+          type: integer
+          minimum: 1
+          default: 1
+    AgentRunnerSandbox:
+      type: object
+      additionalProperties: false
+      required:
+        - alias
+        - image_digest
+        - toolchain_digest
+        - catalog_revision
+        - cpu_millicores
+        - memory_bytes
+        - pids_limit
+        - temporary_bytes
+      properties:
+        kind:
+          type: string
+          enum: [rootless_container]
+          default: rootless_container
+        alias:
+          type: string
+          pattern: "^[a-zA-Z0-9_-]{1,80}$"
+        image_digest:
+          type: string
+          pattern: "^sha256:[0-9a-f]{64}$"
+        toolchain_digest:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        catalog_revision:
+          type: integer
+          minimum: 1
+        cpu_millicores:
+          type: integer
+          minimum: 100
+          maximum: 64000
+        memory_bytes:
+          type: integer
+          minimum: 67108864
+          maximum: 137438953472
+        pids_limit:
+          type: integer
+          minimum: 16
+          maximum: 4096
+        temporary_bytes:
+          type: integer
+          minimum: 1048576
+          maximum: 10737418240
+        network_mode:
+          type: string
+          enum: [none]
+          default: none
+        read_only_root:
+          type: boolean
+          enum: [true]
+          default: true
+        drop_all_capabilities:
+          type: boolean
+          enum: [true]
+          default: true
+    AgentRunnerCatalogResponse:
+      allOf:
+        - $ref: "#/components/schemas/JsonSuccessBase"
+        - additionalProperties: false
+          required:
+            - result
+            - msg
+            - schema_version
+            - catalog_revision
+          properties:
+            result: {}
+            msg: {}
+            ignored_parameters_unsupported: {}
+            schema_version:
+              type: integer
+              enum: [1]
+            catalog_revision:
+              type: integer
+              minimum: 1

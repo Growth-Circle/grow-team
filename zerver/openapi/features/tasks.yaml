@@ -522,3 +522,208 @@ paths:
                     description: |
                       A typical failed JSON response for when no board exists
                       with the provided ID:
+
+components:
+  schemas:
+    TaskBoard:
+      type: object
+      description: |
+        Object containing the details of a task board.
+      additionalProperties: false
+      properties:
+        id:
+          type: integer
+          description: |
+            The unique ID of the board.
+        name:
+          type: string
+          description: |
+            The name of the board.
+        date_created:
+          type: integer
+          description: |
+            The UNIX timestamp for when the board was created, in UTC seconds.
+    TaskBoardColumn:
+      type: object
+      description: |
+        Object containing the details of one column on a task board.
+      additionalProperties: false
+      properties:
+        id:
+          type: integer
+          description: |
+            The unique ID of the column.
+        board_id:
+          type: integer
+          description: |
+            The ID of the board this column belongs to.
+        name:
+          type: string
+          description: |
+            The name of the column.
+        order:
+          type: integer
+          description: |
+            The position of the column on the board, counting from zero.
+        work_limit:
+          type: integer
+          nullable: true
+          description: |
+            How many cards the column holds before it warns. The limit never
+            blocks a move; it only asks the mover to confirm.
+        done_window_days:
+          type: integer
+          nullable: true
+          description: |
+            How many days a finished card stays visible in this column. Older
+            cards are reported in `folded_task_ids`.
+        is_review:
+          type: boolean
+          description: |
+            Whether cards in this column wait on their reviewer.
+    Task:
+      type: object
+      description: |
+        Object containing the details of one card on a task board.
+      additionalProperties: false
+      properties:
+        id:
+          type: integer
+          description: |
+            The unique ID of the card.
+        display_id:
+          type: string
+          description: |
+            The short human-readable ID of the card, such as `GT-214`.
+        board_id:
+          type: integer
+          description: |
+            The ID of the board the card is on.
+        column_id:
+          type: integer
+          description: |
+            The ID of the column the card is in.
+        title:
+          type: string
+          description: |
+            The title of the card.
+        body:
+          type: string
+          description: |
+            The card description in [Zulip-flavored Markdown](/help/format-your-message-using-markdown) format.
+        position:
+          type: number
+          description: |
+            The sort key of the card inside its column.
+        stream_id:
+          type: integer
+          nullable: true
+          description: |
+            The ID of the channel the card came from, or `null` for a card
+            created directly on the board.
+        topic:
+          type: string
+          description: |
+            The topic the card came from.
+        origin_message_id:
+          type: integer
+          nullable: true
+          description: |
+            The ID of the message the card was created from.
+        creator_id:
+          type: integer
+          description: |
+            The ID of the user who created the card.
+        assignee_id:
+          type: integer
+          nullable: true
+          description: |
+            The ID of the user responsible for the card.
+        reviewer_id:
+          type: integer
+          nullable: true
+          description: |
+            The ID of the user who reviews the card.
+        agent_profile_id:
+          type: string
+          nullable: true
+          description: |
+            The ID of the agent profile that runs this card, if any.
+        agent_job_id:
+          type: string
+          nullable: true
+          description: |
+            The ID of the agent task that this card follows, if any.
+        labels:
+          type: array
+          description: |
+            Short labels shown on the card.
+          items:
+            type: string
+        checklist:
+          type: array
+          description: |
+            Checklist items, each with a `text` string and a `done` boolean.
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              text:
+                type: string
+              done:
+                type: boolean
+        due_at:
+          type: integer
+          nullable: true
+          description: |
+            The UNIX timestamp for the card's deadline, in UTC seconds.
+        blocked:
+          type: boolean
+          description: |
+            Whether the card is blocked.
+        completed_at:
+          type: integer
+          nullable: true
+          description: |
+            The UNIX timestamp for when the card entered a column with a done
+            window, in UTC seconds.
+        date_created:
+          type: integer
+          description: |
+            The UNIX timestamp for when the card was created, in UTC seconds.
+        last_updated:
+          type: integer
+          description: |
+            The UNIX timestamp for the card's last change, in UTC seconds.
+    TaskHistoryEntry:
+      type: object
+      description: |
+        Object containing one recorded change to a card.
+      additionalProperties: false
+      properties:
+        id:
+          type: integer
+          description: |
+            The unique ID of the history entry.
+        task_id:
+          type: integer
+          description: |
+            The ID of the card this entry belongs to.
+        acting_user_id:
+          type: integer
+          nullable: true
+          description: |
+            The ID of the user who made the change.
+        kind:
+          type: string
+          description: |
+            What changed. One of `created`, `moved`, `edited`, or `assigned`.
+        event_time:
+          type: integer
+          description: |
+            The UNIX timestamp for the change, in UTC seconds.
+        extra_data:
+          type: object
+          additionalProperties: true
+          description: |
+            Details of the change, which depend on `kind`.

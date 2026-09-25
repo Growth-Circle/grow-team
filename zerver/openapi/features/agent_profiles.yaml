@@ -3635,3 +3635,2431 @@ paths:
                 contentType: application/json
       x-agent-payload-schema:
         $ref: "#/components/schemas/AgentSettingsSelectionResolveRequest"
+
+components:
+  schemas:
+    AgentHumanTestTaskRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        idempotency_key:
+          format: uuid
+          title: Idempotency Key
+          type: string
+      required:
+        - schema_version
+        - idempotency_key
+      title: TestTask
+      type: object
+    AgentSettingsNetworkPolicy:
+      additionalProperties: false
+      properties:
+        targets:
+          items:
+            $ref: "#/components/schemas/AgentSettingsNetworkTarget"
+          maxItems: 32
+          title: Targets
+          type: array
+        public_https_only:
+          default: true
+          title: Public Https Only
+          type: boolean
+          enum:
+            - true
+        block_metadata:
+          default: true
+          title: Block Metadata
+          type: boolean
+          enum:
+            - true
+        cross_origin_authorization:
+          default: false
+          title: Cross Origin Authorization
+          type: boolean
+          enum:
+            - false
+        project_network:
+          default: false
+          title: Project Network
+          type: boolean
+          enum:
+            - false
+      title: NetworkPolicy
+      type: object
+    AgentSettingsNetworkTarget:
+      additionalProperties: false
+      properties:
+        hostname:
+          maxLength: 253
+          minLength: 1
+          pattern: ^[a-zA-Z0-9.:-]+$
+          title: Hostname
+          type: string
+        port:
+          maximum: 65535
+          minimum: 1
+          title: Port
+          type: integer
+        allow_private:
+          default: false
+          title: Allow Private
+          type: boolean
+        allow_http_loopback:
+          default: false
+          title: Allow Http Loopback
+          type: boolean
+        allow_http_private:
+          default: false
+          title: Allow Http Private
+          type: boolean
+      required:
+        - hostname
+        - port
+      title: NetworkTarget
+      type: object
+    AgentSettingsProviderCreateRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        runner_id:
+          format: uuid
+          title: Runner Id
+          type: string
+        name:
+          maxLength: 200
+          minLength: 1
+          title: Name
+          type: string
+        base_url:
+          maxLength: 2048
+          minLength: 1
+          title: Base Url
+          type: string
+        model_id:
+          maxLength: 200
+          minLength: 1
+          title: Model Id
+          type: string
+        allowed_models:
+          items:
+            maxLength: 4096
+            minLength: 1
+            type: string
+          maxItems: 100
+          minItems: 1
+          title: Allowed Models
+          type: array
+        context_window_tokens:
+          maximum: 2147483647
+          minimum: 1
+          title: Context Window Tokens
+          type: integer
+        max_output_tokens:
+          maximum: 2147483647
+          minimum: 1
+          title: Max Output Tokens
+          type: integer
+        credential:
+          default: null
+          title: Credential
+          maxLength: 4096
+          minLength: 1
+          type: string
+          nullable: true
+        local_credential_ref:
+          default: ""
+          maxLength: 200
+          title: Local Credential Ref
+          type: string
+        api_mode:
+          default: chat_completions
+          enum:
+            - chat_completions
+            - responses
+          title: Api Mode
+          type: string
+        network:
+          $ref: "#/components/schemas/AgentSettingsNetworkPolicy"
+        data_scope:
+          default:
+            - synthetic
+          items:
+            enum:
+              - synthetic
+              - selected_chat
+              - selected_repository
+            type: string
+          title: Data Scope
+          type: array
+      required:
+        - schema_version
+        - runner_id
+        - name
+        - base_url
+        - model_id
+        - allowed_models
+        - context_window_tokens
+        - max_output_tokens
+      title: ProviderCreate
+      type: object
+      oneOf:
+        - required:
+            - credential
+          properties:
+            credential:
+              type: string
+              minLength: 1
+            local_credential_ref:
+              type: string
+              enum:
+                - ""
+        - required:
+            - local_credential_ref
+          properties:
+            credential:
+              type: object
+              nullable: true
+              enum:
+                - null
+            local_credential_ref:
+              type: string
+              minLength: 1
+      description: "Set exactly one credential source: credential or local_credential_ref."
+    AgentSettingsProviderUpdateRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        expected_config_version:
+          minimum: 1
+          title: Expected Config Version
+          type: integer
+        expected_metadata_revision:
+          minimum: 1
+          title: Expected Metadata Revision
+          type: integer
+        name:
+          maxLength: 200
+          minLength: 1
+          title: Name
+          type: string
+        base_url:
+          maxLength: 2048
+          minLength: 1
+          title: Base Url
+          type: string
+        model_id:
+          maxLength: 200
+          minLength: 1
+          title: Model Id
+          type: string
+        allowed_models:
+          items:
+            maxLength: 4096
+            minLength: 1
+            type: string
+          maxItems: 100
+          minItems: 1
+          title: Allowed Models
+          type: array
+        context_window_tokens:
+          maximum: 2147483647
+          minimum: 1
+          title: Context Window Tokens
+          type: integer
+        max_output_tokens:
+          maximum: 2147483647
+          minimum: 1
+          title: Max Output Tokens
+          type: integer
+        credential_replacement:
+          default: null
+          title: Credential Replacement
+          maxLength: 4096
+          minLength: 1
+          type: string
+          nullable: true
+        local_credential_ref:
+          default: null
+          title: Local Credential Ref
+          maxLength: 200
+          type: string
+          nullable: true
+        api_mode:
+          default: chat_completions
+          enum:
+            - chat_completions
+            - responses
+          title: Api Mode
+          type: string
+        network:
+          $ref: "#/components/schemas/AgentSettingsNetworkPolicy"
+        data_scope:
+          default:
+            - synthetic
+          items:
+            enum:
+              - synthetic
+              - selected_chat
+              - selected_repository
+            type: string
+          title: Data Scope
+          type: array
+      required:
+        - schema_version
+        - expected_config_version
+        - expected_metadata_revision
+        - name
+        - base_url
+        - model_id
+        - allowed_models
+        - context_window_tokens
+        - max_output_tokens
+      title: ProviderUpdate
+      type: object
+    AgentSettingsRequiredCheck:
+      additionalProperties: false
+      properties:
+        id:
+          pattern: ^[a-zA-Z0-9_-]{1,80}$
+          title: Id
+          type: string
+        argv:
+          items:
+            maxLength: 4096
+            minLength: 1
+            type: string
+          maxItems: 64
+          minItems: 1
+          title: Argv
+          type: array
+        cwd:
+          default: .
+          maxLength: 512
+          title: Cwd
+          type: string
+        timeout_seconds:
+          default: 120
+          maximum: 1200
+          minimum: 1
+          title: Timeout Seconds
+          type: integer
+      required:
+        - id
+        - argv
+      title: RequiredCheck
+      type: object
+    AgentSettingsRepositoryCreateRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        runner_id:
+          format: uuid
+          title: Runner Id
+          type: string
+        workspace_alias:
+          pattern: ^[a-zA-Z0-9_-]{1,80}$
+          title: Workspace Alias
+          type: string
+        canonical_origin:
+          default: null
+          title: Canonical Origin
+          type: string
+          nullable: true
+        allowed_refs:
+          items:
+            maxLength: 4096
+            minLength: 1
+            type: string
+          maxItems: 100
+          minItems: 1
+          title: Allowed Refs
+          type: array
+        required_checks:
+          items:
+            $ref: "#/components/schemas/AgentSettingsRequiredCheck"
+          maxItems: 64
+          title: Required Checks
+          type: array
+      required:
+        - schema_version
+        - runner_id
+        - workspace_alias
+        - allowed_refs
+      title: RepositoryCreate
+      type: object
+    AgentSettingsBudget:
+      additionalProperties: false
+      properties:
+        active_seconds:
+          default: 3600
+          maximum: 7200
+          minimum: 1
+          title: Active Seconds
+          type: integer
+        tool_rounds:
+          default: 40
+          maximum: 40
+          minimum: 1
+          title: Tool Rounds
+          type: integer
+        shell_timeout_seconds:
+          default: 120
+          maximum: 120
+          minimum: 1
+          title: Shell Timeout Seconds
+          type: integer
+        transport_retries:
+          default: 2
+          maximum: 2
+          minimum: 0
+          title: Transport Retries
+          type: integer
+        context_recoveries:
+          default: 2
+          maximum: 2
+          minimum: 0
+          title: Context Recoveries
+          type: integer
+        input_tokens:
+          minimum: 1
+          title: Input Tokens
+          type: integer
+        output_tokens:
+          minimum: 1
+          title: Output Tokens
+          type: integer
+        tool_output_bytes:
+          default: 51200
+          maximum: 51200
+          minimum: 1
+          title: Tool Output Bytes
+          type: integer
+        artifact_bytes:
+          default: 10485760
+          maximum: 10485760
+          minimum: 1
+          title: Artifact Bytes
+          type: integer
+        job_artifact_bytes:
+          default: 52428800
+          maximum: 52428800
+          minimum: 1
+          title: Job Artifact Bytes
+          type: integer
+        cost_limit_microunits:
+          default: null
+          title: Cost Limit Microunits
+          minimum: 1
+          type: integer
+          nullable: true
+      required:
+        - input_tokens
+        - output_tokens
+      title: Budget
+      type: object
+    AgentSettingsProfileCreateRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        runner_id:
+          format: uuid
+          title: Runner Id
+          type: string
+        name:
+          maxLength: 100
+          minLength: 1
+          title: Name
+          type: string
+          description:
+            The server trims outer whitespace before it checks the 100-character name limit and
+            stores the name.
+        description:
+          default: ""
+          maxLength: 2000
+          title: Description
+          type: string
+        instructions:
+          default: ""
+          maxLength: 8000
+          title: Instructions
+          type: string
+          description: The agent reads this text at the start of each task.
+        adapter_id:
+          maxLength: 80
+          minLength: 1
+          title: Adapter Id
+          type: string
+        adapter_version:
+          maxLength: 100
+          minLength: 1
+          title: Adapter Version
+          type: string
+        mode:
+          default: acp
+          enum:
+            - acp
+            - endpoint
+          title: Mode
+          type: string
+        default_mode:
+          default: answer
+          enum:
+            - answer
+            - code
+            - manage
+          title: Default Mode
+          type: string
+        idempotency_key:
+          format: uuid
+          title: Idempotency Key
+          type: string
+        provider_id:
+          default: null
+          title: Provider Id
+          format: uuid
+          type: string
+          nullable: true
+        provider_network_version:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Copy the selected provider's current approved network policy into this profile. Do not send network with this field.
+        repository_id:
+          default: null
+          title: Repository Id
+          format: uuid
+          type: string
+          nullable: true
+        sandbox_alias:
+          default: default
+          maxLength: 4096
+          minLength: 1
+          title: Sandbox Alias
+          type: string
+        actions:
+          default:
+            - context.read
+          items:
+            enum:
+              - context.read
+              - repository.read
+              - repository.edit
+              - checks.run
+              - shell.run
+              - dependencies.install
+              - git.commit
+              - git.push
+              - git.draft_pr
+            type: string
+          maxItems: 32
+          title: Actions
+          type: array
+        budget:
+          $ref: "#/components/schemas/AgentSettingsBudget"
+        network:
+          $ref: "#/components/schemas/AgentSettingsNetworkPolicy"
+        hard_cost_cap:
+          default: false
+          title: Hard Cost Cap
+          type: boolean
+      required:
+        - schema_version
+        - runner_id
+        - name
+        - adapter_id
+        - adapter_version
+        - idempotency_key
+      title: ProfileCreate
+      type: object
+    AgentSettingsProfileUpdateRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        expected_metadata_revision:
+          minimum: 1
+          title: Expected Metadata Revision
+          type: integer
+        expected_revision:
+          minimum: 1
+          title: Expected Revision
+          type: integer
+        name:
+          maxLength: 100
+          minLength: 1
+          title: Name
+          type: string
+          description:
+            The server trims outer whitespace before it checks the 100-character name limit and
+            stores the name.
+        description:
+          default: ""
+          maxLength: 2000
+          title: Description
+          type: string
+        instructions:
+          default: ""
+          maxLength: 8000
+          title: Instructions
+          type: string
+          description:
+            The agent reads this text at the start of each task. Changing it invalidates the
+            agent's readiness check and, if the agent was on, moves it to draft.
+        adapter_id:
+          maxLength: 80
+          minLength: 1
+          title: Adapter Id
+          type: string
+        adapter_version:
+          maxLength: 100
+          minLength: 1
+          title: Adapter Version
+          type: string
+        mode:
+          default: acp
+          enum:
+            - acp
+            - endpoint
+          title: Mode
+          type: string
+        default_mode:
+          default: answer
+          enum:
+            - answer
+            - code
+            - manage
+          title: Default Mode
+          type: string
+        provider_id:
+          default: null
+          title: Provider Id
+          format: uuid
+          type: string
+          nullable: true
+        provider_network_version:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Copy the selected provider's current approved network policy into this profile. Do not send network or retain_network with this field.
+        repository_id:
+          default: null
+          title: Repository Id
+          format: uuid
+          type: string
+          nullable: true
+        sandbox_alias:
+          default: default
+          maxLength: 4096
+          minLength: 1
+          title: Sandbox Alias
+          type: string
+        actions:
+          default:
+            - context.read
+          items:
+            enum:
+              - context.read
+              - repository.read
+              - repository.edit
+              - checks.run
+              - shell.run
+              - dependencies.install
+              - git.commit
+              - git.push
+              - git.draft_pr
+            type: string
+          maxItems: 32
+          title: Actions
+          type: array
+        budget:
+          $ref: "#/components/schemas/AgentSettingsBudget"
+        network:
+          anyOf:
+            - $ref: "#/components/schemas/AgentSettingsNetworkPolicy"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+          default: null
+        retain_network:
+          default: false
+          title: Retain Network
+          type: boolean
+        hard_cost_cap:
+          default: false
+          title: Hard Cost Cap
+          type: boolean
+      required:
+        - schema_version
+        - expected_metadata_revision
+        - expected_revision
+        - name
+        - adapter_id
+        - adapter_version
+      title: ProfileUpdate
+      type: object
+      description:
+        Use retain_network only with the current provider and without an explicit network. Choose
+        an explicit network or a provider_network_version snapshot when changing a restricted configuration.
+    AgentSettingsArchiveProfileRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        expected_revision:
+          minimum: 1
+          title: Expected Revision
+          type: integer
+      required:
+        - schema_version
+        - expected_revision
+      title: ArchiveProfile
+      type: object
+    AgentSettingsDefaultSelectionUpdateRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        expected_selection_revision:
+          minimum: 1
+          title: Expected Selection Revision
+          type: integer
+        profile_id:
+          default: null
+          title: Profile Id
+          format: uuid
+          type: string
+          nullable: true
+      required:
+        - schema_version
+        - expected_selection_revision
+      title: DefaultSelectionUpdate
+      type: object
+    AgentSettingsTeamInstructionsUpdateRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        expected_revision:
+          minimum: 1
+          title: Expected Revision
+          type: integer
+        text:
+          default: ""
+          maxLength: 8000
+          title: Text
+          type: string
+      required:
+        - schema_version
+        - expected_revision
+      title: TeamInstructionsUpdate
+      type: object
+    AgentSettingsConversationScope:
+      additionalProperties: false
+      properties:
+        kind:
+          enum:
+            - stream
+            - direct
+            - selected
+          title: Kind
+          type: string
+        stream_id:
+          default: null
+          title: Stream Id
+          minimum: 1
+          type: integer
+          nullable: true
+        topic:
+          default: null
+          title: Topic
+          maxLength: 200
+          type: string
+          nullable: true
+        participant_user_ids:
+          items:
+            minimum: 1
+            type: integer
+          maxItems: 100
+          title: Participant User Ids
+          type: array
+        anchor_message_id:
+          default: null
+          title: Anchor Message Id
+          minimum: 1
+          type: integer
+          nullable: true
+      required:
+        - kind
+      title: ConversationScope
+      type: object
+    AgentSettingsSelectionResolveRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        destination:
+          anyOf:
+            - $ref: "#/components/schemas/AgentSettingsConversationScope"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+          default: null
+        source_message_id:
+          default: null
+          title: Source Message Id
+          minimum: 1
+          type: integer
+          nullable: true
+        job_kind:
+          default: null
+          title: Job Kind
+          enum:
+            - answer
+            - code
+            - manage
+          type: string
+          nullable: true
+        repository_id:
+          default: null
+          title: Repository Id
+          format: uuid
+          type: string
+          nullable: true
+        explicit_profile_id:
+          default: null
+          title: Explicit Profile Id
+          format: uuid
+          type: string
+          nullable: true
+        selection_state:
+          default: unset
+          enum:
+            - unset
+            - explicit
+            - cleared
+          title: Selection State
+          type: string
+      required:
+        - schema_version
+      title: SelectionResolve
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/AgentSettingsSelectionContextChoice"
+        - $ref: "#/components/schemas/AgentSettingsSelectionStateChoice"
+      description:
+        "Set exactly one task context: destination or source_message_id. Set explicit_profile_id
+        exactly when selection_state is explicit. A destination cannot be selected or contain an anchor message."
+    AgentSettingsSetupRequestRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        expected_revision:
+          minimum: 1
+          title: Expected Revision
+          type: integer
+        retry_key:
+          format: uuid
+          title: Retry Key
+          type: string
+      required:
+        - schema_version
+        - expected_revision
+        - retry_key
+      title: SetupRequest
+      type: object
+    AgentSettingsChannelRequestRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        expected_revision:
+          minimum: 1
+          title: Expected Revision
+          type: integer
+        stream_id:
+          minimum: 1
+          title: Stream Id
+          type: integer
+      required:
+        - schema_version
+        - expected_revision
+        - stream_id
+      title: ChannelRequest
+      type: object
+    AgentSettingsProfileShareRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        principal_user_id:
+          default: null
+          title: Principal User Id
+          minimum: 1
+          type: integer
+          nullable: true
+        principal_group_id:
+          default: null
+          title: Principal Group Id
+          minimum: 1
+          type: integer
+          nullable: true
+        allow_job_control:
+          default: false
+          title: Allow Job Control
+          type: boolean
+        allow_job_review:
+          default: false
+          title: Allow Job Review
+          type: boolean
+      required:
+        - schema_version
+      title: ProfileShare
+      type: object
+      description:
+        "Set exactly one principal: principal_user_id or principal_group_id."
+    AgentSettingsProfileUnshareRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        principal_user_id:
+          default: null
+          title: Principal User Id
+          minimum: 1
+          type: integer
+          nullable: true
+        principal_group_id:
+          default: null
+          title: Principal Group Id
+          minimum: 1
+          type: integer
+          nullable: true
+      required:
+        - schema_version
+      title: ProfileUnshare
+      type: object
+      description:
+        "Set exactly one principal: principal_user_id or principal_group_id."
+    AgentSettingsGrantCreateRequest:
+      additionalProperties: false
+      properties:
+        schema_version:
+          title: Schema Version
+          type: integer
+          enum:
+            - 1
+        target_kind:
+          enum:
+            - runner
+            - provider
+            - repository
+            - profile
+          title: Target Kind
+          type: string
+        target_id:
+          format: uuid
+          title: Target Id
+          type: string
+        expected_revision:
+          minimum: 1
+          title: Expected Revision
+          type: integer
+        actions:
+          items:
+            enum:
+              - context.read
+              - repository.read
+              - repository.edit
+              - checks.run
+              - shell.run
+              - dependencies.install
+              - git.commit
+              - git.push
+              - git.draft_pr
+              - job.control
+              - job.review
+              - profile.use
+              - provider.use
+              - runner.use
+              - profile.manage
+            type: string
+          maxItems: 32
+          minItems: 1
+          title: Actions
+          type: array
+        principal_user_id:
+          default: null
+          title: Principal User Id
+          minimum: 1
+          type: integer
+          nullable: true
+        principal_group_id:
+          default: null
+          title: Principal Group Id
+          minimum: 1
+          type: integer
+          nullable: true
+        scope:
+          anyOf:
+            - $ref: "#/components/schemas/AgentSettingsConversationScope"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+          default: null
+        repository_id:
+          default: null
+          title: Repository Id
+          format: uuid
+          type: string
+          nullable: true
+        expires_at:
+          default: null
+          title: Expires At
+          format: date-time
+          type: string
+          nullable: true
+      required:
+        - schema_version
+        - target_kind
+        - target_id
+        - expected_revision
+        - actions
+      title: GrantCreate
+      type: object
+      description:
+        "Set exactly one principal: principal_user_id or principal_group_id. The target and optional
+        repository must pass current realm and grant checks."
+    AgentSettingsSelectionContextChoice:
+      oneOf:
+        - required:
+            - destination
+          properties:
+            destination:
+              allOf:
+                - $ref: "#/components/schemas/AgentSettingsConversationScope"
+                - properties:
+                    kind:
+                      type: string
+                      enum:
+                        - stream
+                        - direct
+                    anchor_message_id:
+                      type: object
+                      nullable: true
+                      enum:
+                        - null
+            source_message_id:
+              type: object
+              nullable: true
+              enum:
+                - null
+        - required:
+            - source_message_id
+          properties:
+            destination:
+              type: object
+              nullable: true
+              enum:
+                - null
+            source_message_id:
+              type: integer
+              minimum: 1
+    AgentSettingsSelectionStateChoice:
+      oneOf:
+        - required:
+            - selection_state
+            - explicit_profile_id
+          properties:
+            selection_state:
+              type: string
+              enum:
+                - explicit
+            explicit_profile_id:
+              type: string
+              format: uuid
+        - properties:
+            selection_state:
+              type: string
+              enum:
+                - unset
+                - cleared
+            explicit_profile_id:
+              type: object
+              nullable: true
+              enum:
+                - null
+    AgentSettingsProvider:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        owner_id:
+          type: integer
+          minimum: 1
+        runner_id:
+          type: string
+          format: uuid
+        model_id:
+          type: string
+        allowed_models:
+          type: array
+          items:
+            type: string
+        api_mode:
+          type: string
+          enum:
+            - chat_completions
+            - responses
+        context_window_tokens:
+          type: integer
+          minimum: 1
+        max_output_tokens:
+          type: integer
+          minimum: 1
+        data_scope:
+          type: array
+          items:
+            type: string
+        capabilities:
+          type: object
+          additionalProperties: true
+        model_location:
+          type: string
+          enum:
+            - runner_local
+            - private_network
+            - external
+          description:
+            Where the model connection's traffic goes, never the raw address. runner_local and
+            private_network never leave the runner's own network.
+        disabled_at:
+          type: string
+          format: date-time
+          nullable: true
+        allowed_actions:
+          type: array
+          items:
+            type: string
+            enum:
+              - edit
+              - probe
+        config_version:
+          type: integer
+          minimum: 1
+          description: Safe provider configuration version visible to authorized users.
+        metadata_revision:
+          type: integer
+          minimum: 1
+        base_url:
+          type: string
+        network:
+          $ref: "#/components/schemas/AgentRuntimeNetworkPolicy"
+        credential:
+          type: object
+          additionalProperties: false
+          properties:
+            retained:
+              type: boolean
+            kind:
+              type: string
+              nullable: true
+              enum:
+                - server
+                - local
+                - null
+          required:
+            - retained
+            - kind
+      required:
+        - id
+        - name
+        - owner_id
+        - runner_id
+        - model_id
+        - allowed_models
+        - api_mode
+        - context_window_tokens
+        - max_output_tokens
+        - data_scope
+        - capabilities
+        - model_location
+        - disabled_at
+        - allowed_actions
+        - config_version
+    AgentSettingsRepository:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspace_alias:
+          type: string
+        owner_id:
+          type: integer
+          minimum: 1
+        runner_id:
+          type: string
+          format: uuid
+        disabled_at:
+          type: string
+          format: date-time
+          nullable: true
+        allowed_actions:
+          type: array
+          items:
+            type: string
+            enum:
+              - manage
+        policy_version:
+          type: integer
+          minimum: 1
+        canonical_origin:
+          type: string
+          nullable: true
+        allowed_refs:
+          type: array
+          items:
+            type: string
+        required_checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentRuntimeRequiredCheck"
+      required:
+        - id
+        - workspace_alias
+        - owner_id
+        - runner_id
+        - disabled_at
+        - allowed_actions
+    AgentSettingsConfiguration:
+      type: object
+      additionalProperties: false
+      properties:
+        policy:
+          type: object
+          additionalProperties: false
+          properties:
+            scope:
+              anyOf:
+                - $ref: "#/components/schemas/AgentRuntimeConversationScope"
+                - type: object
+                  nullable: true
+                  additionalProperties: false
+                  enum:
+                    - null
+            actions:
+              type: array
+              items:
+                type: string
+            sandbox_alias:
+              type: string
+            network:
+              anyOf:
+                - $ref: "#/components/schemas/AgentRuntimeNetworkPolicy"
+                - type: object
+                  nullable: true
+                  additionalProperties: false
+                  enum:
+                    - null
+            hard_cost_cap:
+              type: boolean
+          required:
+            - scope
+            - actions
+            - sandbox_alias
+            - network
+            - hard_cost_cap
+        budget:
+          $ref: "#/components/schemas/AgentRuntimeBudget"
+        instructions:
+          type: string
+          description: The agent instructions text, visible to an editor only.
+        scope_restricted:
+          type: boolean
+        network_retained:
+          type: boolean
+      required:
+        - policy
+        - budget
+        - instructions
+        - scope_restricted
+        - network_retained
+    AgentSettingsProfile:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        has_instructions:
+          type: boolean
+        runner_id:
+          type: string
+          format: uuid
+          nullable: true
+        provider_id:
+          type: string
+          format: uuid
+          nullable: true
+        repository_id:
+          type: string
+          format: uuid
+          nullable: true
+        state:
+          type: string
+          enum:
+            - draft
+            - enabled
+            - paused
+            - archived
+        desired_state:
+          type: string
+          enum:
+            - draft
+            - enabled
+            - paused
+            - archived
+        readiness_state:
+          type: string
+          enum:
+            - unchecked
+            - checking
+            - ready
+            - needs_action
+            - error
+        revision:
+          type: integer
+          minimum: 1
+        metadata_revision:
+          type: integer
+          minimum: 1
+        bot_user_id:
+          type: integer
+          minimum: 1
+        default_mode:
+          type: string
+          enum:
+            - answer
+            - code
+            - manage
+        command_allowed:
+          type: boolean
+        capabilities:
+          type: object
+          additionalProperties: true
+        owner_id:
+          type: integer
+          minimum: 1
+        mode:
+          type: string
+          enum:
+            - acp
+            - endpoint
+        adapter_id:
+          type: string
+        adapter_version:
+          type: string
+        enabled_revision:
+          type: integer
+          minimum: 1
+          nullable: true
+        readiness_revision:
+          type: integer
+          minimum: 1
+          nullable: true
+        allowed_actions:
+          type: array
+          items:
+            type: string
+            enum:
+              - edit
+              - pause
+              - probe
+              - enable
+              - archive
+              - test_task
+        owner:
+          type: object
+          additionalProperties: false
+          properties:
+            id:
+              type: integer
+              minimum: 1
+            name:
+              type: string
+          required:
+            - id
+            - name
+        runner:
+          anyOf:
+            - $ref: "#/components/schemas/AgentSettingsRunner"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+        provider:
+          anyOf:
+            - $ref: "#/components/schemas/AgentSettingsProvider"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+        repository:
+          anyOf:
+            - $ref: "#/components/schemas/AgentSettingsRepository"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+        access:
+          type: object
+          additionalProperties: false
+          properties:
+            complete:
+              type: boolean
+            runner:
+              type: boolean
+            provider:
+              type: boolean
+            repository:
+              type: boolean
+          required:
+            - complete
+            - runner
+            - provider
+            - repository
+        configuration:
+          anyOf:
+            - $ref: "#/components/schemas/AgentSettingsConfiguration"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+        shared_with:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              principal_kind:
+                type: string
+                enum:
+                  - user
+                  - group
+              principal_id:
+                type: integer
+                minimum: 1
+              complete:
+                type: boolean
+            required:
+              - principal_kind
+              - principal_id
+              - complete
+      required:
+        - id
+        - name
+        - description
+        - has_instructions
+        - runner_id
+        - provider_id
+        - repository_id
+        - state
+        - desired_state
+        - readiness_state
+        - revision
+        - metadata_revision
+        - bot_user_id
+        - default_mode
+        - command_allowed
+        - capabilities
+        - owner_id
+        - mode
+        - adapter_id
+        - adapter_version
+        - enabled_revision
+        - readiness_revision
+        - allowed_actions
+        - owner
+        - runner
+        - provider
+        - repository
+        - access
+        - configuration
+        - shared_with
+    AgentSettingsSetup:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        phase:
+          type: string
+          enum:
+            - pending
+            - claimed
+            - probing
+            - ready
+            - needs_action
+            - failed
+            - stale
+            - cancelled
+        requirements:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentRuntimeRequirement"
+        profile_revision:
+          type: integer
+          minimum: 1
+          nullable: true
+        provider_config_version:
+          type: integer
+          minimum: 1
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - phase
+        - requirements
+        - profile_revision
+        - provider_config_version
+        - created_at
+        - finished_at
+    AgentSettingsGrant:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        target_kind:
+          type: string
+          enum:
+            - profile
+            - runner
+            - provider
+            - repository
+        target_id:
+          type: string
+          format: uuid
+        principal:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              properties:
+                kind:
+                  type: string
+                  enum:
+                    - user
+                user_id:
+                  type: integer
+                  minimum: 1
+              required:
+                - kind
+                - user_id
+            - type: object
+              additionalProperties: false
+              properties:
+                kind:
+                  type: string
+                  enum:
+                    - group
+                group_id:
+                  type: integer
+                  minimum: 1
+              required:
+                - kind
+                - group_id
+            - type: object
+              additionalProperties: false
+              properties:
+                kind:
+                  type: string
+                  enum:
+                    - current_user
+              required:
+                - kind
+        actions:
+          type: array
+          items:
+            type: string
+        scope:
+          type: object
+          additionalProperties: true
+          nullable: true
+        scope_restricted:
+          type: boolean
+        repository_id:
+          type: string
+          format: uuid
+          nullable: true
+        repository_restricted:
+          type: boolean
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        revision:
+          type: integer
+          minimum: 1
+        revoked_at:
+          type: string
+          format: date-time
+          nullable: true
+        revoked:
+          type: boolean
+        allowed_actions:
+          type: array
+          items:
+            type: string
+            enum:
+              - revoke
+      required:
+        - id
+        - target_kind
+        - target_id
+        - principal
+        - actions
+        - scope
+        - scope_restricted
+        - repository_id
+        - repository_restricted
+        - expires_at
+        - revision
+        - revoked_at
+        - revoked
+        - allowed_actions
+    AgentSettingsDefault:
+      type: object
+      additionalProperties: false
+      properties:
+        has_default:
+          type: boolean
+        selection_revision:
+          type: integer
+          minimum: 1
+        allowed_actions:
+          type: array
+          items:
+            type: string
+            enum:
+              - clear
+        profile:
+          $ref: "#/components/schemas/AgentSettingsProfile"
+      required:
+        - has_default
+    AgentSettingsSelection:
+      type: object
+      additionalProperties: false
+      properties:
+        selection_source:
+          type: string
+          enum:
+            - none
+            - cleared
+            - explicit
+            - team_default
+        profile_id:
+          type: string
+          format: uuid
+          nullable: true
+        profile_revision:
+          type: integer
+          minimum: 1
+          nullable: true
+        selection_revision:
+          type: integer
+          minimum: 1
+          nullable: true
+        selection_state:
+          type: string
+        job_kind:
+          type: string
+          nullable: true
+        repository_id:
+          type: string
+          format: uuid
+          nullable: true
+        repository:
+          type: object
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+              format: uuid
+            alias:
+              type: string
+            base_ref:
+              type: string
+          required:
+            - id
+            - alias
+            - base_ref
+          nullable: true
+          description:
+            The profile's own default repository and its first allowed ref, for
+            anyone who may use the profile, regardless of the resolved job kind.
+        runner:
+          type: object
+          additionalProperties: false
+          properties:
+            name:
+              type: string
+            host_kind:
+              type: string
+            status:
+              type: string
+          required:
+            - name
+            - host_kind
+            - status
+          nullable: true
+        eligible:
+          type: boolean
+        queue_permitted:
+          type: boolean
+        reason:
+          type: string
+      required:
+        - selection_source
+        - profile_id
+        - profile_revision
+        - selection_revision
+        - selection_state
+        - job_kind
+        - repository_id
+        - repository
+        - runner
+        - eligible
+        - queue_permitted
+        - reason
+    AgentSettingsProfilesResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        count:
+          type: integer
+          minimum: 0
+        profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentSettingsProfile"
+      required:
+        - result
+        - msg
+        - schema_version
+        - count
+        - profiles
+    AgentSettingsProfileResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        profile:
+          $ref: "#/components/schemas/AgentSettingsProfile"
+      required:
+        - result
+        - msg
+        - schema_version
+        - profile
+    AgentSettingsProfileDetailResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        profile:
+          $ref: "#/components/schemas/AgentSettingsProfile"
+        setup:
+          anyOf:
+            - $ref: "#/components/schemas/AgentSettingsSetup"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+        attachments:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              stream_id:
+                type: integer
+                minimum: 1
+              name:
+                type: string
+              bot_member:
+                type: boolean
+            required:
+              - stream_id
+              - name
+              - bot_member
+      required:
+        - result
+        - msg
+        - schema_version
+        - profile
+        - setup
+        - attachments
+    AgentSettingsProfileRecoveryResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        profile:
+          $ref: "#/components/schemas/AgentSettingsProfile"
+        setup:
+          $ref: "#/components/schemas/AgentSettingsSetup"
+      required:
+        - result
+        - msg
+        - schema_version
+        - profile
+        - setup
+    AgentSettingsProfileCreateResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        profile:
+          $ref: "#/components/schemas/AgentSettingsProfile"
+        setup_id:
+          type: string
+          format: uuid
+      required:
+        - result
+        - msg
+        - schema_version
+        - profile
+        - setup_id
+    AgentSettingsProvidersResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        count:
+          type: integer
+          minimum: 0
+        providers:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentSettingsProvider"
+      required:
+        - result
+        - msg
+        - schema_version
+        - count
+        - providers
+    AgentSettingsProviderResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        provider:
+          $ref: "#/components/schemas/AgentSettingsProvider"
+      required:
+        - result
+        - msg
+        - schema_version
+        - provider
+    AgentSettingsProviderCreateResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        provider:
+          type: object
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            model_id:
+              type: string
+            revision:
+              type: integer
+              minimum: 1
+          required:
+            - id
+            - name
+            - model_id
+            - revision
+      required:
+        - result
+        - msg
+        - schema_version
+        - provider
+    AgentSettingsRepositoriesResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        count:
+          type: integer
+          minimum: 0
+        repositories:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentSettingsRepository"
+      required:
+        - result
+        - msg
+        - schema_version
+        - count
+        - repositories
+    AgentSettingsRepositoryResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        repository:
+          $ref: "#/components/schemas/AgentSettingsRepository"
+      required:
+        - result
+        - msg
+        - schema_version
+        - repository
+    AgentSettingsRepositoryCreateResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        repository:
+          type: object
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+              format: uuid
+            workspace_alias:
+              type: string
+            revision:
+              type: integer
+              minimum: 1
+          required:
+            - id
+            - workspace_alias
+            - revision
+      required:
+        - result
+        - msg
+        - schema_version
+        - repository
+    AgentSettingsSetupIdResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        setup_id:
+          type: string
+          format: uuid
+        phase:
+          type: string
+      required:
+        - result
+        - msg
+        - schema_version
+        - setup_id
+        - phase
+    AgentSettingsSetupResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        setup:
+          $ref: "#/components/schemas/AgentSettingsSetup"
+      required:
+        - result
+        - msg
+        - schema_version
+        - setup
+    AgentSettingsGrantsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        count:
+          type: integer
+          minimum: 0
+        grants:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentSettingsGrant"
+      required:
+        - result
+        - msg
+        - schema_version
+        - count
+        - grants
+    AgentSettingsProfileShareResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        grants:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              id:
+                type: string
+                format: uuid
+              target_kind:
+                type: string
+              revision:
+                type: integer
+                minimum: 1
+            required:
+              - id
+              - target_kind
+              - revision
+        skipped:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              target_kind:
+                type: string
+              reason:
+                type: string
+            required:
+              - target_kind
+              - reason
+      required:
+        - result
+        - msg
+        - schema_version
+        - grants
+        - skipped
+    AgentSettingsGrantCreateResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        grant:
+          type: object
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+              format: uuid
+            target_kind:
+              type: string
+            revision:
+              type: integer
+              minimum: 1
+          required:
+            - id
+            - target_kind
+            - revision
+      required:
+        - result
+        - msg
+        - schema_version
+        - grant
+    AgentSettingsAttachmentsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        attachments:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              profile:
+                $ref: "#/components/schemas/AgentSettingsProfile"
+              stream_id:
+                type: integer
+                minimum: 1
+              bot_member:
+                type: boolean
+            required:
+              - profile
+              - stream_id
+              - bot_member
+      required:
+        - result
+        - msg
+        - schema_version
+        - attachments
+    AgentSettingsDefaultResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        default:
+          $ref: "#/components/schemas/AgentSettingsDefault"
+      required:
+        - result
+        - msg
+        - schema_version
+        - default
+    AgentSettingsDefaultUpdateResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        default:
+          $ref: "#/components/schemas/AgentSettingsDefault"
+        revision:
+          type: integer
+          minimum: 1
+      required:
+        - result
+        - msg
+        - schema_version
+        - default
+        - revision
+    AgentSettingsTeamInstructionsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        team_instructions:
+          type: object
+          additionalProperties: false
+          properties:
+            text:
+              type: string
+            revision:
+              type: integer
+              minimum: 1
+            allowed_actions:
+              type: array
+              items:
+                type: string
+                enum:
+                  - edit
+          required:
+            - text
+            - revision
+            - allowed_actions
+      required:
+        - result
+        - msg
+        - schema_version
+        - team_instructions
+    AgentSettingsSelectionResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        selection:
+          $ref: "#/components/schemas/AgentSettingsSelection"
+      required:
+        - result
+        - msg
+        - schema_version
+        - selection
