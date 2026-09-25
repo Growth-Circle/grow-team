@@ -311,6 +311,26 @@ class AgentEventsTests(ZulipTestCase):
         self.assertEqual(event["state"], "denied")
         self.assertEqual(list(events[0]["users"]), [self.owner.id])
 
+    def test_exchange_pairing_expires_and_notifies_the_owner_once_the_ttl_lapses(self) -> None:
+        pairing = start_pairing("Laptop", "f" * 64, "ABCD1234", "s" * 40)
+        approve_pairing(self.owner, pairing, "ABCD1234")
+        pairing.refresh_from_db()
+        pairing.expires_at = now() - timedelta(seconds=1)
+        pairing.save(update_fields=["expires_at"])
+
+        with (
+            self.capture_send_event_calls(expected_num_events=1) as events,
+            self.assertRaises(ValueError),
+        ):
+            exchange_pairing(pairing, "s" * 40)
+        event = self._stamped(events[0]["event"])
+        check_agent_runner_pairing("events[0]", event)
+        self.assertEqual(event["state"], "expired")
+        self.assertEqual(list(events[0]["users"]), [self.owner.id])
+
+        pairing.refresh_from_db()
+        self.assertEqual(pairing.state, "expired")
+
     def test_send_room_meta_event_reaches_stream_metadata_viewers(self) -> None:
         stream = self.make_stream("announce-events")
         room_meta = SimpleNamespace(

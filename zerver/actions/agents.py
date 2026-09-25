@@ -166,6 +166,13 @@ def exchange_pairing(pairing: agents.AgentPairing, polling_secret: str) -> tuple
     unavailable = False
     with transaction.atomic():
         pairing = agents.AgentPairing.objects.select_for_update().get(id=pairing.id)
+        if pairing.state == "approved" and pairing.expires_at <= now():
+            # The only expiry an owner can see: a pending pairing has no
+            # owner yet to notify (_pairing_audience returns nothing for
+            # it), so this is where a lapsed pairing needs its own event.
+            pairing.state = "expired"
+            pairing.save(update_fields=["state", "updated_at"])
+            send_pairing_event(pairing, "expired", _pairing_audience(pairing))
         if pairing.state != "approved" or pairing.owner is None or pairing.expires_at <= now():
             unavailable = True
         elif not credential_matches(polling_secret, pairing.polling_secret_hash):
