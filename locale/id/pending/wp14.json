@@ -9,6 +9,7 @@
     "* #**{stream_name}**: no activity for 30+ days. Consider archiving it.": "* #**{stream_name}**: tidak ada aktivitas lebih dari 30 hari. Pertimbangkan untuk mengarsipkannya.",
     "These channels may be ready to archive:": "Ruang ini mungkin siap diarsipkan:",
     "Enter the date as YYYY-MM-DD.": "Isi tanggal dengan format YYYY-MM-DD.",
-    "You do not have permission to change this channel.": "Kamu tidak berhak mengubah ruang ini."
+    "You do not have permission to change this channel.": "Kamu tidak berhak mengubah ruang ini.",
+    "You do not have permission to archive this channel.": "Kamu tidak berhak mengarsipkan ruang ini."
   }
 }

@@ -265,6 +265,61 @@ paths:
                 quiet_channels:
                   - stream_id: 7
                     last_message_at: 1727150000
+
+  /channels/archive:
+    post:
+      operationId: archive-channels
+      tags: ["channels"]
+      summary: Archive several channels
+      description: |
+        Archive every channel in `stream_ids` in one request. Each channel
+        requires the requesting user to be a channel administrator or hold
+        the `room_archive` permission for it.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-98ffbd).
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                stream_ids:
+                  description: The IDs of the channels to archive, at most 100.
+                  type: array
+                  maxItems: 100
+                  items:
+                    type: integer
+                  example: [7, 8]
+              required:
+                - stream_ids
+            encoding:
+              stream_ids:
+                contentType: application/json
+      responses:
+        "200":
+          $ref: "#/components/responses/SimpleSuccess"
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/InvalidChannelError"
+                  - $ref: "#/components/schemas/CodedError"
+              examples:
+                invalid_channel:
+                  summary: A channel ID is not valid.
+                  value:
+                    result: error
+                    msg: Invalid channel ID
+                    code: BAD_REQUEST
+                no_permission:
+                  summary: The requesting user cannot archive one of the channels.
+                  value:
+                    result: error
+                    msg: You do not have permission to archive this channel.
+                    code: BAD_REQUEST
 components:
   schemas:
     RoomMetaResponse:

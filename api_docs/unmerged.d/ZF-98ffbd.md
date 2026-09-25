@@ -10,3 +10,5 @@
   count.
 * [`GET /channels/quiet`](/api/get-quiet-channels): New endpoint lists
   channels with no message in the last 30 days.
+* [`POST /channels/archive`](/api/archive-channels): New endpoint
+  archives several channels in one request.

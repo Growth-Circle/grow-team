@@ -1,9 +1,10 @@
-"""Views for room meta, quiet channels, and room topics (spec 01, 04;
-PLAN.md WP14)."""
+"""Views for room meta, quiet channels, room topics, and bulk archive
+(spec 01, 04; PLAN.md WP14)."""
 
 from datetime import date
-from typing import Any
+from typing import Annotated, Any
 
+from annotated_types import Len
 from django.db.models import Count, Q
 from django.http import HttpRequest, HttpResponse
 from django.utils.translation import gettext as _
@@ -12,7 +13,8 @@ from pydantic_partials.sentinels import Missing, MissingType
 
 from zerver.actions.room_meta import (
     DUE_DATE_UNSET, DueDateUnset, can_edit_room_meta, can_toggle_room_summary,
-    do_update_room_meta, get_room_meta_or_unsaved, get_room_owner,
+    check_can_archive_room, do_bulk_archive_rooms, do_update_room_meta,
+    get_room_meta_or_unsaved, get_room_owner,
 )
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.quiet_rooms import get_quiet_channels
@@ -110,3 +112,20 @@ def get_room_topics_view(
 @typed_endpoint_without_parameters
 def get_quiet_channels_view(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
     return json_success(request, data=get_quiet_channels(user_profile))
+
+
+@typed_endpoint
+def archive_channels(
+    request: HttpRequest, user_profile: UserProfile, *,
+    stream_ids: Json[Annotated[list[int], Len(max_length=100)]],
+) -> HttpResponse:
+    streams = []
+    # dict.fromkeys drops a repeated ID instead of archiving it twice
+    # (WP14 review defect 10).
+    for stream_id in dict.fromkeys(stream_ids):
+        (stream, _sub) = access_stream_by_id(user_profile, stream_id, require_content_access=False)
+        if not check_can_archive_room(user_profile, stream):
+            raise JsonableError(_("You do not have permission to archive this channel."))
+        streams.append(stream)
+    do_bulk_archive_rooms(streams, acting_user=user_profile)
+    return json_success(request)

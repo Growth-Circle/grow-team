@@ -1,7 +1,8 @@
-"""Room metadata actions: effective owner, edit permissions, the meta
-mutation, and the quiet-room nudge DM (spec 01, 04; PLAN.md WP14)."""
+"""Room metadata actions: effective owner, edit permissions, the meta and
+archive mutations, and the quiet-room nudge DM (spec 01, 04; PLAN.md WP14)."""
 
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import date
 
 from django.db import transaction
@@ -10,12 +11,14 @@ from django.utils.translation import gettext as _
 from django.utils.translation import override as override_language
 
 from zerver.actions.message_send import internal_send_private_message, internal_send_stream_message
-from zerver.actions.streams import bulk_add_subscriptions
+from zerver.actions.streams import bulk_add_subscriptions, do_deactivate_stream
 from zerver.lib.agent_events import send_room_meta_event
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.quiet_rooms import QuietRoomNotice, rooms_needing_notice
 from zerver.lib.role_permissions import has_role_permission
-from zerver.lib.streams import access_stream_for_send_message, channel_events_topic_name
+from zerver.lib.streams import (
+    access_stream_for_send_message, can_administer_accessible_channel, channel_events_topic_name,
+)
 from zerver.models import AgentProfile, Realm, RealmAuditLog, RoomMeta, Stream, UserProfile
 from zerver.models.realm_audit_logs import AuditLogEventType
 
@@ -247,3 +250,24 @@ def send_quiet_room_notices(realm: Realm) -> int:
                 notice.room_meta.quiet_notified_at = notified_at
                 notice.room_meta.save(update_fields=["quiet_notified_at"])
     return notified_owners
+
+
+def check_can_archive_room(user_profile: UserProfile, stream: Stream) -> bool:
+    """Caller must already have verified access to `stream`."""
+    if can_administer_accessible_channel(stream, user_profile):
+        return True
+    return has_role_permission(user_profile, "room_archive")
+
+
+@transaction.atomic(savepoint=False)
+def do_bulk_archive_rooms(streams: Iterable[Stream], *, acting_user: UserProfile) -> None:
+    event_time = timezone_now()
+    for stream in streams:
+        do_deactivate_stream(stream, acting_user=acting_user)
+        RealmAuditLog.objects.create(
+            realm=stream.realm,
+            acting_user=acting_user,
+            modified_stream=stream,
+            event_type=AuditLogEventType.ROOM_ARCHIVED_BULK,
+            event_time=event_time,
+        )

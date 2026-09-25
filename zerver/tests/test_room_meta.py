@@ -2,9 +2,11 @@ from datetime import date
 
 import orjson
 
-from zerver.actions.room_meta import format_due_date, get_room_owner
+from zerver.actions.room_meta import do_bulk_archive_rooms, format_due_date, get_room_owner
+from zerver.actions.streams import do_change_stream_group_based_setting
 from zerver.actions.users import do_deactivate_user
 from zerver.lib.test_classes import ZulipTestCase
+from zerver.lib.types import UserGroupMembersData
 from zerver.models import AgentProfile, AgentRunner, Message, RealmAuditLog, UserProfile
 from zerver.models.realm_audit_logs import AuditLogEventType
 
@@ -322,3 +324,121 @@ class RoomMetaTest(ZulipTestCase):
         self.assert_json_success(result)
         message = self.get_last_message()
         self.assertIn(f"#**{stream.name}**", message.content)
+
+
+class RoomArchiveTest(ZulipTestCase):
+    def test_bulk_archive_requires_permission_per_stream(self) -> None:
+        member = self.example_user("cordelia")
+        admin = self.example_user("iago")
+        stream_a = self.make_stream("wp14-archive-a")
+        stream_b = self.make_stream("wp14-archive-b")
+        self.subscribe(member, "wp14-archive-a")
+        self.subscribe(member, "wp14-archive-b")
+
+        self.login_user(member)
+        result = self.client_post(
+            "/json/channels/archive",
+            {"stream_ids": orjson.dumps([stream_a.id, stream_b.id]).decode()},
+        )
+        self.assert_json_error(result, "You do not have permission to archive this channel.")
+        stream_a.refresh_from_db()
+        self.assertFalse(stream_a.deactivated)
+
+        self.login_user(admin)
+        result = self.client_post(
+            "/json/channels/archive",
+            {"stream_ids": orjson.dumps([stream_a.id, stream_b.id]).decode()},
+        )
+        self.assert_json_success(result)
+        stream_a.refresh_from_db()
+        stream_b.refresh_from_db()
+        self.assertTrue(stream_a.deactivated)
+        self.assertTrue(stream_b.deactivated)
+
+        self.assertEqual(
+            RealmAuditLog.objects.filter(
+                realm=admin.realm,
+                event_type=AuditLogEventType.ROOM_ARCHIVED_BULK,
+                modified_stream_id__in=[stream_a.id, stream_b.id],
+            ).count(),
+            2,
+        )
+
+    def test_moderator_can_archive_via_room_archive_permission(self) -> None:
+        # A Moderator gets the room_archive permission by default, with
+        # no channel-administrator group membership needed (WP14 review
+        # defect 14).
+        moderator = self.example_user("shiva")
+        self.set_user_role(moderator, UserProfile.ROLE_MODERATOR)
+        stream = self.make_stream("wp14-archive-moderator")
+
+        self.login_user(moderator)
+        result = self.client_post(
+            "/json/channels/archive", {"stream_ids": orjson.dumps([stream.id]).decode()}
+        )
+        self.assert_json_success(result)
+        stream.refresh_from_db()
+        self.assertTrue(stream.deactivated)
+
+    def test_member_can_archive_as_a_channel_administrator(self) -> None:
+        # A plain Member with no room_archive permission can still
+        # archive a channel it was made an administrator of (WP14
+        # review defect 14).
+        member = self.example_user("cordelia")
+        stream = self.subscribe(member, "wp14-archive-channel-admin")
+        do_change_stream_group_based_setting(
+            stream,
+            "can_administer_channel_group",
+            UserGroupMembersData(direct_members=[member.id], direct_subgroups=[]),
+            acting_user=self.example_user("iago"),
+        )
+
+        self.login_user(member)
+        result = self.client_post(
+            "/json/channels/archive", {"stream_ids": orjson.dumps([stream.id]).decode()}
+        )
+        self.assert_json_success(result)
+        stream.refresh_from_db()
+        self.assertTrue(stream.deactivated)
+
+    def test_guest_cannot_archive(self) -> None:
+        guest = self.example_user("polonius")
+        stream = self.subscribe(guest, "wp14-archive-guest")
+
+        self.login_user(guest)
+        result = self.client_post(
+            "/json/channels/archive", {"stream_ids": orjson.dumps([stream.id]).decode()}
+        )
+        self.assert_json_error(result, "You do not have permission to archive this channel.")
+        stream.refresh_from_db()
+        self.assertFalse(stream.deactivated)
+
+    def test_duplicate_stream_ids_archive_once(self) -> None:
+        # Repeating a stream ID in stream_ids must not archive it, or
+        # write its audit log entry, twice (WP14 review defect 10).
+        admin = self.example_user("iago")
+        stream = self.make_stream("wp14-archive-dup")
+
+        self.login_user(admin)
+        result = self.client_post(
+            "/json/channels/archive",
+            {"stream_ids": orjson.dumps([stream.id, stream.id]).decode()},
+        )
+        self.assert_json_success(result)
+        stream.refresh_from_db()
+        self.assertTrue(stream.deactivated)
+        self.assertEqual(
+            RealmAuditLog.objects.filter(
+                realm=admin.realm,
+                event_type=AuditLogEventType.ROOM_ARCHIVED_BULK,
+                modified_stream_id=stream.id,
+            ).count(),
+            1,
+        )
+
+    def test_do_bulk_archive_rooms_action(self) -> None:
+        admin = self.example_user("iago")
+        stream = self.subscribe(self.example_user("cordelia"), "wp14-archive-direct")
+        do_bulk_archive_rooms([stream], acting_user=admin)
+        stream.refresh_from_db()
+        self.assertTrue(stream.deactivated)
