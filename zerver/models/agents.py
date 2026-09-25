@@ -902,7 +902,12 @@ class AgentAuditEvent(AgentRecord):
                 name="agent_event_authority_valid",
             ),
         ]
-        indexes = [models.Index(fields=["job", "sequence"])]
+        indexes = [
+            models.Index(fields=["job", "sequence"]),
+            models.Index(
+                fields=["realm", "occurred_at"], name="agent_audit_event_realm_occurred_idx"
+            ),
+        ]
 
     @override
     def clean(self) -> None:
