@@ -8,7 +8,7 @@ fetch nor in an event.
 from datetime import timedelta
 from typing import Any
 
-from django.db.models import QuerySet
+from django.db.models import Count, Q, QuerySet
 from django.utils.timezone import now as timezone_now
 from django.utils.translation import gettext as _
 
@@ -158,8 +158,15 @@ def running_agent_job_count(user_profile: UserProfile) -> int:
     # jobs that check lets this user see. It runs without the agent
     # transaction lock: a count may be a moment stale, and taking that
     # lock on every page load would contend with the runner.
+    #
+    # select_related loads every relation require_job_access dereferences
+    # (profile, its provider, runner, repository, conversation) in one
+    # join per page load, instead of a separate query for each relation
+    # of each job.
     count = 0
-    jobs = AgentJob.objects.filter(realm=user_profile.realm, status__in=RUNNING_AGENT_JOB_STATES)
+    jobs = AgentJob.objects.filter(
+        realm=user_profile.realm, status__in=RUNNING_AGENT_JOB_STATES
+    ).select_related("profile", "profile__provider", "runner", "repository", "conversation")
     for job in jobs:
         try:
             require_job_access(user_profile, job)
@@ -185,12 +192,24 @@ def work_counts(user_profile: UserProfile) -> dict[str, int]:
         return counts
 
     review_column_ids = set(board.columns.filter(is_review=True).values_list("id", flat=True))
-    for task in visible_tasks(user_profile, board):
-        counts["task_board"] += 1
-        if task.completed_at is not None:
-            continue
-        if task.assignee_id == user_profile.id:
-            counts["my_tasks"] += 1
-        if task.reviewer_id == user_profile.id and task.column_id in review_column_ids:
-            counts["awaiting_my_review"] += 1
+    tasks: QuerySet[Task] = Task.objects.filter(board=board, realm=user_profile.realm)
+    origin_stream_ids = set(
+        tasks.filter(stream_id__isnull=False).values_list("stream_id", flat=True)
+    )
+    allowed = readable_stream_ids(user_profile, origin_stream_ids)
+    visible = tasks.filter(Q(stream_id__isnull=True) | Q(stream_id__in=allowed))
+    counts.update(
+        visible.aggregate(
+            task_board=Count("id"),
+            my_tasks=Count("id", filter=Q(completed_at__isnull=True, assignee_id=user_profile.id)),
+            awaiting_my_review=Count(
+                "id",
+                filter=Q(
+                    completed_at__isnull=True,
+                    reviewer_id=user_profile.id,
+                    column_id__in=review_column_ids,
+                ),
+            ),
+        )
+    )
     return counts
