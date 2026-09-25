@@ -1402,12 +1402,11 @@ msgid "What are you interested in?"
 msgstr "Та юу сонирхож байна вэ?"
 
 #: templates/zerver/create_user/terms_of_service_form_field.html
-#, python-format
 msgid ""
-"I agree to the <a href=\"%(root_domain_url)s/policies/terms\" "
+"I agree to the <a href=\"https://sanji.space/syarat/\" "
 "target=\"_blank\" rel=\"noopener noreferrer\">Terms of Service</a>."
 msgstr ""
-"Би <a href=\"%(root_domain_url)s/policies/terms\" target=\"_blank\" "
+"Би <a href=\"https://sanji.space/syarat/\" target=\"_blank\" "
 "rel=\"noopener noreferrer\">үйлчилгээний нөхцөл</a> зөвшөөрч байна."
 
 #: templates/zerver/deactivated.html

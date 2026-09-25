@@ -1185,6 +1185,25 @@ class LoginTest(ZulipTestCase):
         response = self.client_options("/login/")
         self.assertEqual(response.status_code, 200)
 
+    def test_login_page_legal_links(self) -> None:
+        result = self.client_get("/login/")
+        self.assert_in_success_response(
+            [
+                'href="https://sanji.space/syarat/"',
+                'href="https://sanji.space/privasi/"',
+                'href="https://sanji.space/pedoman/"',
+                '<meta property="og:site_name" content="sanji.space" />',
+                "favicon.svg?v=sanji-1",
+            ],
+            result,
+        )
+
+    def test_terms_of_service_checkbox_link(self) -> None:
+        self.login("hamlet")
+        with self.settings(TERMS_OF_SERVICE_VERSION="1.0"):
+            result = self.client_post("/accounts/accept_terms/")
+            self.assert_in_success_response(['href="https://sanji.space/syarat/"'], result)
+
     @override_settings(TWO_FACTOR_AUTHENTICATION_ENABLED=True)
     def test_login_page_redirects_logged_in_user_under_2fa(self) -> None:
         """You will be redirected to the app's main page if you land on the

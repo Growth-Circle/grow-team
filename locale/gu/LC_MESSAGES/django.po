@@ -1409,12 +1409,11 @@ msgid "What are you interested in?"
 msgstr "તમને શું વર્તન છે?"
 
 #: templates/zerver/create_user/terms_of_service_form_field.html
-#, python-format
 msgid ""
-"I agree to the <a href=\"%(root_domain_url)s/policies/terms\" "
+"I agree to the <a href=\"https://sanji.space/syarat/\" "
 "target=\"_blank\" rel=\"noopener noreferrer\">Terms of Service</a>."
 msgstr ""
-"હું <a href=\"%(root_domain_url)s/policies/terms\" target=\"_blank\" "
+"હું <a href=\"https://sanji.space/syarat/\" target=\"_blank\" "
 "rel=\"noopener noreferrer\">સેવાની શરતોને </a>સ્વીકારું છું."
 
 #: templates/zerver/deactivated.html

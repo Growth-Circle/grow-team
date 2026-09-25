@@ -1447,12 +1447,11 @@ msgid "What are you interested in?"
 msgstr "何に興味がありますか？"
 
 #: templates/zerver/create_user/terms_of_service_form_field.html
-#, python-format
 msgid ""
-"I agree to the <a href=\"%(root_domain_url)s/policies/terms\" "
+"I agree to the <a href=\"https://sanji.space/syarat/\" "
 "target=\"_blank\" rel=\"noopener noreferrer\">Terms of Service</a>."
 msgstr ""
-"<a href=\"%(root_domain_url)s/policies/terms\" target=\"_blank\" "
+"<a href=\"https://sanji.space/syarat/\" target=\"_blank\" "
 "rel=\"noopener noreferrer\">利用規約</a>に同意します。"
 
 #: templates/zerver/deactivated.html
