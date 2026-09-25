@@ -550,6 +550,57 @@ class AgentBadgeCountTests(ZulipTestCase):
             count = running_agent_job_count(self.owner)
         self.assertEqual(count, 2)
 
+    def test_running_job_count_excludes_jobs_hamlet_cannot_see(self) -> None:
+        """The SQL filter in running_agent_job_count() drops a job before
+        require_job_access() runs on it, not only before it is counted.
+        Two running jobs on a channel hamlet cannot read must cost the
+        same as zero running jobs: the query count must not grow, not
+        only the returned count."""
+        iago = self.example_user("iago")
+        channel = self.make_stream(
+            "hidden-work", invite_only=True, history_public_to_subscribers=False
+        )
+        self.subscribe(iago, channel.name)
+        self.subscribe(self.profile.bot_user, channel.name)
+        # iago is not self.profile's owner; a grant lets him create a job
+        # on it. This is what lets create_job() succeed, not what this
+        # test is about: the audience (channel subscribers) excludes
+        # hamlet either way.
+        agents.AgentGrant.objects.create(
+            realm=self.owner.realm,
+            owner=self.owner,
+            target_kind="profile",
+            profile=self.profile,
+            principal_user=iago,
+            actions=["profile.use", "context.read"],
+        )
+        agents.AgentGrant.objects.create(
+            realm=self.owner.realm,
+            owner=self.owner,
+            target_kind="runner",
+            runner=self.runner,
+            principal_user=iago,
+            actions=["runner.use"],
+        )
+        for text in ("Hidden first", "Hidden second"):
+            message = Message.objects.get(id=self.send_stream_message(iago, channel.name, text))
+            job = create_job(
+                iago,
+                profile=self.profile,
+                source=message,
+                request=text,
+                idempotency_key=uuid4(),
+                job_kind="answer",
+                delivery_target="answer",
+            )
+            agents.AgentJob.objects.filter(id=job.id).update(status="running")
+
+        # One query, same as with no running jobs at all: the filter
+        # excludes both rows, so the per-job loop never runs.
+        with self.assert_database_query_count(1):
+            count = running_agent_job_count(self.owner)
+        self.assertEqual(count, 0)
+
     def test_work_counts_matches_the_old_python_totals(self) -> None:
         self._running_job_on_new_message("Third request")
         board = get_or_create_default_board(self.owner.realm)

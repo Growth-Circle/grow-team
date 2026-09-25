@@ -162,11 +162,24 @@ def running_agent_job_count(user_profile: UserProfile) -> int:
     # select_related loads every relation require_job_access dereferences
     # (profile, its provider, runner, repository, conversation) in one
     # join per page load, instead of a separate query for each relation
-    # of each job.
+    # of each job. require_job_access still runs per candidate below (its
+    # own cost is not yet constant; see map-backend R1's grant checks),
+    # but the SQL filter here drops every job this user structurally
+    # cannot see before that cost is paid, mirroring require_job_access's
+    # own final check so it only narrows candidates, never the decision.
     count = 0
-    jobs = AgentJob.objects.filter(
-        realm=user_profile.realm, status__in=RUNNING_AGENT_JOB_STATES
-    ).select_related("profile", "profile__provider", "runner", "repository", "conversation")
+    jobs = (
+        AgentJob.objects.filter(realm=user_profile.realm, status__in=RUNNING_AGENT_JOB_STATES)
+        .filter(
+            Q(
+                source_message__isnull=False,
+                conversation__audience_binding__audience_user_ids__contains=[user_profile.id],
+            )
+            | Q(source_message__isnull=True, requester=user_profile)
+            | Q(source_message__isnull=True, profile__owner=user_profile)
+        )
+        .select_related("profile", "profile__provider", "runner", "repository", "conversation")
+    )
     for job in jobs:
         try:
             require_job_access(user_profile, job)
