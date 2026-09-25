@@ -4,17 +4,8 @@
         {{> settings_save_discard_widget section_name="navigation-settings" show_save_discard_buttons=for_realm_settings show_saving_indicator=true }}
     </div>
 
-    <div class="input-group">
-        <label for="{{prefix}}web_home_view" class="settings-field-label">{{t "Home view" }}
-            {{> ../help_link_widget link="/help/configure-home-view" }}
-            {{#if for_realm_settings}}
-                {{> ../components/icon_button icon="reset" intent="neutral" custom_classes="reset-user-setting-to-default" data-tippy-content=(t "Reset users to default") aria-label=(t "Reset users to default") }}
-            {{/if}}
-        </label>
-        <select name="web_home_view" class="setting_web_home_view prop-element settings_select bootstrap-focus-style" id="{{prefix}}web_home_view" data-setting-widget-type="string">
-            {{> dropdown_options_widget option_values=(object_values web_home_view_values)}}
-        </select>
-    </div>
+    {{! The app always starts on Today and never reads the personal
+    home view setting, so this section does not show that setting. }}
 
     {{> settings_checkbox
       setting_name="web_escape_navigates_to_home_view"
