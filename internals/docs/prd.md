@@ -15,13 +15,13 @@ Tim membutuhkan percakapan kerja yang dapat dicari menurut kanal dan topik. Sanj
 
 ## Cakupan chat dan bukti sebelumnya
 
-Chat, kanal, topik, DM, pencarian, unggah, peran, undangan, reset password, dan email transaksi berasal dari fork Zulip. Bukti deploy bertanggal mencakup `team.growc.id`, halaman publik, sesi admin, tampilan pesan, event queue, dan identitas Sanji. Lihat [laporan verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md). Bukti ini mendukung status chat. Bukti ini tidak menyatakan semua ACL, recovery penuh, atau rilis agent sudah selesai.
+Chat, kanal, topik, DM, pencarian, unggah, peran, undangan, reset password, dan email transaksi berasal dari fork Zulip. Bukti deploy bertanggal mencakup `team.growc.id`, halaman publik, sesi admin, tampilan pesan, event queue, dan identitas Grow Team (nama produk saat bukti diambil). Lihat [laporan verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md). Bukti ini mendukung status chat. Bukti ini tidak menyatakan semua ACL, recovery penuh, atau rilis agent sudah selesai.
 
 ## Perilaku target pilot agent
 
-Pilot memiliki dua jalur: jalur cepat (Anthropic SDK, answer dan manage) dan jalur code (container, ACP), tanpa fallback antarjalur. Tugas memasuki lifecycle durable dan melewati current access check. Operasi penting memerlukan approval yang terikat pada attempt, policy, argumen, dan tree. Hasil hanya diterbitkan setelah gate audience dan verification.
+Pilot memiliki dua jalur: jalur cepat (Anthropic SDK, answer dan manage) dan jalur code (container, ACP), tanpa fallback antarjalur. Job memasuki lifecycle durable dan melewati current access check. Operasi penting memerlukan approval yang terikat pada attempt, policy, argumen, dan tree. Hasil hanya diterbitkan setelah gate audience dan verification.
 
-Pilot tidak melakukan pemantauan umum. Trigger otomatis berasal dari mention personal yang sah atau DM antara satu anggota dan satu agent yang telah diotorisasi. DM grup memerlukan mention personal eksplisit. Tugas manual memilih profil secara eksplisit; input susulan memilih job yang dituju. Mention grup, wildcard, pesan bot, edit pesan, dan default tim tidak menambah trigger.
+Pilot tidak melakukan pemantauan umum. Trigger otomatis berasal dari mention personal yang sah atau DM antara satu anggota dan satu agent yang telah diotorisasi. DM grup memerlukan mention personal eksplisit. Job manual memilih profil secara eksplisit; input susulan memilih job yang dituju. Mention grup, wildcard, pesan bot, edit pesan, dan default tim tidak menambah trigger.
 
 ## Status produk
 
@@ -32,7 +32,7 @@ Pilot tidak melakukan pemantauan umum. Trigger otomatis berasal dari mention per
 | Image runner                             | Intermediate image `1c3ebcde3d7e` diuji | Image rilis final belum ditetapkan.                                                             |
 | Enable profil                            | Diterapkan                              | Enable eksplisit sudah ada di source (`zerver/actions/agents.py`).                              |
 | UI agent, provider pilot, dan activation | Diterapkan                              | UI agent terbit. Profil "Opus" aktif di realm produksi.                                         |
-| Kesiapan rilis                           | Pending                                 | Migrasi live, 106 acceptance rows, recovery, kapasitas, dan sertifikasi keamanan belum lengkap. |
+| Kesiapan rilis                           | Pending                                 | Migrasi live, 246 acceptance rows, recovery, kapasitas, dan sertifikasi keamanan belum lengkap. |
 
 ## Metrik provisional
 

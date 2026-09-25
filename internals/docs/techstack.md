@@ -21,7 +21,7 @@ Status dokumen: penyelarasan sementara dari source, lockfile, dan bukti deploy b
 | Provider **[jalur code]**         | Chat Completions atau Responses                           | Provider memakai kontrak wire terpisah. Provider nyata memerlukan bukti readiness dan rilis. Jalur cepat memakai dialek `anthropic_messages`.      |
 | Rahasia                           | Envelope encryption server dan referensi lokal runner     | Field source bersifat write-only. Key production dan recovery penuh perlu bukti final.                                                             |
 
-Bukti deploy chat sebelumnya meliputi image fork Sanji, PostgreSQL, Redis, RabbitMQ, Memcached, Cloudflare Tunnel, Email Worker, dan deploy isolasi dari Hermes. Bukti itu juga mencakup pemeriksaan browser inti dan branding. Lihat [verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md). Bukti tersebut tidak membuktikan rilis agent.
+Bukti deploy chat sebelumnya meliputi image fork Grow Team (nama lama), PostgreSQL, Redis, RabbitMQ, Memcached, Cloudflare Tunnel, Email Worker, dan deploy isolasi dari Hermes. Bukti itu juga mencakup pemeriksaan browser inti dan branding. Lihat [verifikasi branding](../../deploy/grow-team/BRANDING-VERIFICATION.md). Bukti tersebut tidak membuktikan rilis agent.
 
 ## Batas operasi
 

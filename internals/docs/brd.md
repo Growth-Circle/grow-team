@@ -45,7 +45,7 @@ Jangan pilih model komersial sebelum gate keamanan, backup/restore, observabilit
 | Bukti deploy bertanggal   | Fork Zulip Sanji berjalan pada `team.growc.id`. Laporan branding merekam browser checks dan isolasi deploy.                                                           |
 | Diterima                  | Arsitektur agent, dua jalur runtime (jalur cepat dengan Anthropic SDK dan jalur code dengan container/ACP), dan authority eksplisit tercatat dalam spesifikasi agent. |
 | Komponen selesai direview | Task 0–6 untuk control plane, runner, dan containment telah selesai dan lulus review komponen. Image `1c3ebcde3d7e` adalah intermediate image yang diuji.             |
-| Pending gate rilis        | UI, provider nyata, package dan notice final, recovery, capacity, migrasi live, dan activation realm/provider.                                                        |
+| Pending gate rilis        | Provider nyata, package dan notice final, recovery, capacity, dan migrasi live.                                                                                       |
 | Belum diputuskan          | Isolasi klien, harga, SLA, support, billing, dan operasi komersial.                                                                                                   |
 
 Lihat [PRD](prd.md), [FRD](frd.md), [roadmap](roadmap.md), [security](security.md), dan tiga spesifikasi agent: [connections and coding harness](spec/2026-09-21-agent-connections-and-coding-harness.md), [lifecycle and mention flow](spec/2026-09-21-agent-lifecycle-and-mention-flow.md), serta [settings, connections, and team defaults](spec/2026-09-22-agent-settings-connections-and-team-defaults.md).

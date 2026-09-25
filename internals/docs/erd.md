@@ -98,9 +98,10 @@ erDiagram
   REALM ||--o{ TASK_BOARD : has
   TASK_BOARD ||--o{ TASK_BOARD_COLUMN : has
   TASK_BOARD_COLUMN ||--o{ TASK : holds
+  TASK_BOARD ||--o{ TASK : contains
   REALM ||--o{ TASK : scopes
   STREAM o|--o{ TASK : links_room
-  MESSAGE o|--o| TASK : origin_message
+  MESSAGE o|--o{ TASK : origin_message
   USER_PROFILE ||--o{ TASK : creates
   USER_PROFILE o|--o{ TASK : assignee
   USER_PROFILE o|--o{ TASK : reviewer
@@ -112,12 +113,11 @@ erDiagram
 
 `Task`, `TaskBoard`, `TaskBoardColumn`, dan `TaskHistory`
 (`zerver/models/tasks.py`) sudah ada di source dan tidak butuh tabel baru untuk
-spec papan tugas Sanji (lihat [17-model-dan-api-key.md](pages/17-model-dan-api-key.md)
-dan seterusnya, serta [05-tugas.md](pages/05-tugas.md)). `Task.column` memakai
+spec papan tugas Sanji (lihat [05-tugas.md](pages/05-tugas.md)). `Task.column` memakai
 `on_delete=PROTECT`: sebuah kolom tidak bisa dihapus selagi masih ada kartu di
 dalamnya.
 
-## Kontrak settings pending Task9
+## Kontrak settings Task9
 
 `AgentRealmSettings` saat ini menyimpan feature flag, limit, retensi, dan revision. Default profile nullable, selection revision, actor, timestamp, serta metadata lokasi runner adalah kontrak aditif Task9. Enable eksplisit sesudah probe juga kontrak Task9. Source sudah memakai enable eksplisit sesudah probe siap.
 

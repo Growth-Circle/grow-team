@@ -18,9 +18,7 @@ Bukti ini menetapkan konteks deploy chat. Bukti ini tidak membuktikan setiap ACL
 
 - Record agent membawa realm. Validasi dan policy menolak referensi lintas realm dan memakai current access.
 - Pairing perangkat tidak memberi authority tenant sebelum approval browser. Credential
-  runner disimpan sebagai hash dan dapat dirotasi atau dicabut. Untuk VPS tanpa layar,
-  token pendaftaran sekali pakai (`sjr_…`) menggantikan approval browser: pembuatan
-  token oleh Owner, Admin, atau pemegang izin runner adalah momen approval itu sendiri.
+  runner disimpan sebagai hash dan dapat dirotasi atau dicabut.
 - Secret provider bersifat write-only dan terenkripsi. Runner menyimpan referensi secret lokal, bukan isi secret dalam registry atau descriptor.
 - Grant memilih principal dan resource eksplisit. Administrator platform tidak otomatis mewarisi runner, provider, repository, atau profil milik owner lain.
 - Scope conversation dan audience binding membatasi context. Scope setup tidak memberi hak membaca history pesan.
@@ -56,5 +54,9 @@ Kontrak ini belum menjadi bukti. Baris AD pada [bukti penerimaan](agent-acceptan
 - Backup/restore produksi, retained-key decryption, rollback kompatibel, capacity, dan host isolation pascarilis masih memerlukan evidence final.
 - Recovery rehearsal terbatas tidak membuktikan reboot host, VPS kedua, atau disaster recovery penuh.
 - Isolasi tenant komersial, lifecycle credential pelanggan, support, dan offboarding belum selesai.
+
+## Keputusan keamanan Sanji (belum di source)
+
+- Token pendaftaran VPS sekali pakai (`sjr_…`): pembuatan token oleh Owner, Admin, atau pemegang izin runner menggantikan approval browser (K-20).
 
 Simpan rahasia di path privat. Jangan salin rahasia ke Git, descriptor, event, artifact, telemetry, atau dokumen produk. Aktifkan hanya realm, runner, provider, dan fixture yang disetujui setelah gate final selesai. Lihat [roadmap](roadmap.md), [FRD](frd.md), serta lima spesifikasi agent: [connections and coding harness](spec/2026-09-21-agent-connections-and-coding-harness.md), [lifecycle and mention flow](spec/2026-09-21-agent-lifecycle-and-mention-flow.md), [settings, connections, and team defaults](spec/2026-09-22-agent-settings-connections-and-team-defaults.md), [execution, context, skills, and MCP](spec/2026-09-22-agent-execution-context-skills-and-mcp.md), serta [administrator agent](spec/2026-09-23-agent-administrator.md).
