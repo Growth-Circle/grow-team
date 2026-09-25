@@ -1,5 +1,6 @@
 """Room metadata actions: effective owner, edit permissions, the meta and
-archive mutations, and the quiet-room nudge DM (spec 01, 04; PLAN.md WP14)."""
+archive mutations, type folders, and the quiet-room nudge DM (spec 01, 04;
+PLAN.md WP14)."""
 
 from collections import defaultdict
 from collections.abc import Iterable
@@ -10,6 +11,7 @@ from django.utils.timezone import now as timezone_now
 from django.utils.translation import gettext as _
 from django.utils.translation import override as override_language
 
+from zerver.actions.channel_folders import check_add_channel_folder
 from zerver.actions.message_send import internal_send_private_message, internal_send_stream_message
 from zerver.actions.streams import bulk_add_subscriptions, do_deactivate_stream
 from zerver.lib.agent_events import send_room_meta_event
@@ -19,8 +21,10 @@ from zerver.lib.role_permissions import has_role_permission
 from zerver.lib.streams import (
     access_stream_for_send_message, can_administer_accessible_channel, channel_events_topic_name,
 )
-from zerver.models import AgentProfile, Realm, RealmAuditLog, RoomMeta, Stream, UserProfile
+from zerver.models import AgentProfile, ChannelFolder, Realm, RealmAuditLog, RoomMeta, Stream, UserProfile
 from zerver.models.realm_audit_logs import AuditLogEventType
+
+ROOM_TYPE_FOLDER_NAMES = ("Proyek", "Klien", "Tim")
 
 
 def format_due_date(due_date: date) -> str:
@@ -271,3 +275,34 @@ def do_bulk_archive_rooms(streams: Iterable[Stream], *, acting_user: UserProfile
             event_type=AuditLogEventType.ROOM_ARCHIVED_BULK,
             event_time=event_time,
         )
+
+
+class NoRealmOwnerError(Exception):
+    """Raised by ensure_room_type_folders when the realm has no active,
+    human Owner to act as the folders' creator (WP14 review defect 14: a
+    silent no-op here would leave the management command reporting
+    success with nothing created)."""
+
+
+def ensure_room_type_folders(
+    realm: Realm, *, acting_user: UserProfile | None = None
+) -> list[ChannelFolder]:
+    """Create the Proyek/Klien/Tim folders for `realm` if missing.
+    Idempotent: never touches a folder or channel that already exists.
+    Matches an existing folder name case-insensitively (WP14 review
+    defect 8), so a folder made by hand still counts."""
+    existing_names = {
+        name.lower()
+        for name in ChannelFolder.objects.filter(realm=realm, is_archived=False).values_list(
+            "name", flat=True
+        )
+    }
+    creator = acting_user or get_default_realm_owner(realm)
+    if creator is None:
+        raise NoRealmOwnerError(_("This organization has no owner to create the folders."))
+    created = []
+    for name in ROOM_TYPE_FOLDER_NAMES:
+        if name.lower() in existing_names:
+            continue
+        created.append(check_add_channel_folder(realm, name, "", acting_user=creator))
+    return created

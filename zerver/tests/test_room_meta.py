@@ -1,13 +1,22 @@
 from datetime import date
+from io import StringIO
 
 import orjson
+from django.core.management import call_command
+from django.core.management.base import CommandError
 
-from zerver.actions.room_meta import do_bulk_archive_rooms, format_due_date, get_room_owner
+from zerver.actions.channel_folders import check_add_channel_folder
+from zerver.actions.room_meta import (
+    NoRealmOwnerError, do_bulk_archive_rooms, ensure_room_type_folders, format_due_date,
+    get_room_owner,
+)
 from zerver.actions.streams import do_change_stream_group_based_setting
-from zerver.actions.users import do_deactivate_user
+from zerver.actions.users import do_change_user_role, do_deactivate_user
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.lib.types import UserGroupMembersData
-from zerver.models import AgentProfile, AgentRunner, Message, RealmAuditLog, UserProfile
+from zerver.models import (
+    AgentProfile, AgentRunner, ChannelFolder, Message, RealmAuditLog, UserProfile,
+)
 from zerver.models.realm_audit_logs import AuditLogEventType
 
 
@@ -442,3 +451,61 @@ class RoomArchiveTest(ZulipTestCase):
         do_bulk_archive_rooms([stream], acting_user=admin)
         stream.refresh_from_db()
         self.assertTrue(stream.deactivated)
+
+
+class EnsureRoomTypeFoldersTest(ZulipTestCase):
+    def test_creates_three_folders_idempotently(self) -> None:
+        realm = self.example_user("hamlet").realm
+        created = ensure_room_type_folders(realm)
+        self.assertEqual({folder.name for folder in created}, {"Proyek", "Klien", "Tim"})
+
+        created_again = ensure_room_type_folders(realm)
+        self.assertEqual(created_again, [])
+        self.assertEqual(ChannelFolder.objects.filter(realm=realm, is_archived=False).count(), 3)
+
+    def test_leaves_an_existing_matching_folder_alone(self) -> None:
+        # A folder made by hand still counts, matched case-insensitively
+        # (WP14 review defect 8).
+        realm = self.example_user("hamlet").realm
+        existing = check_add_channel_folder(
+            realm, "proyek", "Sudah ada", acting_user=self.example_user("iago")
+        )
+        ensure_room_type_folders(realm)
+        existing.refresh_from_db()
+        self.assertEqual(existing.description, "Sudah ada")
+        self.assertEqual(ChannelFolder.objects.filter(realm=realm, is_archived=False).count(), 3)
+
+    def test_raises_without_a_realm_owner(self) -> None:
+        # No silent no-op: a realm that has lost its last Owner must
+        # surface an error, not report success with nothing created
+        # (WP14 review defect 14).
+        realm = self.example_user("hamlet").realm
+        desdemona = self.example_user("desdemona")
+        do_change_user_role(desdemona, UserProfile.ROLE_MEMBER, acting_user=None, notify=False)
+
+        with self.assertRaises(NoRealmOwnerError):
+            ensure_room_type_folders(realm)
+        self.assertEqual(ChannelFolder.objects.filter(realm=realm, is_archived=False).count(), 0)
+
+    def test_call_command_creates_folders(self) -> None:
+        realm = self.example_user("hamlet").realm
+        call_command("ensure_room_type_folders", f"--realm={realm.string_id}")
+        self.assertEqual(
+            set(
+                ChannelFolder.objects.filter(realm=realm, is_archived=False).values_list(
+                    "name", flat=True
+                )
+            ),
+            {"Proyek", "Klien", "Tim"},
+        )
+
+    def test_call_command_reports_missing_owner(self) -> None:
+        realm = self.example_user("hamlet").realm
+        do_change_user_role(
+            self.example_user("desdemona"), UserProfile.ROLE_MEMBER, acting_user=None, notify=False
+        )
+
+        with self.assertRaises(CommandError):
+            call_command(
+                "ensure_room_type_folders", f"--realm={realm.string_id}", stdout=StringIO()
+            )
