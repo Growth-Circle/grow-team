@@ -1,0 +1,12 @@
+<div class="micromodal sj-drawer" id="{{drawer_unique_id}}" aria-hidden="true">
+    <div class="modal__overlay" tabindex="-1">
+        <aside class="modal__container sj-drawer__panel" role="dialog" aria-modal="true" aria-labelledby="{{drawer_unique_id}}_label">
+            <div class="sj-drawer__header">
+                <span class="sj-drawer__label" id="{{drawer_unique_id}}_label">{{ kind_label }}</span>
+                {{> components/icon_button icon="close" intent="neutral" custom_classes="modal__close sj-drawer__close" aria-label=(t 'Close') data-micromodal-close=true }}
+            </div>
+            <div class="sj-drawer__body"></div>
+            <div class="sj-drawer__footer"></div>
+        </aside>
+    </div>
+</div>

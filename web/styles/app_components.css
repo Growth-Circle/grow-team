@@ -1537,3 +1537,89 @@ input.invalid-input {
         light-dark(hsl(41.54deg 39.39% 93.53%), var(--sj-gelap-3)) 10px 20px
     );
 }
+
+/* The Sanji drawer (drawer.ts). It uses the modal frame of modal.css,
+   but it is fixed to the right side at full height. */
+.sj-drawer .modal__overlay {
+    justify-content: flex-end;
+    align-items: stretch;
+    /* The ink color at 30% in both themes, as --sj-tinta. */
+    background: hsl(240deg 13.73% 10% / 30%);
+}
+
+.sj-drawer .modal__container {
+    /* 480px plus the 2px left border. The mockup panel is 482px wide. */
+    width: min(482px, 100vw);
+    max-width: none;
+    max-height: none;
+    border-width: 0 0 0 2px;
+    border-radius: 0;
+    box-shadow: var(--sj-shadow-drawer);
+}
+
+.sj-drawer__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: none;
+    gap: 0.75em; /* 12px at 16px/1em */
+    padding: 0.875em 1.125em; /* 14px 18px at 16px/1em */
+    border-bottom: var(--sj-border);
+    background: var(--sj-surface);
+}
+
+.sj-drawer__label {
+    font-family: var(--sj-font-mono);
+    font-size: 0.625em; /* 10px at 16px/1em */
+    letter-spacing: 0.08em;
+    color: var(--sj-text-muted);
+}
+
+.sj-drawer__body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.125em; /* 18px at 16px/1em */
+    padding: 1.25em 1.125em; /* 20px 18px at 16px/1em */
+}
+
+.sj-drawer__footer {
+    display: flex;
+    flex: none;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5em; /* 8px at 16px/1em */
+    padding: 0.875em 1.125em; /* 14px 18px at 16px/1em */
+    border-top: var(--sj-border);
+    background: var(--sj-surface);
+
+    &:empty {
+        display: none;
+    }
+}
+
+.sj-drawer__action {
+    font-family: inherit;
+    font-size: 0.875em; /* 14px at 16px/1em */
+    font-weight: 700;
+    line-height: normal;
+    padding: 0.7143em 1.1429em; /* 10px 16px at 14px/1em */
+    border: var(--sj-border);
+    border-radius: var(--sj-radius-pill);
+    background: var(--sj-bg);
+    color: var(--sj-text);
+    cursor: pointer;
+
+    &:hover {
+        filter: brightness(0.95);
+        transform: translateY(-1px);
+    }
+}
+
+.sj-drawer__action--primary {
+    font-weight: 800;
+    border: var(--sj-border-strong);
+    background: var(--sj-kaki);
+    color: var(--sj-on-accent);
+}
