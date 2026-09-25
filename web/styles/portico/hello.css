@@ -1,3 +1,5 @@
+@import url("../brand_tokens.css");
+
 :root {
     --font-ss3: var(--sj-font-sans);
     --font-ops: "Open Sans Variable", sans-serif;
