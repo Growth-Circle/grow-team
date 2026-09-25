@@ -119,6 +119,9 @@
 * [Get the team's agent instructions](/api/get-agent-team-instructions)
 * [Update the team's agent instructions](/api/update-agent-team-instructions)
 * [Resolve which agent profile handles a request](/api/resolve-agent-selection)
+* [List approvals, decisions, and mentions waiting for you](/api/list-needs)
+* [Mark a mention in the Perlu kamu inbox done](/api/resolve-need-mention)
+* [Undo marking a mention in the Perlu kamu inbox done](/api/unresolve-need-mention)
 
 ## Channels
 
@@ -147,6 +150,11 @@
 * [Get channel folders](/api/get-channel-folders)
 * [Reorder channel folders](/api/patch-channel-folders)
 * [Update a channel folder](/api/update-channel-folder)
+* [Get a channel's meta](/api/get-room-meta)
+* [Update a channel's meta](/api/update-room-meta)
+* [Get a channel's topics](/api/get-room-topics)
+* [Get quiet channels](/api/get-quiet-channels)
+* [Archive several channels](/api/archive-channels)
 
 ## Users
 
@@ -225,6 +233,13 @@
 * [Create a data export](/api/export-realm)
 * [Get data export consent state](/api/get-realm-export-consents)
 * [Test welcome bot custom message](/api/test-welcome-bot-custom-message)
+* [Get workspace settings](/api/get-workspace-realm-settings)
+* [Update workspace settings](/api/update-workspace-realm-settings)
+* [Get the role permission matrix](/api/get-workspace-permissions)
+* [Change the role permission matrix](/api/update-workspace-permissions)
+* [Get the audit log](/api/get-workspace-audit)
+* [Export the audit log as CSV](/api/export-workspace-audit-csv)
+* [List my workspaces](/api/list-my-workspaces)
 
 ## Real-time events
 
