@@ -1506,3 +1506,25 @@ input.invalid-input {
 .zulip-icon-loader-circle {
     animation: spin 1s linear infinite;
 }
+
+/* The Sanji focus ring on inputs, buttons, and links. The !important
+   rules win over all other focus styles on these elements. The
+   transparent outline shows in forced colors mode, where a box shadow
+   does not show. An invalid input keeps its red focus shadow. */
+:where(
+        button,
+        a[href],
+        input:not(.invalid-input),
+        select,
+        textarea,
+        summary,
+        [role="button"],
+        [role="switch"],
+        [role="radio"],
+        [role="checkbox"],
+        [role="tab"],
+        [role="menuitem"]
+    ):focus-visible {
+    outline: 2px solid transparent !important;
+    box-shadow: var(--sj-ring-focus) !important;
+}
