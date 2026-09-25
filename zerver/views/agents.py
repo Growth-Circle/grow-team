@@ -12,6 +12,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
 from django.utils.timezone import now
+from django.utils.translation import gettext as _
 
 from zerver.actions import agents as actions
 from zerver.actions.agent_approvals import OutcomeUnknownError
@@ -36,6 +37,37 @@ from zerver.models.streams import Stream
 
 P = ParamSpec("P")
 T = TypeVar("T", bound=p.Versioned)
+
+
+# spec 06 Q-10: "{preset} · {model}" for a work agent, "{harness} · {model}"
+# for a coding agent. The server builds the label once for every surface.
+def _model_preset_label(preset: str) -> str:
+    return {"fast": _("Fast"), "balanced": _("Balanced"), "best": _("Best")}.get(preset, "")
+
+
+def _harness_label(profile: agents.AgentProfile) -> str:
+    if profile.mode == "endpoint":
+        return "Endpoint"
+    adapter = profile.adapter_id.lower()
+    if "claude" in adapter:
+        return "Claude"
+    if "codex" in adapter:
+        return "Codex"
+    return profile.adapter_id
+
+
+def _agent_kind(profile: agents.AgentProfile) -> str:
+    """spec 12-D1: derived from default_mode, never its own column."""
+    return "coding" if profile.default_mode == "code" else "work"
+
+
+def _agent_model_label(profile: agents.AgentProfile) -> str:
+    model = profile.provider.model_id if profile.provider is not None else ""
+    if profile.default_mode == "code":
+        prefix = _harness_label(profile)
+    else:
+        prefix = _model_preset_label(profile.model_preset)
+    return " · ".join(part for part in (prefix, model) if part)
 
 
 def safe_agent_endpoint(view: Callable[P, HttpResponse]) -> Callable[P, HttpResponse]:
@@ -211,6 +243,16 @@ def _profile_data(
             if actor is not None and actor.id == profile.owner_id
             else []
         ),
+        "kind": _agent_kind(profile),
+        "model_label": _agent_model_label(profile),
+        "agent_role": profile.agent_role,
+        "avatar_shape": profile.avatar_shape,
+        "avatar_color": profile.avatar_color,
+        "model_preset": profile.model_preset,
+        "monthly_budget_microunits": profile.monthly_budget_microunits,
+        "is_builtin": profile.is_builtin,
+        "work_skills": profile.work_skills,
+        "work_tools": profile.work_tools,
     }
 
 
@@ -912,6 +954,18 @@ def update_agent_profile(
         hard_cost_cap=data.hard_cost_cap,
         # Omitted budget lets the action layer derive one from the provider.
         budget=p.serialize_payload(data.budget) if "budget" in data.model_fields_set else None,
+        agent_role=data.agent_role,
+        avatar_shape=data.avatar_shape,
+        avatar_color=data.avatar_color,
+        model_preset=data.model_preset,
+        monthly_budget_microunits=data.monthly_budget_microunits,
+        # An explicit null removes the budget; an omitted field keeps it.
+        clear_monthly_budget=(
+            "monthly_budget_microunits" in data.model_fields_set
+            and data.monthly_budget_microunits is None
+        ),
+        work_skills=data.work_skills,
+        work_tools=data.work_tools,
     )
     return _success(request, {"profile": _profile_data(profile, user_profile)})
 
@@ -991,6 +1045,13 @@ def create_agent_profile(request: HttpRequest, user_profile: UserProfile) -> Htt
         budget=p.serialize_payload(data.budget) if "budget" in data.model_fields_set else None,
         provider_network_version=data.provider_network_version,
         idempotency_key=data.idempotency_key,
+        agent_role=data.agent_role,
+        avatar_shape=data.avatar_shape,
+        avatar_color=data.avatar_color,
+        model_preset=data.model_preset,
+        monthly_budget_microunits=data.monthly_budget_microunits,
+        work_skills=data.work_skills,
+        work_tools=data.work_tools,
     )
     setup = agents.AgentSetupOperation.objects.get(
         realm=user_profile.realm, owner=user_profile, retry_key=data.idempotency_key

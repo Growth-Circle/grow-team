@@ -60,6 +60,11 @@ class AgentUserError(ValueError):
         self.code = code
 
 
+# A profile stores a 6-digit hex avatar color or no color. Clients put
+# the value in a style attribute, so the server accepts no other text.
+_AVATAR_COLOR_PATTERN = re.compile(r"(#[0-9A-Fa-f]{6})?")
+
+
 def _reject_credential_like_instructions(text: str) -> None:
     if _INSTRUCTIONS_CREDENTIAL_PATTERN.search(text):
         raise AgentUserError("instructions_rejected")
@@ -733,7 +738,17 @@ def update_profile(
     hard_cost_cap: bool,
     budget: dict[str, object] | None = None,
     provider_network_version: int | None = None,
+    agent_role: str | None = None,
+    avatar_shape: str | None = None,
+    avatar_color: str | None = None,
+    model_preset: str | None = None,
+    monthly_budget_microunits: int | None = None,
+    clear_monthly_budget: bool = False,
+    work_skills: list[str] | None = None,
+    work_tools: list[str] | None = None,
 ) -> agents.AgentProfile:
+    """Change a profile. A None appearance or work field keeps its current
+    value, as `instructions` does; `clear_monthly_budget` removes the budget."""
     # Setup validation takes this same runner lock before profile and provider rows.
     runner = agents.AgentRunner.objects.select_for_update().get(id=profile.runner_id)
     if provider is not None:
@@ -753,6 +768,16 @@ def update_profile(
         # Omitting the field keeps the current text; only an explicit string
         # (including "") replaces it.
         instructions = profile.instructions
+    agent_role = profile.agent_role if agent_role is None else agent_role
+    avatar_shape = profile.avatar_shape if avatar_shape is None else avatar_shape
+    avatar_color = profile.avatar_color if avatar_color is None else avatar_color
+    model_preset = profile.model_preset if model_preset is None else model_preset
+    if clear_monthly_budget:
+        monthly_budget_microunits = None
+    elif monthly_budget_microunits is None:
+        monthly_budget_microunits = profile.monthly_budget_microunits
+    work_skills = profile.work_skills if work_skills is None else work_skills
+    work_tools = profile.work_tools if work_tools is None else work_tools
     check_agent_access(owner, profile, None, None, "profile.manage")
     if (
         profile.metadata_revision != expected_metadata_revision
@@ -783,6 +808,10 @@ def update_profile(
         or default_mode not in {"answer", "code", "manage"}
         or (mode == "endpoint" and provider is None)
         or (default_mode == "manage" and not owner.is_realm_admin)
+        or agent_role not in {"planner", "builder", "reviewer", "custom"}
+        or avatar_shape not in {"circle", "ring", "box"}
+        or model_preset not in {"", "fast", "balanced", "best"}
+        or not _AVATAR_COLOR_PATTERN.fullmatch(avatar_color)
     ):
         raise ValueError("Profile configuration is invalid.")
     if catalog.revision != runner.catalog_revision or any(
@@ -831,7 +860,18 @@ def update_profile(
     budget_data = protocol.serialize_payload(protocol.Budget.model_validate(budget_source))
     name = check_full_name(name, user_profile=None, realm=None)
     _reject_credential_like_instructions(instructions)
-    metadata_changed = profile.name != name or profile.description != description
+    appearance_changed = (
+        profile.agent_role != agent_role
+        or profile.avatar_shape != avatar_shape
+        or profile.avatar_color != avatar_color
+        or profile.model_preset != model_preset
+        or profile.monthly_budget_microunits != monthly_budget_microunits
+        or profile.work_skills != work_skills
+        or profile.work_tools != work_tools
+    )
+    metadata_changed = (
+        profile.name != name or profile.description != description or appearance_changed
+    )
     execution_changed = not (
         profile.adapter_id == adapter_id
         and profile.adapter_version == adapter_version
@@ -847,9 +887,31 @@ def update_profile(
         return profile
     if metadata_changed:
         profile.name, profile.description = name, description
+        profile.agent_role, profile.avatar_shape, profile.avatar_color = (
+            agent_role,
+            avatar_shape,
+            avatar_color,
+        )
+        profile.model_preset = model_preset
+        profile.monthly_budget_microunits = monthly_budget_microunits
+        profile.work_skills, profile.work_tools = work_skills, work_tools
         profile.metadata_revision += 1
     if not execution_changed:
-        profile.save(update_fields=["name", "description", "metadata_revision", "updated_at"])
+        profile.save(
+            update_fields=[
+                "name",
+                "description",
+                "agent_role",
+                "avatar_shape",
+                "avatar_color",
+                "model_preset",
+                "monthly_budget_microunits",
+                "work_skills",
+                "work_tools",
+                "metadata_revision",
+                "updated_at",
+            ]
+        )
         if profile.bot_user.full_name != name:
             do_change_full_name(profile.bot_user, name, acting_user=owner, notify=False)
         return profile
@@ -1304,9 +1366,20 @@ def create_profile(
     policy: dict[str, object] | None = None,
     budget: dict[str, object] | None = None,
     provider_network_version: int | None = None,
+    agent_role: str = "custom",
+    avatar_shape: str = "circle",
+    avatar_color: str = "",
+    model_preset: str = "",
+    monthly_budget_microunits: int | None = None,
+    work_skills: list[str] | None = None,
+    work_tools: list[str] | None = None,
+    is_builtin: bool = False,
 ) -> agents.AgentProfile:
     from zerver.lib.agent_policy import AgentAccessDenied
 
+    # is_builtin has no request-schema field on purpose: only
+    # ensure_builtin_agents (a shell-only command) may set it, never a
+    # member through the HTTP API.
     UserProfile.objects.select_for_update().get(id=owner.id)
     runner = agents.AgentRunner.objects.select_for_update().get(id=runner.id)
     try:
@@ -1342,6 +1415,10 @@ def create_profile(
         or default_mode not in {"answer", "code", "manage"}
         or (mode == "endpoint" and provider is None)
         or (default_mode == "manage" and not owner.is_realm_admin)
+        or agent_role not in {"planner", "builder", "reviewer", "custom"}
+        or avatar_shape not in {"circle", "ring", "box"}
+        or model_preset not in {"", "fast", "balanced", "best"}
+        or not _AVATAR_COLOR_PATTERN.fullmatch(avatar_color)
     ):
         raise ValueError("Invalid profile configuration.")
     try:
@@ -1376,6 +1453,13 @@ def create_profile(
                 "repository": str(repository.id) if repository else None,
                 "policy": policy_data,
                 "budget": budget_data,
+                "agent_role": agent_role,
+                "avatar_shape": avatar_shape,
+                "avatar_color": avatar_color,
+                "model_preset": model_preset,
+                "monthly_budget_microunits": monthly_budget_microunits,
+                "work_skills": work_skills or [],
+                "work_tools": work_tools or [],
             }
         )
     ).hexdigest()
@@ -1421,6 +1505,14 @@ def create_profile(
         default_repository=repository,
         policy=policy_data,
         budget=budget_data,
+        agent_role=agent_role,
+        avatar_shape=avatar_shape,
+        avatar_color=avatar_color,
+        model_preset=model_preset,
+        monthly_budget_microunits=monthly_budget_microunits,
+        work_skills=work_skills or [],
+        work_tools=work_tools or [],
+        is_builtin=is_builtin,
     )
     setup = agents.AgentSetupOperation.objects.create(
         realm=owner.realm,

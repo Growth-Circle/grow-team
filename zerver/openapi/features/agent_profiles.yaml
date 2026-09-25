@@ -312,6 +312,12 @@ paths:
       tags:
         - agents
       summary: Create an agent profile
+      description: |
+        Create an agent profile and start the runner's readiness probe.
+
+        **Changes**: The `agent_role`, `avatar_shape`, `avatar_color`,
+        `model_preset`, `monthly_budget_microunits`, `work_skills`, and
+        `work_tools` fields are new in Zulip 12.0 (feature level ZF-4f1745).
       responses:
         "200":
           description: Success.
@@ -414,6 +420,16 @@ paths:
                     scope_restricted: true
                     network_retained: true
                   shared_with: []
+                  kind: work
+                  model_label: Model label
+                  agent_role: custom
+                  avatar_shape: circle
+                  avatar_color: Avatar color
+                  model_preset: ""
+                  monthly_budget_microunits: 1
+                  is_builtin: false
+                  work_skills: []
+                  work_tools: []
                 setup_id: 00000000-0000-4000-8000-000000000049
         "400":
           description: The agent wrapper rejected a parsed request.
@@ -630,6 +646,16 @@ paths:
                     scope_restricted: true
                     network_retained: true
                   shared_with: []
+                  kind: work
+                  model_label: Model label
+                  agent_role: custom
+                  avatar_shape: circle
+                  avatar_color: Avatar color
+                  model_preset: ""
+                  monthly_budget_microunits: 1
+                  is_builtin: false
+                  work_skills: []
+                  work_tools: []
                 setup:
                   id: 00000000-0000-4000-8000-000000000059
                   phase: pending
@@ -833,6 +859,16 @@ paths:
                     scope_restricted: true
                     network_retained: true
                   shared_with: []
+                  kind: work
+                  model_label: Model label
+                  agent_role: custom
+                  avatar_shape: circle
+                  avatar_color: Avatar color
+                  model_preset: ""
+                  monthly_budget_microunits: 1
+                  is_builtin: false
+                  work_skills: []
+                  work_tools: []
                 setup:
                   id: 00000000-0000-4000-8000-000000000069
                   phase: pending
@@ -934,6 +970,16 @@ paths:
       tags:
         - agents
       summary: Update an agent profile
+      description: |
+        Change an agent profile.
+
+        An omitted `agent_role`, `avatar_shape`, `avatar_color`,
+        `model_preset`, `monthly_budget_microunits`, `work_skills`, or
+        `work_tools` keeps its current value. An explicit `null` for
+        `monthly_budget_microunits` removes the budget.
+
+        **Changes**: The fields above are new in Zulip 12.0 (feature level
+        ZF-4f1745).
       responses:
         "200":
           description: Success.
@@ -1036,6 +1082,16 @@ paths:
                     scope_restricted: true
                     network_retained: true
                   shared_with: []
+                  kind: work
+                  model_label: Model label
+                  agent_role: custom
+                  avatar_shape: circle
+                  avatar_color: Avatar color
+                  model_preset: ""
+                  monthly_budget_microunits: 1
+                  is_builtin: false
+                  work_skills: []
+                  work_tools: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -2319,6 +2375,16 @@ paths:
                     scope_restricted: true
                     network_retained: true
                   shared_with: []
+                  kind: work
+                  model_label: Model label
+                  agent_role: custom
+                  avatar_shape: circle
+                  avatar_color: Avatar color
+                  model_preset: ""
+                  monthly_budget_microunits: 1
+                  is_builtin: false
+                  work_skills: []
+                  work_tools: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -2534,6 +2600,16 @@ paths:
                     scope_restricted: true
                     network_retained: true
                   shared_with: []
+                  kind: work
+                  model_label: Model label
+                  agent_role: custom
+                  avatar_shape: circle
+                  avatar_color: Avatar color
+                  model_preset: ""
+                  monthly_budget_microunits: 1
+                  is_builtin: false
+                  work_skills: []
+                  work_tools: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -2749,6 +2825,16 @@ paths:
                     scope_restricted: true
                     network_retained: true
                   shared_with: []
+                  kind: work
+                  model_label: Model label
+                  agent_role: custom
+                  avatar_shape: circle
+                  avatar_color: Avatar color
+                  model_preset: ""
+                  monthly_budget_microunits: 1
+                  is_builtin: false
+                  work_skills: []
+                  work_tools: []
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -5106,6 +5192,92 @@ components:
           default: false
           title: Hard Cost Cap
           type: boolean
+        agent_role:
+          description: |
+            The agent's role on the team.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+          default: custom
+          enum:
+            - planner
+            - builder
+            - reviewer
+            - custom
+          title: Agent Role
+          type: string
+        avatar_shape:
+          description: |
+            The shape of the agent's avatar.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+          default: circle
+          enum:
+            - circle
+            - ring
+            - box
+          title: Avatar Shape
+          type: string
+        avatar_color:
+          description: |
+            The color of the agent's avatar, as a 6-digit hex color,
+            or an empty string for none.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+          default: ""
+          maxLength: 20
+          pattern: "^(#[0-9A-Fa-f]{6})?$"
+          title: Avatar Color
+          type: string
+        model_preset:
+          description: |
+            The model preset of a work agent: fast, balanced, or
+            best. An empty string means none.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+          default: ""
+          enum:
+            - ""
+            - fast
+            - balanced
+            - best
+          title: Model Preset
+          type: string
+        monthly_budget_microunits:
+          description: |
+            The agent's monthly cost limit in microunits, one
+            millionth of a currency unit. `null` means no limit.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+          type: integer
+          minimum: 0
+          maximum: 9223372036854775807
+          nullable: true
+          default: null
+          title: Monthly Budget Microunits
+        work_skills:
+          description: |
+            The skills a work agent shows in the agent directory.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+          items:
+            maxLength: 40
+            minLength: 1
+            type: string
+          maxItems: 32
+          title: Work Skills
+          type: array
+        work_tools:
+          description: |
+            The tools a work agent shows in the agent directory.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+          items:
+            maxLength: 40
+            minLength: 1
+            type: string
+          maxItems: 8
+          title: Work Tools
+          type: array
       required:
         - schema_version
         - runner_id
@@ -5237,6 +5409,108 @@ components:
           default: false
           title: Hard Cost Cap
           type: boolean
+        agent_role:
+          description: |
+            The agent's role on the team.
+
+            Omit it to keep the current value.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+          enum:
+            - planner
+            - builder
+            - reviewer
+            - custom
+          title: Agent Role
+          type: string
+          nullable: true
+        avatar_shape:
+          description: |
+            The shape of the agent's avatar.
+
+            Omit it to keep the current value.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+          enum:
+            - circle
+            - ring
+            - box
+          title: Avatar Shape
+          type: string
+          nullable: true
+        avatar_color:
+          description: |
+            The color of the agent's avatar, as a 6-digit hex color,
+            or an empty string for none.
+
+            Omit it to keep the current value.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+          maxLength: 20
+          pattern: "^(#[0-9A-Fa-f]{6})?$"
+          title: Avatar Color
+          type: string
+          nullable: true
+        model_preset:
+          description: |
+            The model preset of a work agent: fast, balanced, or
+            best. An empty string means none.
+
+            Omit it to keep the current value.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+          enum:
+            - ""
+            - fast
+            - balanced
+            - best
+          title: Model Preset
+          type: string
+          nullable: true
+        monthly_budget_microunits:
+          description: |
+            The agent's monthly cost limit in microunits, one
+            millionth of a currency unit. Send `null` to remove the
+            limit.
+
+            Omit it to keep the current value.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+          type: integer
+          minimum: 0
+          maximum: 9223372036854775807
+          nullable: true
+          title: Monthly Budget Microunits
+        work_skills:
+          description: |
+            The skills a work agent shows in the agent directory.
+
+            Omit it to keep the current value.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+          items:
+            maxLength: 40
+            minLength: 1
+            type: string
+          maxItems: 32
+          title: Work Skills
+          type: array
+          nullable: true
+        work_tools:
+          description: |
+            The tools a work agent shows in the agent directory.
+
+            Omit it to keep the current value.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+          items:
+            maxLength: 40
+            minLength: 1
+            type: string
+          maxItems: 8
+          title: Work Tools
+          type: array
+          nullable: true
       required:
         - schema_version
         - expected_metadata_revision
@@ -6046,6 +6320,91 @@ components:
               - principal_kind
               - principal_id
               - complete
+        kind:
+          type: string
+          enum:
+            - work
+            - coding
+          description: |
+            `coding` for a `code` agent, `work` for any other agent.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+        model_label:
+          type: string
+          description: |
+            The model shown on the agent card: `{preset} · {model}` for a
+            work agent, and `{harness} · {model}` for a coding agent.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+        agent_role:
+          type: string
+          enum:
+            - planner
+            - builder
+            - reviewer
+            - custom
+          description: |
+            The agent's role on the team.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+        avatar_shape:
+          type: string
+          enum:
+            - circle
+            - ring
+            - box
+          description: |
+            The shape of the agent's avatar.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+        avatar_color:
+          type: string
+          description: |
+            The color of the agent's avatar, as a 6-digit hex color, or an
+            empty string for none.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+        model_preset:
+          type: string
+          enum:
+            - ""
+            - fast
+            - balanced
+            - best
+          description: |
+            The model preset of a work agent. An empty string means none.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+        monthly_budget_microunits:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: |
+            The agent's monthly cost limit in microunits, or `null` for no limit.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+        is_builtin:
+          type: boolean
+          description: |
+            Whether the agent is one of the organization's built-in agents.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+        work_skills:
+          type: array
+          items:
+            type: string
+          description: |
+            The skills a work agent shows in the agent directory.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+        work_tools:
+          type: array
+          items:
+            type: string
+          description: |
+            The tools a work agent shows in the agent directory.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
       required:
         - id
         - name
@@ -6077,6 +6436,16 @@ components:
         - access
         - configuration
         - shared_with
+        - kind
+        - model_label
+        - agent_role
+        - avatar_shape
+        - avatar_color
+        - model_preset
+        - monthly_budget_microunits
+        - is_builtin
+        - work_skills
+        - work_tools
     AgentSettingsSetup:
       type: object
       additionalProperties: false

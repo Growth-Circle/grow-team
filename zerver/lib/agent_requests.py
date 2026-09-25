@@ -57,6 +57,15 @@ class RepositoryCreate(Request):
     required_checks: list[p.RequiredCheck] = Field(default_factory=list, max_length=64)
 
 
+AgentAppearanceRole = Literal["planner", "builder", "reviewer", "custom"]
+AgentAppearanceShape = Literal["circle", "ring", "box"]
+AgentModelPreset = Literal["", "fast", "balanced", "best"]
+AgentAvatarColor = Annotated[str, Field(max_length=20)]
+AgentBudgetMicrounits = Annotated[int, Field(strict=True, ge=0, le=2**63 - 1)]
+AgentWorkSkill = Annotated[str, Field(min_length=1, max_length=40)]
+AgentWorkTool = Annotated[str, Field(min_length=1, max_length=40)]
+
+
 class ProfileCreate(Request):
     runner_id: UUID
     name: p.Text
@@ -79,6 +88,13 @@ class ProfileCreate(Request):
     )
     network: p.NetworkPolicy = Field(default_factory=p.NetworkPolicy)
     hard_cost_cap: bool = Field(default=False, strict=True)
+    agent_role: AgentAppearanceRole = "custom"
+    avatar_shape: AgentAppearanceShape = "circle"
+    avatar_color: AgentAvatarColor = ""
+    model_preset: AgentModelPreset = ""
+    monthly_budget_microunits: AgentBudgetMicrounits | None = None
+    work_skills: list[AgentWorkSkill] = Field(default_factory=list, max_length=32)
+    work_tools: list[AgentWorkTool] = Field(default_factory=list, max_length=8)
 
     @model_validator(mode="after")
     def valid_network_choice(self) -> Self:
@@ -149,6 +165,15 @@ class ProfileUpdate(Request):
     network: p.NetworkPolicy | None = None
     retain_network: bool = Field(default=False, strict=True)
     hard_cost_cap: bool = Field(default=False, strict=True)
+    # None, also sent by omitting the field, keeps the current value. An
+    # explicit null for monthly_budget_microunits removes the budget.
+    agent_role: AgentAppearanceRole | None = None
+    avatar_shape: AgentAppearanceShape | None = None
+    avatar_color: AgentAvatarColor | None = None
+    model_preset: AgentModelPreset | None = None
+    monthly_budget_microunits: AgentBudgetMicrounits | None = None
+    work_skills: Annotated[list[AgentWorkSkill], Field(max_length=32)] | None = None
+    work_tools: Annotated[list[AgentWorkTool], Field(max_length=8)] | None = None
 
     @model_validator(mode="after")
     def valid_network_choice(self) -> Self:
