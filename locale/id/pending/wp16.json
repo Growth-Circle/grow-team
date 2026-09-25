@@ -1,0 +1,17 @@
+{
+  "frontend": {},
+  "backend": {
+    "You do not have permission to do this.": "Kamu tidak punya izin untuk ini.",
+    "That color is not available.": "Warna itu tidak tersedia.",
+    "Choose 7 days, 30 days, or no limit.": "Pilih 7 hari, 30 hari, atau tanpa batas.",
+    "That budget is not possible. Choose another amount or no limit.": "Batas biaya itu tidak bisa dipakai. Pilih jumlah lain atau tanpa batas.",
+    "That runner is not part of this workspace.": "Runner itu bukan bagian dari workspace ini.",
+    "Choose one of your own runners that still has access.": "Pilih runner milikmu yang masih punya akses.",
+    "That model provider is not part of this workspace.": "Penyedia model itu bukan bagian dari workspace ini.",
+    "Choose one of your own model providers that is turned on.": "Pilih penyedia model milikmu yang sedang aktif.",
+    "Choose a model provider that runs on the chosen runner.": "Pilih penyedia model yang berjalan di runner yang dipilih.",
+    "Use up to 10 capital letters or digits.": "Pakai paling banyak 10 huruf kapital atau angka.",
+    "Choose Indonesian or English.": "Pilih Bahasa Indonesia atau Bahasa Inggris.",
+    "That mode is not available.": "Mode itu tidak tersedia."
+  }
+}

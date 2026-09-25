@@ -1,1 +1,420 @@
-paths: {}
+# OpenAPI fragment for the server side of the workspace settings page:
+# workspace settings. See zerver/openapi/features/events_agent.yaml for
+# the fragment format, and zproject/feature_routes/workspace.py for the
+# routes that this fragment documents.
+paths:
+  /agent/realm-settings:
+    get:
+      operationId: get-workspace-realm-settings
+      tags: ["workspace"]
+      summary: Get workspace settings
+      description: |
+        Fetch the workspace's Sanji settings: the fields Owner and Admin
+        manage from the Umum, Agen & runner, and Model & API key tabs,
+        plus a read-only summary of the workspace's default runner and
+        model provider and which optional capabilities this server has
+        configured.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3c02c6).
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceRealmSettingsResponse"
+              example:
+                {
+                  "result": "success",
+                  "msg": "",
+                  "brand_color": "#FFD84D",
+                  "timezone": "Asia/Jakarta",
+                  "summary_default": false,
+                  "monthly_budget_microunits": null,
+                  "approval_ttl_minutes": 120,
+                  "invite_expiry_days": 7,
+                  "task_status_notices": false,
+                  "require_2fa": false,
+                  "task_id_prefix": "",
+                  "agent_language": "id",
+                  "mcp_default_mode": "research_first",
+                  "model_source": {},
+                  "model_presets": {},
+                  "model_guardrails": {},
+                  "work_runner": null,
+                  "work_provider": null,
+                  "can_create_workspace": false,
+                  "capabilities":
+                    {
+                      "drive": false,
+                      "calendar": false,
+                      "github": false,
+                      "whatsapp": false,
+                      "fathom": false,
+                      "fathom_join": false,
+                      "openrouter": false,
+                      "web_push": false,
+                      "cloud_runner": false,
+                      "docker_runner_image": false,
+                      "vapid_public_key": "",
+                    },
+                }
+    patch:
+      operationId: update-workspace-realm-settings
+      tags: ["workspace"]
+      summary: Update workspace settings
+      description: |
+        Change one or more of the workspace's Sanji settings. Every
+        parameter is optional; a parameter left out keeps its current
+        value. Changing `monthly_budget_microunits` needs the workspace's
+        Owner. Every other change needs the `ws_settings` permission.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3c02c6).
+      requestBody:
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                brand_color:
+                  description: |
+                    The workspace's accent color, one of four fixed
+                    values.
+                  type: string
+                  enum: ["#FFD84D", "#16C784", "#8B74FF", "#FF6A3D"]
+                  example: "#FFD84D"
+                timezone:
+                  description: |
+                    The workspace's time zone, used for morning
+                    summaries, deadlines, and meeting schedules. Any
+                    IANA time zone name.
+                  type: string
+                  example: Asia/Jakarta
+                summary_default:
+                  description: |
+                    Whether a newly created room starts with Kaki's
+                    daily room summary turned on.
+                  type: boolean
+                  example: false
+                monthly_budget_microunits:
+                  description: |
+                    The workspace-wide monthly model spending limit, in
+                    millionths of a unit of currency, or the special
+                    string `"unlimited"` for no limit. Only the
+                    workspace's Owner may change this.
+                  oneOf:
+                    - type: integer
+                      minimum: 0
+                      maximum: 9223372036854775807
+                    - type: string
+                      enum: [unlimited]
+                  example: 1000000000
+                approval_ttl_minutes:
+                  description: |
+                    How long an agent's request for approval stays open
+                    before it expires, in minutes. At most one week.
+                  type: integer
+                  minimum: 1
+                  maximum: 10080
+                  example: 120
+                invite_expiry_days:
+                  $ref: "#/components/schemas/WorkspaceInviteExpiryDays"
+                task_status_notices:
+                  description: |
+                    Whether moving a task to a different column also
+                    posts a message to that task's topic.
+                  type: boolean
+                  example: false
+                require_2fa:
+                  description: |
+                    Whether every member of this workspace must turn on
+                    two-factor authentication.
+                  type: boolean
+                  example: false
+                task_id_prefix:
+                  description: |
+                    The short prefix new tasks in this workspace use for
+                    their task ID (for example `GT` for `GT-42`): up to
+                    10 capital letters or digits. An empty string uses
+                    the workspace's default.
+                  type: string
+                  pattern: "^[A-Z0-9]{0,10}$"
+                  example: GT
+                work_runner_id:
+                  description: |
+                    The ID of the runner this workspace's work (non-code)
+                    agents run on by default. Must be one of the
+                    requester's own runners that still has access. An
+                    empty string clears the default runner.
+                  type: string
+                  example: 5fc3a7e6-2b3b-4b8e-9c3a-1e2f3a4b5c6d
+                work_provider_id:
+                  description: |
+                    The ID of the model provider this workspace's work
+                    agents use by default. Must be one of the
+                    requester's own model providers that is turned on,
+                    and it must run on the default runner. An empty
+                    string clears the default model provider.
+                  type: string
+                  example: 5fc3a7e6-2b3b-4b8e-9c3a-1e2f3a4b5c6e
+                agent_language:
+                  description: |
+                    The language agents reply in by default.
+                  type: string
+                  enum: [id, en]
+                  example: id
+                mcp_default_mode:
+                  description: |
+                    Whether a new MCP connection defaults to asking for
+                    approval before its first use in a job
+                    (`research_first`) or to using it right away
+                    (`direct`).
+                  type: string
+                  enum: [research_first, direct]
+                  example: research_first
+            encoding:
+              monthly_budget_microunits:
+                contentType: application/json
+              invite_expiry_days:
+                contentType: application/json
+      responses:
+        "200":
+          description: Success. The response is the same shape as `GET /json/agent/realm-settings`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceRealmSettingsResponse"
+              example:
+                {
+                  "result": "success",
+                  "msg": "",
+                  "brand_color": "#FFD84D",
+                  "timezone": "Asia/Jakarta",
+                  "summary_default": false,
+                  "monthly_budget_microunits": null,
+                  "approval_ttl_minutes": 120,
+                  "invite_expiry_days": 30,
+                  "task_status_notices": false,
+                  "require_2fa": false,
+                  "task_id_prefix": "",
+                  "agent_language": "id",
+                  "mcp_default_mode": "research_first",
+                  "model_source": {},
+                  "model_presets": {},
+                  "model_guardrails": {},
+                  "work_runner": null,
+                  "work_provider": null,
+                  "can_create_workspace": false,
+                  "capabilities":
+                    {
+                      "drive": false,
+                      "calendar": false,
+                      "github": false,
+                      "whatsapp": false,
+                      "fathom": false,
+                      "fathom_join": false,
+                      "openrouter": false,
+                      "web_push": false,
+                      "cloud_runner": false,
+                      "docker_runner_image": false,
+                      "vapid_public_key": "",
+                    },
+                }
+        "400":
+          description: |
+            Bad request. Sent for an invalid value, or for a runner or
+            model provider that is not one of the requester's own. The
+            example below is the response when `work_runner_id` names a
+            runner in a different workspace.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodedError"
+              example:
+                {
+                  "code": "BAD_REQUEST",
+                  "msg": "That runner is not part of this workspace.",
+                  "result": "error",
+                }
+components:
+  schemas:
+    WorkspaceInviteExpiryDays:
+      description: |
+        How long a pending invitation stays valid: `7` or `30` days, or
+        the special string `"unlimited"` for no expiry.
+      oneOf:
+        - type: integer
+          enum: [7, 30]
+        - type: string
+          enum: [unlimited]
+      example: 7
+    WorkspaceCapabilities:
+      type: object
+      additionalProperties: false
+      description: |
+        Which optional integrations and features this server has
+        configured for this workspace. A person's client hides or
+        disables the matching control when the value is `false` or an
+        empty string.
+      properties:
+        drive:
+          type: boolean
+        calendar:
+          type: boolean
+        github:
+          type: boolean
+        whatsapp:
+          type: boolean
+        fathom:
+          type: boolean
+        fathom_join:
+          type: boolean
+        openrouter:
+          type: boolean
+        web_push:
+          type: boolean
+        cloud_runner:
+          type: boolean
+        docker_runner_image:
+          type: boolean
+        vapid_public_key:
+          type: string
+          description: The public key a client needs to create a Web Push subscription, or an empty string when Web Push is not configured.
+      required:
+        [
+          drive,
+          calendar,
+          github,
+          whatsapp,
+          fathom,
+          fathom_join,
+          openrouter,
+          web_push,
+          cloud_runner,
+          docker_runner_image,
+          vapid_public_key,
+        ]
+    WorkspaceRealmSettingsResponse:
+      allOf:
+        - $ref: "#/components/schemas/JsonSuccessBase"
+        - type: object
+          additionalProperties: false
+          properties:
+            result: {}
+            msg: {}
+            ignored_parameters_unsupported: {}
+            brand_color:
+              type: string
+              description: The workspace's accent color.
+            timezone:
+              type: string
+              description: The workspace's IANA time zone name.
+            summary_default:
+              type: boolean
+              description: Whether a new room starts with the daily room summary turned on.
+            monthly_budget_microunits:
+              type: integer
+              nullable: true
+              description: The workspace-wide monthly model spending limit, or `null` for no limit.
+            approval_ttl_minutes:
+              type: integer
+              description: How long an agent's request for approval stays open, in minutes.
+            invite_expiry_days:
+              type: integer
+              nullable: true
+              description: How long a pending invitation stays valid, in days, or `null` for no expiry.
+            task_status_notices:
+              type: boolean
+              description: Whether moving a task also posts a message to its topic.
+            require_2fa:
+              type: boolean
+              description: Whether every member must turn on two-factor authentication.
+            task_id_prefix:
+              type: string
+              description: The prefix new tasks use for their task ID.
+            agent_language:
+              type: string
+              enum: [id, en]
+              description: The language agents reply in by default.
+            mcp_default_mode:
+              type: string
+              enum: [research_first, direct]
+              description: Whether a new MCP connection defaults to asking for approval first.
+            model_source:
+              type: object
+              additionalProperties: true
+              description: Read-only. Where this workspace's model spending comes from.
+            model_presets:
+              type: object
+              additionalProperties: true
+              description: Read-only. The model behind each of the Cepat/Seimbang/Terbaik presets.
+            model_guardrails:
+              type: object
+              additionalProperties: true
+              description: Read-only. This workspace's model guardrail settings.
+            work_runner:
+              description: The runner this workspace's work agents use by default, or `null` if none is set.
+              type: object
+              nullable: true
+              additionalProperties: false
+              properties:
+                id:
+                  type: string
+                  description: The runner's ID.
+                name:
+                  type: string
+                  description: The runner's name.
+                status:
+                  type: string
+                  description: The runner's current observed status.
+                  enum: [online, offline, stale, revoked, unknown]
+                model:
+                  type: string
+                  nullable: true
+                  description: Always `null`. A runner can serve many models.
+            work_provider:
+              description: The model provider this workspace's work agents use by default, or `null` if none is set.
+              type: object
+              nullable: true
+              additionalProperties: false
+              properties:
+                id:
+                  type: string
+                  description: The provider's ID.
+                name:
+                  type: string
+                  description: The provider's name.
+                status:
+                  type: string
+                  description: Whether this provider currently accepts new requests.
+                  enum: [active, disabled]
+                model:
+                  type: string
+                  description: The model this provider serves.
+            can_create_workspace:
+              type: boolean
+              description: Whether the requester may create a new workspace on this server right now.
+            capabilities:
+              $ref: "#/components/schemas/WorkspaceCapabilities"
+          required:
+            [
+              brand_color,
+              timezone,
+              summary_default,
+              monthly_budget_microunits,
+              approval_ttl_minutes,
+              invite_expiry_days,
+              task_status_notices,
+              require_2fa,
+              task_id_prefix,
+              agent_language,
+              mcp_default_mode,
+              model_source,
+              model_presets,
+              model_guardrails,
+              work_runner,
+              work_provider,
+              can_create_workspace,
+              capabilities,
+            ]
