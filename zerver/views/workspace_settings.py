@@ -1,6 +1,6 @@
-"""Views for the settings page: workspace settings. The logic lives in
-zerver/lib/workspace_settings.py. This module parses each request and
-checks who may call each endpoint."""
+"""Views for the settings page: workspace settings and the role
+permission matrix. The logic lives in zerver/lib/workspace_settings.py.
+This module parses each request and checks who may call each endpoint."""
 
 from typing import Annotated
 
@@ -12,7 +12,13 @@ from zerver.lib.exceptions import JsonableError
 from zerver.lib.response import json_success
 from zerver.lib.role_permissions import has_role_permission
 from zerver.lib.typed_endpoint import typed_endpoint, typed_endpoint_without_parameters
-from zerver.lib.workspace_settings import realm_settings_payload, update_realm_settings
+from zerver.lib.workspace_settings import (
+    PermissionChange,
+    apply_permission_changes,
+    permission_matrix_payload,
+    realm_settings_payload,
+    update_realm_settings,
+)
 from zerver.models import UserProfile
 
 # At most one week.
@@ -66,3 +72,22 @@ def patch_realm_settings(
         mcp_default_mode=mcp_default_mode,
     )
     return json_success(request, data=payload)
+
+
+@typed_endpoint_without_parameters
+def get_permission_matrix(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
+    return json_success(request, data=permission_matrix_payload(user_profile))
+
+
+@typed_endpoint
+def put_permission_matrix(
+    request: HttpRequest,
+    user_profile: UserProfile,
+    *,
+    changes: Json[list[PermissionChange]],
+) -> HttpResponse:
+    # Every cell is locked for a person who is not an Owner or an Admin.
+    if not user_profile.is_realm_admin:
+        raise JsonableError(_("You do not have permission to do this."))
+    apply_permission_changes(user_profile, changes)
+    return json_success(request)

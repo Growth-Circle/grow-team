@@ -12,6 +12,11 @@
     "Choose a model provider that runs on the chosen runner.": "Pilih penyedia model yang berjalan di runner yang dipilih.",
     "Use up to 10 capital letters or digits.": "Pakai paling banyak 10 huruf kapital atau angka.",
     "Choose Indonesian or English.": "Pilih Bahasa Indonesia atau Bahasa Inggris.",
-    "That mode is not available.": "Mode itu tidak tersedia."
+    "That mode is not available.": "Mode itu tidak tersedia.",
+    "Choose one role. Everyone at or above that role gets this permission too.": "Pilih satu peran. Semua peran di atasnya ikut mendapat izin ini.",
+    "This permission is set to a custom group. Change it in the organization permission settings.": "Izin ini diatur untuk grup kustom. Ubah di pengaturan izin organisasi.",
+    "That permission does not exist.": "Izin itu tidak ada.",
+    "That role does not exist.": "Peran itu tidak ada.",
+    "That permission is locked.": "Izin ini terkunci."
   }
 }

@@ -1,7 +1,8 @@
 # OpenAPI fragment for the server side of the workspace settings page:
-# workspace settings. See zerver/openapi/features/events_agent.yaml for
-# the fragment format, and zproject/feature_routes/workspace.py for the
-# routes that this fragment documents.
+# workspace settings and the role permission matrix. See
+# zerver/openapi/features/events_agent.yaml for the fragment format, and
+# zproject/feature_routes/workspace.py for the routes that this fragment
+# documents.
 paths:
   /agent/realm-settings:
     get:
@@ -237,6 +238,134 @@ paths:
                   "msg": "That runner is not part of this workspace.",
                   "result": "error",
                 }
+  /realm/permissions:
+    get:
+      operationId: get-workspace-permissions
+      tags: ["workspace"]
+      summary: Get the role permission matrix
+      description: |
+        Fetch the workspace's role permission matrix: which of the 5
+        roles (Owner, Admin, Moderator, Member, Guest) currently has each
+        of the workspace's permission keys, whether the requester may
+        change each cell, and why not when they cannot. Every cell is
+        locked for a requester who is not an Owner or an Admin.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3c02c6).
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspacePermissionsResponse"
+              example:
+                {
+                  "result": "success",
+                  "msg": "",
+                  "my_role": "owner",
+                  "permissions":
+                    [
+                      {
+                        "key": "ws_settings",
+                        "group": "workspace",
+                        "cells":
+                          {
+                            "owner":
+                              {
+                                "allowed": true,
+                                "locked": true,
+                                "reason": "owner_always",
+                              },
+                            "admin":
+                              {
+                                "allowed": true,
+                                "locked": false,
+                                "reason": null,
+                              },
+                            "moderator":
+                              {
+                                "allowed": false,
+                                "locked": false,
+                                "reason": null,
+                              },
+                            "member":
+                              {
+                                "allowed": false,
+                                "locked": false,
+                                "reason": null,
+                              },
+                            "guest":
+                              {
+                                "allowed": false,
+                                "locked": true,
+                                "reason": "security_locked",
+                              },
+                          },
+                      },
+                    ],
+                }
+    put:
+      operationId: update-workspace-permissions
+      tags: ["workspace"]
+      summary: Change the role permission matrix
+      description: |
+        Change one or more cells of the workspace's role permission
+        matrix. Each change is one `(key, role)` cell. Needs an Owner or
+        an Admin. A locked cell (see `GET /json/realm/permissions`) is
+        rejected, and only the workspace's Owner may change the Admin
+        column and the `invite` row.
+
+        A permission key backed by one of Zulip's own role-based settings
+        only accepts changes that keep the allowed roles a single "this
+        role and above" threshold. The request applies all changes to
+        one key together, so their order does not matter. Such a key is
+        not changed here when its setting uses a custom group.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3c02c6).
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                changes:
+                  description: |
+                    A JSON-encoded list of the cells to change.
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/WorkspacePermissionChange"
+                  example:
+                    [
+                      {
+                        "key": "room_summary",
+                        "role": "moderator",
+                        "allowed": true,
+                      },
+                    ]
+              required:
+                - changes
+            encoding:
+              changes:
+                contentType: application/json
+      responses:
+        "200":
+          $ref: "#/components/responses/SimpleSuccess"
+        "400":
+          description: |
+            Bad request. Sent for an unknown permission key or role, or
+            for a locked cell. The example below is the response when a
+            change targets a locked cell.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodedError"
+              example:
+                {
+                  "code": "BAD_REQUEST",
+                  "msg": "That permission is locked.",
+                  "result": "error",
+                }
 components:
   schemas:
     WorkspaceInviteExpiryDays:
@@ -418,3 +547,74 @@ components:
               can_create_workspace,
               capabilities,
             ]
+    WorkspacePermissionChange:
+      type: object
+      description: One cell of the role permission matrix to change.
+      properties:
+        key:
+          type: string
+          description: The permission key (the `key` field of a row from `GET /json/realm/permissions`).
+        role:
+          type: string
+          description: The role this change applies to.
+          enum: [owner, admin, moderator, member, guest]
+        allowed:
+          type: boolean
+          description: Whether this role should have this permission.
+      required: [key, role, allowed]
+    WorkspacePermissionCell:
+      type: object
+      additionalProperties: false
+      description: One role's value for one permission key.
+      properties:
+        allowed:
+          type: boolean
+          description: Whether this role currently has this permission.
+        locked:
+          type: boolean
+          description: Whether the requester cannot change this cell.
+        reason:
+          type: string
+          nullable: true
+          description: |
+            Why the requester cannot change this cell (`owner_always`,
+            `owner_only_admin_column`, or `security_locked`), or `null`
+            when they can.
+      required: [allowed, locked, reason]
+    WorkspacePermissionRow:
+      type: object
+      additionalProperties: false
+      description: One permission key, and every role's current value for it.
+      properties:
+        key:
+          type: string
+          description: The permission key.
+        group:
+          type: string
+          description: Which settings-page group this permission belongs to.
+          enum: [workspace, members, rooms, agents, security]
+        cells:
+          type: object
+          description: This row's value for each of the 5 roles, keyed by role name.
+          additionalProperties:
+            $ref: "#/components/schemas/WorkspacePermissionCell"
+      required: [key, group, cells]
+    WorkspacePermissionsResponse:
+      allOf:
+        - $ref: "#/components/schemas/JsonSuccessBase"
+        - type: object
+          additionalProperties: false
+          properties:
+            result: {}
+            msg: {}
+            ignored_parameters_unsupported: {}
+            my_role:
+              type: string
+              description: The requester's own role in this workspace.
+              enum: [owner, admin, moderator, member, guest]
+            permissions:
+              type: array
+              description: One row per permission key.
+              items:
+                $ref: "#/components/schemas/WorkspacePermissionRow"
+          required: [my_role, permissions]

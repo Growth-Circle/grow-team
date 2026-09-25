@@ -1,19 +1,40 @@
 """Tests for zerver/lib/workspace_settings.py,
 zerver/views/workspace_settings.py, and zerver/lib/model_budget.py:
-workspace settings and the model budget state."""
+workspace settings, the model budget state, and the role permission
+matrix."""
 
+from typing import TYPE_CHECKING
 from unittest import mock
 
+import orjson
 from django.utils.timezone import now as timezone_now
 from typing_extensions import override
 
+from zerver.actions.realm_settings import do_change_realm_permission_group_setting
+from zerver.actions.user_groups import check_add_user_group
 from zerver.lib.model_budget import model_budget_state
+from zerver.lib.role_permissions import PERMISSION_KEYS
 from zerver.lib.test_classes import ZulipTestCase
+from zerver.lib.user_groups import get_role_based_system_groups_dict
 from zerver.lib.workspace_settings import BRAND_COLORS, capabilities
-from zerver.models import AgentProvider, AgentRealmSettings, AgentRunner, RealmAuditLog, UserProfile
+from zerver.models import (
+    AgentProvider,
+    AgentRealmSettings,
+    AgentRunner,
+    RealmAuditLog,
+    RolePermission,
+    UserProfile,
+)
+from zerver.models.groups import SystemGroups
 from zerver.models.realm_audit_logs import AuditLogEventType
 from zerver.models.realms import get_realm
 from zerver.models.users import get_user_by_delivery_email
+
+if TYPE_CHECKING:
+    from django.test.client import _MonkeyPatchedWSGIResponse as TestHttpResponse
+
+OWNER = UserProfile.ROLE_REALM_OWNER
+ADMIN = UserProfile.ROLE_REALM_ADMINISTRATOR
 
 
 class RealmSettingsTests(ZulipTestCase):
@@ -388,3 +409,231 @@ class RealmSettingsTests(ZulipTestCase):
 class ModelBudgetTests(ZulipTestCase):
     def test_model_budget_state_reports_ok(self) -> None:
         self.assertEqual(model_budget_state(get_realm("zulip")), "ok")
+
+
+class PermissionMatrixTests(ZulipTestCase):
+    @override
+    def setUp(self) -> None:
+        super().setUp()
+        self.realm = get_realm("zulip")
+        self.groups = get_role_based_system_groups_dict(self.realm)
+        # Pin the group-mapped starting points, so that these tests do
+        # not depend on the defaults of the shared test realm.
+        do_change_realm_permission_group_setting(
+            self.realm,
+            "can_invite_users_group",
+            self.groups[SystemGroups.ADMINISTRATORS],
+            acting_user=None,
+        )
+        for setting_name in ["can_create_public_channel_group", "can_create_private_channel_group"]:
+            do_change_realm_permission_group_setting(
+                self.realm, setting_name, self.groups[SystemGroups.MEMBERS], acting_user=None
+            )
+
+    def put(self, *changes: tuple[str, str, bool]) -> "TestHttpResponse":
+        rows = [{"key": key, "role": role, "allowed": allowed} for key, role, allowed in changes]
+        return self.client_put("/json/realm/permissions", {"changes": orjson.dumps(rows).decode()})
+
+    def get_cells(self, key: str) -> dict[str, dict[str, object]]:
+        payload = self.assert_json_success(self.client_get("/json/realm/permissions"))
+        return {row["key"]: row["cells"] for row in payload["permissions"]}[key]
+
+    def test_get_matrix_reports_my_role_and_all_keys(self) -> None:
+        self.login("shiva")  # Moderator.
+        payload = self.assert_json_success(self.client_get("/json/realm/permissions"))
+        self.assertEqual(payload["my_role"], "moderator")
+        self.assertEqual({row["key"] for row in payload["permissions"]}, set(PERMISSION_KEYS))
+
+    def test_get_matrix_for_the_owner(self) -> None:
+        self.login("desdemona")
+        runner = self.get_cells("runner")
+        self.assertEqual(
+            runner["owner"], {"allowed": True, "locked": True, "reason": "owner_always"}
+        )
+        self.assertEqual(runner["admin"], {"allowed": True, "locked": False, "reason": None})
+        self.assertEqual(runner["guest"]["reason"], "security_locked")
+        invite = self.get_cells("invite")
+        self.assertEqual(invite["moderator"], {"allowed": False, "locked": False, "reason": None})
+
+    def test_get_matrix_for_an_admin(self) -> None:
+        self.login("iago")
+        runner = self.get_cells("runner")
+        self.assertEqual(
+            runner["admin"],
+            {"allowed": True, "locked": True, "reason": "owner_only_admin_column"},
+        )
+        self.assertEqual(runner["member"], {"allowed": True, "locked": False, "reason": None})
+        # Zulip lets only an Owner change who may invite.
+        invite = self.get_cells("invite")
+        self.assertEqual(
+            invite["moderator"], {"allowed": False, "locked": True, "reason": "security_locked"}
+        )
+
+    def test_get_matrix_locks_every_cell_for_a_member(self) -> None:
+        self.login("hamlet")
+        payload = self.assert_json_success(self.client_get("/json/realm/permissions"))
+        for row in payload["permissions"]:
+            for cell in row["cells"].values():
+                self.assertTrue(cell["locked"])
+                self.assertIsNotNone(cell["reason"])
+        runner = {row["key"]: row["cells"] for row in payload["permissions"]}["runner"]
+        self.assertEqual(runner["member"]["reason"], "security_locked")
+
+    def test_put_needs_an_owner_or_an_admin(self) -> None:
+        invite_group_id = self.realm.can_invite_users_group_id
+        overrides_before = RolePermission.objects.filter(realm=self.realm).count()
+        for name in ["hamlet", "shiva", "polonius"]:  # Member, Moderator, Guest.
+            self.login(name)
+            with self.capture_send_event_calls(expected_num_events=0):
+                result = self.put(("audit", "member", True), ("invite", "member", True))
+            self.assert_json_error(result, "You do not have permission to do this.")
+        self.assertEqual(RolePermission.objects.filter(realm=self.realm).count(), overrides_before)
+        self.realm.refresh_from_db()
+        self.assertEqual(self.realm.can_invite_users_group_id, invite_group_id)
+
+    def test_put_rejects_a_locked_cell(self) -> None:
+        self.login("desdemona")  # Even the Owner cannot change the Owner column.
+        result = self.put(("billing", "owner", False))
+        self.assert_json_error(result, "That permission is locked.")
+        self.assertFalse(
+            RolePermission.objects.filter(
+                realm=self.realm, permission_key="billing", role=OWNER
+            ).exists()
+        )
+
+    def test_put_admin_column_needs_the_owner(self) -> None:
+        self.login("iago")  # Admin.
+        result = self.put(("runner", "admin", False))
+        self.assert_json_error(result, "That permission is locked.")
+
+        self.login("desdemona")  # Owner: may change the Admin column.
+        self.assert_json_success(self.put(("runner", "admin", False)))
+        self.assertFalse(
+            RolePermission.objects.get(
+                realm=self.realm, permission_key="runner", role=ADMIN
+            ).allowed
+        )
+        entry = RealmAuditLog.objects.filter(
+            realm=self.realm, event_type=AuditLogEventType.PERMISSION_MATRIX_CHANGED
+        ).latest("id")
+        self.assertEqual(
+            entry.extra_data["changed"], [{"key": "runner", "role": "admin", "allowed": False}]
+        )
+
+    def test_put_sends_event_only_after_commit(self) -> None:
+        self.login("iago")
+        with mock.patch("zerver.tornado.event_queue.process_notification") as notify:
+            with self.captureOnCommitCallbacks(execute=False) as callbacks:
+                result = self.put(("runner", "moderator", True))
+            self.assert_json_success(result)
+            notify.assert_not_called()
+            for callback in callbacks:
+                callback()
+            notify.assert_called_once()
+        self.assertEqual(
+            notify.call_args.args[0]["event"], {"type": "realm_permissions", "op": "update"}
+        )
+
+    def test_put_with_no_real_change_writes_nothing(self) -> None:
+        self.login("desdemona")
+        audit_rows = RealmAuditLog.objects.filter(
+            realm=self.realm,
+            event_type__in=[
+                AuditLogEventType.PERMISSION_MATRIX_CHANGED,
+                AuditLogEventType.REALM_PROPERTY_CHANGED,
+            ],
+        )
+        count_before = audit_rows.count()
+        overrides_before = RolePermission.objects.filter(realm=self.realm).count()
+        with self.capture_send_event_calls(expected_num_events=0):
+            # The runner default for Member is on. Members may create rooms.
+            result = self.put(("runner", "member", True), ("room_create", "member", True))
+        self.assert_json_success(result)
+        self.assertEqual(RolePermission.objects.filter(realm=self.realm).count(), overrides_before)
+        self.assertEqual(audit_rows.count(), count_before)
+
+    def test_put_group_mapped_key_writes_the_zulip_group_setting(self) -> None:
+        self.login("desdemona")
+        self.assert_json_success(self.put(("invite", "moderator", True)))
+        self.assertTrue(self.example_user("shiva").has_permission("can_invite_users_group"))
+        # A group-mapped key writes the Zulip group setting, not a
+        # RolePermission override.
+        self.assertFalse(RolePermission.objects.filter(permission_key="invite").exists())
+
+    def test_put_invite_needs_the_owner(self) -> None:
+        self.login("iago")
+        result = self.put(("invite", "moderator", True))
+        self.assert_json_error(result, "Must be an organization owner")
+        self.assertFalse(self.example_user("shiva").has_permission("can_invite_users_group"))
+
+    def test_put_rejects_a_non_threshold_group_mapped_change(self) -> None:
+        self.login("desdemona")
+        # "Moderator and above" first. Then closing Admin alone leaves Owner
+        # and Moderator open with Admin closed, which no role group means.
+        self.assert_json_success(self.put(("invite", "moderator", True)))
+        result = self.put(("invite", "admin", False))
+        self.assert_json_error(
+            result, "Choose one role. Everyone at or above that role gets this permission too."
+        )
+
+    def test_put_changes_several_cells_of_one_group_mapped_key(self) -> None:
+        self.login("desdemona")
+        # Members and above may create rooms. Each order of the two changes
+        # moves the threshold to Admin.
+        for changes in [
+            [("room_create", "moderator", False), ("room_create", "member", False)],
+            [("room_create", "member", False), ("room_create", "moderator", False)],
+        ]:
+            self.assert_json_success(self.put(*changes))
+            self.realm.refresh_from_db()
+            admins = self.groups[SystemGroups.ADMINISTRATORS].id
+            self.assertEqual(self.realm.can_create_public_channel_group_id, admins)
+            self.assertEqual(self.realm.can_create_private_channel_group_id, admins)
+            self.assert_json_success(
+                self.put(("room_create", "member", True), ("room_create", "moderator", True))
+            )
+        entry = RealmAuditLog.objects.filter(
+            realm=self.realm, event_type=AuditLogEventType.PERMISSION_MATRIX_CHANGED
+        ).latest("id")
+        self.assertEqual(
+            entry.extra_data["changed"],
+            [
+                {"key": "room_create", "role": "moderator", "allowed": True},
+                {"key": "room_create", "role": "member", "allowed": True},
+            ],
+        )
+
+    def test_put_group_mapped_key_from_nobody(self) -> None:
+        do_change_realm_permission_group_setting(
+            self.realm, "can_create_bots_group", self.groups[SystemGroups.NOBODY], acting_user=None
+        )
+        self.login("desdemona")
+        self.assert_json_success(self.put(("agent_create", "admin", True)))
+        self.realm.refresh_from_db()
+        self.assertEqual(
+            self.realm.can_create_bots_group_id, self.groups[SystemGroups.ADMINISTRATORS].id
+        )
+
+    def test_put_keeps_a_custom_group(self) -> None:
+        owner = self.example_user("desdemona")
+        custom_group = check_add_user_group(
+            self.realm, "Bot builders", [self.example_user("hamlet")], acting_user=owner
+        )
+        do_change_realm_permission_group_setting(
+            self.realm, "can_create_bots_group", custom_group, acting_user=None
+        )
+        self.login("desdemona")
+        result = self.put(("agent_create", "admin", True))
+        self.assert_json_error(
+            result,
+            "This permission is set to a custom group. Change it in the organization permission settings.",
+        )
+        self.realm.refresh_from_db()
+        self.assertEqual(self.realm.can_create_bots_group_id, custom_group.id)
+
+    def test_put_unknown_key_and_role_rejected(self) -> None:
+        self.login("desdemona")
+        result = self.put(("not_a_real_key", "member", True))
+        self.assert_json_error(result, "That permission does not exist.")
+        result = self.put(("runner", "captain", True))
+        self.assert_json_error(result, "That role does not exist.")

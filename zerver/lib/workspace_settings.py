@@ -1,6 +1,11 @@
-"""Workspace settings for `zerver/views/workspace_settings.py`: the
-`AgentRealmSettings` fields that Owner and Admin change from the settings
-page (`update_realm_settings`).
+"""Workspace settings and the role permission matrix, for
+`zerver/views/workspace_settings.py`.
+
+- `AgentRealmSettings` fields that Owner and Admin change from the
+  settings page (`update_realm_settings`).
+- The role permission matrix (`permission_matrix_payload`,
+  `apply_permission_changes`), built on the defaults and locks in
+  `zerver/lib/role_permissions.py`.
 """
 
 import re
@@ -10,19 +15,36 @@ from django.conf import settings
 from django.db import transaction
 from django.utils.timezone import now as timezone_now
 from django.utils.translation import gettext as _
+from pydantic import BaseModel
 
-from zerver.lib.agent_events import send_agent_realm_settings_event
+from zerver.actions.realm_settings import do_change_realm_permission_group_setting
+from zerver.lib.agent_events import send_agent_realm_settings_event, send_realm_permissions_event
 from zerver.lib.agent_presence import observed_runner_status
 from zerver.lib.exceptions import JsonableError, OrganizationOwnerRequiredError
+from zerver.lib.role_permissions import (
+    ADMIN,
+    GROUP_SETTING_MAP,
+    LOCK_SECURITY,
+    MEMBER,
+    MODERATOR,
+    OWNER,
+    PERMISSION_KEYS,
+    ROLE_NAMES,
+    lock_reason,
+    permission_matrix,
+)
 from zerver.lib.typed_endpoint_validators import check_timezone
+from zerver.lib.user_groups import get_role_based_system_groups_dict
 from zerver.models import (
     AgentProvider,
     AgentRealmSettings,
     AgentRunner,
     Realm,
     RealmAuditLog,
+    RolePermission,
     UserProfile,
 )
+from zerver.models.groups import NamedUserGroup, SystemGroups
 from zerver.models.realm_audit_logs import AuditLogEventType
 from zproject.config import get_secret
 
@@ -291,3 +313,143 @@ def _save_realm_settings(acting_user: UserProfile, updates: dict[str, object]) -
     )
     fresh = _realm_settings_fields(row)
     send_agent_realm_settings_event(realm, {field: fresh[field] for field in changed})
+
+
+# -- GET/PUT /json/realm/permissions -------------------------------------
+
+
+class PermissionChange(BaseModel):
+    key: str
+    role: str
+    allowed: bool
+
+
+ROLE_BY_NAME: dict[str, int] = {name: role for role, name in ROLE_NAMES.items()}
+
+# Zulip lets only an Owner change the group setting behind these keys.
+_OWNER_ONLY_KEYS = frozenset({"invite"})
+
+# A group-mapped key (see GROUP_SETTING_MAP) reads one of Zulip's nested
+# role groups, so it always means "this role and every role above it".
+# These are the roles that can be that threshold, most privileged first.
+# A guest cell of such a key is always locked, so Guest is not here.
+_THRESHOLD_ROLES: tuple[int, ...] = (OWNER, ADMIN, MODERATOR, MEMBER)
+
+
+def _viewer_lock_reason(user_profile: UserProfile, key: str, role: int) -> str | None:
+    """Why `user_profile` cannot change this cell, or None when they can.
+    GET reports this reason, and PUT rejects a change to a locked cell."""
+    reason = lock_reason(key, role, viewer_role=user_profile.role)
+    if reason is None and (
+        not user_profile.is_realm_admin
+        or (key in _OWNER_ONLY_KEYS and not user_profile.is_realm_owner)
+    ):
+        return LOCK_SECURITY
+    return reason
+
+
+def permission_matrix_payload(user_profile: UserProfile) -> dict[str, object]:
+    rows = permission_matrix(user_profile.realm)
+    for row in rows:
+        for role_name, cell in row["cells"].items():
+            reason = _viewer_lock_reason(user_profile, row["key"], ROLE_BY_NAME[role_name])
+            cell["reason"] = reason
+            cell["locked"] = reason is not None
+    return {"my_role": ROLE_NAMES[user_profile.role], "permissions": rows}
+
+
+def _apply_group_mapped_change(
+    realm: Realm,
+    key: str,
+    current: dict[int, bool],
+    requested: dict[int, bool],
+    *,
+    acting_user: UserProfile,
+) -> dict[int, bool]:
+    """Move the Zulip group setting or settings behind `key` to the role
+    group that the requested cells describe, all at once. Return the cells
+    whose value changed."""
+    if all(current[role] == allowed for role, allowed in requested.items()):
+        return {}
+    groups = get_role_based_system_groups_dict(realm)
+    role_groups = {
+        role: groups[NamedUserGroup.SYSTEM_USER_GROUP_ROLE_MAP[role]["name"]]
+        for role in _THRESHOLD_ROLES
+    }
+    # A custom group cannot become a role threshold without losing some of
+    # its members, so the matrix does not replace it.
+    matrix_group_ids = {group.id for group in role_groups.values()}
+    matrix_group_ids.add(groups[SystemGroups.NOBODY].id)
+    current_group_ids = [getattr(realm, f"{name}_id") for name in GROUP_SETTING_MAP[key]]
+    if any(group_id not in matrix_group_ids for group_id in current_group_ids):
+        raise JsonableError(
+            _(
+                "This permission is set to a custom group. Change it in the organization permission settings."
+            )
+        )
+    desired = {role: current[role] for role in _THRESHOLD_ROLES} | requested
+    desired[OWNER] = True
+    allowed_roles = [role for role in _THRESHOLD_ROLES if desired[role]]
+    if allowed_roles != list(_THRESHOLD_ROLES[: len(allowed_roles)]):
+        raise JsonableError(
+            _("Choose one role. Everyone at or above that role gets this permission too.")
+        )
+    target = role_groups[allowed_roles[-1]]
+    for name in GROUP_SETTING_MAP[key]:
+        if getattr(realm, f"{name}_id") != target.id:
+            do_change_realm_permission_group_setting(realm, name, target, acting_user=acting_user)
+    return {role: desired[role] for role in _THRESHOLD_ROLES if desired[role] != current[role]}
+
+
+@transaction.atomic
+def apply_permission_changes(user_profile: UserProfile, changes: list[PermissionChange]) -> None:
+    """Check every change first, then apply all changes to one key
+    together. Several cells of a group-mapped key are valid only as a
+    group, so the order of the changes does not matter."""
+    requested: dict[str, dict[int, bool]] = {}
+    for change in changes:
+        if change.key not in PERMISSION_KEYS:
+            raise JsonableError(_("That permission does not exist."))
+        role = ROLE_BY_NAME.get(change.role)
+        if role is None:
+            raise JsonableError(_("That role does not exist."))
+        if change.key in _OWNER_ONLY_KEYS and not user_profile.is_realm_owner:
+            raise OrganizationOwnerRequiredError
+        if _viewer_lock_reason(user_profile, change.key, role) is not None:
+            raise JsonableError(_("That permission is locked."))
+        requested.setdefault(change.key, {})[role] = change.allowed
+
+    realm = user_profile.realm
+    current = {
+        row["key"]: {ROLE_BY_NAME[name]: cell["allowed"] for name, cell in row["cells"].items()}
+        for row in permission_matrix(realm)
+    }
+    applied: list[dict[str, object]] = []
+    for key, cells in requested.items():
+        if key in GROUP_SETTING_MAP:
+            changed = _apply_group_mapped_change(
+                realm, key, current[key], cells, acting_user=user_profile
+            )
+        else:
+            changed = {
+                role: allowed for role, allowed in cells.items() if current[key][role] != allowed
+            }
+            for role, allowed in changed.items():
+                RolePermission.objects.update_or_create(
+                    realm=realm, permission_key=key, role=role, defaults={"allowed": allowed}
+                )
+        applied.extend(
+            {"key": key, "role": ROLE_NAMES[role], "allowed": allowed}
+            for role, allowed in changed.items()
+        )
+    if not applied:
+        return
+
+    RealmAuditLog.objects.create(
+        realm=realm,
+        acting_user=user_profile,
+        event_type=AuditLogEventType.PERMISSION_MATRIX_CHANGED,
+        event_time=timezone_now(),
+        extra_data={"changed": applied},
+    )
+    send_realm_permissions_event(realm)

@@ -12,5 +12,10 @@ api_patterns: list[URLPattern] = [
         GET=workspace_settings_views.get_realm_settings,
         PATCH=workspace_settings_views.patch_realm_settings,
     ),
+    rest_path(
+        "realm/permissions",
+        GET=workspace_settings_views.get_permission_matrix,
+        PUT=workspace_settings_views.put_permission_matrix,
+    ),
 ]
 page_patterns: list[URLPattern] = []
