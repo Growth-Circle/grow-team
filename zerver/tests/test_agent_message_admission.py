@@ -459,12 +459,10 @@ class AgentMessageAdmissionTests(ZulipTestCase):
             (second.status, second.job_kind, second.delivery_target, second.base_ref),
             ("queued", "code", "patch", "main"),
         )
-        # One wake row plus one accepted-notice marker row (contract 9.7).
+        # Admission leaves only the wake row (contract 9.7): the job's card
+        # replaced the separate "accepted" notice message (spec 13).
         self.assertEqual(
             agents.AgentOutbox.objects.filter(job=second, event_type="job.wake").count(), 1
-        )
-        self.assertEqual(
-            agents.AgentOutbox.objects.filter(job=second, event_type="status.notice").count(), 1
         )
 
     def test_followup_uses_selected_job_and_ordinary_mention_is_new(self) -> None:

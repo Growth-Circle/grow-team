@@ -2,6 +2,7 @@
 
 import contextlib
 import hashlib
+import json
 import os
 import re
 import stat
@@ -17,7 +18,19 @@ from django.utils.timezone import now
 from django.utils.translation import gettext as _
 from django.utils.translation import override as override_language
 
-from zerver.actions.agent_jobs import audit, check_attempt_access, locked_attempt, transition
+from zerver.actions.agent_jobs import (
+    TERMINAL,
+    agent_language,
+    audit,
+    card_extra_data,
+    check_attempt_access,
+    locked_attempt,
+    react_after_commit,
+    throttle,
+    transition,
+    typing_after_commit,
+)
+from zerver.actions.submessage import do_add_submessage
 from zerver.lib import agent_protocol as p
 from zerver.lib.agent_context import (
     AudienceChanged,
@@ -27,7 +40,7 @@ from zerver.lib.agent_context import (
 )
 from zerver.lib.agent_job_requests import Draft
 from zerver.lib.exceptions import JsonableError
-from zerver.models import Message, UserProfile, agents
+from zerver.models import Message, Stream, UserProfile, agents
 
 
 class RequiredChecksFailed(ValueError):  # noqa: N818
@@ -330,6 +343,8 @@ def _block_publication(job_id: UUID, *, target_status: str, reason: str, park_ou
                 agents.AgentOutbox.objects.filter(job=job, event_type="result.publish").exclude(
                     status="delivered"
                 ).update(status="blocked")
+            if reason == "audience_changed":
+                _show_neutral_line(job)
 
 
 def publish_result(job_id: UUID) -> dict[str, object]:
@@ -384,72 +399,69 @@ def _result_message_content(job: agents.AgentJob, summary: str) -> str:
     return content
 
 
-def _edit_draft_after_commit(
-    bot: UserProfile, message_id: int, content: str, *, draft_of: UUID | None = None
-) -> None:
-    """Replace the text of a streamed draft once the agent transaction has
-    committed. check_update_message is a durable transaction, so it cannot
-    run inside agent_transaction. A draft edit (`draft_of` set) is skipped
-    when the final result was published first, so it never covers it."""
-    from django.db import transaction
-
-    from zerver.actions.message_edit import check_update_message
-
-    def edit() -> None:
-        if (
-            draft_of is not None
-            and agents.AgentJob.objects.filter(id=draft_of, result_receipt__isnull=False).exists()
-        ):
-            return
-        with contextlib.suppress(JsonableError):
-            check_update_message(bot, message_id, content=content)
-
-    transaction.on_commit(edit, robust=True)
-
-
 # Shown at the end of a streamed draft while the model is still writing.
-DRAFT_WRITING_MARK = " \u258d"
+DRAFT_WRITING_MARK = " ▍"
 
 
 def publish_draft(runner: agents.AgentRunner, data: Draft) -> None:
-    """Show the answer as it is written: the first draft sends one bot
-    message in the conversation, and later drafts edit that message. The
-    final result replaces it (_publish_result), so a job still ends with one
-    message. Drafts are best effort; the caller drops a rejected draft."""
+    """Show the answer as it is written: each draft edits the job's card
+    message (SD-05). The final result replaces it (_publish_result), so a
+    job still ends with one message. Drafts are best effort: the caller
+    drops a rejected draft, and the card takes at most one draft per
+    second (SD-04)."""
     from zerver.actions.message_send import check_message, do_send_messages
     from zerver.lib.addressee import Addressee
     from zerver.lib.mention import silent_mention_syntax_for_user
     from zerver.models.clients import get_client
 
-    with agent_transaction():
-        job, attempt = locked_attempt(runner, data.job_id, data.attempt_id, data.lease_epoch)
-        if job.job_kind != "answer" or job.result_receipt is not None:
-            return
-        audience = require_audience(job)
-        check_attempt_access(job.requester, job, attempt, "profile.use")
-        reject_secrets(job, data.text.encode())
-        content = f"{silent_mention_syntax_for_user(job.requester)} {data.text}{DRAFT_WRITING_MARK}"
-        if job.result_message_id is not None:
-            _edit_draft_after_commit(
-                job.profile.bot_user, job.result_message_id, content, draft_of=job.id
+    try:
+        with agent_transaction():
+            job, attempt = locked_attempt(runner, data.job_id, data.attempt_id, data.lease_epoch)
+            if job.job_kind != "answer" or job.result_receipt is not None:
+                return
+            audience = require_audience(job)
+            check_attempt_access(job.requester, job, attempt, "profile.use")
+            reject_secrets(job, data.text.encode())
+            prefix = f"{silent_mention_syntax_for_user(job.requester)} "
+            room = settings.MAX_MESSAGE_LENGTH - len(prefix) - len(DRAFT_WRITING_MARK)
+            content = f"{prefix}{data.text[:room]}{DRAFT_WRITING_MARK}"
+            if job.result_message_id is not None:
+                if not throttle(f"agent-draft:{job.result_message_id}", 1):
+                    return
+                message = _lock_card_message(job.result_message_id)
+                first_draft = _is_fallback_line(job, message.content)
+                _update_card_message(job, message, content)
+                if first_draft:
+                    typing_after_commit(job.id, "stop")
+                return
+            # Defensive fallback only: admission (create_job) already posts the
+            # job's one card message on_commit, so result_message_id is normally
+            # set well before any draft can arrive. This covers that post
+            # having failed or still being retried.
+            anchor = Message.objects.get(id=audience.anchor_message_id)
+            addressee = (
+                Addressee.for_stream_id(audience.stream_id, anchor.topic_name())
+                if audience.stream_id is not None
+                else Addressee.for_user_ids(audience.audience_user_ids, job.realm)
             )
-            return
-        anchor = Message.objects.get(id=audience.anchor_message_id)
-        addressee = (
-            Addressee.for_stream_id(audience.stream_id, anchor.topic_name())
-            if audience.stream_id is not None
-            else Addressee.for_user_ids(audience.audience_user_ids, job.realm)
-        )
-        message = check_message(
-            job.profile.bot_user,
-            get_client("Grow Agent"),
-            addressee,
-            content,
-            realm=job.realm,
-            no_previews=True,
-        )
-        job.result_message_id = do_send_messages([message])[0].message_id
-        job.save(update_fields=["result_message"])
+            sent = check_message(
+                job.profile.bot_user,
+                get_client("Grow Agent"),
+                addressee,
+                content,
+                realm=job.realm,
+                no_previews=True,
+            )
+            job.result_message_id = do_send_messages([sent])[0].message_id
+            job.save(update_fields=["result_message"])
+    except AudienceChanged:
+        # FL-22: a draft already shown must not stay visible to the new
+        # audience either, not only the final answer.
+        with agent_transaction():
+            job = agents.AgentJob.objects.select_for_update().get(id=data.job_id)
+            if job.result_receipt is None:
+                _show_neutral_line(job)
+        raise
 
 
 def _publish_result(job_id: UUID) -> dict[str, object]:
@@ -492,20 +504,24 @@ def _publish_result(job_id: UUID) -> dict[str, object]:
         check_attempt_access(job.requester, job, attempt, "profile.use")
         verify_result(job, attempt, artifacts)
         reject_secrets(job, proposal.summary.encode())
+        # 13-R2: no raw job URL in the message; the card's own Detail action
+        # opens the job instead.
         content = _result_message_content(job, proposal.summary)
-        anchor = Message.objects.get(id=audience.anchor_message_id)
-        addressee = (
-            Addressee.for_stream_id(audience.stream_id, anchor.topic_name())
-            if audience.stream_id is not None
-            else Addressee.for_user_ids(audience.audience_user_ids, job.realm)
-        )
-        content = f"{silent_mention_syntax_for_user(job.requester)} {content} {job_task_link(job)}"
+        content = f"{silent_mention_syntax_for_user(job.requester)} {content}"
         if job.result_message_id is not None:
-            # The streamed draft becomes the result message.
-            message_id = job.result_message_id
-            _edit_draft_after_commit(job.profile.bot_user, message_id, content)
+            # The card message becomes the result message.
+            message = _lock_card_message(job.result_message_id)
+            message_id = message.id
+            _notify_requester(job, message_id)
+            _update_card_message(job, message, content)
         else:
-            message = check_message(
+            anchor = Message.objects.get(id=audience.anchor_message_id)
+            addressee = (
+                Addressee.for_stream_id(audience.stream_id, anchor.topic_name())
+                if audience.stream_id is not None
+                else Addressee.for_user_ids(audience.audience_user_ids, job.realm)
+            )
+            sent = check_message(
                 job.profile.bot_user,
                 client,
                 addressee,
@@ -513,8 +529,9 @@ def _publish_result(job_id: UUID) -> dict[str, object]:
                 realm=job.realm,
                 no_previews=True,
             )
-            message_id = do_send_messages([message])[0].message_id
-        receipt = {
+            message_id = do_send_messages([sent])[0].message_id
+            _notify_requester(job, message_id)
+        receipt: dict[str, object] = {
             "delivery_key": f"result:{job.id}",
             "message_id": message_id,
             "attempt_id": str(attempt.id),
@@ -550,7 +567,9 @@ def deliver_result_privately(
     actor: UserProfile, job_id: UUID, expected_version: int
 ) -> agents.AgentJob:
     """AT-23: send a held result straight to the requester when the
-    conversation changed under it, instead of leaving it unreadable."""
+    conversation changed under it, instead of leaving it unreadable. The
+    job keeps its card message (result_message_id), which shows a neutral
+    line (FL-22); only the receipt names the direct message."""
     from zerver.actions.message_send import check_message, do_send_messages
     from zerver.lib.addressee import Addressee
     from zerver.lib.mention import silent_mention_syntax_for_user
@@ -598,10 +617,7 @@ def deliver_result_privately(
         with override_language(job.realm.default_language):
             first_line = _("This result was sent here because the conversation changed.")
         content = _result_message_content(job, proposal.summary)
-        content = (
-            f"{first_line}\n{silent_mention_syntax_for_user(job.requester)}"
-            f" {content} {job_task_link(job)}"
-        )
+        content = f"{first_line}\n{silent_mention_syntax_for_user(job.requester)} {content}"
         message = check_message(
             job.profile.bot_user,
             get_client("Grow Agent"),
@@ -611,18 +627,17 @@ def deliver_result_privately(
             no_previews=True,
         )
         message_id = do_send_messages([message])[0].message_id
-        receipt = {
+        receipt: dict[str, object] = {
             "delivery_key": f"result:{job.id}",
             "message_id": message_id,
             "attempt_id": str(attempt.id),
             "published_at": now().isoformat(),
             "destination": "direct",
         }
-        job.result_message_id = message_id
         job.result_receipt = receipt
         job.completed_at = now()
         job.phase = "deliver"
-        job.save(update_fields=["result_message", "result_receipt", "completed_at", "phase"])
+        job.save(update_fields=["result_receipt", "completed_at", "phase"])
         transition(job, "completed")
         agents.AgentOutbox.objects.update_or_create(
             delivery_key=f"result:{job.id}",
@@ -644,29 +659,275 @@ def deliver_result_privately(
         return job
 
 
-def job_task_link(job: agents.AgentJob) -> str:
-    return f"{job.realm.url}/#agent-jobs/{job.id}"
+def _lock_card_message(message_id: int) -> Message:
+    return (
+        Message.objects.select_for_update(of=("self",))
+        .select_related("recipient", "sender")
+        .get(id=message_id)
+    )
 
 
-def post_job_notice(
-    job: agents.AgentJob | UUID, marker_key: str, sentence: str, *, mention_requester: bool = True
-) -> bool:
-    """Post one bot message in the job's conversation, at most once per marker_key.
+def _update_card_message(job: agents.AgentJob, message: Message, content: str) -> None:
+    """Replace the card message's content in place (SD-05, FL-19). This is
+    the server updating its own status line, not a person editing a
+    message: it writes no edit history, shows no "edited" label, and
+    ignores the realm's edit time limit. The caller holds the message's
+    row lock (_lock_card_message).
 
-    marker_key identifies the occurrence (an approval, an input request, or a
-    job ending); a repeat call with the same key is a silent no-op. The
-    marker row and the message share one transaction (contract 9.3): a
-    failed send leaves no marker, so a caller may retry with the same key.
-    """
+    Mirrors do_update_embedded_data: the same message cache update, and a
+    rendering_only event for everyone who can see the message."""
+    from zerver.actions.message_send import render_incoming_message
+    from zerver.lib.markdown import version as markdown_version
+    from zerver.lib.mention import MentionBackend, MentionData
+    from zerver.lib.message import event_recipient_ids_for_action_on_messages, normalize_body
+    from zerver.lib.message_cache import update_message_cache
+    from zerver.lib.timestamp import datetime_to_timestamp
+    from zerver.models import UserMessage
+    from zerver.tornado.django_api import send_event_on_commit
+
+    content = normalize_body(content)
+    mention_data = MentionData(
+        mention_backend=MentionBackend(job.realm_id), content=content, message_sender=message.sender
+    )
+    rendering_result = render_incoming_message(
+        message, content, job.realm, mention_data=mention_data
+    )
+    message.content = content
+    message.rendered_content = rendering_result.rendered_content
+    message.rendered_content_version = markdown_version
+    # render_incoming_message also set has_image/has_link on this object.
+    message.save(
+        update_fields=[
+            "content",
+            "rendered_content",
+            "rendered_content_version",
+            "has_image",
+            "has_link",
+        ]
+    )
+    update_message_cache([message])
+    event = {
+        "type": "update_message",
+        "user_id": None,
+        "edit_timestamp": datetime_to_timestamp(now()),
+        "message_id": message.id,
+        "message_ids": [message.id],
+        "content": content,
+        "rendered_content": rendering_result.rendered_content,
+        "rendering_only": True,
+    }
+    flags = {
+        um.user_profile_id: um.flags_list() for um in UserMessage.objects.filter(message=message.id)
+    }
+    # A subscriber with no UserMessage row (a channel with shared history)
+    # still gets the edit, the same way do_update_message tells them.
+    user_ids = event_recipient_ids_for_action_on_messages([message.id], message.is_channel_message)
+    users = [{"id": user_id, "flags": flags.get(user_id, ["read"])} for user_id in sorted(user_ids)]
+    send_event_on_commit(job.realm, event, users)
+
+
+def _notify_requester(job: agents.AgentJob, message_id: int) -> None:
+    """SD-06: drafts and card updates notify nobody; the finished result
+    notifies its requester once, as a mention would. A message edit never
+    sends push or email notifications, so queue them here."""
+    from zerver.actions.message_send import filter_presence_idle_user_ids, get_recipient_info
+    from zerver.lib.notification_data import UserMessageNotificationsData
+    from zerver.lib.queue import mobile_notifications_queue_name, queue_event_on_commit
+    from zerver.lib.stream_topic import StreamTopicTarget
+    from zerver.models import UserMessage
+
+    # The audience check before publication means the requester received
+    # this message; publication runs once per job, so this runs once too.
+    user_message = UserMessage.objects.select_for_update().get(
+        message_id=message_id, user_profile_id=job.requester_id
+    )
+    user_message.flags |= UserMessage.flags.mentioned
+    user_message.save(update_fields=["flags"])
+    message = Message.objects.select_related("recipient").get(id=message_id)
+    info = get_recipient_info(
+        realm_id=job.realm_id,
+        recipient=message.recipient,
+        sender_id=message.sender_id,
+        stream_topic=(
+            StreamTopicTarget(stream_id=message.recipient.type_id, topic_name=message.topic_name())
+            if message.is_channel_message
+            else None
+        ),
+        possibly_mentioned_user_ids={job.requester_id},
+        possible_topic_wildcard_mention=False,
+        possible_stream_wildcard_mention=False,
+    )
+    data = UserMessageNotificationsData.from_user_id_sets(
+        user_id=job.requester_id,
+        flags=user_message.flags_list(),
+        private_message=not message.is_channel_message,
+        disable_external_notifications=False,
+        online_push_user_ids=info.online_push_user_ids,
+        dm_mention_push_disabled_user_ids=info.dm_mention_push_disabled_user_ids,
+        dm_mention_email_disabled_user_ids=info.dm_mention_email_disabled_user_ids,
+        stream_push_user_ids=info.stream_push_user_ids,
+        stream_email_user_ids=info.stream_email_user_ids,
+        topic_wildcard_mention_user_ids=info.topic_wildcard_mention_user_ids,
+        stream_wildcard_mention_user_ids=info.stream_wildcard_mention_user_ids,
+        followed_topic_push_user_ids=info.followed_topic_push_user_ids,
+        followed_topic_email_user_ids=info.followed_topic_email_user_ids,
+        topic_wildcard_mention_in_followed_topic_user_ids=info.topic_wildcard_mention_in_followed_topic_user_ids,
+        stream_wildcard_mention_in_followed_topic_user_ids=info.stream_wildcard_mention_in_followed_topic_user_ids,
+        muted_sender_user_ids=info.muted_sender_user_ids,
+        all_bot_user_ids=info.all_bot_user_ids,
+        push_device_registered_user_ids=info.push_device_registered_user_ids,
+    )
+    idle = job.requester_id in filter_presence_idle_user_ids({job.requester_id})
+    sender_id = message.sender_id
+    if data.is_push_notifiable(sender_id, idle):
+        queue_event_on_commit(
+            mobile_notifications_queue_name(job.requester_id),
+            {
+                "user_profile_id": job.requester_id,
+                "message_id": message_id,
+                "trigger": data.get_push_notification_trigger(sender_id, idle),
+                "type": "add",
+                "mentioned_user_group_id": None,
+            },
+        )
+    if data.is_email_notifiable(sender_id, idle):
+        queue_event_on_commit(
+            "missedmessage_emails",
+            {
+                "user_profile_id": job.requester_id,
+                "message_id": message_id,
+                "trigger": data.get_email_notification_trigger(sender_id, idle),
+                "mentioned_user_group_id": None,
+            },
+        )
+
+
+def _plain_name(name: str) -> str:
+    # A name like "[x](https://...)" must not become a link named "x" in
+    # the fallback line. Zulip Markdown shows a backslash escape as typed,
+    # so swap the square brackets instead.
+    return name.replace("[", "(").replace("]", ")")
+
+
+def _fallback_lines(job: agents.AgentJob) -> dict[str, str]:
+    """The card message's text before any draft, one per card state, for
+    clients that show only the message text (13-R7), in the agent language."""
+    name = _plain_name(job.profile.name)
+    with override_language(agent_language(job.realm_id)):
+        return {
+            "queued": _("{name} · Queued").format(name=name),
+            "working": _("{name} · Working").format(name=name),
+            "approval": _("{name} · Waiting for approval").format(name=name),
+            "decision": _("{name} · Waiting for a decision").format(name=name),
+            "done": _("{name} · Done").format(name=name),
+            "cancelled": _("{name} · Cancelled").format(name=name),
+            "stopped": _("{name} · Stopped").format(name=name),
+        }
+
+
+def _card_state(job: agents.AgentJob) -> str:
+    if job.status == "queued":
+        return "queued"
+    if job.status == "waiting_for_approval":
+        return "approval"
+    if job.status == "waiting_for_input":
+        return "decision"
+    if job.status == "completed":
+        return "done"
+    if job.status == "cancelled" or (
+        job.status == "cancel_requested" and job.stop_target == "cancelled"
+    ):
+        return "cancelled"
+    if job.status in TERMINAL or job.status == "cancel_requested":
+        return "stopped"
+    return "working"
+
+
+def _card_fallback(job: agents.AgentJob) -> str:
+    return _fallback_lines(job)[_card_state(job)]
+
+
+def _is_fallback_line(job: agents.AgentJob, content: str) -> bool:
+    return content in _fallback_lines(job).values()
+
+
+def _show_neutral_line(job: agents.AgentJob) -> None:
+    """FL-22: the card's draft can hold text that the conversation's new
+    audience never should see; replace it with one neutral line."""
+    if job.result_message_id is None:
+        return
+    message = _lock_card_message(job.result_message_id)
+    with override_language(agent_language(job.realm_id)):
+        neutral = _("This task's answer is no longer shown here.")
+    if message.content != neutral:
+        _update_card_message(job, message, neutral)
+
+
+def _card_content(job: agents.AgentJob, content: str) -> str:
+    """The card message's text for the job's current state: the fallback
+    line until the first draft, and no writing mark once the job stops
+    (FL-21 adds a short note to a draft that a cancel stopped)."""
+    if _is_fallback_line(job, content):
+        return _card_fallback(job)
+    if not content.endswith(DRAFT_WRITING_MARK) or (
+        job.status not in TERMINAL and job.status != "cancel_requested"
+    ):
+        return content
+    content = content.removesuffix(DRAFT_WRITING_MARK).rstrip()
+    if _card_state(job) == "cancelled":
+        with override_language(agent_language(job.realm_id)):
+            note = _("Cancelled.")
+        content = f"{content} {note}"
+    return content
+
+
+def send_card_typing(job_id: UUID, operator: str) -> None:
+    """SD-01/SD-02: the bot's typing indicator in the card's conversation.
+    A start is sent only while the card still shows its fallback line: the
+    first draft ends the indicator."""
+    from zerver.actions.typing import (
+        do_send_stream_typing_notification,
+        do_send_typing_notification,
+    )
+    from zerver.models import UserMessage
+
+    job = agents.AgentJob.objects.select_related("profile__bot_user", "realm").get(id=job_id)
+    if job.result_message_id is None:
+        return
+    message = Message.objects.select_related("recipient").get(id=job.result_message_id)
+    if operator == "start" and not _is_fallback_line(job, message.content):
+        return
+    bot = job.profile.bot_user
+    if message.is_channel_message:
+        stream = Stream.objects.get(recipient_id=message.recipient_id)
+        do_send_stream_typing_notification(bot, operator, stream, message.topic_name())
+    else:
+        user_ids = UserMessage.objects.filter(message=message).values_list(
+            "user_profile_id", flat=True
+        )
+        recipients = list(UserProfile.objects.filter(id__in=user_ids))
+        do_send_typing_notification(job.realm, bot, recipients, operator)
+
+
+def post_admission_card(job_id: UUID, *, acknowledge: bool) -> None:
+    """13-R3: the job's one card message (fallback text + the `agent_job`
+    widget), created once at admission. For a mention or a direct message,
+    13-R4 and SD-01 add the source message's acknowledgement reaction and,
+    for a queued answer, the bot's typing indicator."""
     from zerver.actions.message_send import check_message, do_send_messages
     from zerver.lib.addressee import Addressee
     from zerver.models.clients import get_client
 
-    job_id = job.id if isinstance(job, agents.AgentJob) else job
     with agent_transaction():
-        if agents.AgentOutbox.objects.filter(delivery_key=marker_key).exists():
-            return False
-        job = agents.AgentJob.objects.get(id=job_id)
+        # Lock the job so claim_work (skip_locked) sees the card once it
+        # commits; a claim that commits first shows here as "running".
+        job = (
+            agents.AgentJob.objects.select_for_update(of=("self",))
+            .select_related("profile__bot_user", "realm")
+            .get(id=job_id)
+        )
+        if job.result_message_id is not None:
+            return  # Already posted: a retried on_commit hook, or a replay.
         audience = require_audience(job)
         anchor = Message.objects.get(id=audience.anchor_message_id)
         addressee = (
@@ -674,25 +935,49 @@ def post_job_notice(
             if audience.stream_id is not None
             else Addressee.for_user_ids(audience.audience_user_ids, job.realm)
         )
-        mention = (
-            f"@**{job.requester.full_name}|{job.requester.id}**" if mention_requester else None
-        )
-        content = " ".join(part for part in [mention, sentence, job_task_link(job)] if part)
+        widget = {"widget_type": "agent_job", "extra_data": card_extra_data(job)}
         message = check_message(
             job.profile.bot_user,
             get_client("Grow Agent"),
             addressee,
-            content,
+            _card_fallback(job),
             realm=job.realm,
             no_previews=True,
+            widget_content=json.dumps(widget),
         )
-        do_send_messages([message])
-        agents.AgentOutbox.objects.create(
+        job.result_message_id = do_send_messages([message])[0].message_id
+        job.save(update_fields=["result_message"])
+        if acknowledge and job.source_message_id is not None:
+            react_after_commit(job.profile.bot_user, job.source_message_id, "eyes")
+            if job.job_kind == "answer" and job.status == "queued":
+                throttle(f"agent-typing:{job.id}", 10)
+                typing_after_commit(job.id, "start")
+
+
+def update_job_card(job_id: UUID) -> None:
+    """Refresh the job's card from its current state (13-R6): always a fresh
+    widget snapshot, never merged with the previous one, plus the fallback
+    text and the writing mark (_card_content). The job is read only after
+    the card's row lock, so the last writer always writes the newest state."""
+    with agent_transaction():
+        result_message_id = (
+            agents.AgentJob.objects.only("result_message").get(id=job_id).result_message_id
+        )
+        if result_message_id is None:
+            return
+        # do_add_submessage asks for this lock too, so two refreshes that
+        # commit close together cannot write their snapshots out of order.
+        message = _lock_card_message(result_message_id)
+        job = agents.AgentJob.objects.select_related("profile__bot_user", "realm").get(id=job_id)
+        do_add_submessage(
             realm=job.realm,
-            job=job,
-            delivery_key=marker_key,
-            event_type="status.notice",
-            status="delivered",
-            delivered_at=now(),
+            sender_id=job.profile.bot_user_id,
+            message_id=message.id,
+            msg_type="widget",
+            content=json.dumps(card_extra_data(job)),
         )
-    return True
+        content = _card_content(job, message.content)
+        if content != message.content:
+            _update_card_message(job, message, content)
+        if job.job_kind == "answer" and job.status not in {"queued", "running"}:
+            typing_after_commit(job.id, "stop")

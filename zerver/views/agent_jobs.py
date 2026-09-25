@@ -71,7 +71,9 @@ def _job_instructions(job: agents.AgentJob) -> dict[str, object] | None:
     }
 
 
-def job_data(actor: UserProfile, job: agents.AgentJob) -> dict[str, object]:
+def job_data(
+    actor: UserProfile, job: agents.AgentJob, facts: agent_jobs.JobCardFacts | None = None
+) -> dict[str, object]:
     actions = []
     resumable_status = job.status in {"cancelled", "failed", "interrupted", "blocked"}
     resume_eligible, resume_unavailable_reason = (
@@ -109,20 +111,25 @@ def job_data(actor: UserProfile, job: agents.AgentJob) -> dict[str, object]:
             actions.append("follow_up")
         except AgentAccessDenied:
             pass
+    card = agent_jobs.card_extra_data(job, facts=facts, resume_eligible=resume_eligible)
     return {
         "id": str(job.id),
         "profile_id": str(job.profile_id),
         "requester_id": job.requester_id,
         "source_message_id": job.source_message_id,
+        "result_message_id": job.result_message_id,
         "status": job.status,
         "phase": job.phase,
+        "step_label": card["step_label"],
+        "progress": card["progress"],
+        "artifacts": card["artifacts"],
         "version": job.version,
         "request": job.request,
-        "title": job.request[:80],
+        "title": card["title"],
         "job_kind": job.job_kind,
         "delivery_target": job.delivery_target,
         "blocked_reason": job.blocked_reason,
-        "reason_code": agent_jobs.job_reason_code(job),
+        "reason_code": agent_jobs.job_status_reason(job),
         "needs_my_action": needs_my_action(actor, job),
         "resume_available": resume_available,
         "resume_unavailable_reason": resume_unavailable_reason,
@@ -378,7 +385,7 @@ def list_jobs(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
         elif view == "running":
             candidates = candidates.filter(status__in=JOB_LIST_RUNNING_STATUSES)
         visible = []
-        for job in candidates.order_by("-created_at", "id")[:100]:
+        for job in candidates.select_related("runner").order_by("-created_at", "id")[:100]:
             ensure_budget()
             try:
                 require_job_access(user_profile, job)
@@ -387,12 +394,11 @@ def list_jobs(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
             if view == "waiting" and not needs_my_action(user_profile, job):
                 continue
             visible.append(job)
+        page = visible[offset : offset + limit]
+        facts = agent_jobs.job_card_facts(page)
         return _success(
             request,
-            {
-                "count": len(visible),
-                "jobs": [job_data(user_profile, job) for job in visible[offset : offset + limit]],
-            },
+            {"count": len(visible), "jobs": [job_data(user_profile, job, facts) for job in page]},
         )
 
 

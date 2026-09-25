@@ -26,7 +26,7 @@ from zerver.lib.agent_protocol import (
     TopicPostInput,
     serialize_payload,
 )
-from zerver.lib.agent_results import job_task_link, publish_result, store_artifact
+from zerver.lib.agent_results import publish_result, store_artifact
 from zerver.lib.mention import silent_mention_syntax_for_user
 from zerver.lib.streams import access_stream_for_send_message
 from zerver.lib.test_classes import ZulipTestCase, ZulipTransactionTestCase
@@ -943,12 +943,12 @@ class AgentTeamToolsTests(ZulipTestCase):
             receipt = publish_result(job.id)
         message = Message.objects.get(id=receipt["message_id"])
         # Contract 3.3: the reply starts with a silent mention of the
-        # requester and ends with the task link, the same envelope every
-        # job result uses (see test_agents_lifecycle.py).
+        # requester, the same envelope every job result uses (see
+        # test_agents_lifecycle.py), and carries no job URL (spec 13-R2).
         self.assertTrue(message.content.startswith(silent_mention_syntax_for_user(job.requester)))
         self.assertIn("Done.", message.content)
         self.assertIn("reply-check", message.content)
-        self.assertTrue(message.content.endswith(job_task_link(job)))
+        self.assertNotIn("#agent-jobs/", message.content)
 
     # ---- review-finding regressions: authorization-bypass ----
 

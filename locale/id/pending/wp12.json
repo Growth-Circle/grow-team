@@ -1,6 +1,15 @@
 {
   "frontend": {},
   "backend": {
+    "{name} · Queued": "{name} · Antre",
+    "{name} · Working": "{name} · Bekerja",
+    "{name} · Waiting for approval": "{name} · Menunggu approval",
+    "{name} · Waiting for a decision": "{name} · Menunggu keputusan",
+    "{name} · Done": "{name} · Selesai",
+    "{name} · Cancelled": "{name} · Dibatalkan",
+    "{name} · Stopped": "{name} · Berhenti",
+    "Cancelled.": "Dibatalkan.",
+    "This task's answer is no longer shown here.": "Jawaban tugas ini tidak lagi tampil di sini.",
     "Widgets: This widget type cannot be sent.": "Widget: Jenis widget ini tidak bisa dikirim.",
     "{var_name} is not an allowed link": "{var_name} bukan tautan yang diizinkan"
   }

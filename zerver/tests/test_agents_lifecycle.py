@@ -2,15 +2,24 @@
 
 import importlib
 import importlib.util
+import json
 from collections.abc import Iterator
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from typing_extensions import override
 
 from zerver.actions.agents import create_profile, enable_profile, record_readiness
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.models import Message, agents
+
+
+def card_widget(card: Message) -> dict[str, Any]:
+    """The job card's latest snapshot: the first submessage declares the
+    widget, and every later one is a full extra_data replacement."""
+    submessages = list(card.submessage_set.order_by("id"))
+    data = json.loads(submessages[-1].content)
+    return data["extra_data"] if len(submessages) == 1 else data
 
 
 class AgentLifecycleTests(ZulipTestCase):
@@ -350,7 +359,9 @@ class AgentLifecycleTests(ZulipTestCase):
     def test_answer_drafts_edit_one_message_that_becomes_the_result(self) -> None:
         import hashlib
         import tempfile
+        from datetime import timedelta
 
+        import time_machine
         from django.test import override_settings
         from django.utils.timezone import now
 
@@ -412,7 +423,9 @@ class AgentLifecycleTests(ZulipTestCase):
         draft_id = job.result_message_id
         assert draft_id is not None
         self.assertIn("A first", Message.objects.get(id=draft_id).content)
-        draft("A first draft, longer")
+        # SD-04: the card takes at most one draft per second.
+        with time_machine.travel(now() + timedelta(seconds=2), tick=False):
+            draft("A first draft, longer")
         job.refresh_from_db()
         self.assertEqual(job.result_message_id, draft_id)
         self.assertIn("A first draft, longer", Message.objects.get(id=draft_id).content)
@@ -446,11 +459,19 @@ class AgentLifecycleTests(ZulipTestCase):
         final = Message.objects.get(id=draft_id).content
         self.assertIn("A final answer.", final)
         self.assertNotIn(results.DRAFT_WRITING_MARK, final)
+        # SD-05/FL-19: the server's own edits leave no trace of a user edit.
+        final_message = Message.objects.get(id=draft_id)
+        self.assertIsNone(final_message.last_edit_time)
+        self.assertIsNone(final_message.edit_history)
         self.assertEqual(
             Message.objects.filter(sender=self.profile.bot_user, id__gte=draft_id).count(), 1
         )
 
-    def test_accepted_job_posts_one_queued_notice(self) -> None:
+    def test_admission_posts_one_card_message_with_no_separate_queued_notice(self) -> None:
+        """Spec 13 principle 1: admission posts the job's one card message
+        (mention_kind was "manual" here, so no reaction/typing); nothing else
+        posts a second "queued" notice the way the retired notify_conversation
+        call used to (map-backend 13-R1/R2)."""
         from django.utils.timezone import now
 
         from zerver.actions import agent_jobs as actions
@@ -468,16 +489,34 @@ class AgentLifecycleTests(ZulipTestCase):
                 job_kind="answer",
                 delivery_target="answer",
             )
+        job.refresh_from_db()
         message = Message.objects.get(sender=self.profile.bot_user)
-        self.assertEqual(
-            message.content, f"This task is queued. {self.owner.realm.url}/#agent-jobs/{job.id}"
-        )
+        self.assertEqual(job.result_message_id, message.id)
+        self.assertEqual(message.content, f"{self.profile.name} \u00b7 Queued")
+        self.assertNotIn("#agent-jobs/", message.content)
         self.assertEqual(Message.objects.filter(sender=self.profile.bot_user).count(), 1)
+        submessage = message.submessage_set.get()
+        self.assertEqual(submessage.msg_type, "widget")
+        widget = json.loads(submessage.content)
+        self.assertEqual(widget["widget_type"], "agent_job")
+        self.assertEqual(widget["extra_data"]["status"], "queued")
+        self.assertEqual(widget["extra_data"]["job_id"], str(job.id))
 
-    def test_accepted_notice_for_an_offline_runner_says_it_waits(self) -> None:
+    def test_card_refresh_after_commit_never_undoes_the_transition(self) -> None:
+        """RL-4: _refresh_job_card only schedules the card update; the
+        caller's own transition already committed by the time (or whether)
+        it ever runs, and a later on_commit hook in the same transaction
+        still runs even if this one's send fails (functools.partial has no
+        __qualname__, which used to make Django's robust=True logging raise
+        AttributeError and skip every later hook)."""
+        from unittest.mock import patch
+
+        from django.db import transaction
+        from django.utils.timezone import now
+
         from zerver.actions import agent_jobs as actions
+        from zerver.lib import agent_protocol as p
 
-        agents.AgentRunner.objects.filter(id=self.runner.id).update(status="offline")
         with self.captureOnCommitCallbacks(execute=True):
             job = actions.create_job(
                 self.owner,
@@ -488,61 +527,6 @@ class AgentLifecycleTests(ZulipTestCase):
                 job_kind="answer",
                 delivery_target="answer",
             )
-        message = Message.objects.get(sender=self.profile.bot_user)
-        self.assertEqual(
-            message.content,
-            "This task is saved. It starts when the agent's device connects."
-            f" {self.owner.realm.url}/#agent-jobs/{job.id}",
-        )
-
-    def test_post_job_notice_marks_once_and_never_admits(self) -> None:
-        from zerver.actions import agent_jobs as actions
-        from zerver.lib.agent_results import post_job_notice
-
-        job = actions.create_job(
-            self.owner,
-            profile=self.profile,
-            source=self.message,
-            request="Please answer",
-            idempotency_key=uuid4(),
-            job_kind="answer",
-            delivery_target="answer",
-        )
-        jobs_before = agents.AgentJob.objects.count()
-        sent = post_job_notice(job, "status:test:once", "This task needs your approval.")
-        self.assertTrue(sent)
-        self.assertEqual(
-            agents.AgentOutbox.objects.filter(delivery_key="status:test:once").count(), 1
-        )
-        message = Message.objects.get(sender=self.profile.bot_user)
-        self.assertEqual(
-            message.content,
-            f"@**{self.owner.full_name}|{self.owner.id}** This task needs your approval."
-            f" {self.owner.realm.url}/#agent-jobs/{job.id}",
-        )
-        repeated = post_job_notice(job, "status:test:once", "This task needs your approval.")
-        self.assertFalse(repeated)
-        self.assertEqual(Message.objects.filter(sender=self.profile.bot_user).count(), 1)
-        # Bot messages never trigger agent admission.
-        self.assertEqual(agents.AgentJob.objects.count(), jobs_before)
-
-    def test_status_notice_posts_after_commit_and_never_undoes_the_transition(self) -> None:
-        """RL-4: notify_conversation only schedules the post; the caller's own
-        transition already committed by the time (or whether) it ever runs."""
-        from django.utils.timezone import now
-
-        from zerver.actions import agent_jobs as actions
-        from zerver.lib import agent_protocol as p
-
-        job = actions.create_job(
-            self.owner,
-            profile=self.profile,
-            source=self.message,
-            request="Please answer",
-            idempotency_key=uuid4(),
-            job_kind="answer",
-            delivery_target="answer",
-        )
         actions.claim_work(self.runner, claim_key=uuid4())
         attempt = agents.AgentAttempt.objects.get(job=job)
         actions.record_event(
@@ -561,7 +545,19 @@ class AgentLifecycleTests(ZulipTestCase):
                 }
             ),
         )
-        with self.captureOnCommitCallbacks() as callbacks:
+        later_hook_ran: list[bool] = []
+        # captureOnCommitCallbacks(execute=True) runs every hook it captured
+        # (in registration order, each one guarded the way robust=True asks)
+        # only once this block exits -- not the manual "as callbacks" form,
+        # whose list is filled by that same exit, so reading it any earlier
+        # always finds it empty. Registering the caller's own later_hook_ran
+        # hook before the block ends is what proves a raise from the first
+        # one (patched below) never skips this one.
+        with (
+            patch("zerver.lib.agent_results.update_job_card", side_effect=ValueError("boom")),
+            self.assertLogs("zerver.actions.agent_jobs", level="ERROR"),
+            self.captureOnCommitCallbacks(execute=True),
+        ):
             actions.record_event(
                 self.runner,
                 p.RunnerEvent.model_validate(
@@ -578,135 +574,59 @@ class AgentLifecycleTests(ZulipTestCase):
                     }
                 ),
             )
-            # The transition already committed; the notice is still only scheduled.
+            # The transition already committed; the refresh is still only
+            # scheduled (it runs when this block exits, below).
             job.refresh_from_db()
             self.assertEqual(job.status, "waiting_for_input")
-            self.assertFalse(Message.objects.filter(sender=self.profile.bot_user).exists())
-        # One callback schedules the notice above; the other sends this
-        # transition's agent_job event.
-        self.assertEqual(len(callbacks), 2)
-        for callback in callbacks:
-            callback()
-        message = Message.objects.get(sender=self.profile.bot_user)
-        self.assertEqual(
-            message.content,
-            f"@**{self.owner.full_name}|{self.owner.id}** This task needs your answer."
-            f" {self.owner.realm.url}/#agent-jobs/{job.id}",
-        )
-        job.refresh_from_db()
-        self.assertEqual(job.status, "waiting_for_input")
-
-    def test_failed_notice_send_leaves_no_marker(self) -> None:
-        from unittest.mock import patch
-
-        from zerver.actions import agent_jobs as actions
-        from zerver.lib.agent_results import post_job_notice
-        from zerver.models.clients import get_client
-
-        job = actions.create_job(
-            self.owner,
-            profile=self.profile,
-            source=self.message,
-            request="Please answer",
-            idempotency_key=uuid4(),
-            job_kind="answer",
-            delivery_target="answer",
-        )
-        # Warm the cached "Grow Agent" Client row outside the mocked attempt
-        # below: get_client caches its result across the row's own rollback,
-        # so creating it for the first time inside that rolled-back savepoint
-        # would leave the cache holding a Client id no longer in the database.
-        get_client("Grow Agent")
-        with (
-            patch("zerver.actions.message_send.do_send_messages", side_effect=ValueError("boom")),
-            self.assertRaises(ValueError),
-        ):
-            post_job_notice(job, "status:test:fails", "This task needs your approval.")
-        self.assertFalse(
-            agents.AgentOutbox.objects.filter(delivery_key="status:test:fails").exists()
-        )
-        self.assertFalse(Message.objects.filter(sender=self.profile.bot_user).exists())
-        # A later, unpatched call with the same key can still succeed.
-        sent = post_job_notice(job, "status:test:fails", "This task needs your approval.")
-        self.assertTrue(sent)
-        self.assertEqual(
-            agents.AgentOutbox.objects.filter(delivery_key="status:test:fails").count(), 1
-        )
-
-    def test_robust_on_commit_notice_failure_never_blocks_a_later_hook(self) -> None:
-        """RL-4: functools.partial has no __qualname__, so a raised exception
-        used to make Django's own robust=True logging raise AttributeError and
-        skip every later on_commit hook registered in the same transaction."""
-        from unittest.mock import patch
-
-        from django.db import transaction
-
-        from zerver.actions import agent_jobs as actions
-        from zerver.models.clients import get_client
-
-        job = actions.create_job(
-            self.owner,
-            profile=self.profile,
-            source=self.message,
-            request="Please answer",
-            idempotency_key=uuid4(),
-            job_kind="answer",
-            delivery_target="answer",
-        )
-        # Warm the cached "Grow Agent" Client row outside the mocked send
-        # below, the same reason test_failed_notice_send_leaves_no_marker does.
-        get_client("Grow Agent")
-        later_hook_ran: list[bool] = []
-        with (
-            patch("zerver.actions.message_send.do_send_messages", side_effect=ValueError("boom")),
-            self.assertLogs("zerver.actions.agent_jobs", level="ERROR"),
-            self.captureOnCommitCallbacks(execute=True),
-        ):
-            actions.notify_conversation(job, "status:test:raises", "This will fail to send.")
             transaction.on_commit(lambda: later_hook_ran.append(True))
         self.assertEqual(later_hook_ran, [True])
-        self.assertFalse(Message.objects.filter(sender=self.profile.bot_user).exists())
+        job.refresh_from_db()
+        self.assertEqual(job.status, "waiting_for_input")
+        # 13-R9: input.requested never posts a second chat message.
+        self.assertEqual(Message.objects.filter(sender=self.profile.bot_user).count(), 1)
 
-    def test_job_notice_retries_agent_busy_before_giving_up(self) -> None:
-        """RL-1: post_job_notice runs its own agent_transaction with
-        try-locks; a single AgentBusy used to drop the notice for good instead
-        of retrying it the way the phase-3 team receipt store does."""
+    def test_card_refresh_retries_agent_busy_before_giving_up(self) -> None:
+        """RL-1: _run_best_effort retries once on AgentBusy instead of
+        dropping the card refresh for good, the same as the phase-3 team
+        receipt store does."""
         from unittest.mock import patch
 
         from zerver.actions import agent_jobs as actions
         from zerver.lib.agent_context import AgentBusy
-        from zerver.lib.agent_results import post_job_notice as real_post_job_notice
+        from zerver.lib.agent_results import update_job_card as real_update_job_card
 
-        job = actions.create_job(
-            self.owner,
-            profile=self.profile,
-            source=self.message,
-            request="Please answer",
-            idempotency_key=uuid4(),
-            job_kind="answer",
-            delivery_target="answer",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            job = actions.create_job(
+                self.owner,
+                profile=self.profile,
+                source=self.message,
+                request="Please answer",
+                idempotency_key=uuid4(),
+                job_kind="answer",
+                delivery_target="answer",
+            )
         calls = 0
 
-        def flaky_once(*args: object, **kwargs: object) -> bool:
+        def flaky_once(job_id: UUID) -> None:
             nonlocal calls
             calls += 1
             if calls == 1:
                 raise AgentBusy("Agent authority is busy. Retry this request.")
-            return real_post_job_notice(*args, **kwargs)  # type: ignore[arg-type]
+            real_update_job_card(job_id)
 
         with (
-            patch("zerver.lib.agent_results.post_job_notice", side_effect=flaky_once),
+            patch("zerver.lib.agent_results.update_job_card", side_effect=flaky_once),
             patch("time.sleep"),
             self.captureOnCommitCallbacks(execute=True),
         ):
-            actions.notify_conversation(job, "status:test:busy", "Retry me.")
+            actions.cancel_job(self.owner, job.id, job.version)
         self.assertEqual(calls, 2)
-        message = Message.objects.get(sender=self.profile.bot_user)
-        self.assertIn("Retry me.", message.content)
-        self.assertEqual(
-            agents.AgentOutbox.objects.filter(delivery_key="status:test:busy").count(), 1
-        )
+        job.refresh_from_db()
+        self.assertEqual(job.status, "cancelled")
+        assert job.result_message_id is not None
+        card = Message.objects.get(id=job.result_message_id)
+        self.assertEqual(card.content, f"{self.profile.name} \u00b7 Cancelled")
+        self.assertEqual(card_widget(card)["status"], "cancelled")
 
     def test_eager_publish_runs_after_the_events_transaction_commits(self) -> None:
         import hashlib
@@ -890,21 +810,23 @@ class AgentLifecycleTests(ZulipTestCase):
             job.refresh_from_db()
             self.assertEqual(job.status, "completed")
 
-    def test_waiting_for_input_posts_one_bot_notice(self) -> None:
+    def test_waiting_for_input_does_not_post_a_second_message(self) -> None:
+        """13-R9: input.requested refreshes the card, no new chat message."""
         from django.utils.timezone import now
 
         from zerver.actions import agent_jobs as actions
         from zerver.lib import agent_protocol as p
 
-        job = actions.create_job(
-            self.owner,
-            profile=self.profile,
-            source=self.message,
-            request="Please answer",
-            idempotency_key=uuid4(),
-            job_kind="answer",
-            delivery_target="answer",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            job = actions.create_job(
+                self.owner,
+                profile=self.profile,
+                source=self.message,
+                request="Please answer",
+                idempotency_key=uuid4(),
+                job_kind="answer",
+                delivery_target="answer",
+            )
         actions.claim_work(self.runner, claim_key=uuid4())
         attempt = agents.AgentAttempt.objects.get(job=job)
 
@@ -931,15 +853,13 @@ class AgentLifecycleTests(ZulipTestCase):
             event(2, "input.requested", {"question": "Which environment?", "options": []})
         job.refresh_from_db()
         self.assertEqual(job.status, "waiting_for_input")
-        message = Message.objects.get(sender=self.profile.bot_user)
-        self.assertEqual(
-            message.content,
-            f"@**{self.owner.full_name}|{self.owner.id}** This task needs your answer."
-            f" {self.owner.realm.url}/#agent-jobs/{job.id}",
-        )
+        card = Message.objects.get(sender=self.profile.bot_user)
+        self.assertEqual(card.id, job.result_message_id)
+        widget = card_widget(card)
+        self.assertEqual((widget["status"], widget["reason_code"]), ("waiting_for_input", None))
         self.assertEqual(agents.AgentJob.objects.count(), 1)
 
-    def test_job_interrupted_posts_one_short_message(self) -> None:
+    def test_job_interrupted_refreshes_the_card_with_no_second_message(self) -> None:
         from datetime import timedelta
 
         from django.utils.timezone import now
@@ -947,15 +867,16 @@ class AgentLifecycleTests(ZulipTestCase):
         from zerver.actions import agent_jobs as actions
         from zerver.lib.agent_reconcile import reconcile_agents
 
-        job = actions.create_job(
-            self.owner,
-            profile=self.profile,
-            source=self.message,
-            request="Please answer",
-            idempotency_key=uuid4(),
-            job_kind="answer",
-            delivery_target="answer",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            job = actions.create_job(
+                self.owner,
+                profile=self.profile,
+                source=self.message,
+                request="Please answer",
+                idempotency_key=uuid4(),
+                job_kind="answer",
+                delivery_target="answer",
+            )
         actions.claim_work(self.runner, claim_key=uuid4())
         attempt = agents.AgentAttempt.objects.get(job=job)
         agents.AgentAttempt.objects.filter(id=attempt.id).update(
@@ -965,16 +886,19 @@ class AgentLifecycleTests(ZulipTestCase):
             reconcile_agents()
         job.refresh_from_db()
         self.assertEqual(job.status, "interrupted")
-        message = Message.objects.get(sender=self.profile.bot_user)
+        card = Message.objects.get(sender=self.profile.bot_user)
+        self.assertEqual(card.id, job.result_message_id)
+        widget = card_widget(card)
+        # The card names the cause a person can act on (13-R8); the job
+        # detail below keeps the precise code.
         self.assertEqual(
-            message.content,
-            "The server lost contact with the runner before the task stopped."
-            f" {self.owner.realm.url}/#agent-jobs/{job.id}",
+            (widget["status"], widget["reason_code"]), ("interrupted", "runner_offline")
         )
+
         from zerver.views.agent_jobs import job_data
 
         self.assertEqual(job_data(self.owner, job)["reason_code"], "lease_lost")
-        # A later reconcile pass must not add a second notice for the same job.
+        # A later reconcile pass must not add a second message for the same job.
         reconcile_agents()
         self.assertEqual(Message.objects.filter(sender=self.profile.bot_user).count(), 1)
 
@@ -1204,17 +1128,18 @@ class AgentLifecycleTests(ZulipTestCase):
                 self.owner, [profile.bot_user, self.example_user("iago")], "Code task"
             )
         )
-        job = actions.create_job(
-            self.owner,
-            profile=profile,
-            source=message,
-            request="Run a script",
-            idempotency_key=uuid4(),
-            job_kind="code",
-            delivery_target="patch",
-            repository=repository,
-            base_ref="main",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            job = actions.create_job(
+                self.owner,
+                profile=profile,
+                source=message,
+                request="Run a script",
+                idempotency_key=uuid4(),
+                job_kind="code",
+                delivery_target="patch",
+                repository=repository,
+                base_ref="main",
+            )
         actions.claim_work(self.runner, claim_key=uuid4())
         attempt = agents.AgentAttempt.objects.get(job=job)
         # No AgentVerification row exists for the required check: publish_result's
@@ -1305,17 +1230,18 @@ class AgentLifecycleTests(ZulipTestCase):
                 self.owner, [profile.bot_user, self.example_user("iago")], "Code task"
             )
         )
-        job = actions.create_job(
-            self.owner,
-            profile=profile,
-            source=message,
-            request="Run a script",
-            idempotency_key=uuid4(),
-            job_kind="code",
-            delivery_target="patch",
-            repository=repository,
-            base_ref="main",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            job = actions.create_job(
+                self.owner,
+                profile=profile,
+                source=message,
+                request="Run a script",
+                idempotency_key=uuid4(),
+                job_kind="code",
+                delivery_target="patch",
+                repository=repository,
+                base_ref="main",
+            )
         actions.claim_work(self.runner, claim_key=uuid4())
         attempt = agents.AgentAttempt.objects.get(job=job)
         sequence = 0
@@ -1390,12 +1316,11 @@ class AgentLifecycleTests(ZulipTestCase):
                 )
             job.refresh_from_db()
             self.assertEqual(job.status, "waiting_for_approval")
-            message = Message.objects.get(sender=profile.bot_user)
-            self.assertEqual(
-                message.content,
-                f"@**{self.owner.full_name}|{self.owner.id}** This task needs your approval."
-                f" {self.owner.realm.url}/#agent-jobs/{job.id}",
-            )
+            # 13-R6: the card refreshes (transition() -> _refresh_job_card);
+            # spec 13 principle 1 means no second chat message for this.
+            card = Message.objects.get(sender=profile.bot_user)
+            self.assertEqual(card.id, job.result_message_id)
+            self.assertEqual(card_widget(card)["status"], "waiting_for_approval")
             # A replayed proposal with the same operation_id returns the existing
             # operation and must not post a second notice.
             replay = propose_operation(
@@ -1593,9 +1518,9 @@ class AgentLifecycleTests(ZulipTestCase):
                     job.refresh_from_db()
                     self.assertEqual(job.status, "completed")
                     self.assertEqual(receipt, results.publish_result(job.id))
+                    # 13-R2: no raw task link in the message content.
                     expected_content = (
-                        f"{silent_mention_syntax_for_user(job.requester)} "
-                        f"{replacement.decode()} {results.job_task_link(job)}"
+                        f"{silent_mention_syntax_for_user(job.requester)} {replacement.decode()}"
                     )
                     self.assertEqual(
                         Message.objects.get(id=receipt["message_id"]).content, expected_content
@@ -2280,17 +2205,18 @@ class AgentLifecycleTests(ZulipTestCase):
                 self.owner, [profile.bot_user, self.example_user("iago")], "Code task"
             )
         )
-        job = actions.create_job(
-            self.owner,
-            profile=profile,
-            source=message,
-            request="Run a script",
-            idempotency_key=uuid4(),
-            job_kind="code",
-            delivery_target="patch",
-            repository=repository,
-            base_ref="main",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            job = actions.create_job(
+                self.owner,
+                profile=profile,
+                source=message,
+                request="Run a script",
+                idempotency_key=uuid4(),
+                job_kind="code",
+                delivery_target="patch",
+                repository=repository,
+                base_ref="main",
+            )
         actions.claim_work(self.runner, claim_key=uuid4())
         attempt = agents.AgentAttempt.objects.get(job=job)
         sequence = 0
@@ -2653,15 +2579,19 @@ class AgentLifecycleTests(ZulipTestCase):
             store_artifact,
         )
 
-        job = actions.create_job(
-            self.owner,
-            profile=self.profile,
-            source=self.message,
-            request="Please answer",
-            idempotency_key=uuid4(),
-            job_kind="answer",
-            delivery_target="answer",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            job = actions.create_job(
+                self.owner,
+                profile=self.profile,
+                source=self.message,
+                request="Please answer",
+                idempotency_key=uuid4(),
+                job_kind="answer",
+                delivery_target="answer",
+            )
+        job.refresh_from_db()
+        card_id = job.result_message_id
+        assert card_id is not None
         actions.claim_work(self.runner, claim_key=uuid4())
         attempt = agents.AgentAttempt.objects.get(job=job)
         sequence = 0
@@ -2728,8 +2658,15 @@ class AgentLifecycleTests(ZulipTestCase):
 
             delivered = deliver_result_privately(self.owner, job.id, job.version)
             self.assertEqual(delivered.status, "completed")
-            assert delivered.result_message_id is not None
-            message = Message.objects.get(id=delivered.result_message_id)
+            # The job keeps its card, which shows only a neutral line (FL-22);
+            # the receipt names the direct message.
+            self.assertEqual(delivered.result_message_id, card_id)
+            self.assertEqual(
+                Message.objects.get(id=card_id).content,
+                "This task's answer is no longer shown here.",
+            )
+            assert delivered.result_receipt is not None
+            message = Message.objects.get(id=delivered.result_receipt["message_id"])
             self.assertTrue(
                 message.content.startswith(
                     "This result was sent here because the conversation changed."
@@ -2742,8 +2679,11 @@ class AgentLifecycleTests(ZulipTestCase):
 
             # A second call must not send a second message.
             again = deliver_result_privately(self.owner, job.id, delivered.version)
-            self.assertEqual(again.result_message_id, delivered.result_message_id)
-            self.assertEqual(Message.objects.filter(id=delivered.result_message_id).count(), 1)
+            self.assertEqual(again.result_receipt, delivered.result_receipt)
+            self.assertEqual(
+                Message.objects.filter(recipient=message.recipient, sender=message.sender).count(),
+                1,
+            )
 
     def test_deliver_privately_rejects_other_users_and_lost_source_access(self) -> None:
         import hashlib

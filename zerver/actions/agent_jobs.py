@@ -1,13 +1,17 @@
 """Durable job transitions. The caller never receives model authority."""
 
+import contextlib
 import hashlib
 import logging
+import re
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any
+from typing import Any, TypedDict
 from uuid import UUID, uuid4
 
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models import Max
@@ -32,6 +36,7 @@ from zerver.lib.agent_context import (
     scope_for_message,
 )
 from zerver.lib.agent_events import send_agent_job_event, send_agent_runner_event
+from zerver.lib.agent_failure_codes import NOT_RETRYABLE_CARD_CODES, card_reason_code
 from zerver.lib.agent_policy import (
     AgentAccessDenied,
     _owner_or_grant,
@@ -39,7 +44,7 @@ from zerver.lib.agent_policy import (
     require_manage_command,
 )
 from zerver.lib.agent_presence import observed_runner_status
-from zerver.lib.exceptions import JsonableError
+from zerver.lib.exceptions import JsonableError, ReactionExistsError
 from zerver.models import Message, UserProfile, agents
 
 TERMINAL = {"completed", "cancelled", "failed", "interrupted", "blocked"}
@@ -48,7 +53,7 @@ EXECUTING = {"running", "waiting_for_input", "waiting_for_approval", "verifying"
 logger = logging.getLogger(__name__)
 
 # RL-1: same backoff as agent_approvals._RECEIPT_RETRY_DELAYS (contract 9.1).
-_NOTICE_RETRY_DELAYS = (0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2)
+_BEST_EFFORT_RETRY_DELAYS = (0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2)
 
 
 def digest(value: object) -> str:
@@ -98,73 +103,111 @@ def transition(job: agents.AgentJob, status: str, *, reason: str = "") -> None:
     job.status = status
     job.blocked_reason = reason
     job.version += 1
-    job.save(update_fields=["status", "blocked_reason", "version"])
+    job.updated_at = now()
+    job.save(update_fields=["status", "blocked_reason", "version", "updated_at"])
     # Most `job.phase = ...` writes in this codebase run immediately before
     # a transition() call on the same job instance, so this also covers a
     # phase change; a phase change with no status change still needs its
     # own send_agent_job_event() call at that call site.
     send_agent_job_event(job)
     sync_agent_task(job)
-    if status in {"failed", "interrupted"}:
-        _notify_job_ended(job, reason)
+    if job.result_message_id is not None:
+        # 13-R6: the card is rendered from job state, refreshed here instead
+        # of a new chat message for every approval/input/end notice (spec 13
+        # principle 1, one message per job). A plain closure, never
+        # functools.partial (RL-4): see _run_best_effort.
+        job_id = job.id
+        transaction.on_commit(lambda: _refresh_job_card(job_id), robust=True)
 
 
-def notify_conversation(
-    job: agents.AgentJob, marker_key: str, sentence: str, *, mention_requester: bool = True
-) -> None:
-    """Best-effort status notice, sent only once the caller's transaction
-    commits (RL-4): a send failure can never undo the caller's transition,
-    because the notice has not run yet when that transition commits."""
-    job_id = job.id
-    # A plain closure, never functools.partial (RL-4): Django's robust=True
-    # reads the callback's __qualname__ to log a raised exception, a partial
-    # has none, and that lookup's own AttributeError used to escape the
-    # commit and skip every later on_commit hook in the same transaction.
-    transaction.on_commit(
-        lambda: _send_job_notice(job_id, marker_key, sentence, mention_requester), robust=True
-    )
+def _run_best_effort(description: str, fn: Callable[[], None]) -> None:
+    """Never raise: run from an on_commit hook, after the caller's own
+    transaction already committed, so nothing is left here to unwind.
+    Retries on contention, then gives up and logs (RL-1).
 
-
-def _send_job_notice(job_id: UUID, marker_key: str, sentence: str, mention_requester: bool) -> None:
-    """Never raise: this runs from an on_commit hook, after the notice's own
-    caller has already committed, so nothing is left to unwind here."""
-    from zerver.lib.agent_results import post_job_notice
-
+    Register the hook as a plain closure, never functools.partial (RL-4):
+    Django's robust=True reads the callback's __qualname__ to log a raised
+    exception, a partial has none, and that lookup's own AttributeError
+    used to escape the commit and skip every later on_commit hook."""
     try:
-        for delay in _NOTICE_RETRY_DELAYS:
+        for delay in _BEST_EFFORT_RETRY_DELAYS:
             try:
-                post_job_notice(job_id, marker_key, sentence, mention_requester=mention_requester)
+                fn()
                 return
             except AgentBusy:
                 time.sleep(delay)
         # One last call without a catch: let a persistent lock failure reach
-        # the log below instead of silently dropping the notice forever.
-        post_job_notice(job_id, marker_key, sentence, mention_requester=mention_requester)
+        # the log below instead of silently dropping the update forever.
+        fn()
     except Exception:
-        logger.exception("Could not send job notice %s for job %s.", marker_key, job_id)
+        logger.exception("Could not %s.", description)
 
 
-def _end_reason_sentence(reason: str) -> str:
-    if reason == "stop_unconfirmed":
-        return _("The runner did not confirm that the task stopped.")
-    if reason == "runtime_stopped":
-        return _("The task stopped before it finished.")
-    if reason == "lease_lost":
-        return _("The server lost contact with the runner before the task stopped.")
-    if reason == "start_failed":
-        return _("The runner could not start this task.")
-    if reason == "result_invalid":
-        return _("The agent ended the task without a usable result.")
-    if reason == "verification_failed":
-        return _("The required checks failed.")
-    return _("The task ended without a result.")
+def _admit_job_card(job_id: UUID, trigger_kind: str) -> None:
+    from zerver.lib.agent_results import post_admission_card
+
+    _run_best_effort(
+        f"post the job card for {job_id}",
+        lambda: post_admission_card(
+            job_id, acknowledge=trigger_kind in {"mention", "direct_message"}
+        ),
+    )
 
 
-def _notify_job_ended(job: agents.AgentJob, reason: str) -> None:
-    with override_language(job.realm.default_language):
-        sentence = _end_reason_sentence(reason)
-    marker_key = f"status:end:{job.id}:{job.version}"
-    notify_conversation(job, marker_key, sentence, mention_requester=False)
+def _refresh_job_card(job_id: UUID) -> None:
+    from zerver.lib.agent_results import update_job_card
+
+    _run_best_effort(f"refresh the job card for {job_id}", lambda: update_job_card(job_id))
+
+
+def typing_after_commit(job_id: UUID, operator: str) -> None:
+    """Start or stop the bot's typing indicator in the job card's
+    conversation once the caller commits (SD-01, SD-02)."""
+    from zerver.lib.agent_results import send_card_typing
+
+    transaction.on_commit(
+        lambda: _run_best_effort(
+            f"send typing for {job_id}", lambda: send_card_typing(job_id, operator)
+        ),
+        robust=True,
+    )
+
+
+def react_after_commit(bot: UserProfile, message_id: int, emoji_name: str) -> None:
+    """Add the bot's reaction to a message once the caller commits (13-R4,
+    13-R5): a failed reaction can never undo the admission it reports."""
+    from zerver.actions.reactions import check_add_reaction
+
+    def react() -> None:
+        # check_add_reaction locks the message, so it needs a transaction.
+        with transaction.atomic(), contextlib.suppress(ReactionExistsError):
+            check_add_reaction(bot, message_id, emoji_name, None, None)
+
+    transaction.on_commit(
+        lambda: _run_best_effort(f"react to message {message_id}", react), robust=True
+    )
+
+
+def throttle(key: str, seconds: float) -> bool:
+    """True at most once per `seconds` for this key (SD-02, SD-04). Every
+    caller holds the job's row lock, so this read and write cannot race."""
+    current = time.time()
+    last = cache.get(key)
+    if last is not None and current - last < seconds:
+        return False
+    cache.set(key, current, timeout=int(seconds) + 1)
+    return True
+
+
+def agent_language(realm_id: int) -> str:
+    """Settings -> General -> Agent language: the language of the agent's
+    own chat text and answers (spec 13 principle 6)."""
+    language = (
+        agents.AgentRealmSettings.objects.filter(realm_id=realm_id)
+        .values_list("agent_language", flat=True)
+        .first()
+    )
+    return language or "id"
 
 
 def require_control(actor: UserProfile, job: agents.AgentJob) -> None:
@@ -455,13 +498,15 @@ def create_job(
                 realm=actor.realm, job=job, delivery_key=f"wake:{job.id}:1", event_type="job.wake"
             )
             audit(job, "job.queued", {"status": "queued", "reason": ""}, actor=control_actor)
-            with override_language(job.realm.default_language):
-                sentence = (
-                    _("This task is saved. It starts when the agent's device connects.")
-                    if observed_runner_status(profile.runner) in {"offline", "unknown"}
-                    else _("This task is queued.")
-                )
-            notify_conversation(job, f"status:accepted:{job.id}", sentence, mention_requester=False)
+        if not draft:
+            # 13-R3/13-R4/SD-01: the job's one card message, plus the source
+            # message's acknowledgement reaction and typing indicator for a
+            # mention or direct message (not for a "manual" API creation,
+            # which named no message to react to). A job admitted as
+            # blocked gets its card too, so the chat shows why it waits.
+            job_id = job.id
+            job_trigger_kind = trigger_kind
+            transaction.on_commit(lambda: _admit_job_card(job_id, job_trigger_kind), robust=True)
         return job
 
 
@@ -1079,6 +1124,186 @@ def job_reason_code(job: agents.AgentJob) -> str | None:
     return reason
 
 
+# Card progress by phase (02-D3); "queued" and "completed" are job
+# statuses, not phases, so they are handled separately in _job_progress.
+_PHASE_PROGRESS: dict[str, float] = {
+    "inspect": 0.15,
+    "plan": 0.3,
+    "edit": 0.55,
+    "verify": 0.75,
+    "review": 0.9,
+    "deliver": 0.95,
+}
+
+# A retry only makes sense once the job has actually stopped.
+_RESUMABLE_STATUSES = frozenset({"cancelled", "failed", "interrupted", "blocked"})
+
+# SD-13: the card calls a queued job's runner offline after 45 seconds of
+# silence, sooner than presence does (agent_presence.HEARTBEAT_STALE_AFTER).
+_CARD_RUNNER_SILENT_AFTER = timedelta(seconds=45)
+
+# A mention in the request text, shown as plain "@Name" in the card title.
+_MENTION_SYNTAX = re.compile(r"@_?\*\*([^*|]+)(?:\|\d+)?\*\*")
+
+
+class AgentJobCardArtifact(TypedDict):
+    kind: str
+    label: str
+    url: str | None
+    task_id: int | None
+
+
+class AgentJobCard(TypedDict):
+    """The `agent_job` widget's extra_data (spec 13)."""
+
+    job_id: str
+    status: str
+    title: str
+    step_label: str
+    progress: float
+    artifacts: list[AgentJobCardArtifact]
+    reason_code: str | None
+    can_retry: bool
+
+
+@dataclass
+class JobCardFacts:
+    """What a set of cards needs beyond the job rows themselves, read with a
+    fixed number of queries for any number of jobs (O2)."""
+
+    artifacts: dict[UUID, list[AgentJobCardArtifact]]
+    step_labels: dict[UUID, str]
+
+
+def artifact_url(artifact_id: UUID) -> str:
+    return f"/json/agent/artifacts/{artifact_id}"
+
+
+def job_card_facts(jobs: Sequence[agents.AgentJob]) -> JobCardFacts:
+    """Chips (map-backend 13-D1: tasks, files, pull requests, and required
+    checks, read from what exists, never a new table) and each job's latest
+    step (02-D3: the type of its last audit event)."""
+    from zerver.models.tasks import Task
+
+    job_ids = [job.id for job in jobs]
+    artifacts: dict[UUID, list[AgentJobCardArtifact]] = {job_id: [] for job_id in job_ids}
+    for task_id, job_id, title in (
+        Task.objects.filter(agent_job_id__in=job_ids)
+        .order_by("id")
+        .values_list("id", "agent_job_id", "title")
+    ):
+        artifacts[job_id].append({"kind": "task", "label": title, "url": None, "task_id": task_id})
+    for artifact_id, job_id, filename in (
+        agents.AgentArtifact.objects.filter(
+            attempt__job_id__in=job_ids, kind="file", unavailable_at__isnull=True
+        )
+        .order_by("created_at")
+        .values_list("id", "attempt__job_id", "filename")
+    ):
+        artifacts[job_id].append(
+            {"kind": "file", "label": filename, "url": artifact_url(artifact_id), "task_id": None}
+        )
+    for job_id, remote_receipt in (
+        agents.AgentOperation.objects.filter(
+            attempt__job_id__in=job_ids,
+            tool_class="git.draft_pr",
+            status="succeeded",
+            remote_receipt__isnull=False,
+        )
+        .order_by("finished_at")
+        .values_list("attempt__job_id", "remote_receipt")
+    ):
+        receipt = p.RemoteReceipt.model_validate(remote_receipt)
+        if receipt.pull_request_id and (receipt.pull_request_url or "").startswith("https://"):
+            artifacts[job_id].append(
+                {
+                    "kind": "pr",
+                    "label": f"PR #{receipt.pull_request_id}",
+                    "url": receipt.pull_request_url,
+                    "task_id": None,
+                }
+            )
+    # The latest run of each required check (a later run replaces an earlier one).
+    checks: dict[tuple[UUID, str], AgentJobCardArtifact] = {}
+    for job_id, check_id, exit_code, timed_out, output_id in (
+        agents.AgentVerification.objects.filter(attempt__job_id__in=job_ids)
+        .order_by("finished_at")
+        .values_list("attempt__job_id", "check_id", "exit_code", "timed_out", "output_artifact_id")
+    ):
+        mark = "✓" if exit_code == 0 and not timed_out else "✗"
+        checks[(job_id, check_id)] = {
+            "kind": "check",
+            "label": f"{check_id} {mark}",
+            "url": artifact_url(output_id),
+            "task_id": None,
+        }
+    for (job_id, _check_id), chip in checks.items():
+        artifacts[job_id].append(chip)
+    step_labels = dict(
+        agents.AgentAuditEvent.objects.filter(job_id__in=job_ids)
+        .order_by("job_id", "-sequence")
+        .distinct("job_id")
+        .values_list("job_id", "type")
+    )
+    return JobCardFacts(artifacts=artifacts, step_labels=step_labels)
+
+
+def _job_progress(job: agents.AgentJob) -> float:
+    if job.status == "queued":
+        return 0.05
+    if job.status == "completed":
+        return 1.0
+    return _PHASE_PROGRESS.get(job.phase, 0.15)
+
+
+def job_title(job: agents.AgentJob) -> str:
+    return _MENTION_SYNTAX.sub(r"@\1", job.request).strip()[:80]
+
+
+def job_status_reason(job: agents.AgentJob) -> str | None:
+    """job_reason_code, plus runner_offline for a queued job whose runner
+    has been silent for 45 seconds (SD-13)."""
+    if job.status != "queued":
+        return job_reason_code(job)
+    runner = job.runner
+    if (
+        observed_runner_status(runner) != "online"
+        or runner.last_heartbeat_at is None
+        or runner.last_heartbeat_at <= now() - _CARD_RUNNER_SILENT_AFTER
+    ):
+        return "runner_offline"
+    return None
+
+
+def card_extra_data(
+    job: agents.AgentJob,
+    *,
+    facts: JobCardFacts | None = None,
+    resume_eligible: bool | None = None,
+) -> AgentJobCard:
+    """The `agent_job` widget's live state (spec 13): the one place both the
+    card's own submessage refresh (agent_results.update_job_card) and
+    job_data() read this from, so the chat card and the job detail view
+    never disagree. list_jobs passes `facts` and `resume_eligible` it
+    already has for the whole page."""
+    if facts is None:
+        facts = job_card_facts([job])
+    reason_code = card_reason_code(job_status_reason(job))
+    can_retry = job.status in _RESUMABLE_STATUSES and reason_code not in NOT_RETRYABLE_CARD_CODES
+    if can_retry:
+        can_retry = resume_eligibility(job)[0] if resume_eligible is None else resume_eligible
+    return {
+        "job_id": str(job.id),
+        "status": job.status,
+        "title": job_title(job),
+        "step_label": facts.step_labels.get(job.id, job.phase),
+        "progress": _job_progress(job),
+        "artifacts": facts.artifacts[job.id],
+        "reason_code": reason_code,
+        "can_retry": can_retry,
+    }
+
+
 def resume_job(
     actor: UserProfile, job_id: UUID, expected_version: int, checkpoint_id: UUID | None = None
 ) -> agents.AgentJob:
@@ -1375,10 +1600,9 @@ def record_event(
                 timed_out=verification.timed_out,
             )
         elif isinstance(event.payload, p.InputRequestPayload):
+            # 13-R9: no new chat message; the card refreshes from transition()
+            # above, and the item itself shows in the list of what needs a person.
             transition(job, "waiting_for_input")
-            with override_language(job.realm.default_language):
-                sentence = _("This task needs your answer.")
-            notify_conversation(job, f"status:input:{event.event_id}", sentence)
         elif isinstance(event.payload, p.ResultPayload):
             result = event.payload
             if attempt.process_state != "active":
@@ -1444,7 +1668,7 @@ def record_event(
         # after commit instead of waiting for the reconcile timer, which
         # stays as a fallback (RL-3): a call made from inside this open
         # transaction could see stale data or race the transition it follows.
-        # A plain closure, never functools.partial: see notify_conversation.
+        # A plain closure, never functools.partial: see _run_best_effort.
         transaction.on_commit(lambda: _publish_after_commit(job.id), robust=True)
     return result
 
@@ -1536,6 +1760,14 @@ def heartbeat(
                 )
                 attempt.lease_expires_at = min(now() + timedelta(seconds=90), limit)
                 attempt.save(update_fields=["lease_expires_at"])
+                if (
+                    job.job_kind == "answer"
+                    and job.status == "running"
+                    and throttle(f"agent-typing:{job.id}", 10)
+                ):
+                    # SD-02: keep the bot's typing indicator up (a client
+                    # drops it after 45 seconds) until the first draft.
+                    typing_after_commit(job.id, "start")
             result.append(
                 {
                     "job_id": str(job.id),

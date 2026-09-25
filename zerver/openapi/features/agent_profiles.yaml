@@ -21,8 +21,12 @@ paths:
                   profile_id: 00000000-0000-4000-8000-000000000037
                   requester_id: 1
                   source_message_id: 1
+                  result_message_id: 2
                   status: draft
                   phase: inspect
+                  step_label: inspect
+                  progress: 0.15
+                  artifacts: []
                   version: 1
                   request: Request
                   title: Title

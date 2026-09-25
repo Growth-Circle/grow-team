@@ -5,6 +5,11 @@ paths:
       tags:
         - agents
       summary: List agent jobs
+      description: |
+        **Changes**: In Zulip 12.0, added `result_message_id`, `step_label`,
+        `progress`, and `artifacts` to each job object, and `runner_offline`
+        as a `reason_code` for a queued job whose runner is silent (feature
+        level ZF-157392).
       responses:
         "200":
           description: Success.
@@ -128,6 +133,10 @@ paths:
       tags:
         - agents
       summary: Create an agent job
+      description: |
+        **Changes**: In Zulip 12.0, added `result_message_id`, `step_label`,
+        `progress`, and `artifacts` to the returned job object (feature level
+        ZF-157392).
       responses:
         "200":
           description: Success.
@@ -144,8 +153,12 @@ paths:
                   profile_id: 00000000-0000-4000-8000-000000000011
                   requester_id: 1
                   source_message_id: 1
+                  result_message_id: 2
                   status: draft
                   phase: inspect
+                  step_label: inspect
+                  progress: 0.15
+                  artifacts: []
                   version: 1
                   request: Request
                   title: Title
@@ -626,6 +639,10 @@ paths:
       tags:
         - agents
       summary: Get an agent job
+      description: |
+        **Changes**: In Zulip 12.0, added `result_message_id`, `step_label`,
+        `progress`, and `artifacts` to the returned job object (feature level
+        ZF-157392).
       responses:
         "200":
           description: Success.
@@ -642,8 +659,12 @@ paths:
                   profile_id: 00000000-0000-4000-8000-000000000015
                   requester_id: 1
                   source_message_id: 1
+                  result_message_id: 2
                   status: draft
                   phase: inspect
+                  step_label: inspect
+                  progress: 0.15
+                  artifacts: []
                   version: 1
                   request: Request
                   title: Title
@@ -1189,8 +1210,12 @@ paths:
                   profile_id: 00000000-0000-4000-8000-000000000020
                   requester_id: 1
                   source_message_id: 1
+                  result_message_id: 2
                   status: draft
                   phase: inspect
+                  step_label: inspect
+                  progress: 0.15
+                  artifacts: []
                   version: 1
                   request: Request
                   title: Title
@@ -1353,8 +1378,12 @@ paths:
                   profile_id: 00000000-0000-4000-8000-000000000024
                   requester_id: 1
                   source_message_id: 1
+                  result_message_id: 2
                   status: draft
                   phase: inspect
+                  step_label: inspect
+                  progress: 0.15
+                  artifacts: []
                   version: 1
                   request: Request
                   title: Title
@@ -1511,8 +1540,12 @@ paths:
                   profile_id: 00000000-0000-4000-8000-000000000028
                   requester_id: 1
                   source_message_id: 1
+                  result_message_id: 2
                   status: draft
                   phase: inspect
+                  step_label: inspect
+                  progress: 0.15
+                  artifacts: []
                   version: 1
                   request: Request
                   title: Title
@@ -1674,8 +1707,12 @@ paths:
                   profile_id: 00000000-0000-4000-8000-000000000032
                   requester_id: 1
                   source_message_id: 1
+                  result_message_id: 2
                   status: draft
                   phase: inspect
+                  step_label: inspect
+                  progress: 0.15
+                  artifacts: []
                   version: 1
                   request: Request
                   title: Title
@@ -3559,6 +3596,14 @@ components:
           type: integer
           minimum: 1
           nullable: true
+        result_message_id:
+          type: integer
+          minimum: 1
+          nullable: true
+          description:
+            The job's one card message (spec 13). It stays the card when the
+            result goes to the requester directly. Null for a draft job, and
+            until the server posts the card.
         status:
           type: string
           enum:
@@ -3583,6 +3628,48 @@ components:
             - verify
             - review
             - deliver
+        step_label:
+          type: string
+          description: The type of the job's latest activity event, such as
+            `job.queued` or `tool.started`, or the phase before the job has any
+            event. A client turns this stable code into its own step label text.
+        progress:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: 0.05 while queued, 1 once completed, otherwise by phase
+            (inspect 0.15, plan 0.3, edit 0.55, verify 0.75, review 0.9, deliver
+            0.95).
+        artifacts:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              kind:
+                type: string
+                enum:
+                  - task
+                  - file
+                  - pr
+                  - check
+              label:
+                type: string
+              url:
+                type: string
+                nullable: true
+              task_id:
+                type: integer
+                nullable: true
+            required:
+              - kind
+              - label
+              - url
+              - task_id
+          description: Chips the card shows for this job's outcome, from what the
+            job already has. A `task` chip names a linked task board card by
+            `task_id`. A `file` chip links a file. A `pr` chip links a draft
+            pull request. A `check` chip links a required check's output.
         version:
           type: integer
           minimum: 1
@@ -3609,10 +3696,14 @@ components:
           type: string
           nullable: true
           description:
-            A stable code for why a blocked, interrupted, failed, or blocked-verifying
-            job stopped, such as queue_full, start_failed, stop_unconfirmed,
-            result_invalid, verification_failed, audience_changed, budget_exhausted,
-            or lease_lost. Null when the status carries no such reason.
+            A stable code for why a blocked, interrupted, failed, or verifying
+            job is in that state, such as start_deadline_expired, stop_unconfirmed,
+            runtime_stopped, lease_lost, start_failed, result_invalid,
+            verification_failed, publication_blocked,
+            audience_changed, profile_needs_action, budget_exhausted,
+            approval_expired, approval_rejected, or authority_changed. A queued
+            job whose runner sent no heartbeat in the last 45 seconds has
+            runner_offline. Null when the status carries no such reason.
         resume_available:
           type: boolean
           description: The Resume action shows only when this is true.
@@ -3727,8 +3818,12 @@ components:
         - profile_id
         - requester_id
         - source_message_id
+        - result_message_id
         - status
         - phase
+        - step_label
+        - progress
+        - artifacts
         - version
         - request
         - title
