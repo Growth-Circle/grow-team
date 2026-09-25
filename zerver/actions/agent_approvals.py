@@ -24,6 +24,7 @@ from zerver.lib.agent_context import (
     require_job_access,
 )
 from zerver.lib.agent_policy import AgentAccessDenied
+from zerver.lib.role_permissions import has_role_permission
 from zerver.models import UserProfile, agents
 
 # RL-1: delays between phase-3 retries on lock contention (contract 9.1).
@@ -182,6 +183,13 @@ def propose_operation(
             status="proposed" if requires_approval else "authorized",
         )
         if requires_approval:
+            # Q-06 / Q-32: the TTL comes from the workspace setting (default
+            # 120 minutes), not a fixed 15 (R13). The attempt stops at its
+            # active_seconds budget however fresh its lease is, and nobody
+            # can decide the approval after that, so it expires then too.
+            approval_ttl_minutes = agents.AgentRealmSettings.objects.get(
+                realm=job.realm
+            ).approval_ttl_minutes
             approval = agents.AgentApproval.objects.create(
                 realm=job.realm,
                 job=job,
@@ -191,7 +199,10 @@ def propose_operation(
                 policy_version=descriptor.policy.version,
                 tree_hash=tree_hash or "",
                 arguments=arguments,
-                expires_at=now() + timedelta(minutes=15),
+                expires_at=min(
+                    now() + timedelta(minutes=approval_ttl_minutes),
+                    attempt.created_at + timedelta(seconds=descriptor.budget.active_seconds),
+                ),
             )
             transition(job, "waiting_for_approval")
             audit(
@@ -227,6 +238,11 @@ def decide_approval(
         operation = agents.AgentOperation.objects.select_for_update().get(id=lookup.operation_id)
         approval = agents.AgentApproval.objects.select_for_update().get(id=approval_id)
         require_job_access(actor, job)
+        # 10-M13: a Guest never has the approve permission, and an
+        # administrator can turn it off for a Member, whatever job grant
+        # the checks below find.
+        if not has_role_permission(actor, "approve"):
+            raise AgentAccessDenied("Agent access denied.")
         if operation.tool_class == "team.manage" and actor.id != job.requester_id:
             raise AgentAccessDenied("Agent access denied.")
         check_attempt_access(actor, job, attempt, operation.tool_class)
@@ -307,6 +323,8 @@ def consume_operation(
                 or approval.expires_at <= now()
                 or approval.nonce != nonce
                 or approval.approver is None
+                # 03-I1: the approver must still have the approve permission.
+                or not has_role_permission(approval.approver, "approve")
             ):
                 raise ValueError("Approval is unavailable.")
             check_attempt_access(approval.approver, job, attempt, operation.tool_class)
