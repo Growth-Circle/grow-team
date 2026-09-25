@@ -136,14 +136,14 @@
 
     .fa-check-square-o,
     .fa-square-o {
-        width: 0.625em; /* Legacy 10px size at 16px/1em. */
-        padding-right: 0.3125em; /* Legacy 5px size at 16px/1em. */
-        padding-left: 0.125em; /* Legacy 2px size at 16px/1em. */
+        width: 0.7142em; /* Legacy 10px size at 14px/1em. */
+        padding-right: 0.3571em; /* Legacy 5px size at 14px/1em. */
+        padding-left: 0.1428em; /* Legacy 2px size at 14px/1em. */
     }
 
     .zulip-icon-user {
-        /* 11.2px at 16px/1em. */
-        font-size: 0.7em;
+        /* Legacy 11.2px size at 14px/1em. */
+        font-size: 0.8em;
         text-align: center;
         opacity: 0.6;
     }
@@ -228,8 +228,8 @@
         border-radius: var(--radius-pill);
         /* Matching to the height of the filter search box. */
         height: var(--recent-topics-filters-height);
-        /* 12px at 16px/1em. */
-        padding: 0 0.75em;
+        /* Legacy 12px at 14px/1em. */
+        padding: 0 0.8571em;
 
         flex: 0 0 auto;
         display: flex;
@@ -807,7 +807,7 @@
 
         .recent_topic_actions {
             margin-right: 5px;
-            font-size: 0.9375em; /* 15px at 16px / em */
+            font-size: 1.0714em; /* 15px at 14px / em */
         }
     }
 
@@ -883,7 +883,7 @@
 
 #recent-view-filter_widget {
     display: inline-flex;
-    width: 9.375em; /* 150px at 16px em */
+    width: 10.7142em; /* 150px at 14px em */
     /* Prevent the outline from being clipped by the
        overflow:hidden ancestor at fractional browser
        zoom levels. 2px because 1px can round to 0

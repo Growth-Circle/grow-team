@@ -11,7 +11,7 @@
     background-color: var(--color-background);
 
     .message-header-contents {
-        font-size: 0.9375em; /* 15px at 16px em */
+        font-size: 1.0714em; /* 15px at 14px em */
         line-height: 1.2;
         display: flex;
         align-items: center;
@@ -93,7 +93,7 @@
         }
 
         .stream-privacy i {
-            font-size: 0.9375em; /* 15px at 16px em */
+            font-size: 1.0714em; /* 15px at 14px em */
 
             &.zulip-icon-globe,
             &.zulip-icon-hashtag {
@@ -157,8 +157,8 @@
         display: flex;
         padding: 5px 0 5px 10px;
         font-weight: 600;
-        height: 1.1875em; /* 19px at 16px em */
-        line-height: 1.1875em; /* 19px at 16px em */
+        height: 1.4142em; /* 19px at 14px em */
+        line-height: 1.4142em; /* 19px at 14px em */
         color: var(--color-text-message-header);
 
         &:hover {
@@ -172,7 +172,7 @@
         }
 
         .private_message_header_icon {
-            font-size: 0.9375em; /* 15px at 16px em */
+            font-size: 1.0714em; /* 15px at 14px em */
             position: relative;
             top: 1px;
             width: 1.0666em; /* 16px at 15px em */
@@ -312,8 +312,8 @@
     align-items: center;
     gap: 5px;
     padding: 5px 2px 5px 10px;
-    height: 1.0625em; /* 17px at 16px em */
-    line-height: 1.0625em; /* 17px at 16px em */
+    height: 1.2142em; /* 17px at 14px em */
+    line-height: 1.2142em; /* 17px at 14px em */
     position: relative;
     top: 0.5px;
     text-decoration: none;
@@ -331,8 +331,8 @@
 
     .stream-privacy {
         min-width: unset;
-        width: 1em; /* 16px at 16px em */
-        height: 1em; /* 16px at 16px em */
+        width: 1.1428em; /* 16px at 14px em */
+        height: 1.1428em; /* 16px at 14px em */
         display: flex;
         justify-content: center;
         align-items: center;
@@ -341,7 +341,7 @@
             padding-right: 0;
 
             &::after {
-                font-size: 1em; /* 16px at 16px em */
+                font-size: 1.1428em; /* 16px at 14px em */
             }
         }
     }
@@ -381,19 +381,19 @@
     display: inline-flex;
     align-items: center;
     /* Frame 10a's header buttons: 32px tall, 8px corners, 14px/600
-       label, 15px icon, 7px between them, sized off the app's base
-       font so the header's own font-size does not scale them. */
+       label, 15px icon, 7px between them. The em values below are
+       at 14px/1em (own font-size), the rule right above this one. */
     font-size: calc(var(--base-font-size-px) * 0.875);
-    gap: 0.4375em; /* 7px at 16px */
-    height: 2em; /* 32px at 16px */
-    padding: 0 0.75em; /* 12px at 16px */
+    gap: 0.5em; /* 7px at 14px/1em (own font-size) */
+    height: 2.2857em; /* 32px at 14px/1em (own font-size) */
+    padding: 0 0.8571em; /* 12px at 14px/1em (own font-size) */
     border: 1px solid var(--color-outline-input);
     border-radius: var(--radius-md);
     background-color: var(--color-background-navbar);
     color: var(--color-text-neutral-subtle-action-button);
 
     .zulip-icon {
-        font-size: 0.9375em; /* 15px at 16px */
+        font-size: 1.0714em; /* 15px at 14px/1em (own font-size) */
     }
     font-family: inherit;
     font-weight: 600;

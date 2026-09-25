@@ -101,8 +101,8 @@
     .message-header-topic-unread-count {
         display: inline-flex;
         align-items: center;
-        margin-left: 0.625em; /* 10px at 16px em */
-        padding: 0.1875em 0.625em; /* 3px 10px at 16px em */
+        margin-left: 0.7692em; /* 10px at 13px/1em (own font-size) */
+        padding: 0.2308em 0.7692em; /* 3px 10px at 13px/1em (own font-size) */
         /* 13px at 19px em, matches .unread_count's own conversion. */
         font-size: 0.6842em;
         font-weight: 600;

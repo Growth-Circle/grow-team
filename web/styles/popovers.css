@@ -80,7 +80,7 @@
     border: 1px solid var(--color-border-popover-menu);
     border-radius: var(--radius-xl);
     box-shadow: var(--box-shadow-popover-menu);
-    font-size: 0.9375em; /* 15px at 16px em */
+    font-size: 1.0714em; /* 15px at 14px em */
 
     > .tippy-content {
         padding: 0;

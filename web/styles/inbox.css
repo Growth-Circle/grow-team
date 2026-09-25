@@ -509,13 +509,13 @@
 }
 
 #inbox-filter_widget {
-    margin-right: 0.3125em; /* 5px / 16px/1em */
+    margin-right: 0.3571em; /* 5px / 14px em */
     max-width: var(--width-inbox-filters-dropdown);
     border: 1px solid var(--color-border-inbox-search);
     background-color: var(--color-background-inbox-search);
-    gap: 0.3125em; /* 5px / 16px/1em */
-    /* 1.5px at 16px/1em and 6px at 16px/1em. */
-    padding: 0.0937em 0.375em;
+    gap: 0.3571em; /* 5px / 14px em */
+    /* 1.5px at 16px/1em and legacy 6px at 14px/1em. */
+    padding: 0.0937em 0.4285em;
 
     &:hover {
         background-color: var(--color-background-inbox-search-hover);
@@ -604,7 +604,7 @@
 .new_channel_privacy-dropdown-list-container .dropdown-list-item-description {
     white-space: nowrap;
     font-weight: 400;
-    font-size: 0.8125em; /* 13px at 16px em */
+    font-size: 0.9285em; /* 13px at 14px em */
     opacity: 0.8;
     padding: 0;
     text-overflow: ellipsis;
