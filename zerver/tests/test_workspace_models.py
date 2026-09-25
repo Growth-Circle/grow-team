@@ -12,6 +12,8 @@ from zerver.models import (
     AgentRealmSettings,
     AgentRunner,
     AgentRunnerRegistrationToken,
+    DriveFolderLink,
+    ExternalAccount,
     RoomDigest,
     RoomMeta,
     Task,
@@ -245,3 +247,39 @@ class WorkspaceSchemaTests(ZulipTestCase):
         WebPushSubscription.objects.create(**fields)
         with self.assertRaises(IntegrityError):
             WebPushSubscription.objects.create(**fields)
+
+    # -- 0827 ExternalAccount / DriveFolderLink -----------------------------
+
+    def test_external_account_rejects_bad_provider(self) -> None:
+        with self.assertRaises(IntegrityError):
+            ExternalAccount.objects.create(realm=self.realm, provider="dropbox", purpose="drive")
+
+    def test_external_account_rejects_bad_purpose(self) -> None:
+        with self.assertRaises(IntegrityError):
+            ExternalAccount.objects.create(realm=self.realm, provider="google", purpose="mail")
+
+    def test_external_account_rejects_bad_status(self) -> None:
+        with self.assertRaises(IntegrityError):
+            ExternalAccount.objects.create(
+                realm=self.realm, provider="google", purpose="drive", status="expired"
+            )
+
+    def test_external_account_accepts_needs_reconnect_status(self) -> None:
+        account = ExternalAccount.objects.create(
+            realm=self.realm, provider="google", purpose="drive", status="needs_reconnect"
+        )
+        self.assertEqual(account.status, "needs_reconnect")
+
+    def test_drive_folder_link_rejects_bad_mode(self) -> None:
+        account = ExternalAccount.objects.create(
+            realm=self.realm, provider="google", purpose="drive"
+        )
+        with self.assertRaises(IntegrityError):
+            DriveFolderLink.objects.create(
+                realm=self.realm,
+                stream=self.stream,
+                account=account,
+                folder_id="f1",
+                mode="write_only",
+                linked_by=self.owner,
+            )
