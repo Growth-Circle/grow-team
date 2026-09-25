@@ -170,11 +170,14 @@ def agent_transaction(
                             acquired = cursor.fetchone()[0]
                     if not acquired:
                         raise AgentBusy("Agent authority is busy. Retry this request.")
-                    # ponytail: table-wide SHARE can still hold up an unrelated
-                    # INSERT into zerver_message for up to statement_timeout
-                    # (2.5s) below. Move to row-level locks on the touched
-                    # rows if a realm with many concurrent human writers
-                    # makes that wait visible.
+                    # ponytail: this table-wide SHARE lock stays until the
+                    # transaction ends, up to the 5 s agent budget. A
+                    # person's write to these tables waits until then.
+                    # Another realm's agent write to them waits up to
+                    # lock_timeout (250 ms), then fails as AgentBusy. The
+                    # cost grows with the number of realms that run agents.
+                    # Replace it with row locks (map-backend R1) before a
+                    # second workspace runs agents.
                     cursor.execute("LOCK TABLE " + ", ".join(ACL_TABLES) + " IN SHARE MODE NOWAIT")
                 cursor.execute(
                     "SELECT name, setting FROM pg_settings WHERE name IN ('lock_timeout', 'statement_timeout')"

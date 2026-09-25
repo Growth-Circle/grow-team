@@ -3,11 +3,14 @@
 agent_transaction() keys its advisory lock off the current realm instead of
 one fixed global key. These tests exercise the lock directly with two real
 Postgres connections; the badge-count tests below exercise the read side,
-which now also queries in bulk instead of looping per row.
+which now filters candidates in SQL before checking each one, instead of
+checking every running job in the realm.
 """
 
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
+from time import sleep
 from uuid import uuid4
 
 from django.db import connection, connections
@@ -20,7 +23,23 @@ from zerver.actions.tasks import do_create_task
 from zerver.lib.agent_context import AgentBusy, agent_realm, agent_transaction
 from zerver.lib.tasks import get_or_create_default_board, running_agent_job_count, work_counts
 from zerver.lib.test_classes import ZulipTestCase, ZulipTransactionTestCase
-from zerver.models import Message, agents
+from zerver.models import Message, Realm, agents
+
+
+def _retry_on_lock_contention(attempt: Callable[[], None]) -> None:
+    """LOCK TABLE ... IN SHARE MODE NOWAIT (agent_context.py) can lose a
+    race against an unrelated table-level lock, such as autovacuum's, on
+    one of the 20 ACL tables. Retry a path that expects to succeed up to
+    3 times before trusting AgentBusy; a path that expects AgentBusy for
+    a real reason is not wrapped in this, so it is unaffected."""
+    for remaining in range(2, -1, -1):
+        try:
+            attempt()
+            return
+        except AgentBusy:
+            if remaining == 0:
+                raise
+            sleep(0.1)
 
 
 class AgentRealmLockTests(ZulipTransactionTestCase):
@@ -42,9 +61,13 @@ class AgentRealmLockTests(ZulipTransactionTestCase):
         with ThreadPoolExecutor(max_workers=1) as pool:
             pending = pool.submit(hold_realm_two)
             self.assertTrue(entered.wait(3))
+
             # A write for a different realm proceeds right away.
-            with agent_realm(1), agent_transaction():
-                pass
+            def write_realm_one() -> None:
+                with agent_realm(1), agent_transaction():
+                    pass
+
+            _retry_on_lock_contention(write_realm_one)
             release.set()
             pending.result(timeout=5)
 
@@ -67,7 +90,7 @@ class AgentRealmLockTests(ZulipTransactionTestCase):
             release.set()
             pending.result(timeout=5)
 
-    def test_realm_id_three_does_not_share_the_no_realm_key(self) -> None:
+    def test_realm_three_does_not_use_the_legacy_global_key(self) -> None:
         """The fork used to lock (174621, 3) for every agent write. Guard
         against a realm whose id is 3 ever sharing that key again."""
         held, release = Event(), Event()
@@ -86,8 +109,12 @@ class AgentRealmLockTests(ZulipTransactionTestCase):
         with ThreadPoolExecutor(max_workers=1) as pool:
             pending = pool.submit(hold_legacy_key)
             self.assertTrue(held.wait(3))
-            with agent_realm(3), agent_transaction():
-                pass
+
+            def write_realm_three() -> None:
+                with agent_realm(3), agent_transaction():
+                    pass
+
+            _retry_on_lock_contention(write_realm_three)
             release.set()
             pending.result(timeout=5)
 
@@ -110,6 +137,59 @@ class AgentRealmLockTests(ZulipTransactionTestCase):
             self.assertTrue(entered.wait(3))
             with self.assertRaises(AgentBusy), agent_realm(1), agent_transaction():
                 pass
+            release.set()
+            pending.result(timeout=5)
+
+    def test_no_realm_transaction_waits_for_a_realms_open_transaction(self) -> None:
+        """The reverse of test_no_realm_transaction_blocks_every_realm: a
+        realm's shared hold on (174621, 0) also blocks a no-realm caller's
+        exclusive attempt on that same key, the direction the (174621, 0)
+        comment in agent_context.py describes but no test exercised."""
+        entered, release = Event(), Event()
+
+        def hold_realm_one() -> None:
+            try:
+                with agent_realm(1), agent_transaction():
+                    entered.set()
+                    assert release.wait(3)
+            finally:
+                connections.close_all()
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pending = pool.submit(hold_realm_one)
+            self.assertTrue(entered.wait(3))
+            with self.assertRaises(AgentBusy), agent_transaction():
+                pass
+            release.set()
+            pending.result(timeout=5)
+
+    def test_acl_table_write_waits_on_other_realm_transaction(self) -> None:
+        """map-backend.md R1 is not fixed by the per-realm advisory lock
+        alone: the ACL table lock (agent_context.py) is still server-wide.
+        Two realms' agent_transaction() calls do not conflict with each
+        other by themselves (their SHARE holds coexist), but a write to
+        one of the 20 ACL tables needs ROW EXCLUSIVE, which conflicts with
+        every other open agent transaction's SHARE hold, in any realm.
+        This pins that remaining wait so a future change does not widen
+        it by accident; replacing it with row locks needs an ACL security
+        review (map-backend.md R1) and is not done by this fix."""
+        entered, release = Event(), Event()
+
+        def hold_realm_two() -> None:
+            try:
+                with agent_realm(2), agent_transaction():
+                    entered.set()
+                    assert release.wait(3)
+            finally:
+                connections.close_all()
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pending = pool.submit(hold_realm_two)
+            self.assertTrue(entered.wait(3))
+            with self.assertRaises(AgentBusy), agent_realm(1), agent_transaction():
+                # No row needs to exist: UPDATE takes its ROW EXCLUSIVE
+                # table lock before it matches any row.
+                Realm.objects.filter(id=0).update(description="contention probe")
             release.set()
             pending.result(timeout=5)
 
