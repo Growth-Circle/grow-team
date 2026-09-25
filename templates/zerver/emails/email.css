@@ -42,7 +42,7 @@ table.layout > tbody > tr > td {
    .body element will be the equivalent of our outer element. */
 .body {
     width: 100%;
-    background-color: #f5f9f8;
+    background-color: #fffaf0; /* Kertas */
 }
 
 .container {
@@ -108,7 +108,7 @@ img.responsive-width {
 */
 .footer-content-block,
 .physical-address {
-    color: #5f5ec7;
+    color: #16161d; /* Tinta */
     font-size: 12px;
     text-align: center;
 }
@@ -158,7 +158,7 @@ p.digest_paragraph,
 .support_request_link,
 .email-preferences a,
 .missed_message.no-content-explanation a {
-    color: #5f5ec7;
+    color: #16161d; /* Tinta */
     text-decoration: underline;
 }
 
@@ -168,7 +168,7 @@ p.digest_paragraph,
 .support_request_link:hover,
 .email-preferences a:hover,
 .missed_message.no-content-explanation a:hover {
-    color: #434388 !important;
+    color: #4a4a55 !important; /* Tinta 2 */
 }
 
 .body .button {
@@ -176,10 +176,10 @@ p.digest_paragraph,
     padding: 10px 0;
     margin: 20px auto;
     width: 200px;
-    color: #5f5ec7;
-    border: 2px solid #5f5ec7;
-    background-color: #fff;
-    border-radius: 4px;
+    color: #16161d; /* Tinta */
+    border: 2px solid #16161d; /* Tinta */
+    background-color: #ff6a3d; /* Kaki */
+    border-radius: 999px; /* pill */
     font-size: 16px;
     outline: none;
     font-family: sans-serif;
@@ -189,8 +189,8 @@ p.digest_paragraph,
 }
 
 .body a.button:hover {
-    background-color: #5f5ec7;
-    color: #fff;
+    background-color: #16161d; /* Tinta */
+    color: #fffaf0; /* Kertas */
     text-decoration: none;
 }
 
@@ -259,12 +259,9 @@ p.digest_paragraph,
     color: #666;
 }
 
-.email-preferences a {
-    color: #15c;
-}
-
 .content_disabled_help_link {
-    color: #15c;
+    color: #16161d; /* Tinta */
+    text-decoration: underline;
 }
 
 /* Quoted block for text written by an organization administrator to
