@@ -15,8 +15,8 @@ from django.utils.translation import gettext as _
 from zerver.lib.agent_context import require_job_access
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.stream_subscription import get_active_subscriptions_for_stream_id
-from zerver.lib.streams import get_content_access_streams
-from zerver.lib.user_groups import UserGroupMembershipDetails
+from zerver.lib.streams import get_content_access_streams, is_user_in_can_administer_channel_group
+from zerver.lib.user_groups import UserGroupMembershipDetails, get_recursive_membership_groups
 from zerver.models import Realm, Stream, Task, TaskBoard, TaskBoardColumn, UserProfile
 from zerver.models.agents import AgentJob, AgentRealmSettings
 from zerver.models.tasks import TASK_ID_PREFIX
@@ -89,6 +89,28 @@ def task_api_dict(task: Task, *, task_id_prefix: str) -> dict[str, Any]:
     # 05-D6: Task.to_api_dict() does not send the card's source.
     data["source"] = task.source
     return data
+
+
+def user_can_modify_task(user_profile: UserProfile, task: Task) -> bool:
+    """spec 05-R3: only the card's PIC, its creator, its reviewer, the
+    room's owner, or an Admin may change or delete a card. The reviewer
+    moves a card from review to done."""
+    if user_profile.is_realm_admin:
+        return True
+    if user_profile.id in (task.creator_id, task.assignee_id, task.reviewer_id):
+        return True
+    if task.stream_id is None or user_profile.is_guest:
+        return False
+    stream = Stream.objects.filter(id=task.stream_id, realm=user_profile.realm).first()
+    if stream is None:
+        return False
+    group_ids = set(get_recursive_membership_groups(user_profile).values_list("id", flat=True))
+    return is_user_in_can_administer_channel_group(stream, group_ids)
+
+
+def check_can_modify_task(user_profile: UserProfile, task: Task) -> None:
+    if not user_can_modify_task(user_profile, task):
+        raise JsonableError(_("You do not have permission to change this task."))
 
 
 def access_board_by_id(realm: Realm, board_id: int) -> TaskBoard:

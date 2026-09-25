@@ -495,3 +495,72 @@ class TaskLocalizedColumnsTest(ZulipTestCase):
         board = get_or_create_default_board(hamlet.realm)
         names = [column.name for column in board.columns.order_by("order")]
         self.assertEqual(names, ["Inbox", "In progress", "Awaiting review", "Done"])
+
+
+class TaskReassignmentPermissionTest(TaskBoardTestCase):
+    @override
+    def setUp(self) -> None:
+        super().setUp()
+        self.cordelia = self.example_user("cordelia")
+        self.iago = self.example_user("iago")
+        self.stream = self.make_stream("task-room")
+        self.subscribe(self.hamlet, "task-room")
+        self.subscribe(self.cordelia, "task-room")
+
+    def card_in_room(self) -> Task:
+        return do_create_task(
+            user_profile=self.hamlet,
+            board=self.board,
+            column=self.columns[0],
+            title="Room card",
+            stream_id=self.stream.id,
+            topic="general",
+        )
+
+    def test_bystander_cannot_move_or_delete(self) -> None:
+        card = self.card_in_room()
+        self.login_user(self.cordelia)
+        result = self.client_patch(f"/json/tasks/{card.id}", {"column_id": self.columns[1].id})
+        self.assert_json_error(result, "You do not have permission to change this task.")
+        result = self.client_delete(f"/json/tasks/{card.id}")
+        self.assert_json_error(result, "You do not have permission to change this task.")
+        self.assertTrue(Task.objects.filter(id=card.id).exists())
+
+    def test_creator_pic_and_admin_may_move(self) -> None:
+        card = self.card_in_room()
+        self.login_user(self.hamlet)
+        result = self.client_patch(f"/json/tasks/{card.id}", {"column_id": self.columns[1].id})
+        self.assert_json_success(result)
+
+        card.assignee = self.cordelia
+        card.save(update_fields=["assignee"])
+        self.login_user(self.cordelia)
+        result = self.client_patch(f"/json/tasks/{card.id}", {"column_id": self.columns[2].id})
+        self.assert_json_success(result)
+
+        self.login_user(self.iago)
+        result = self.client_delete(f"/json/tasks/{card.id}")
+        self.assert_json_success(result)
+
+    def test_reviewer_may_move(self) -> None:
+        card = self.card_in_room()
+        card.reviewer = self.cordelia
+        card.save(update_fields=["reviewer"])
+        self.login_user(self.cordelia)
+        result = self.client_patch(f"/json/tasks/{card.id}", {"column_id": self.columns[3].id})
+        self.assert_json_success(result)
+
+    def test_room_owner_may_move(self) -> None:
+        from zerver.actions.streams import do_change_stream_group_based_setting
+        from zerver.actions.user_groups import check_add_user_group
+
+        card = self.card_in_room()
+        owner_group = check_add_user_group(
+            self.hamlet.realm, "task-room-owners", [self.cordelia], acting_user=self.hamlet
+        )
+        do_change_stream_group_based_setting(
+            self.stream, "can_administer_channel_group", owner_group, acting_user=self.hamlet
+        )
+        self.login_user(self.cordelia)
+        result = self.client_patch(f"/json/tasks/{card.id}", {"column_id": self.columns[1].id})
+        self.assert_json_success(result)

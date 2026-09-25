@@ -20,6 +20,7 @@ from zerver.lib.streams import access_stream_by_id
 from zerver.lib.tasks import (
     access_board_by_id,
     access_task_by_id,
+    check_can_modify_task,
     get_or_create_default_board,
     hidden_done_task_ids,
     realm_task_id_prefix,
@@ -177,6 +178,7 @@ def update_task(
     title: TaskTitle | None = None,
 ) -> HttpResponse:
     task = access_task_by_id(user_profile, task_id)
+    check_can_modify_task(user_profile, task)
 
     changes: dict[str, Any] = {}
     if title is not None:
@@ -225,6 +227,7 @@ def delete_task(
     task_id: int,
 ) -> HttpResponse:
     task = access_task_by_id(user_profile, task_id)
+    check_can_modify_task(user_profile, task)
     do_delete_task(user_profile=user_profile, task=task)
     return json_success(request)
 

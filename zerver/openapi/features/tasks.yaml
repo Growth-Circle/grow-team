@@ -279,10 +279,17 @@ paths:
       description: |
         Edit a card, move it to another column, or reorder it inside its column.
 
+        Only the card's assignee (its PIC), its creator, its reviewer, an
+        administrator of its channel, or an organization administrator can
+        change a card.
+
         Moving a card never changes the conversation it came from. The change is
         written to the card history instead.
 
         **Changes**: New in Zulip 12.0 (feature level ZF-4a7c21).
+
+        Before feature level ZF-4f1745, any user who could read a card could
+        change it.
       parameters:
         - name: task_id
           in: path
@@ -389,17 +396,31 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: "#/components/schemas/CodedError"
-                  - example:
-                      {
-                        "code": "BAD_REQUEST",
-                        "msg": "Task does not exist.",
-                        "result": "error",
-                      }
-                    description: |
-                      A typical failed JSON response for when the card does not
-                      exist, or the user cannot read the channel it came from:
+                oneOf:
+                  - allOf:
+                      - $ref: "#/components/schemas/CodedError"
+                      - example:
+                          {
+                            "code": "BAD_REQUEST",
+                            "msg": "Task does not exist.",
+                            "result": "error",
+                          }
+                        description: |
+                          A typical failed JSON response for when the card does not
+                          exist, or the user cannot read the channel it came from:
+                  - allOf:
+                      - $ref: "#/components/schemas/CodedError"
+                      - example:
+                          {
+                            "code": "BAD_REQUEST",
+                            "msg": "You do not have permission to change this task.",
+                            "result": "error",
+                          }
+                        description: |
+                          A typical failed JSON response for when the user is not
+                          allowed to change the card.
+
+                          **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
     delete:
       operationId: delete-task
       tags: ["task_board"]
@@ -407,7 +428,14 @@ paths:
       description: |
         Delete a card from the board. The conversation it came from is unchanged.
 
+        Only the card's assignee (its PIC), its creator, its reviewer, an
+        administrator of its channel, or an organization administrator can
+        delete a card.
+
         **Changes**: New in Zulip 12.0 (feature level ZF-4a7c21).
+
+        Before feature level ZF-4f1745, any user who could read a card could
+        delete it.
       parameters:
         - name: task_id
           in: path
@@ -425,16 +453,30 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: "#/components/schemas/CodedError"
-                  - example:
-                      {
-                        "code": "BAD_REQUEST",
-                        "msg": "Task does not exist.",
-                        "result": "error",
-                      }
-                    description: |
-                      A typical failed JSON response for when the card does not exist:
+                oneOf:
+                  - allOf:
+                      - $ref: "#/components/schemas/CodedError"
+                      - example:
+                          {
+                            "code": "BAD_REQUEST",
+                            "msg": "Task does not exist.",
+                            "result": "error",
+                          }
+                        description: |
+                          A typical failed JSON response for when the card does not exist:
+                  - allOf:
+                      - $ref: "#/components/schemas/CodedError"
+                      - example:
+                          {
+                            "code": "BAD_REQUEST",
+                            "msg": "You do not have permission to change this task.",
+                            "result": "error",
+                          }
+                        description: |
+                          A typical failed JSON response for when the user is not
+                          allowed to change the card.
+
+                          **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
   /tasks/{task_id}/history:
     get:
       operationId: get-task-history
