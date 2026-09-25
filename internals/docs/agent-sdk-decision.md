@@ -22,16 +22,16 @@ publikasi yang menunggu container berhenti.
 
 Versi dicek pada 2026-09-24 dari npm, PyPI, dan GitHub.
 
-| Opsi                          | Versi                        | Jalan di mana          | Dukungan Claude            | Penilaian |
-| ----------------------------- | ---------------------------- | ---------------------- | -------------------------- | --------- |
-| Anthropic SDK (Messages API)  | `@anthropic-ai/sdk` 0.128.0  | Di proses runner       | Penuh dan sama hari        | **Dipilih** |
-| Vercel AI SDK 7               | `ai` 7.0.113                 | Di proses runner       | Sebagian besar, menyusul   | Cadangan |
-| Claude Agent SDK              | TS 0.3.281, Py 0.2.159       | Subproses CLI per sesi | Penuh                      | Tidak untuk jalur cepat |
-| Claude Managed Agents         | Beta                         | Infrastruktur Anthropic | Penuh                     | Ditolak |
-| OpenAI Agents SDK             | TS 0.18.0, Py 0.22.3         | Di proses              | Lewat LiteLLM, beta        | Ditolak |
-| OpenRouter Agent SDK          | `@openrouter/agent` 0.11.0   | Di proses              | Lewat API OpenRouter       | Ditolak |
-| Cloudflare Agents SDK         | `agents` 0.24.0              | Workers + Durable Objects | Lewat Vercel AI SDK     | Ditolak |
-| Mastra, LangGraph, Google ADK | Beragam                      | Di proses              | Beragam                    | Ditolak |
+| Opsi                          | Versi                       | Jalan di mana             | Dukungan Claude          | Penilaian               |
+| ----------------------------- | --------------------------- | ------------------------- | ------------------------ | ----------------------- |
+| Anthropic SDK (Messages API)  | `@anthropic-ai/sdk` 0.128.0 | Di proses runner          | Penuh dan sama hari      | **Dipilih**             |
+| Vercel AI SDK 7               | `ai` 7.0.113                | Di proses runner          | Sebagian besar, menyusul | Cadangan                |
+| Claude Agent SDK              | TS 0.3.281, Py 0.2.159      | Subproses CLI per sesi    | Penuh                    | Tidak untuk jalur cepat |
+| Claude Managed Agents         | Beta                        | Infrastruktur Anthropic   | Penuh                    | Ditolak                 |
+| OpenAI Agents SDK             | TS 0.18.0, Py 0.22.3        | Di proses                 | Lewat LiteLLM, beta      | Ditolak                 |
+| OpenRouter Agent SDK          | `@openrouter/agent` 0.11.0  | Di proses                 | Lewat API OpenRouter     | Ditolak                 |
+| Cloudflare Agents SDK         | `agents` 0.24.0             | Workers + Durable Objects | Lewat Vercel AI SDK      | Ditolak                 |
+| Mastra, LangGraph, Google ADK | Beragam                     | Di proses                 | Beragam                  | Ditolak                 |
 
 ## 3. Keputusan
 
@@ -67,14 +67,14 @@ Alasan opsi lain ditolak:
 
 ## 4. Keputusan lama yang berubah
 
-| Dokumen                                                        | Isi lama                                              | Isi baru |
-| -------------------------------------------------------------- | ----------------------------------------------------- | -------- |
-| [Keputusan runtime](agent-runtime-decision.md) bagian awal     | Endpoint runtime + codex-acp untuk semua job          | Hanya jalur code |
-| Keputusan runtime, batas untuk dua mode                        | Container rootless per attempt untuk semua job        | Hanya jalur code |
-| [Desain sandbox](agent-sandbox-design.md)                      | Model di container, hanya `POST /v1/responses`        | Hanya jalur code |
-| [Keputusan harness](agent-harness-decision.md) peringkat 1, 2, 9, 15 | Backlog                                        | Masuk jalur cepat |
-| [Blueprint](blueprint.md), [BRD](brd.md), [PRD](prd.md), [FRD](frd.md), [tech stack](techstack.md), [security](security.md) | Dua mode: ACP dan endpoint | Dua jalur: fast dan code |
-| Runner `RUNTIME.md`                                            | Publikasi menunggu bukti stop dan containment kosong | Jalur cepat terbit segera |
+| Dokumen                                                                                                                     | Isi lama                                             | Isi baru                  |
+| --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | ------------------------- |
+| [Keputusan runtime](agent-runtime-decision.md) bagian awal                                                                  | Endpoint runtime + codex-acp untuk semua job         | Hanya jalur code          |
+| Keputusan runtime, batas untuk dua mode                                                                                     | Container rootless per attempt untuk semua job       | Hanya jalur code          |
+| [Desain sandbox](agent-sandbox-design.md)                                                                                   | Model di container, hanya `POST /v1/responses`       | Hanya jalur code          |
+| [Keputusan harness](agent-harness-decision.md) peringkat 1, 2, 9, 15                                                        | Backlog                                              | Masuk jalur cepat         |
+| [Blueprint](blueprint.md), [BRD](brd.md), [PRD](prd.md), [FRD](frd.md), [tech stack](techstack.md), [security](security.md) | Dua mode: ACP dan endpoint                           | Dua jalur: fast dan code  |
+| Runner `RUNTIME.md`                                                                                                         | Publikasi menunggu bukti stop dan containment kosong | Jalur cepat terbit segera |
 
 ## 5. Konsekuensi
 
