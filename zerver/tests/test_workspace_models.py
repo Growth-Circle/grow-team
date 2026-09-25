@@ -21,6 +21,7 @@ from zerver.models import (
     McpJobPlan,
     McpServer,
     McpToolPolicy,
+    RoomChannelLink,
     RoomDigest,
     RoomMeta,
     Task,
@@ -392,6 +393,28 @@ class WorkspaceSchemaTests(ZulipTestCase):
         job = self._make_agent_job()
         with self.assertRaises(IntegrityError):
             McpJobPlan.objects.create(job=job, tools={}, status="pending")
+
+    # -- 0829 RoomChannelLink -----------------------------------------------
+
+    def test_room_channel_link_rejects_bad_direction(self) -> None:
+        with self.assertRaises(IntegrityError):
+            RoomChannelLink.objects.create(
+                realm=self.realm,
+                stream=self.stream,
+                external_id="62800000000",
+                direction="sideways",
+                created_by=self.owner,
+            )
+
+    def test_room_channel_link_rejects_bad_provider(self) -> None:
+        with self.assertRaises(IntegrityError):
+            RoomChannelLink.objects.create(
+                realm=self.realm,
+                stream=self.stream,
+                provider="telegram",
+                external_id="62800000000",
+                created_by=self.owner,
+            )
 
     # -- helpers --------------------------------------------------------------
 

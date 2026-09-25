@@ -88,6 +88,7 @@ from zerver.models.realms import RealmDomain as RealmDomain
 from zerver.models.realms import RealmExport as RealmExport
 from zerver.models.recipients import DirectMessageGroup as DirectMessageGroup
 from zerver.models.recipients import Recipient as Recipient
+from zerver.models.rooms import RoomChannelLink as RoomChannelLink
 from zerver.models.rooms import RoomDigest as RoomDigest
 from zerver.models.rooms import RoomMeta as RoomMeta
 from zerver.models.saved_snippets import SavedSnippet as SavedSnippet

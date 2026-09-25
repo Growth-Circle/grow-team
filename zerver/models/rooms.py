@@ -6,8 +6,10 @@ notice). RoomDigest holds one generated digest per room per day.
 """
 
 from django.db import models
+from django.utils.timezone import now as timezone_now
 
 from zerver.models.messages import Message
+from zerver.models.realms import Realm
 from zerver.models.streams import Stream
 from zerver.models.users import UserProfile
 
@@ -58,5 +60,44 @@ class RoomDigest(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["stream", "date"], name="room_digest_stream_date_unique"
+            ),
+        ]
+
+
+class RoomChannelLink(models.Model):
+    """Links a room to an external messaging channel (WhatsApp today)."""
+
+    realm = models.ForeignKey(Realm, on_delete=models.CASCADE)
+    stream = models.ForeignKey(Stream, on_delete=models.CASCADE)
+    provider = models.CharField(
+        max_length=20, choices=[("whatsapp", "whatsapp")], default="whatsapp"
+    )
+    external_id = models.CharField(max_length=255)
+    direction = models.CharField(
+        max_length=20,
+        choices=[("inbound", "inbound"), ("outbound", "outbound"), ("both", "both")],
+        default="both",
+    )
+    # manage.py delete_realm removes UserProfile rows outright, and an old
+    # image does not know this table exists, so this reference carries no
+    # database-level constraint.
+    created_by = models.ForeignKey(UserProfile, on_delete=models.PROTECT, db_constraint=False)
+    created_at = models.DateTimeField(default=timezone_now)
+    removed_at = models.DateTimeField(null=True, default=None)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "external_id"],
+                condition=models.Q(removed_at__isnull=True),
+                name="room_channel_link_external_unique",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(provider__in=["whatsapp"]),
+                name="room_channel_link_provider_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(direction__in=["inbound", "outbound", "both"]),
+                name="room_channel_link_direction_valid",
             ),
         ]
