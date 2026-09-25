@@ -90,7 +90,13 @@ export function render(): void {
     }
 
     const $realm_logo = $<HTMLImageElement>("#realm-navbar-wide-logo");
-    if (settings_data.using_dark_theme() && realm.realm_night_logo_source !== "D") {
+    if (
+        settings_data.using_dark_theme() &&
+        (realm.realm_night_logo_source !== "D" || realm.realm_logo_source === "D")
+    ) {
+        // Use the night logo in a dark theme. Fall back to the day
+        // logo when the realm has no night logo and the day logo is
+        // also the default. See similar code in admin.ts.
         $realm_logo.attr("src", realm.realm_night_logo_url);
     } else {
         $realm_logo.attr("src", realm.realm_logo_url);

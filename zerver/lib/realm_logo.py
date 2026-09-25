@@ -26,7 +26,9 @@ def get_realm_logo_url(realm: Realm, night: bool) -> str:
         return get_uploaded_realm_logo_url(realm.id, logo_version, night)
     if settings.DEFAULT_LOGO_URI is not None:
         return settings.DEFAULT_LOGO_URI
-    return staticfiles_storage.url("images/logo/zulip-org-logo.svg") + "?version=grow-team-1"
+    if night:
+        return staticfiles_storage.url("images/logo/zulip-org-logo-night.svg") + "?version=sanji-1"
+    return staticfiles_storage.url("images/logo/zulip-org-logo.svg") + "?version=sanji-1"
 
 
 def get_realm_logo_data(realm: Realm, night: bool) -> dict[str, Any]:
