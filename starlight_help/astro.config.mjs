@@ -631,11 +631,7 @@ export default defineConfig({
                 },
                 {
                     label: "Support",
-                    items: [
-                        "view-zulip-version",
-                        "gdpr-compliance",
-                        "contact-support",
-                    ],
+                    items: ["view-zulip-version", "gdpr-compliance", "contact-support"],
                 },
                 {
                     label: "◀ Back to Grow Team",
