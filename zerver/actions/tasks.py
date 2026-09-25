@@ -13,7 +13,7 @@ from django.utils.timezone import now as timezone_now
 from django.utils.translation import gettext as _
 
 from zerver.lib.exceptions import JsonableError
-from zerver.lib.tasks import task_event_audience
+from zerver.lib.tasks import realm_task_id_prefix, task_api_dict, task_event_audience
 from zerver.models import (
     Realm,
     RealmAuditLog,
@@ -54,13 +54,16 @@ def active_board_audience(realm: Realm) -> list[int]:
     return active_user_ids(realm.id)
 
 
-def send_task_event(realm: Realm, task: Task, op: str) -> None:
+def send_task_event(
+    realm: Realm, task: Task, op: str, *, task_id_prefix: str | None = None
+) -> None:
     event: dict[str, Any] = {"type": "task", "op": op}
     if op == "remove":
         event["task_id"] = task.id
         event["board_id"] = task.board_id
     else:
-        event["task"] = task.to_api_dict()
+        prefix = task_id_prefix if task_id_prefix is not None else realm_task_id_prefix(realm)
+        event["task"] = task_api_dict(task, task_id_prefix=prefix)
     send_event_on_commit(realm, event, task_event_audience(realm, task))
 
 
@@ -156,6 +159,7 @@ def sync_agent_task(job: agents.AgentJob) -> None:
     if job.status == "completed" and job.result_message_id is None:
         return
     bot = job.profile.bot_user
+    task_id_prefix = realm_task_id_prefix(job.realm)
     for task in Task.objects.filter(agent_job=job).select_related("board", "column"):
         columns = list(TaskBoardColumn.objects.filter(board_id=task.board_id).order_by("order"))
         column = _synced_column(job.status, columns)
@@ -188,7 +192,7 @@ def sync_agent_task(job: agents.AgentJob) -> None:
                 "to_column_id": column.id,
             },
         )
-        send_task_event(task.realm, task, "update")
+        send_task_event(task.realm, task, "update", task_id_prefix=task_id_prefix)
 
 
 def check_agent_task_move(task: Task, column: TaskBoardColumn) -> None:

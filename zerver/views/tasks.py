@@ -22,6 +22,8 @@ from zerver.lib.tasks import (
     access_task_by_id,
     get_or_create_default_board,
     hidden_done_task_ids,
+    realm_task_id_prefix,
+    task_api_dict,
     visible_tasks,
     work_counts,
 )
@@ -84,13 +86,14 @@ def get_task_board(
     columns = list(board.columns.all())
     tasks = visible_tasks(user_profile, board)
     hidden_ids = hidden_done_task_ids(columns, tasks)
+    task_id_prefix = realm_task_id_prefix(user_profile.realm)
 
     return json_success(
         request,
         data={
             "board": board.to_api_dict(),
             "columns": [column.to_api_dict() for column in columns],
-            "tasks": [task.to_api_dict() for task in tasks],
+            "tasks": [task_api_dict(task, task_id_prefix=task_id_prefix) for task in tasks],
             "folded_task_ids": sorted(hidden_ids),
         },
     )
@@ -147,7 +150,8 @@ def create_task(
         checklist=clean_checklist(checklist or []),
         due_at=None if due_at is None else timestamp_to_datetime(due_at),
     )
-    return json_success(request, data={"task_id": task.id, "display_id": task.display_id})
+    display_id = f"{realm_task_id_prefix(user_profile.realm)}-{task.counter}"
+    return json_success(request, data={"task_id": task.id, "display_id": display_id})
 
 
 @typed_endpoint

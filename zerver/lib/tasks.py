@@ -18,7 +18,8 @@ from zerver.lib.stream_subscription import get_active_subscriptions_for_stream_i
 from zerver.lib.streams import get_content_access_streams
 from zerver.lib.user_groups import UserGroupMembershipDetails
 from zerver.models import Realm, Stream, Task, TaskBoard, TaskBoardColumn, UserProfile
-from zerver.models.agents import AgentJob
+from zerver.models.agents import AgentJob, AgentRealmSettings
+from zerver.models.tasks import TASK_ID_PREFIX
 from zerver.models.users import active_non_guest_user_ids, active_user_ids
 
 # The default board every realm starts with. The guide leaves the final
@@ -50,6 +51,25 @@ def get_or_create_default_board(realm: Realm) -> TaskBoard:
         for order, column in enumerate(DEFAULT_COLUMNS)
     )
     return board
+
+
+def realm_task_id_prefix(realm: Realm) -> str:
+    """T-26: the organization's task ID prefix, or "GT" when it has none."""
+    prefix = (
+        AgentRealmSettings.objects.filter(realm=realm)
+        .values_list("task_id_prefix", flat=True)
+        .first()
+    )
+    return prefix or TASK_ID_PREFIX
+
+
+def task_api_dict(task: Task, *, task_id_prefix: str) -> dict[str, Any]:
+    """`Task.to_api_dict()`, with the organization's task ID prefix in
+    `display_id` (T-26). A caller that sends many cards reads the prefix
+    once and passes it in."""
+    data = task.to_api_dict()
+    data["display_id"] = f"{task_id_prefix}-{task.counter}"
+    return data
 
 
 def access_board_by_id(realm: Realm, board_id: int) -> TaskBoard:

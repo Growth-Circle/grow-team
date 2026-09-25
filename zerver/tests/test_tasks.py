@@ -6,11 +6,13 @@ from zerver.actions.tasks import do_create_task
 from zerver.lib.tasks import (
     get_or_create_default_board,
     hidden_done_task_ids,
+    realm_task_id_prefix,
     task_event_audience,
     visible_tasks,
 )
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.models import Task, TaskBoard, TaskBoardColumn, TaskHistory
+from zerver.models.agents import AgentRealmSettings
 
 
 class TaskBoardTestCase(ZulipTestCase):
@@ -427,3 +429,24 @@ class WorkCountsTest(TaskBoardTestCase):
         )
         task = Task.objects.get(id=self.assert_json_success(result)["task_id"])
         self.assertEqual(task.reviewer_id, cordelia.id)
+
+
+class TaskIdPrefixTest(TaskBoardTestCase):
+    def test_prefix_defaults_to_gt(self) -> None:
+        self.assertEqual(realm_task_id_prefix(self.hamlet.realm), "GT")
+        card = self.create_card()
+        self.assertEqual(card.display_id, "GT-1")
+
+    def test_workspace_prefix_is_used(self) -> None:
+        AgentRealmSettings.objects.create(realm=self.hamlet.realm, task_id_prefix="ACME")
+        self.assertEqual(realm_task_id_prefix(self.hamlet.realm), "ACME")
+
+        self.login_user(self.hamlet)
+        result = self.client_post(
+            "/json/tasks", {"title": "Prefixed card", "column_id": self.columns[0].id}
+        )
+        response = self.assert_json_success(result)
+        self.assertEqual(response["display_id"], "ACME-1")
+
+        board_result = self.assert_json_success(self.client_get("/json/tasks"))
+        self.assertEqual(board_result["tasks"][0]["display_id"], "ACME-1")

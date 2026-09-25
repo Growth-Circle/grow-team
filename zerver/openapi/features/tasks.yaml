@@ -185,6 +185,11 @@ paths:
                         type: string
                         description: |
                           The short human-readable ID of the card, such as `GT-214`.
+                          The prefix is the organization's task ID prefix, or `GT`
+                          when the organization has none.
+
+                          **Changes**: Before Zulip 12.0 (feature level ZF-4f1745),
+                          the prefix was always `GT`.
                     example: {"result": "success", "msg": "", "task_id": 1, "display_id": "GT-1"}
         "400":
           description: Bad request.
@@ -600,7 +605,12 @@ components:
         display_id:
           type: string
           description: |
-            The short human-readable ID of the card, such as `GT-214`.
+            The short human-readable ID of the card, such as `GT-214`. The
+            prefix is the organization's task ID prefix, or `GT` when the
+            organization has none.
+
+            **Changes**: Before Zulip 12.0 (feature level ZF-4f1745), the
+            prefix was always `GT`.
         board_id:
           type: integer
           description: |
