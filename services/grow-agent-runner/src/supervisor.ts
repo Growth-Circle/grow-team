@@ -202,6 +202,11 @@ export class Coordinator {
     private stopFailure: Error | null = null;
     private probeAbort: AbortController | null = null;
     private probing: Promise<void> | null = null;
+    // §9 "biaya per request": the highest sequence number issued so far per
+    // attempt/lease_epoch, so newEvent() below need not rescan the whole
+    // journal for every event of a long attempt. Empty after a restart, which
+    // only ever means the next newEvent() for a key falls back to the scan.
+    private eventSequences = new Map<string, number>();
     constructor(
         journal: Journal,
         private transport: Transport,
@@ -286,19 +291,33 @@ export class Coordinator {
                 throw new Error("Cannot confirm process stop");
     }
     private newEvent(d: Data, type: string, payload: Data): Data {
-        let sequence = 0;
-        for (const entry of this.journal.list())
-            for (const event of entry.request.events ??
-                (entry.request.event ? [entry.request.event] : []))
-                if (event.attempt_id === d.attempt_id && event.lease_epoch === d.lease_epoch)
-                    sequence = Math.max(sequence, event.sequence);
+        const key = `${d.attempt_id}:${d.lease_epoch}`;
+        let sequence = this.eventSequences.get(key);
+        if (sequence === undefined) {
+            sequence = 0;
+            // First event of this attempt/epoch in this process life: no cached
+            // sequence yet, so find it the same way as before - a scan of the
+            // "event" and "stop" entries (internals/docs/spec/2026-09-24-agent-
+            // fast-lane.md §2.3; a full list() scan also re-reads every "claim"
+            // entry, which idle ticks pile up by the tens of thousands and which
+            // can never match here). Every later newEvent() for the same key
+            // reads the cache below instead (§9 "biaya per request"): a long
+            // attempt's Nth event no longer re-scans N-1 earlier ones for it.
+            for (const entry of [...this.journal.list("event"), ...this.journal.list("stop")])
+                for (const event of entry.request.events ??
+                    (entry.request.event ? [entry.request.event] : []))
+                    if (event.attempt_id === d.attempt_id && event.lease_epoch === d.lease_epoch)
+                        sequence = Math.max(sequence, event.sequence);
+        }
+        sequence += 1;
+        this.eventSequences.set(key, sequence);
         return parse("runner_event", {
             schema_version: 1,
             job_id: d.job_id,
             attempt_id: d.attempt_id,
             lease_epoch: d.lease_epoch,
             event_id: randomUUID(),
-            sequence: sequence + 1,
+            sequence,
             type,
             occurred_at: new Date().toISOString(),
             payload,
@@ -326,7 +345,13 @@ export class Coordinator {
                 stop_confirmed: true,
                 summary: "",
             });
-            if (cursor !== undefined) event.sequence = cursor + 1;
+            if (cursor !== undefined) {
+                event.sequence = cursor + 1;
+                // Keep the cache (newEvent() above) matching the sequence this
+                // stop entry actually carries, in case this same attempt/epoch
+                // ever calls newEvent() again.
+                this.eventSequences.set(`${d.attempt_id}:${d.lease_epoch}`, event.sequence);
+            }
             entry = this.journal.prepare("stop", id, "/runner/stop-evidence", {
                 schema_version: 1,
                 event,
@@ -357,11 +382,10 @@ export class Coordinator {
     async recover(): Promise<void> {
         await this.contain();
         this.assertScope();
-        for (const entry of this.journal.list("claim"))
-            if (entry.state !== "done") {
-                await this.transport.send(entry);
-                this.assertScope();
-            }
+        for (const entry of this.journal.pending("claim")) {
+            await this.transport.send(entry);
+            this.assertScope();
+        }
         const response = await this.transport.request("/runner/leases");
         this.assertScope();
         for (const item of response.leases)
@@ -370,9 +394,8 @@ export class Coordinator {
                 item.event_cursor,
             );
         const activeIds = new Set(response.leases.map((item: Data) => item.descriptor.attempt_id));
-        for (const entry of this.journal.list("stop"))
-            if (entry.state !== "done" && !activeIds.has(entry.request.event.attempt_id))
-                await this.transport.send(entry);
+        for (const entry of this.journal.pending("stop"))
+            if (!activeIds.has(entry.request.event.attempt_id)) await this.transport.send(entry);
         this.assertScope();
         this.reconciled = true;
     }
@@ -393,7 +416,7 @@ export class Coordinator {
         if (!this.reconciled) throw new Error("Must reconcile before claims");
         if (this.active || this.probing || this.stopping || !this.supervisor.canExecute()) return;
         const generation = this.generation;
-        const pending = this.journal.list("claim").find((e) => e.state !== "done"),
+        const pending = this.journal.pending("claim")[0],
             id = pending?.id ?? `claim:${randomUUID()}`;
         const response = await this.transport.mutate(
             "claim",
@@ -441,17 +464,50 @@ export class Coordinator {
                     (action) => this.serial(session, action),
                 ),
                 lease: () => this.lease(session),
-                request: (route, extra = {}) =>
-                    this.serial(session, async () => {
-                        const response = await this.transport.request(
-                            route,
-                            route === "/runner/controls"
-                                ? undefined
-                                : {...extra, ...this.lease(session)},
-                        );
-                        this.lease(session);
-                        return response;
-                    }),
+                // Drafts and authority checks run once per model turn/round
+                // (internals/docs/spec/2026-09-24-agent-fast-lane.md §9 "controls
+                // sebelum setiap request"): skip the extra GET /runner/controls
+                // that refreshVersion would add ahead of each one. /runner/drafts
+                // always replies {} and never rejects a stale version, so it never
+                // needs the retry below. /runner/authority does reject one: the
+                // server's job_version can move ahead of what this session knows
+                // (a later add_input, a waiting_for_approval transition, ...) well
+                // before the next tick's refreshVersion would otherwise catch up,
+                // and assertCurrent() must not fail the whole attempt for that.
+                request: (route, extra = {}) => {
+                    const skipVersionCheck =
+                        route === "/runner/drafts" || route === "/runner/authority";
+                    return this.serial(
+                        session,
+                        async () => {
+                            const send = () =>
+                                this.transport.request(
+                                    route,
+                                    route === "/runner/controls"
+                                        ? undefined
+                                        : {...extra, ...this.lease(session)},
+                                );
+                            let response: Data;
+                            try {
+                                response = await send();
+                            } catch (error) {
+                                if (
+                                    route !== "/runner/authority" ||
+                                    !(error instanceof TransportError) ||
+                                    error.kind !== "policy"
+                                )
+                                    throw error;
+                                await this.refreshVersion(session);
+                                response = await send();
+                            }
+                            this.lease(session);
+                            if (skipVersionCheck && typeof response.job_version === "number")
+                                session.version = Math.max(session.version, response.job_version);
+                            return response;
+                        },
+                        skipVersionCheck,
+                    );
+                },
                 upload: (payload, bytes) =>
                     this.serial(session, async () => {
                         const response = await this.transport.binary(
@@ -503,11 +559,15 @@ export class Coordinator {
         this.lease(session);
         session.version = Math.max(session.version, control.job_version);
     }
-    private serial<T>(session: Session, action: () => Promise<T>): Promise<T> {
+    private serial<T>(
+        session: Session,
+        action: () => Promise<T>,
+        skipVersionCheck = false,
+    ): Promise<T> {
         const result = session.queue.then(async () => {
             this.lease(session);
             await this.replayEvents(session);
-            await this.refreshVersion(session);
+            if (!skipVersionCheck) await this.refreshVersion(session);
             const value = await action();
             this.lease(session);
             return value;
@@ -546,9 +606,13 @@ export class Coordinator {
     }
     private async replayEvents(session: Session): Promise<void> {
         this.lease(session);
-        for (const entry of this.journal.list("event"))
+        // pending(), not list() + a state check (§9 "biaya per request"): serial()
+        // calls this before every serialized action, including a fast-lane draft
+        // up to once a second, and list("event") re-reads every event ever
+        // recorded for the attempt - acknowledged or not - only to filter most
+        // of them straight back out again.
+        for (const entry of this.journal.pending("event"))
             if (
-                entry.state !== "done" &&
                 entry.request.events[0].attempt_id === session.descriptor.attempt_id &&
                 entry.request.events[0].lease_epoch === session.descriptor.lease_epoch
             ) {

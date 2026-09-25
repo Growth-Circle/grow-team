@@ -1,11 +1,17 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {mkdtempSync, readFileSync} from "node:fs";
+import {mkdtempSync, mkdirSync, writeFileSync, readFileSync} from "node:fs";
+import {execFileSync} from "node:child_process";
+import {randomUUID} from "node:crypto";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {Journal} from "../dist/journal.js";
 import {Coordinator, OperationBoundary} from "../dist/supervisor.js";
+import {TransportError, Transport} from "../dist/transport.js";
 import {digest, effectiveConfiguration} from "../dist/protocol.js";
+import {PrivateStore} from "../dist/config.js";
+import {RuntimeSupervisor} from "../dist/runtime-supervisor.js";
+import {AnthropicRuntime} from "../dist/anthropic-runtime.js";
 const root = () => mkdtempSync(join(tmpdir(), "grow-supervisor-test-"));
 const fixtures = JSON.parse(
     readFileSync(
@@ -131,7 +137,13 @@ test("execute sends the consume-shaped identity to the new route and returns its
                 operation: {
                     operation_id: request.operation_id,
                     status: "succeeded",
-                    server_receipt: {tool: "team.find", outcome: "succeeded", summary: "", objects: {}, error: null},
+                    server_receipt: {
+                        tool: "team.find",
+                        outcome: "succeeded",
+                        summary: "",
+                        objects: {},
+                        error: null,
+                    },
                 },
             };
         },
@@ -283,7 +295,12 @@ test("setup() reaches probe for an unapproved runtime instead of failing before 
             state: "needs_action",
             capabilities: {},
             requirements: [
-                {code: "auth_required", surface: "adapter", action: "login_vendor", diagnostic_id: null},
+                {
+                    code: "auth_required",
+                    surface: "adapter",
+                    action: "login_vendor",
+                    diagnostic_id: null,
+                },
             ],
         }),
     };
@@ -301,6 +318,158 @@ test("setup() reaches probe for an unapproved runtime instead of failing before 
     assert.equal(posted.length, 1);
     assert.equal(posted[0].state, "needs_action");
     assert.equal(posted[0].requirements[0].code, "auth_required");
+    j.close();
+});
+test("newEvent only reads event and stop kinds, so a same-shaped entry of another kind cannot inflate the sequence", async () => {
+    const d = descriptor(),
+        j = new Journal(root());
+    // A "claim" entry that happens to carry an event-shaped field with a high
+    // sequence number. Scanning every kind (the old newEvent()) would pick
+    // this up too; scanning only "event" and "stop" (internals/docs/spec/
+    // 2026-09-24-agent-fast-lane.md §2.3) must not.
+    j.prepare("claim", "claim:bogus", "local", {
+        event: {attempt_id: d.attempt_id, lease_epoch: d.lease_epoch, sequence: 999},
+    });
+    j.complete("claim:bogus", {}); // Done, so recover()'s own claim replay ignores it.
+    let eventBody: any;
+    const t: any = {
+        request: async (route: string) =>
+            route === "/runner/controls"
+                ? {
+                      controls: [
+                          {
+                              attempt_id: d.attempt_id,
+                              lease_epoch: d.lease_epoch,
+                              control: "continue",
+                              job_version: 1,
+                          },
+                      ],
+                  }
+                : {leases: []},
+        mutate: async (kind: string, _id: string, _route: string, body: any) => {
+            if (kind === "claim") return {attempt: d, job_version: 1};
+            if (kind === "event") {
+                eventBody = body;
+                return {receipts: [{job_version: 1}]};
+            }
+            return {receipt: {job_version: 1}};
+        },
+    };
+    const s: any = {inspect: async () => [], canExecute: () => true, start: async () => {}};
+    const c = new Coordinator(j, t, s, d.runner_id, {assertRuntime: () => {}});
+    await c.recover();
+    await c.claim();
+    await c.event("attempt.started", {
+        process_state: "active",
+        adapter_session_ref: null,
+        stop_confirmed: false,
+        summary: "",
+    });
+    assert.equal(eventBody.events[0].sequence, 1);
+    j.close();
+});
+test("a claim left open after a crash is retried with its own key, not a fresh one", async () => {
+    const d = descriptor(),
+        j = new Journal(root());
+    const seeded = j.prepare("claim", "claim:retry-me", "local", {
+        schema_version: 1,
+        claim_key: "retry-me",
+        capacity: 1,
+        runner_version: "0.1.0",
+    });
+    assert.equal(seeded.state, "prepared");
+    const seenIds: string[] = [];
+    const t: any = {
+        request: async () => ({leases: []}),
+        // recover() replays any still-open claim before claim() runs; a no-op here
+        // leaves the seeded entry "prepared" so claimOnce() is the one under test.
+        send: async () => ({}),
+        mutate: async (kind: string, id: string, _route: string, body: any) => {
+            if (kind === "claim") {
+                seenIds.push(id);
+                assert.equal(body.claim_key, "retry-me");
+                return {attempt: null};
+            }
+            return {receipt: {job_version: 1}};
+        },
+    };
+    const s: any = {inspect: async () => [], canExecute: () => true, start: async () => {}};
+    const c = new Coordinator(j, t, s, d.runner_id, {assertRuntime: () => {}});
+    await c.recover();
+    await c.claim();
+    assert.deepEqual(seenIds, ["claim:retry-me"]);
+    j.close();
+});
+test("recover() resends a claim left open from before a restart", async () => {
+    const j = new Journal(root());
+    j.prepare("claim", "claim:leftover", "local", {
+        schema_version: 1,
+        claim_key: "leftover",
+        capacity: 1,
+        runner_version: "0.1.0",
+    });
+    const sent: string[] = [];
+    const t: any = {
+        request: async () => ({leases: []}),
+        send: async (entry: any) => {
+            sent.push(entry.id);
+            return {receipts: []};
+        },
+    };
+    const s: any = {
+        inspect: async () => [],
+        stop: async () => ({confirmed: true}),
+        canExecute: () => true,
+    };
+    const c = new Coordinator(j, t, s, "runner", {assertRuntime: () => {}});
+    await c.recover();
+    assert.deepEqual(sent, ["claim:leftover"]);
+    j.close();
+});
+test("requests to /runner/drafts and /runner/authority skip the extra controls check", async () => {
+    const d = descriptor(),
+        j = new Journal(root());
+    let controlsCalls = 0;
+    let channel: any;
+    const t: any = {
+        request: async (route: string) => {
+            if (route === "/runner/controls") {
+                controlsCalls++;
+                return {
+                    controls: [
+                        {
+                            attempt_id: d.attempt_id,
+                            lease_epoch: d.lease_epoch,
+                            control: "continue",
+                            job_version: 1,
+                        },
+                    ],
+                };
+            }
+            if (route === "/runner/leases") return {leases: []};
+            if (route === "/runner/drafts") return {ok: true};
+            if (route === "/runner/authority")
+                return {job_id: d.job_id, attempt_id: d.attempt_id, lease_epoch: d.lease_epoch};
+            return {};
+        },
+        mutate: async (kind: string) =>
+            kind === "claim" ? {attempt: d, job_version: 1} : {receipt: {job_version: 1}},
+    };
+    const s: any = {
+        inspect: async () => [],
+        canExecute: () => true,
+        start: async (_d: any, ch: any) => {
+            channel = ch;
+        },
+    };
+    const c = new Coordinator(j, t, s, d.runner_id, {assertRuntime: () => {}});
+    await c.recover();
+    await c.claim();
+    await channel.request("/runner/drafts", {text: "hi"});
+    await channel.request("/runner/authority");
+    assert.equal(controlsCalls, 0);
+    await channel.request("/runner/context", {reference_ids: []});
+    assert.equal(controlsCalls, 1);
     j.close();
 });
 test("setup() reports a thrown probe error as a failed result instead of dropping it", async () => {
@@ -340,3 +509,259 @@ test("setup() reports a thrown probe error as a failed result instead of droppin
     assert.equal(posted[0].state, "failed");
     j.close();
 });
+test("a stale-version rejection on /runner/authority retries once after a controls refresh", async () => {
+    const d = descriptor(),
+        j = new Journal(root());
+    let controlsCalls = 0;
+    let authorityCalls = 0;
+    let channel: any;
+    const t: any = {
+        request: async (route: string, body: any) => {
+            if (route === "/runner/controls") {
+                controlsCalls++;
+                return {
+                    controls: [
+                        {
+                            attempt_id: d.attempt_id,
+                            lease_epoch: d.lease_epoch,
+                            control: "continue",
+                            job_version: 9,
+                        },
+                    ],
+                };
+            }
+            if (route === "/runner/leases") return {leases: []};
+            if (route === "/runner/authority") {
+                authorityCalls++;
+                // The first call finds the server has already moved the job
+                // version ahead (a later add_input, a waiting_for_approval
+                // transition, ...) - exactly what the old code never refreshed
+                // for. Only the retry, after refreshVersion(), succeeds.
+                if (authorityCalls === 1) throw new TransportError("policy");
+                return {...body};
+            }
+            return {};
+        },
+        mutate: async (kind: string) =>
+            kind === "claim" ? {attempt: d, job_version: 1} : {receipt: {job_version: 1}},
+    };
+    const s: any = {
+        inspect: async () => [],
+        canExecute: () => true,
+        start: async (_d: any, ch: any) => {
+            channel = ch;
+        },
+    };
+    const c = new Coordinator(j, t, s, d.runner_id, {assertRuntime: () => {}});
+    await c.recover();
+    await c.claim();
+    const response = await channel.request("/runner/authority");
+    assert.equal(response.attempt_id, d.attempt_id);
+    assert.equal(authorityCalls, 2);
+    // Exactly one refresh, not one per authority request: the retry reuses
+    // the version the refresh just fetched instead of polling again.
+    assert.equal(controlsCalls, 1);
+    j.close();
+});
+// A non-policy failure (e.g. a transient network error) must propagate as-is;
+// only a stale-version rejection on /runner/authority gets the retry above.
+test("a non-policy /runner/authority failure is not retried", async () => {
+    const d = descriptor(),
+        j = new Journal(root());
+    let authorityCalls = 0;
+    let channel: any;
+    const t: any = {
+        request: async (route: string) => {
+            if (route === "/runner/leases") return {leases: []};
+            if (route === "/runner/authority") {
+                authorityCalls++;
+                throw new TransportError("transient");
+            }
+            return {controls: []};
+        },
+        mutate: async (kind: string) =>
+            kind === "claim" ? {attempt: d, job_version: 1} : {receipt: {job_version: 1}},
+    };
+    const s: any = {
+        inspect: async () => [],
+        canExecute: () => true,
+        start: async (_d: any, ch: any) => {
+            channel = ch;
+        },
+    };
+    const c = new Coordinator(j, t, s, d.runner_id, {assertRuntime: () => {}});
+    await c.recover();
+    await c.claim();
+    await assert.rejects(() => channel.request("/runner/authority"), TransportError);
+    assert.equal(authorityCalls, 1);
+    j.close();
+});
+const gitFixture = (cwd: string, ...args: string[]) =>
+    execFileSync("/usr/bin/git", args, {
+        cwd,
+        encoding: "utf8",
+        env: {
+            PATH: "/usr/bin:/bin",
+            HOME: "/nonexistent",
+            GIT_CONFIG_NOSYSTEM: "1",
+            GIT_CONFIG_GLOBAL: "/dev/null",
+        },
+    }).trim();
+for (const withRepository of [false, true]) {
+    const git = gitFixture;
+    test(`fast-lane stopScope, repository=${withRepository}`, async () => {
+        const d = descriptor();
+        d.adapter = {...d.adapter, mode: "endpoint", version: "0.1.0"};
+        d.job_kind = "answer";
+        d.delivery_target = "answer";
+        d.context_refs = [];
+        d.checkpoint = null;
+        // An answer job's policy allows only these two actions (protocol.ts
+        // "Answer mutation"); fixture #0 also has repository.edit/checks.run.
+        d.policy = {...d.policy, actions: ["context.read", "repository.read"]};
+        d.provider = {...d.provider, credential_ref: null};
+        d.budget = {...d.budget, active_seconds: 3600};
+        let source = "";
+        if (withRepository) {
+            const gitRoot = mkdtempSync(join(tmpdir(), "grow-fastlane-repo-"));
+            source = join(gitRoot, "source");
+            mkdirSync(source);
+            git(source, "init", "-q", "-b", "main");
+            git(source, "config", "user.email", "fixture@invalid");
+            git(source, "config", "user.name", "Fixture");
+            writeFileSync(join(source, "a.txt"), "hello\n");
+            git(source, "add", ".");
+            git(source, "commit", "-qm", "base");
+            const base = git(source, "rev-parse", "HEAD");
+            d.repository = {...d.repository, base_ref: "main", base_commit: base};
+            d.provider.data_scope = ["selected_chat", "selected_repository"];
+        } else {
+            d.repository = null;
+            d.provider.data_scope = ["selected_chat"];
+        }
+        // narrow() (protocol.ts) requires tested_configuration to match the
+        // top-level fields changed above (adapter, provider, policy, ...);
+        // rebuild it from them, the same way a real claim's own tested_
+        // configuration would have been captured, then re-hash both digests.
+        d.tested_configuration = effectiveConfiguration(d);
+        d.configuration_digest = digest(d.tested_configuration);
+        d.descriptor_digest = digest(
+            Object.fromEntries(Object.entries(d).filter(([k]) => k !== "descriptor_digest")),
+        );
+        const saved = {
+            startSession: AnthropicRuntime.prototype.startSession,
+            sendTurn: AnthropicRuntime.prototype.sendTurn,
+            cancel: AnthropicRuntime.prototype.cancel,
+            close: AnthropicRuntime.prototype.close,
+            resume: AnthropicRuntime.prototype.resume,
+        };
+        AnthropicRuntime.prototype.startSession = async () => {};
+        AnthropicRuntime.prototype.sendTurn = async () => "done";
+        AnthropicRuntime.prototype.cancel = async () => {};
+        AnthropicRuntime.prototype.close = async () => {};
+        AnthropicRuntime.prototype.resume = async () => false;
+        let stops = 0;
+        const store = new PrivateStore(mkdtempSync(join(tmpdir(), "grow-fastlane-store-")));
+        const journal = new Journal(join(store.root, "journal"));
+        const registry: any = {
+            assertRuntime: () => {},
+            assertWorkspace: () => source,
+            read: () => ({
+                catalog_reported: true,
+                catalog: {adapters: [{auth_state: "ready", capabilities: {chat_ready: true}}]},
+            }),
+        };
+        const sandbox: any = {
+            inspect: async () => [],
+            stopScope: async () => {
+                stops++;
+                return {confirmed: true};
+            },
+        };
+        const supervisor = new (RuntimeSupervisor as any)(store, journal, registry, sandbox, {
+            owner_approved: true,
+            fast_lane: true,
+        });
+        let version = 1;
+        const transport = new Transport("http://localhost", journal, () => "synthetic-fixture");
+        transport.request = (async (route: string, body: any) => {
+            if (route === "/runner/leases") return {leases: []};
+            if (route === "/runner/claims") return {attempt: d, job_version: version};
+            if (route === "/runner/controls")
+                return {
+                    controls: [
+                        {
+                            attempt_id: d.attempt_id,
+                            lease_epoch: d.lease_epoch,
+                            control: "continue",
+                            job_version: version,
+                        },
+                    ],
+                };
+            if (route === "/runner/inputs") return {inputs: []};
+            if (route === "/runner/authority") return {...body};
+            if (route === "/runner/heartbeat")
+                return {
+                    leases: [
+                        {
+                            attempt_id: d.attempt_id,
+                            lease_epoch: d.lease_epoch,
+                            control: "continue",
+                            job_version: version,
+                            lease_expires_at: d.lease_expires_at,
+                        },
+                    ],
+                };
+            if (route === "/runner/events") return {receipts: [{job_version: ++version}]};
+            if (route === "/runner/stop-evidence") return {receipt: {job_version: ++version}};
+            throw new Error(`Unexpected route ${route}`);
+        }) as any;
+        transport.binary = (async (_route: string, body: any, bytes?: Buffer) => ({
+            artifact_id: randomUUID(),
+            checksum: body.checksum,
+            size: bytes!.length,
+        })) as any;
+        const coordinator = new Coordinator(journal, transport, supervisor, d.runner_id, registry);
+        try {
+            await coordinator.recover();
+            await coordinator.claim();
+            // FL-20 (runtime-supervisor.ts): the attempt stops itself right
+            // after result.prepared, without waiting for a controls tick this
+            // test never sends - so its own Active entry disappears on its own.
+            for (let i = 0; i < 200 && (supervisor as any).active.size > 0; i++)
+                await new Promise((resolve) => setTimeout(resolve, 10));
+            assert.equal(
+                (supervisor as any).active.size,
+                0,
+                "Active entry leaked after the attempt finished",
+            );
+            assert.equal(stops, withRepository ? 1 : 0);
+        } finally {
+            await coordinator.stopActive();
+            Object.assign(AnthropicRuntime.prototype, saved);
+            journal.close();
+        }
+    });
+}
+// §9 "fast_lane per provider": a present-but-malformed allowlist must fail
+// closed at startup, not read as Array.isArray(...) === false and silently
+// match every provider.
+for (const field of ["fast_lane_providers", "fast_lane_bearer_providers"]) {
+    test(`open() rejects a non-array ${field}`, async () => {
+        const store = new PrivateStore(mkdtempSync(join(tmpdir(), "grow-open-validate-")));
+        store.write("runtime.json", {
+            owner_approved: true,
+            model_image: "sha256:" + "a".repeat(64),
+            [field]: "not-an-array",
+        });
+        const journal = new Journal(join(store.root, "journal"));
+        try {
+            await assert.rejects(
+                () => RuntimeSupervisor.open(store, journal, {} as any),
+                new RegExp(field),
+            );
+        } finally {
+            journal.close();
+        }
+    });
+}
