@@ -11,15 +11,15 @@ from typing import Any
 from django.db.models import QuerySet
 from django.utils.timezone import now as timezone_now
 from django.utils.translation import gettext as _
+
 from zerver.lib.agent_context import require_job_access
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.stream_subscription import get_active_subscriptions_for_stream_id
 from zerver.lib.streams import get_content_access_streams
 from zerver.lib.user_groups import UserGroupMembershipDetails
+from zerver.models import Realm, Stream, Task, TaskBoard, TaskBoardColumn, UserProfile
 from zerver.models.agents import AgentJob
 from zerver.models.users import active_non_guest_user_ids, active_user_ids
-
-from zerver.models import Realm, Stream, Task, TaskBoard, TaskBoardColumn, UserProfile
 
 # The default board every realm starts with. The guide leaves the final
 # column names to each team, so these are only the starting point.
