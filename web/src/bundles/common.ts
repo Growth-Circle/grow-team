@@ -9,6 +9,7 @@ import "source-sans/source-sans-3VF.css";
 import "source-code-pro/source-code-pro.css";
 import "@fontsource-variable/open-sans";
 import "@fontsource-variable/schibsted-grotesk";
+import "@fontsource-variable/schibsted-grotesk/wght-italic.css";
 import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "../../styles/brand_tokens.css";
