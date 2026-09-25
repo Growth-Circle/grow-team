@@ -119,6 +119,6 @@ dalamnya.
 
 ## Kontrak settings pending Task9
 
-`AgentRealmSettings` saat ini menyimpan feature flag, limit, retensi, dan revision. Default profile nullable, selection revision, actor, timestamp, serta metadata lokasi runner adalah kontrak aditif Task9. Enable eksplisit sesudah probe juga kontrak Task9. Source saat ini masih auto-enable profil setelah probe siap.
+`AgentRealmSettings` saat ini menyimpan feature flag, limit, retensi, dan revision. Default profile nullable, selection revision, actor, timestamp, serta metadata lokasi runner adalah kontrak aditif Task9. Enable eksplisit sesudah probe juga kontrak Task9. Source sudah memakai enable eksplisit sesudah probe siap.
 
 Model ini menggantikan placeholder `AI_JOB`, `AI_MODEL`, atau sidecar schema. Lihat [FRD](frd.md) dan tiga spesifikasi agent: [connections and coding harness](spec/2026-09-21-agent-connections-and-coding-harness.md), [lifecycle and mention flow](spec/2026-09-21-agent-lifecycle-and-mention-flow.md), serta [settings, connections, and team defaults](spec/2026-09-22-agent-settings-connections-and-team-defaults.md).

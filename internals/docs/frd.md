@@ -27,8 +27,8 @@ Status dokumen: penyelarasan sementara, 2026-09-22. Status menunjukkan bukti yan
 
 ## Kontrak settings dan default
 
-AS-01–AS-32 dari [spesifikasi settings](spec/2026-09-22-agent-settings-connections-and-team-defaults.md) masih pending Task9. Kontrak ini mencakup metadata runner, directory ACL, readiness draft, enable eksplisit, default tim revision-safe, dan UI lintas browser.
+AS-01–AS-32 dari [spesifikasi settings](spec/2026-09-22-agent-settings-connections-and-team-defaults.md) sudah diterapkan. Kontrak ini mencakup metadata runner, directory ACL, readiness draft, enable eksplisit, default tim revision-safe, dan UI lintas browser.
 
-Kontrak yang diterima menyatakan probe hanya merekam readiness. Enable adalah aksi eksplisit pada revision yang diuji. Source saat ini masih auto-enable profil setelah probe siap. Dokumentasi ini tidak menyatakan koreksi Task9 sudah diterapkan.
+Kontrak yang diterima menyatakan probe hanya merekam readiness. Enable adalah aksi eksplisit pada revision yang diuji. Source sudah memakai enable eksplisit sesudah probe siap.
 
 Default tim tidak memberi grant, tidak mengubah job aktif, dan tidak membuat trigger baru. Gunakan [ERD](erd.md) untuk record aktual, [roadmap](roadmap.md) untuk gate rilis, serta spesifikasi [connections and coding harness](spec/2026-09-21-agent-connections-and-coding-harness.md) dan [lifecycle and mention flow](spec/2026-09-21-agent-lifecycle-and-mention-flow.md) untuk kontrak runner dan lifecycle.

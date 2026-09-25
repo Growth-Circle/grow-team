@@ -30,8 +30,8 @@ Pilot tidak melakukan pemantauan umum. Trigger otomatis berasal dari mention per
 | Workspace chat internal | Bukti deploy bertanggal tersedia | Bukti ulang diperlukan untuk perubahan rilis. |
 | Control plane dan runner agent | Komponen source tersedia | Task 0–6 selesai dan lulus review komponen. |
 | Image runner | Intermediate image `1c3ebcde3d7e` diuji | Image rilis final belum ditetapkan. |
-| Enable profil | Kontrak explicit enable diterima | Source masih auto-enable setelah probe. Task9 harus memperbaikinya. |
-| UI agent, provider pilot, dan activation | Pending | UI belum dikirim. Realm dan provider pilot belum diaktifkan. |
+| Enable profil | Diterapkan | Enable eksplisit sudah ada di source (`zerver/actions/agents.py`). |
+| UI agent, provider pilot, dan activation | Diterapkan | UI agent terbit. Profil "Opus" aktif di realm produksi. |
 | Kesiapan rilis | Pending | Migrasi live, 106 acceptance rows, recovery, kapasitas, dan sertifikasi keamanan belum lengkap. |
 
 ## Metrik provisional
@@ -40,7 +40,7 @@ Metrik belum menjadi KPI komersial. Untuk pilot, ukur keberhasilan login dan und
 
 ## Ruang lingkup komersial
 
-Billing, SLA, desktop/mobile app, dan operasi multi-klien belum masuk rilis internal. Isolasi pelanggan, lifecycle credential, support, dan offboarding memerlukan keputusan bisnis dan bukti operasi.
+Billing, SLA, aplikasi native desktop/mobile, dan operasi multi-klien belum masuk rilis internal. PWA masuk MVP (lihat [15-pwa-notifikasi.md](pages/15-pwa-notifikasi.md)). Isolasi pelanggan, lifecycle credential, support, dan offboarding memerlukan keputusan bisnis dan bukti operasi.
 
 ## Kebutuhan terkait
 

@@ -1,6 +1,6 @@
 # Blueprint Sanji
 
-Status dokumen: penyelarasan sementara, 2026-09-23. Sanji mempertahankan chat Zulip untuk tim internal lima sampai enam anggota. Produk dapat masuk ke pasar klien setelah gate produk dan operasi selesai.
+Status dokumen: penyelarasan sementara, 2026-09-23. Sanji mempertahankan chat Zulip. Produk melayani banyak workspace, bukan hanya satu tim internal. Produk dapat masuk ke pasar klien setelah gate produk dan operasi selesai.
 
 ## Tujuan
 
@@ -53,15 +53,15 @@ Endpoint model tidak memberi akses repository dengan sendirinya. Server dan runn
 
 ## Status komponen dan gate rilis
 
-| Area                        | Status                                                | Arti                                                                                                                                   |
-| --------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Chat dan branding Sanji | Bukti deploy bertanggal tersedia                      | Runtime chat telah diverifikasi pada cakupan laporan branding. Bukti perlu diulang untuk perubahan rilis berikutnya.                   |
-| Control plane agent         | Ada di source                                         | Model durable, protocol v1, pairing, secret, grant, lifecycle, dan audit tersedia.                                                     |
-| Runner dan containment      | Komponen selesai direview untuk Task 0–6              | Task 0–6 telah melalui review komponen. Ini belum menjadi sertifikasi produk penuh.                                                    |
-| Image runner                | Image `1c3ebcde3d7e` diuji sebagai intermediate image | Image ini bukan image rilis final. Paket, notice, recovery, dan gate rilis tetap perlu bukti final.                                    |
-| Enable profil               | Ada di source                                         | Probe hanya merekam readiness. Enable adalah aksi eksplisit pada revision yang diuji; bukti backend ada pada `6725a74`.                |
-| UI agent                    | Terbit di image `12.2-grow-team.22`                   | Pengaturan agent, dialog tugas, drawer tugas, dan berbagi agent berjalan di produksi (`83b1a57b9e4`). Baris penerimaan UI belum lulus. |
-| Operasi rilis               | Pending                                               | Migrasi agent sudah berjalan di produksi. Baris penerimaan, recovery, rollback, dan sertifikasi keamanan belum selesai.                |
+| Area                    | Status                                                | Arti                                                                                                                    |
+| ----------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Chat dan branding Sanji | Bukti deploy bertanggal tersedia                      | Runtime chat telah diverifikasi pada cakupan laporan branding. Bukti perlu diulang untuk perubahan rilis berikutnya.    |
+| Control plane agent     | Ada di source                                         | Model durable, protocol v1, pairing, secret, grant, lifecycle, dan audit tersedia.                                      |
+| Runner dan containment  | Komponen selesai direview untuk Task 0–6              | Task 0–6 telah melalui review komponen. Ini belum menjadi sertifikasi produk penuh.                                     |
+| Image runner            | Image `1c3ebcde3d7e` diuji sebagai intermediate image | Image ini bukan image rilis final. Paket, notice, recovery, dan gate rilis tetap perlu bukti final.                     |
+| Enable profil           | Ada di source                                         | Probe hanya merekam readiness. Enable adalah aksi eksplisit pada revision yang diuji; bukti backend ada pada `6725a74`. |
+| UI agent                | Terbit, image `12.2-grow-team.25.3`                   | Pengaturan agent, dialog tugas, drawer tugas, dan berbagi agent berjalan di produksi. Baris penerimaan UI belum lulus.  |
+| Operasi rilis           | Pending                                               | Migrasi agent sudah berjalan di produksi. Baris penerimaan, recovery, rollback, dan sertifikasi keamanan belum selesai. |
 
 ## Batas otoritas
 
