@@ -8,5 +8,9 @@
     "Runners": "Runner",
     "Add runner": "Tambah runner",
     "MCP connections": "Koneksi MCP"
+  },
+  "backend": {
+    "Open menu": "Buka menu",
+    "Search": "Cari"
   }
 }

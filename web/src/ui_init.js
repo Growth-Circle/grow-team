@@ -16,6 +16,7 @@ import * as add_stream_options_popover from "./add_stream_options_popover.ts";
 import * as agent_create_ui from "./agent_create_ui.ts";
 import * as agents_ui from "./agents_ui.ts";
 import * as alert_words from "./alert_words.ts";
+import * as app_frame from "./app_frame.ts";
 import * as audible_notifications from "./audible_notifications.ts";
 import * as banners from "./banners.ts";
 import * as blueslip from "./blueslip.ts";
@@ -476,7 +477,6 @@ export async function initialize_everything(state_data) {
        density is so fundamental, we initialize that first, however. */
     initialize_user_settings(state_data.user_settings);
     mouse_drag.initialize();
-    sidebar_ui.restore_sidebar_toggle_status();
     i18n.initialize({language_list: page_params.language_list});
     timerender.initialize();
     information_density.initialize();
@@ -641,6 +641,7 @@ export async function initialize_everything(state_data) {
         mod.initialize();
         center_views.register({id, hash, show: mod.show, hide: mod.hide, title: mod.title});
     }
+    app_frame.initialize();
 
     alert_words.initialize(state_data.alert_words);
     saved_snippets.initialize(state_data.saved_snippets);

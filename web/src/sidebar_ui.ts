@@ -50,20 +50,6 @@ function save_sidebar_toggle_status(): void {
     }
 }
 
-export function restore_sidebar_toggle_status(): void {
-    const ls = localstorage();
-    if (ls.get("left-sidebar")) {
-        $("body").addClass("hide-left-sidebar");
-    }
-
-    if (!page_params.is_spectator && ls.get("right-sidebar")) {
-        // The right sidebar is never shown in the spectator mode;
-        // avoid processing local storage state for hiding the right
-        // sidebar.
-        $("body").addClass("hide-right-sidebar");
-    }
-}
-
 export let left_sidebar_expanded_as_overlay = false;
 export let right_sidebar_expanded_as_overlay = false;
 
@@ -106,6 +92,9 @@ export function show_streamlist_sidebar(): void {
         $streamlist_sidebar.addClass("topmost-overlay");
         $userlist_sidebar.removeClass("topmost-overlay");
     }
+    // Below the app shell breakpoint, this opens the sidebar as a
+    // drawer, with a scrim behind it.
+    $("#app-nav-scrim").show();
     resize.resize_stream_filters_container();
     left_sidebar_expanded_as_overlay = true;
 }
@@ -129,6 +118,7 @@ export function hide_streamlist_sidebar(): void {
     const $streamlist_sidebar = $(".app-main .column-left");
     $(".app-main .column-left, #navbar-middle").removeClass("expanded");
     $streamlist_sidebar.removeClass("topmost-overlay");
+    $("#app-nav-scrim").hide();
     left_sidebar_expanded_as_overlay = false;
 }
 

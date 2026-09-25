@@ -1,6 +1,90 @@
-/* Containers for the views that can fill the main column. Each one
-   stays hidden until center_views.ts shows it. The room header shows
-   only with a message feed. */
+/* The app shell. At $shell_narrow_min and wider, a 260px sidebar sits
+   beside one main column. Below that width, the main column fills the
+   window, a top bar holds the menu and search buttons, and the sidebar
+   opens as a drawer. Em values use a 16px/1em base; border widths
+   stay in px.
+
+   The page root stays the scroll container. The message feed code
+   reads and sets the scroll position of the root element only, so the
+   main column must not scroll on its own. */
+
+/* The shell has no Zulip navbar and no right sidebar at any width:
+   the left sidebar and the top bar hold navigation and search. The
+   banner area above the navbar stays, in #navbar-fixed-container. */
+#header-container,
+#right-sidebar-container {
+    display: none !important;
+}
+
+:root {
+    /* Nothing sits to the right of the main column. */
+    --right-sidebar-width: 0px;
+}
+
+@media (width >= $shell_narrow_min) {
+    :root {
+        /* 260px at 16px/1em */
+        --left-sidebar-width: 16.25em;
+        --left-sidebar-max-width: 16.25em;
+        /* Only the banners stay above the main column. */
+        --navbar-fixed-height: var(--navbar-alerts-wrapper-height);
+    }
+}
+
+@media (width < $shell_narrow_min) {
+    :root {
+        /* The drawer is 300px wide at 16px/1em, and never wider than
+           86% of the window. */
+        --left-sidebar-max-width: min(18.75em, 86vw);
+        --left-sidebar-width: var(--left-sidebar-max-width);
+        /* The banners and the 64px top bar stay above the main column.
+           #app-topbar uses the same 4em height. */
+        --navbar-fixed-height: calc(4em + var(--navbar-alerts-wrapper-height));
+    }
+}
+
+.app-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    /* 560px at 16px/1em */
+    min-height: 35em;
+    background: var(--sj-bg);
+}
+
+@media (width >= $shell_narrow_min) {
+    .app-main {
+        grid-template-columns: 16.25em minmax(0, 1fr);
+    }
+
+    /* .column-left is absolutely positioned (zulip.css), so it takes
+       no grid cell. Without this rule, .column-middle would go into
+       the first column, under the sidebar. */
+    .column-middle {
+        grid-column: 2;
+    }
+}
+
+/* zulip.css limits these to a centered width that leaves room for a
+   right sidebar. The shell uses the full window width instead. */
+body .app .app-main,
+body #compose-container {
+    max-width: none;
+}
+
+/* zulip.css offsets .column-middle with margins for the sidebars.
+   The grid column does that job now. */
+.app-main .column-middle,
+.hide-left-sidebar .app-main .column-middle {
+    min-width: 0;
+    margin: 0;
+}
+
+.column-middle-inner {
+    background: var(--sj-bg);
+}
+
+/* Every center view container is hidden until center_views.ts shows
+   it, and the room header shows only with a message feed. */
 #today-view,
 #needs-view,
 #room-header,
@@ -15,8 +99,8 @@
     display: none;
 }
 
-/* The center views clear the fixed navbar, the same way the message
-   feed does. */
+/* The center views clear the banners, and the top bar on a narrow
+   window, the same way the message feed does. */
 #today-view,
 #needs-view,
 #agents-view,
@@ -33,4 +117,164 @@
    the user opens the compose box, it shows. */
 #compose.hide-closed-compose:not(.compose-box-open) {
     display: none;
+}
+
+#app-nav-scrim {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    background: var(--sj-scrim);
+}
+
+#app-topbar {
+    display: none;
+}
+
+@media (width >= $shell_narrow_min) {
+    #app-nav-scrim {
+        display: none !important;
+    }
+}
+
+@media (width < $shell_narrow_min) {
+    /* The top bar sits in the fixed navbar container. The scrim
+       (z-index 39) and the drawer (z-index 40) cover it. */
+    #navbar-fixed-container {
+        z-index: 30;
+    }
+
+    #app-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        /* 10px at 16px/1em */
+        gap: 0.625em;
+        box-sizing: border-box;
+        /* 64px at 16px/1em */
+        height: 4em;
+        /* 10px 14px at 16px/1em */
+        padding: 0.625em 0.875em;
+        background: var(--sj-sidebar-bg);
+        color: var(--sj-sidebar-text-strong);
+    }
+
+    #app-topbar-menu,
+    #app-topbar-search {
+        /* Buttons do not inherit the font size of the page. */
+        font-size: 1em;
+        /* 44px at 16px/1em */
+        width: 2.75em;
+        height: 2.75em;
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        /* 12px at 16px/1em */
+        border-radius: 0.75em;
+        border: 1.5px solid var(--sj-gelap-4);
+        background: var(--sj-sidebar-hover);
+        color: var(--sj-sidebar-text-strong);
+        cursor: pointer;
+    }
+
+    #app-topbar-menu .zulip-icon {
+        /* 18px at 16px/1em */
+        font-size: 1.125em;
+    }
+
+    #app-topbar-search .zulip-icon {
+        /* 15px at 16px/1em */
+        font-size: 0.9375em;
+    }
+
+    #app-topbar-workspace {
+        display: flex;
+        align-items: center;
+        /* 8px at 16px/1em */
+        gap: 0.5em;
+        min-width: 0;
+    }
+
+    #app-topbar-workspace-initial {
+        /* 12px text. The size and the radius below use this 12px
+           font size: a 26px square with an 8px radius. */
+        font-size: 0.75em;
+        width: 2.1667em;
+        height: 2.1667em;
+        border-radius: 0.6667em;
+        flex: none;
+        background: var(--sj-kaki);
+        color: var(--sj-tinta);
+        font-weight: 900;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #app-topbar-workspace-name {
+        /* 15px at 16px/1em */
+        font-size: 0.9375em;
+        font-weight: 800;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Nothing sits beside the compose box on a narrow window. */
+    #compose-content {
+        margin-left: 7px;
+        margin-right: 7px;
+    }
+
+    /* The nav drawer. sidebar_ui.ts adds and removes .expanded. The
+       closed drawer stays in the layout so that it can slide, and
+       visibility keeps it out of the tab order after the slide ends.
+       Esc, the scrim, and a click on a nav item or a room close it.
+       The !important values win over the zulip.css rules for the
+       same classes, which assume other breakpoints. */
+    .app-main .column-left {
+        display: block !important;
+        position: fixed !important;
+        top: 0 !important;
+        bottom: 0;
+        left: 0 !important;
+        z-index: 40 !important;
+        width: var(--left-sidebar-width);
+        max-width: var(--left-sidebar-width);
+        visibility: hidden;
+        transform: translateX(-105%);
+        transition:
+            transform 0.25s ease,
+            visibility 0s linear 0.25s;
+    }
+
+    .app-main .column-left.expanded {
+        visibility: visible;
+        transform: none;
+        transition: transform 0.25s ease;
+    }
+
+    /* The drawer covers the banners and the top bar, so its content
+       starts at the top of the window. */
+    .app-main .column-left .left-sidebar {
+        padding-top: var(--header-padding-bottom);
+    }
+
+    /* zulip.css restyles an expanded sidebar as a light overlay below
+       768px. The drawer keeps the sidebar look at every width. */
+    .app-main .column-left.expanded .left-sidebar {
+        width: var(--left-sidebar-width);
+        max-width: none;
+        padding-left: var(--left-sidebar-padding-left);
+        background-color: var(--color-background-sidebar);
+        box-shadow: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-main .column-left {
+        transition: none !important;
+    }
 }

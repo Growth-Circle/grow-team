@@ -210,6 +210,108 @@ async function navigate_center_views(page: Page): Promise<void> {
     await page.waitForSelector("#agent-job-list-overlay", {hidden: true});
 }
 
+type Box = {x: number; y: number; width: number; height: number};
+
+async function get_box(page: Page, selector: string): Promise<Box> {
+    return await page.$eval(selector, (element) => {
+        const rect = element.getBoundingClientRect();
+        return {x: rect.x, y: rect.y, width: rect.width, height: rect.height};
+    });
+}
+
+function assert_near(actual: number, expected: number, label: string): void {
+    assert.ok(Math.abs(actual - expected) <= 1, `${label}: ${actual} is not ${expected}`);
+}
+
+async function check_desktop_frame(page: Page, width: number, height: number): Promise<void> {
+    await page.setViewport({width, height});
+    await common.go_to_hash(page, "#feed");
+    await wait_for_title(page, "Combined feed");
+    await page.waitForSelector("#compose-content", {visible: true});
+
+    const sidebar = await get_box(page, "#left-sidebar-container .left-sidebar");
+    assert_near(sidebar.x, 0, `sidebar x at ${width}px`);
+    assert_near(sidebar.width, 260, `sidebar width at ${width}px`);
+    const middle = await get_box(page, ".app-main .column-middle");
+    assert_near(middle.x, 260, `main column x at ${width}px`);
+    const client_width = await page.evaluate(() => document.documentElement.clientWidth);
+    assert_near(middle.x + middle.width, client_width, `main column right edge at ${width}px`);
+    const compose = await get_box(page, "#compose-content");
+    assert_near(compose.x, 260, `compose box x at ${width}px`);
+    await page.waitForSelector("#app-topbar", {hidden: true});
+
+    // The page root scrolls, not the main column: the message feed
+    // reads and sets the scroll position of the root element.
+    const main_column_overflow = await page.$eval(
+        ".column-middle-inner",
+        (element) => window.getComputedStyle(element).overflowY,
+    );
+    assert.equal(main_column_overflow, "visible");
+
+    await common.screenshot(page, `shell-feed-${width}x${height}`);
+}
+
+async function check_mobile_frame(page: Page): Promise<void> {
+    await page.setViewport({width: 375, height: 812});
+    await common.go_to_hash(page, "#today");
+    await page.waitForSelector("#today-view", {visible: true});
+    await page.waitForSelector("#app-topbar", {visible: true});
+
+    // Banners, when there are any, sit above the top bar.
+    const banners = await get_box(page, "#navbar_alerts_wrapper");
+    const topbar = await get_box(page, "#app-topbar");
+    assert_near(topbar.x, 0, "top bar x");
+    assert_near(topbar.y, banners.height, "top bar y");
+    assert_near(topbar.width, 375, "top bar width");
+    assert_near(topbar.height, 64, "top bar height");
+    const menu_button = await get_box(page, "#app-topbar-menu");
+    assert_near(menu_button.width, 44, "menu button width");
+    assert_near(menu_button.height, 44, "menu button height");
+    const search_button = await get_box(page, "#app-topbar-search");
+    assert_near(search_button.width, 44, "search button width");
+    const avatar = await get_box(page, "#app-topbar-workspace-initial");
+    assert_near(avatar.width, 26, "workspace avatar width");
+    assert_near(avatar.height, 26, "workspace avatar height");
+    // The view content starts below the banners and the top bar.
+    const today_padding = await page.$eval("#today-view", (element) =>
+        Number.parseFloat(window.getComputedStyle(element).paddingTop),
+    );
+    assert_near(today_padding, banners.height + 64, "Today top padding");
+    await page.waitForSelector("#left-sidebar-container", {hidden: true});
+    await common.screenshot(page, "shell-today-375x812");
+
+    await page.click("#app-topbar-menu");
+    await page.waitForSelector("#left-sidebar-container", {visible: true});
+    await page.waitForSelector("#app-nav-scrim", {visible: true});
+    // Wait for the slide to end before the geometry checks.
+    await page.waitForFunction(
+        () => document.querySelector("#left-sidebar-container")!.getBoundingClientRect().x === 0,
+    );
+    const drawer = await get_box(page, "#left-sidebar-container");
+    assert_near(drawer.width, 300, "drawer width");
+    await common.screenshot(page, "shell-drawer-375x812");
+
+    await page.keyboard.press("Escape");
+    await page.waitForSelector("#app-nav-scrim", {hidden: true});
+    await page.waitForSelector("#left-sidebar-container", {hidden: true});
+}
+
+async function check_frame(page: Page): Promise<void> {
+    console.log("Checking the app frame at several window sizes");
+
+    await check_desktop_frame(page, 820, 900);
+    await check_desktop_frame(page, 1280, 800);
+    await check_desktop_frame(page, 1600, 1000);
+    await check_desktop_frame(page, 1920, 1080);
+
+    await page.setViewport({width: 1600, height: 1000});
+    await common.go_to_hash(page, "#today");
+    await page.waitForSelector("#today-view", {visible: true});
+    await common.screenshot(page, "shell-today-1600x1000");
+
+    await check_mobile_frame(page);
+}
+
 async function navigation_tests(page: Page): Promise<void> {
     await common.log_in(page);
 
@@ -234,6 +336,7 @@ async function navigation_tests(page: Page): Promise<void> {
     assert.ok((await page.title()).startsWith("#Verona"), "Not narrowed to the Verona channel.");
 
     await navigate_center_views(page);
+    await check_frame(page);
 }
 
 await common.run_test(navigation_tests);

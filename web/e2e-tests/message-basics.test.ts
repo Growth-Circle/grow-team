@@ -373,73 +373,6 @@ async function test_stream_search_filters_stream_list(page: Page): Promise<void>
     await un_narrow(page);
 }
 
-async function test_users_search(page: Page): Promise<void> {
-    console.log("Search users using right sidebar");
-    async function assert_in_list(page: Page, name: string): Promise<void> {
-        await page.waitForSelector(`#buddy-list-other-users li[data-name="${CSS.escape(name)}"]`, {
-            visible: true,
-        });
-    }
-
-    async function assert_selected(page: Page, name: string): Promise<void> {
-        await page.waitForSelector(
-            `#buddy-list-other-users li.highlighted_user[data-name="${CSS.escape(name)}"]`,
-            {visible: true},
-        );
-    }
-
-    async function assert_not_selected(page: Page, name: string): Promise<void> {
-        await page.waitForSelector(
-            `#buddy-list-other-users li.highlighted_user[data-name="${CSS.escape(name)}"]`,
-            {hidden: true},
-        );
-    }
-
-    await assert_in_list(page, "Desdemona");
-    await assert_in_list(page, "Cordelia, Lear's daughter");
-    await assert_in_list(page, "King Hamlet");
-    await assert_in_list(page, "aaron");
-
-    // Enter the search box and test selected suggestion navigation
-    await page.click(".user-list-filter");
-    // Selection is not highlighted until user wants to move the cursor.
-    await page.waitForSelector("#buddy-list-other-users .highlighted_user", {hidden: true});
-    await arrow(page, "Down");
-    await page.waitForSelector("#buddy-list-other-users .highlighted_user", {visible: true});
-    await assert_selected(page, "Desdemona");
-    await assert_not_selected(page, "Cordelia, Lear's daughter");
-    await assert_not_selected(page, "King Hamlet");
-    await assert_not_selected(page, "aaron");
-
-    // Navigate using arrow keys.
-    // go down 2, up 3, then down 3
-    //       Desdemona
-    //       aaron
-    //       Cordelia, Lear's daughter
-    //       Iago
-    await arrow(page, "Down");
-    await arrow(page, "Down");
-    await arrow(page, "Up");
-    await arrow(page, "Up");
-    await arrow(page, "Up"); // does nothing; already on the top.
-    await arrow(page, "Down");
-    await arrow(page, "Down");
-    await arrow(page, "Down");
-
-    // Now Iago must be highlighted
-    await page.waitForSelector('#buddy-list-other-users li.highlighted_user[data-name="Iago"]', {
-        visible: true,
-    });
-    await assert_not_selected(page, "King Hamlet");
-    await assert_not_selected(page, "aaron");
-    await assert_not_selected(page, "Desdemona");
-
-    // arrow up and press Enter. We should be taken to direct messages with Cordelia, Lear's daughter
-    await arrow(page, "Up");
-    await page.keyboard.press("Enter");
-    await expect_cordelia_direct_messages(page);
-}
-
 async function test_narrow_public_streams(page: Page): Promise<void> {
     const stream_id = await common.get_stream_id(page, "Denmark");
     await page.goto(`http://zulip.zulipdev.com:9981/#channels/${stream_id}/Denmark`);
@@ -518,7 +451,6 @@ async function message_basic_tests(page: Page): Promise<void> {
     await narrow_tests(page);
     await test_narrow_by_clicking_the_left_sidebar(page);
     await test_stream_search_filters_stream_list(page);
-    await test_users_search(page);
     await test_narrow_public_streams(page);
 }
 

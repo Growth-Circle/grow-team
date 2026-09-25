@@ -205,10 +205,23 @@ Accessing messages requires an account and sanji API key.
 <div id="navbar-fixed-container">
     <div id="navbar_alerts_wrapper" class="banner-wrapper"></div>
     <div id="header-container"></div>
+    <div id="app-topbar">
+        <button type="button" id="app-topbar-menu" aria-label="{{ _('Open menu') }}">
+            <i class="zulip-icon zulip-icon-mobile-menu" aria-hidden="true"></i>
+        </button>
+        <div id="app-topbar-workspace">
+            <span id="app-topbar-workspace-initial" aria-hidden="true">{{ realm_name[0]|upper }}</span>
+            <span id="app-topbar-workspace-name">{{ realm_name }}</span>
+        </div>
+        <button type="button" id="app-topbar-search" aria-label="{{ _('Search') }}">
+            <i class="zulip-icon zulip-icon-search" aria-hidden="true"></i>
+        </button>
+    </div>
 </div>
 
 <div class="app">
     <div class="app-main">
+        <div id="app-nav-scrim"></div>
         <div class="column-left" id="left-sidebar-container">
         </div>
         <div class="column-middle">
