@@ -1,5 +1,5 @@
 """Views for the settings page: workspace settings, the role permission
-matrix, and the audit log. The logic lives in
+matrix, the audit log, and the workspace switcher list. The logic lives in
 zerver/lib/workspace_settings.py and zerver/lib/audit_feed.py. This module
 parses each request and checks who may call each endpoint."""
 
@@ -21,6 +21,7 @@ from zerver.lib.typed_endpoint import typed_endpoint, typed_endpoint_without_par
 from zerver.lib.workspace_settings import (
     PermissionChange,
     apply_permission_changes,
+    list_my_workspaces,
     permission_matrix_payload,
     realm_settings_payload,
     update_realm_settings,
@@ -140,3 +141,8 @@ def get_realm_audit_csv(request: HttpRequest, user_profile: UserProfile) -> Http
     filename = f"audit-{user_profile.realm.string_id or 'workspace'}.csv"
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
+
+
+@typed_endpoint_without_parameters
+def list_workspaces(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
+    return json_success(request, data={"workspaces": list_my_workspaces(user_profile)})

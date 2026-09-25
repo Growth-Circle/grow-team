@@ -1,7 +1,7 @@
 """Tests for zerver/lib/workspace_settings.py,
 zerver/views/workspace_settings.py, and zerver/lib/model_budget.py:
-workspace settings, the model budget state, and the role permission
-matrix."""
+workspace settings, the model budget state, the role permission matrix,
+and the workspace list."""
 
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -16,7 +16,7 @@ from zerver.lib.model_budget import model_budget_state
 from zerver.lib.role_permissions import PERMISSION_KEYS
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.lib.user_groups import get_role_based_system_groups_dict
-from zerver.lib.workspace_settings import BRAND_COLORS, capabilities
+from zerver.lib.workspace_settings import BRAND_COLORS, capabilities, list_my_workspaces
 from zerver.models import (
     AgentProvider,
     AgentRealmSettings,
@@ -637,3 +637,24 @@ class PermissionMatrixTests(ZulipTestCase):
         self.assert_json_error(result, "That permission does not exist.")
         result = self.put(("runner", "captain", True))
         self.assert_json_error(result, "That role does not exist.")
+
+
+class WorkspaceListTests(ZulipTestCase):
+    def test_lists_the_current_workspace(self) -> None:
+        self.login("hamlet")
+        payload = self.assert_json_success(self.client_get("/json/users/me/workspaces"))
+        realm = get_realm("zulip")
+        entries = {entry["realm_id"]: entry for entry in payload["workspaces"]}
+        self.assertIn(realm.id, entries)
+        self.assertEqual(entries[realm.id]["role"], "member")
+        self.assertTrue(entries[realm.id]["current"])
+
+    def test_lists_every_realm_the_email_belongs_to(self) -> None:
+        cordelia_in_zulip = self.example_user("cordelia")
+        rows = list_my_workspaces(cordelia_in_zulip)
+        realm_ids = {row["realm_id"] for row in rows}
+        self.assertIn(get_realm("zulip").id, realm_ids)
+        self.assertIn(get_realm("lear").id, realm_ids)
+        current = {row["realm_id"]: row["current"] for row in rows}
+        self.assertTrue(current[get_realm("zulip").id])
+        self.assertFalse(current[get_realm("lear").id])

@@ -1,8 +1,8 @@
 # OpenAPI fragment for the server side of the workspace settings page:
-# workspace settings, the role permission matrix, and the audit log. See
-# zerver/openapi/features/events_agent.yaml for the fragment format, and
-# zproject/feature_routes/workspace.py for the routes that this fragment
-# documents.
+# workspace settings, the role permission matrix, the audit log, and the
+# workspace switcher list. See zerver/openapi/features/events_agent.yaml
+# for the fragment format, and zproject/feature_routes/workspace.py for
+# the routes that this fragment documents.
 paths:
   /agent/realm-settings:
     get:
@@ -489,6 +489,41 @@ paths:
                   "msg": "You do not have permission to do this.",
                   "result": "error",
                 }
+  /users/me/workspaces:
+    get:
+      operationId: list-my-workspaces
+      tags: ["workspace"]
+      summary: List my workspaces
+      description: |
+        List every workspace on this server the requester's email
+        belongs to, for the workspace switcher: name, URL, role, accent
+        color, and which one is the current workspace.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3c02c6).
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceListResponse"
+              example:
+                {
+                  "result": "success",
+                  "msg": "",
+                  "workspaces":
+                    [
+                      {
+                        "realm_id": 2,
+                        "name": "Grow Team",
+                        "url": "https://team.growc.id",
+                        "role": "owner",
+                        "brand_color": "#FFD84D",
+                        "initial": "G",
+                        "current": true,
+                      },
+                    ],
+                }
 components:
   schemas:
     WorkspaceInviteExpiryDays:
@@ -791,3 +826,45 @@ components:
               items:
                 $ref: "#/components/schemas/WorkspaceAuditEvent"
           required: [events]
+    WorkspaceListEntry:
+      type: object
+      additionalProperties: false
+      description: One workspace in the requester's workspace switcher.
+      properties:
+        realm_id:
+          type: integer
+          description: The workspace's realm ID.
+        name:
+          type: string
+          description: The workspace's name.
+        url:
+          type: string
+          description: The workspace's URL.
+        role:
+          type: string
+          description: The requester's role in this workspace.
+          enum: [owner, admin, moderator, member, guest]
+        brand_color:
+          type: string
+          description: The workspace's accent color, or an empty string if it has not chosen one.
+        initial:
+          type: string
+          description: A single letter for the workspace's badge.
+        current:
+          type: boolean
+          description: Whether this is the workspace the request was made to.
+      required: [realm_id, name, url, role, brand_color, initial, current]
+    WorkspaceListResponse:
+      allOf:
+        - $ref: "#/components/schemas/JsonSuccessBase"
+        - type: object
+          additionalProperties: false
+          properties:
+            result: {}
+            msg: {}
+            ignored_parameters_unsupported: {}
+            workspaces:
+              type: array
+              items:
+                $ref: "#/components/schemas/WorkspaceListEntry"
+          required: [workspaces]

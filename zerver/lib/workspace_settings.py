@@ -1,11 +1,14 @@
-"""Workspace settings and the role permission matrix, for
-`zerver/views/workspace_settings.py`.
+"""Workspace settings, the role permission matrix, and the workspace list,
+for `zerver/views/workspace_settings.py`.
 
 - `AgentRealmSettings` fields that Owner and Admin change from the
   settings page (`update_realm_settings`).
 - The role permission matrix (`permission_matrix_payload`,
   `apply_permission_changes`), built on the defaults and locks in
   `zerver/lib/role_permissions.py`.
+- The workspace list that a signed-in person sees in the workspace
+  switcher (`list_my_workspaces`), one entry for each realm that their
+  email belongs to.
 """
 
 import re
@@ -453,3 +456,41 @@ def apply_permission_changes(user_profile: UserProfile, changes: list[Permission
         extra_data={"changed": applied},
     )
     send_realm_permissions_event(realm)
+
+
+# -- GET /json/users/me/workspaces ---------------------------------------
+
+
+def list_my_workspaces(user_profile: UserProfile) -> list[dict[str, object]]:
+    """One entry for each realm that `user_profile`'s email belongs to,
+    oldest membership first. Uses the same query as
+    `get_accounts_for_email` in zerver/lib/users.py, plus the fields that
+    the workspace switcher needs: role, URL, accent color, and initial."""
+    profiles = (
+        UserProfile.objects.select_related("realm")
+        .filter(
+            delivery_email__iexact=user_profile.delivery_email.strip(),
+            is_active=True,
+            realm__deactivated=False,
+            is_bot=False,
+        )
+        .order_by("date_joined")
+    )
+    realm_ids = [profile.realm_id for profile in profiles]
+    brand_colors = dict(
+        AgentRealmSettings.objects.filter(realm_id__in=realm_ids).values_list(
+            "realm_id", "brand_color"
+        )
+    )
+    return [
+        {
+            "realm_id": profile.realm_id,
+            "name": profile.realm.name,
+            "url": profile.realm.url,
+            "role": ROLE_NAMES[profile.role],
+            "brand_color": brand_colors.get(profile.realm_id, ""),
+            "initial": (profile.realm.name[:1] or "?").upper(),
+            "current": profile.realm_id == user_profile.realm_id,
+        }
+        for profile in profiles
+    ]
