@@ -28,7 +28,7 @@
         & a,
         a:hover,
         a:visited {
-            color: hsl(170deg 47% 33%);
+            color: var(--sj-text);
             font-weight: 400;
         }
     }
@@ -105,11 +105,7 @@
         padding: 11px 25px;
         font-weight: 400;
         color: hsl(0deg 0% 100%);
-        background: linear-gradient(
-            145deg,
-            hsl(172deg 56% 55%),
-            hsl(169deg 65% 42%)
-        );
+        background: var(--sj-kaki);
         box-shadow: 0 3px 10px hsl(0deg 0% 0% / 20%);
         border: 0;
         height: 40px;
@@ -124,13 +120,13 @@
     }
 
     .stripe-button-el:hover {
-        background-color: hsl(169deg 65% 42%);
+        background-color: var(--sj-ink);
         box-shadow: 0 3px 10px hsl(0deg 0% 0% / 30%);
     }
 
     .stripe-button-el:active,
     .stripe-button-el:enabled:active {
-        background-color: hsl(169deg 70% 32%);
+        background-color: var(--sj-ink);
 
         & span {
             background: 0;

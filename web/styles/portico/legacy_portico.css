@@ -1079,7 +1079,7 @@ input#terminal:checked ~ #tab-terminal {
 }
 
 #skip-navigation {
-    background-color: hsl(170deg 47% 33%);
+    background-color: var(--sj-text);
     color: hsl(0deg 0% 100%);
     border-radius: 4px;
     display: inline-block;
@@ -1471,11 +1471,7 @@ label.label-title {
 
 #navbar-custom-message {
     font-size: 1rem;
-    background: linear-gradient(
-        145deg,
-        hsl(172deg 56% 55%),
-        hsl(169deg 65% 42%)
-    );
+    background: var(--sj-kaki);
     color: hsl(0deg 0% 100%);
     font-weight: 600;
     text-align: center;

@@ -8,19 +8,19 @@
     .dev-email-log-header,
     .dev-forward-email-alert {
         padding: 10px;
-        border: 1px solid hsl(172deg 65% 84%);
+        border: 1px solid var(--sj-kuning);
         border-radius: 4px;
-        background-color: hsl(172deg 65% 91%);
-        color: hsl(172deg 50% 45%);
+        background-color: var(--sj-tint-kuning);
+        color: var(--sj-text);
     }
 
     .dev-email-log-actions,
     .dev-forward-email-alert {
         & a {
-            color: hsl(172deg 50% 45%);
+            color: var(--sj-text);
 
             &:hover {
-                color: hsl(172deg 56% 33%);
+                color: var(--sj-kaki);
             }
         }
     }

@@ -48,11 +48,11 @@ ul {
 a {
     position: relative;
     cursor: pointer;
-    color: hsl(170deg 47% 33%);
+    color: var(--sj-text);
 
     &:hover,
     &:visited {
-        color: hsl(170deg 47% 33%);
+        color: var(--sj-text);
     }
 
     &:hover,
@@ -166,8 +166,8 @@ button {
 
     &.green {
         color: hsl(0deg 0% 100%);
-        background-color: hsl(170deg 47% 53%);
-        border-color: hsl(169deg 45% 43%);
+        background-color: var(--sj-kaki);
+        border-color: var(--sj-ink);
 
         &:hover {
             background-color: hsl(170deg 47% 58%);
@@ -803,11 +803,7 @@ button {
     padding: 200px 80px 100px;
     margin-top: -50px;
 
-    background: linear-gradient(
-        145deg,
-        hsl(172deg 56% 55%),
-        hsl(169deg 65% 42%)
-    );
+    background: var(--sj-kaki);
 
     color: hsl(0deg 0% 100%);
 }
@@ -916,7 +912,7 @@ button {
 }
 
 .portico-landing.hello .integrations .integration-icons .group:hover {
-    border-color: hsl(170deg 47% 53%);
+    border-color: var(--sj-kaki);
 }
 
 .portico-landing.hello .integrations .integration-logo {
@@ -1488,7 +1484,7 @@ button {
 
 .for-education-pricing-model .pricing-container hr {
     border: none;
-    border-bottom: 2px solid hsl(170deg 47% 53%);
+    border-bottom: 2px solid var(--sj-kaki);
     margin: 15px 0;
 }
 
@@ -2274,7 +2270,7 @@ button {
     & header {
         & b {
             font-weight: 600;
-            color: hsl(169deg 45% 43%);
+            color: var(--sj-ink);
         }
     }
 }
@@ -2300,7 +2296,7 @@ button {
     border: 2px solid;
     border-radius: 4px;
     background: none;
-    color: hsl(169deg 45% 43%);
+    color: var(--sj-ink);
     vertical-align: middle;
     position: relative;
     z-index: 1;
@@ -2326,8 +2322,8 @@ button {
     }
 
     &:hover {
-        border-color: hsl(169deg 45% 43%);
-        background-color: hsl(170deg 47% 53%);
+        border-color: var(--sj-ink);
+        background-color: var(--sj-kaki);
         color: hsl(0deg 0% 100%);
     }
 }
@@ -2432,15 +2428,15 @@ button {
         justify-content: center;
 
         & a {
-            color: hsl(170deg 47% 33%);
+            color: var(--sj-text);
             font-weight: 600;
             font-size: 15px;
             margin: 10px;
 
             &:hover {
                 color: hsl(0deg 0% 100%);
-                background-color: hsl(170deg 47% 33%);
-                border-color: hsl(170deg 47% 33%);
+                background-color: var(--sj-text);
+                border-color: var(--sj-text);
             }
         }
     }
@@ -2749,11 +2745,7 @@ button {
         padding: 50px;
         padding-top: 200px;
         border-radius: 0;
-        background: linear-gradient(
-            145deg,
-            hsl(172deg 56% 55%),
-            hsl(169deg 65% 42%)
-        );
+        background: var(--sj-kaki);
 
         & blockquote {
             max-width: 700px;
@@ -2846,11 +2838,7 @@ button {
 
         .feature-pricing {
             padding: 50px;
-            background: linear-gradient(
-                180deg,
-                hsl(172deg 56% 55%),
-                hsl(169deg 65% 42%)
-            );
+            background: var(--sj-kaki);
 
             @media (width <= 540px) {
                 padding: 50px 0;

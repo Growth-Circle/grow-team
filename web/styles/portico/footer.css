@@ -1,10 +1,9 @@
 :root {
-    --color-footer-background: hsl(185deg 28% 27%);
-    --color-links: hsl(168deg 55% 72%);
-
-    @media (prefers-color-scheme: dark) {
-        --color-footer-background: hsl(185deg 28% 21%);
-    }
+    /* The footer band is a fixed dark surface in both page themes, like
+       the portico hero, so it stays plain sj-malam/sj-kertas instead of
+       following light-dark(). */
+    --color-footer-background: var(--sj-malam);
+    --color-links: var(--sj-kertas);
 }
 
 /* These need to be here so that other pages don't need to import a different library for these icons to work */
@@ -169,18 +168,26 @@
         height: 28px;
         display: inline-block;
         flex-shrink: 0;
-        background-color: hsl(172.44deg 85.86% 80.59%);
+        background-color: color-mix(
+            in oklch,
+            var(--sj-kertas) 85%,
+            transparent
+        );
         mask-position: center;
         mask-repeat: no-repeat;
         mask-image: var(--footer-social-icon);
         transition: background-color 150ms ease-out;
 
         &:hover {
-            background-color: hsl(172.44deg 84.31% 90%);
+            background-color: color-mix(
+                in oklch,
+                var(--sj-kertas) 92%,
+                transparent
+            );
         }
 
         &:active {
-            background-color: hsl(172.44deg 86.67% 97.06%);
+            background-color: var(--sj-kertas);
         }
     }
 

@@ -651,7 +651,7 @@ input#terminal:checked ~ #tab-terminal {
 }
 
 #skip-navigation {
-    background-color: hsl(170deg 47% 33%);
+    background-color: var(--sj-text);
     color: hsl(0deg 0% 100%);
     border-radius: 4px;
     display: inline-block;
@@ -983,11 +983,7 @@ label.label-title {
 
 #navbar-custom-message {
     font-size: 1rem;
-    background: linear-gradient(
-        145deg,
-        hsl(172deg 56% 55%),
-        hsl(169deg 65% 42%)
-    );
+    background: var(--sj-kaki);
     color: hsl(0deg 0% 100%);
     font-weight: 600;
     text-align: center;
@@ -1164,8 +1160,8 @@ button {
 
     &.green {
         color: hsl(0deg 0% 100%);
-        background-color: hsl(170deg 47% 53%);
-        border-color: hsl(169deg 45% 43%);
+        background-color: var(--sj-kaki);
+        border-color: var(--sj-ink);
 
         &:hover {
             background-color: hsl(170deg 47% 58%);
@@ -1577,11 +1573,7 @@ button {
     padding: 200px 80px 100px;
     margin-top: -50px;
 
-    background: linear-gradient(
-        145deg,
-        hsl(172deg 56% 55%),
-        hsl(169deg 65% 42%)
-    );
+    background: var(--sj-kaki);
 
     color: hsl(0deg 0% 100%);
 }
@@ -1690,7 +1682,7 @@ button {
 }
 
 .portico-landing.hello .integrations .integration-icons .group:hover {
-    border-color: hsl(170deg 47% 53%);
+    border-color: var(--sj-kaki);
 }
 
 .portico-landing.hello .integrations .integration-logo {
@@ -2993,7 +2985,7 @@ button {
     & header {
         & b {
             font-weight: 600;
-            color: hsl(169deg 45% 43%);
+            color: var(--sj-ink);
         }
     }
 }
@@ -3510,11 +3502,7 @@ button {
 
         .feature-pricing {
             padding: 50px;
-            background: linear-gradient(
-                180deg,
-                hsl(172deg 56% 55%),
-                hsl(169deg 65% 42%)
-            );
+            background: var(--sj-kaki);
 
             @media (width <= 540px) {
                 padding: 50px 0;

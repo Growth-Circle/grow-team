@@ -3,7 +3,7 @@
 }
 
 .activity-head {
-    background-color: hsl(172deg 100% 97%);
+    background-color: var(--sj-surface-muted);
     position: sticky;
     top: 0;
 
@@ -13,7 +13,7 @@
 }
 
 .activity-foot {
-    background-color: hsl(172deg 100% 97%);
+    background-color: var(--sj-surface-muted);
     font-weight: 700;
     position: sticky;
     bottom: 0;
@@ -104,7 +104,7 @@
 
 tr.admin td:first-child {
     font-weight: bold;
-    color: hsl(172.44deg 88.15% 26.47%);
+    color: var(--sj-text);
     font-size: 110%;
 }
 
