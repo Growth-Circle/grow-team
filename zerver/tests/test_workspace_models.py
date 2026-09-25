@@ -14,6 +14,7 @@ from zerver.models import (
     AgentRealmSettings,
     AgentRunner,
     AgentRunnerRegistrationToken,
+    CloudRunnerInstance,
     DriveFolderLink,
     ExternalAccount,
     McpAgentGrant,
@@ -414,6 +415,25 @@ class WorkspaceSchemaTests(ZulipTestCase):
                 provider="telegram",
                 external_id="62800000000",
                 created_by=self.owner,
+            )
+
+    # -- 0830 CloudRunnerInstance ---------------------------------------------
+
+    def test_cloud_runner_instance_rejects_bad_state(self) -> None:
+        with self.assertRaises(IntegrityError):
+            CloudRunnerInstance.objects.create(
+                realm=self.realm, created_by=self.owner, state="teleporting"
+            )
+
+    def test_cloud_runner_instance_defaults_to_cloudflare(self) -> None:
+        instance = CloudRunnerInstance.objects.create(realm=self.realm, created_by=self.owner)
+        self.assertEqual(instance.provider, "cloudflare")
+        self.assertEqual(instance.egress, "https_only")
+
+    def test_cloud_runner_instance_rejects_bad_provider(self) -> None:
+        with self.assertRaises(IntegrityError):
+            CloudRunnerInstance.objects.create(
+                realm=self.realm, created_by=self.owner, provider="gcp"
             )
 
     # -- helpers --------------------------------------------------------------
