@@ -1,0 +1,3568 @@
+paths:
+  /agent/profiles/{profile_id}/test-task:
+    post:
+      operationId: send-agent-profile-test-task
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanJobResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentHumanTestTaskRequest"
+                  description:
+                    Send exactly one form field named payload. Its value is the serialized JSON
+                    request object.
+                  example: {"schema_version": 1, "idempotency_key": "5e8f1620-3e29-4b7e-9a1d-2c6b8f0a7d11"}
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      parameters:
+        - name: profile_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /agent/profiles:
+    get:
+      operationId: list-agent-profiles
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsProfilesResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      parameters:
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: ownership
+          in: query
+          schema:
+            type: string
+            enum:
+              - all
+              - mine
+              - shared
+        - name: access
+          in: query
+          schema:
+            type: string
+            enum:
+              - all
+              - complete
+              - partial
+        - name: host_kind
+          in: query
+          schema:
+            type: string
+            enum:
+              - all
+              - workstation
+              - server
+              - unknown
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+    post:
+      operationId: create-agent-profile
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsProfileCreateResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsProfileCreateRequest"
+                  description: Send one payload field with a JSON request object.
+                  example:
+                    {
+                      "schema_version": 1,
+                      "runner_id": "00000000-0000-4000-8000-000000000001",
+                      "name": "Example agent",
+                      "adapter_id": "example",
+                      "adapter_version": "1",
+                      "idempotency_key": "00000000-0000-4000-8000-000000000001",
+                    }
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsProfileCreateRequest"
+  /agent/profiles/recover:
+    get:
+      operationId: recover-agent-profile
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsProfileRecoveryResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      parameters:
+        - name: idempotency_key
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /agent/profiles/{profile_id}:
+    get:
+      operationId: get-agent-profile
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsProfileDetailResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      parameters:
+        - name: profile_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+    patch:
+      operationId: update-agent-profile
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsProfileResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsProfileUpdateRequest"
+                  description: Send one payload field with a JSON request object.
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_metadata_revision": 1,
+                      "expected_revision": 1,
+                      "name": "Example",
+                      "adapter_id": "example",
+                      "adapter_version": "1",
+                    }
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsProfileUpdateRequest"
+      parameters:
+        - name: profile_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /agent/providers:
+    get:
+      operationId: list-agent-providers
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsProvidersResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      parameters:
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: ownership
+          in: query
+          schema:
+            type: string
+            enum:
+              - all
+              - mine
+              - shared
+        - name: access
+          in: query
+          schema:
+            type: string
+            enum:
+              - all
+              - complete
+              - partial
+        - name: host_kind
+          in: query
+          schema:
+            type: string
+            enum:
+              - all
+              - workstation
+              - server
+              - unknown
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+    post:
+      operationId: create-agent-provider
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsProviderCreateResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsProviderCreateRequest"
+                  description: Send one payload field with a JSON request object.
+                  example:
+                    {
+                      "schema_version": 1,
+                      "runner_id": "00000000-0000-4000-8000-000000000001",
+                      "name": "Example",
+                      "base_url": "https://example.test",
+                      "model_id": "model",
+                      "allowed_models": ["model"],
+                      "context_window_tokens": 1024,
+                      "max_output_tokens": 128,
+                      "local_credential_ref": "synthetic-provider-credential",
+                    }
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsProviderCreateRequest"
+  /agent/providers/{provider_id}:
+    get:
+      operationId: get-agent-provider
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsProviderResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      parameters:
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+    patch:
+      operationId: update-agent-provider
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsProviderResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsProviderUpdateRequest"
+                  description: Send one payload field with a JSON request object.
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_config_version": 1,
+                      "expected_metadata_revision": 1,
+                      "name": "Example",
+                      "base_url": "https://example.test",
+                      "model_id": "model",
+                      "allowed_models": ["model"],
+                      "context_window_tokens": 1024,
+                      "max_output_tokens": 128,
+                    }
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsProviderUpdateRequest"
+      parameters:
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /agent/providers/{provider_id}/probe:
+    post:
+      operationId: probe-agent-provider
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsSetupIdResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsSetupRequestRequest"
+                  description: Send one payload field with a JSON request object.
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_revision": 1,
+                      "retry_key": "00000000-0000-4000-8000-000000000001",
+                    }
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsSetupRequestRequest"
+      parameters:
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /agent/repositories:
+    get:
+      operationId: list-agent-repositories
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsRepositoriesResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      parameters:
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: ownership
+          in: query
+          schema:
+            type: string
+            enum:
+              - all
+              - mine
+              - shared
+        - name: access
+          in: query
+          schema:
+            type: string
+            enum:
+              - all
+              - complete
+              - partial
+        - name: host_kind
+          in: query
+          schema:
+            type: string
+            enum:
+              - all
+              - workstation
+              - server
+              - unknown
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+    post:
+      operationId: create-agent-repository
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsRepositoryCreateResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsRepositoryCreateRequest"
+                  description: Send one payload field with a JSON request object.
+                  example:
+                    {
+                      "schema_version": 1,
+                      "runner_id": "00000000-0000-4000-8000-000000000001",
+                      "workspace_alias": "example",
+                      "allowed_refs": ["main"],
+                    }
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsRepositoryCreateRequest"
+  /agent/repositories/{repository_id}:
+    get:
+      operationId: get-agent-repository
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsRepositoryResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      parameters:
+        - name: repository_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /agent/profiles/{profile_id}/pause:
+    post:
+      operationId: pause-agent-profile
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsProfileResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsRevisionRequestRequest"
+                  description: Send one payload field with a JSON request object.
+                  example: {"schema_version": 1, "expected_revision": 1}
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsRevisionRequestRequest"
+      parameters:
+        - name: profile_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /agent/profiles/{profile_id}/archive:
+    post:
+      operationId: archive-agent-profile
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsProfileResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsArchiveProfileRequest"
+                  description: Send one payload field with a JSON request object.
+                  example: {"schema_version": 1, "expected_revision": 1}
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsArchiveProfileRequest"
+      parameters:
+        - name: profile_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /agent/profiles/{profile_id}/enable:
+    post:
+      operationId: enable-agent-profile
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsProfileResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsRevisionRequestRequest"
+                  description: Send one payload field with a JSON request object.
+                  example: {"schema_version": 1, "expected_revision": 1}
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsRevisionRequestRequest"
+      parameters:
+        - name: profile_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /agent/profiles/{profile_id}/readiness:
+    post:
+      operationId: retry-agent-profile-readiness
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsSetupIdResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsSetupRequestRequest"
+                  description: Send one payload field with a JSON request object.
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_revision": 1,
+                      "retry_key": "00000000-0000-4000-8000-000000000001",
+                    }
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsSetupRequestRequest"
+      parameters:
+        - name: profile_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /agent/setups/{setup_id}:
+    get:
+      operationId: get-agent-setup
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsSetupResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      parameters:
+        - name: setup_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /agent/grants:
+    get:
+      operationId: list-agent-grants
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsGrantsResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      parameters:
+        - name: target_kind
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - profile
+              - runner
+              - provider
+              - repository
+        - name: target_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+    post:
+      operationId: create-agent-grant
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsGrantCreateResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsGrantCreateRequest"
+                  description: Send one payload field with a JSON request object.
+                  example:
+                    {
+                      "schema_version": 1,
+                      "target_kind": "profile",
+                      "target_id": "00000000-0000-4000-8000-000000000001",
+                      "expected_revision": 1,
+                      "actions": ["profile.use"],
+                      "principal_user_id": 2,
+                    }
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsGrantCreateRequest"
+  /agent/grants/{grant_id}/revoke:
+    post:
+      operationId: revoke-agent-grant
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsEmptyResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsRevisionRequestRequest"
+                  description: Send one payload field with a JSON request object.
+                  example: {"schema_version": 1, "expected_revision": 1}
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsRevisionRequestRequest"
+      parameters:
+        - name: grant_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /agent/profiles/{profile_id}/attach-channel:
+    post:
+      operationId: attach-agent-profile-channel
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsEmptyResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsChannelRequestRequest"
+                  description: Send one payload field with a JSON request object.
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_revision": 1,
+                      "stream_id": 1,
+                    }
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsChannelRequestRequest"
+      parameters:
+        - name: profile_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /agent/profiles/{profile_id}/share:
+    post:
+      operationId: share-agent-profile
+      tags:
+        - agents
+      summary: Share an agent with a person or a group
+      description: |
+        Give a person or a group the grants they need to use an agent profile:
+        the profile itself, its runner, its provider, and its default
+        repository. The call creates a grant only for a resource the owner
+        already owns, and lists any other resource it skips. A repeated call
+        with the same principal and options creates no duplicate grant.
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsProfileShareResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsProfileShareRequest"
+                  description: Send one payload field with a JSON request object.
+                  example:
+                    {
+                      "schema_version": 1,
+                      "principal_user_id": 2,
+                      "allow_job_control": false,
+                      "allow_job_review": false,
+                    }
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsProfileShareRequest"
+      parameters:
+        - name: profile_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /agent/profiles/{profile_id}/unshare:
+    post:
+      operationId: unshare-agent-profile
+      tags:
+        - agents
+      summary: Stop sharing an agent with a person or a group
+      description: |
+        Revoke the grants that a matching share call created for a person or
+        a group. Only the profile owner can call this endpoint.
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsEmptyResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsProfileUnshareRequest"
+                  description: Send one payload field with a JSON request object.
+                  example: {"schema_version": 1, "principal_user_id": 2}
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsProfileUnshareRequest"
+      parameters:
+        - name: profile_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /agent/channels/{stream_id}/attachments:
+    get:
+      operationId: list-channel-agent-attachments
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsAttachmentsResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      parameters:
+        - name: stream_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+  /agent/team-default:
+    get:
+      operationId: get-agent-team-default
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsDefaultResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+    patch:
+      operationId: update-agent-team-default
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsDefaultUpdateResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsDefaultSelectionUpdateRequest"
+                  description: Send one payload field with a JSON request object.
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_selection_revision": 1,
+                      "profile_id": "00000000-0000-4000-8000-000000000001",
+                    }
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsDefaultSelectionUpdateRequest"
+  /agent/team-instructions:
+    get:
+      operationId: get-agent-team-instructions
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsTeamInstructionsResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+    patch:
+      operationId: update-agent-team-instructions
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsTeamInstructionsResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsTeamInstructionsUpdateRequest"
+                  description: Send one payload field with a JSON request object.
+                  example:
+                    {
+                      "schema_version": 1,
+                      "expected_revision": 1,
+                      "text": "Reply in the same language as the request.",
+                    }
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsTeamInstructionsUpdateRequest"
+  /agent/selection/resolve:
+    post:
+      operationId: resolve-agent-selection
+      tags:
+        - agents
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettingsSelectionResponse"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version. Runner credential rejection includes it.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/AgentHumanFrameworkError"
+                  - $ref: "#/components/schemas/AgentHumanSafeError"
+              examples:
+                missing_authentication:
+                  value:
+                    result: error
+                    msg: "Not logged in: API authentication or user session required"
+                    code: UNAUTHORIZED
+                runner_credential:
+                  value:
+                    result: error
+                    msg: Runner credential rejected.
+                    schema_version: 1
+                    code: INVALID_API_KEY
+        "403":
+          description:
+            This REST route is CSRF exempt. The server defines no endpoint-specific 403 response
+            envelope.
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                payload:
+                  allOf:
+                    - $ref: "#/components/schemas/AgentSettingsSelectionResolveRequest"
+                  description: Send one payload field with a JSON request object.
+                  example: {"schema_version": 1, "source_message_id": 1}
+              required:
+                - payload
+            encoding:
+              payload:
+                contentType: application/json
+      x-agent-payload-schema:
+        $ref: "#/components/schemas/AgentSettingsSelectionResolveRequest"

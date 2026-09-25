@@ -943,6 +943,18 @@ class OpenAPIAttributesTest(ZulipTestCase):
             "bots",
             "agents",
             "agent device connections",
+            "workspace",
+            "rooms",
+            "needs",
+            "home",
+            "web_push",
+            "integrations",
+            "meetings",
+            "drive",
+            "whatsapp",
+            "mcp",
+            "models",
+            "cloud_runners",
         ]
         paths = OpenAPISpec(OPENAPI_SPEC_PATH).openapi()["paths"]
         for path, path_item in paths.items():
@@ -1051,6 +1063,8 @@ class APIDocsSidebarTest(ZulipTestCase):
             # This is rendered on the "Outgoing webhooks" page and hence is not
             # linked in the sidebar.
             "zulip-outgoing-webhooks",
+            # Runner device protocol; not part of the public API docs.
+            "agent-runtime-draft",
         }
         sidebar_path = "api_docs/sidebar_index.md"
         rest_endpoints_path = "api_docs/include/rest-endpoints.md"
