@@ -450,3 +450,33 @@ class TaskIdPrefixTest(TaskBoardTestCase):
 
         board_result = self.assert_json_success(self.client_get("/json/tasks"))
         self.assertEqual(board_result["tasks"][0]["display_id"], "ACME-1")
+
+
+class TaskSourceTest(TaskBoardTestCase):
+    def test_create_with_source(self) -> None:
+        self.login_user(self.hamlet)
+        result = self.client_post(
+            "/json/tasks",
+            {"title": "From a brief", "column_id": self.columns[0].id, "source": "brief"},
+        )
+        task = Task.objects.get(id=self.assert_json_success(result)["task_id"])
+        self.assertEqual(task.source, "brief")
+
+        board_result = self.assert_json_success(self.client_get("/json/tasks"))
+        listed = next(item for item in board_result["tasks"] if item["id"] == task.id)
+        self.assertEqual(listed["source"], "brief")
+
+        # Omitting it keeps the manual default (05-D6).
+        result = self.client_post(
+            "/json/tasks", {"title": "No source given", "column_id": self.columns[0].id}
+        )
+        task = Task.objects.get(id=self.assert_json_success(result)["task_id"])
+        self.assertEqual(task.source, "manual")
+
+    def test_invalid_source_is_rejected(self) -> None:
+        self.login_user(self.hamlet)
+        result = self.client_post(
+            "/json/tasks",
+            {"title": "Bad source", "column_id": self.columns[0].id, "source": "nonsense"},
+        )
+        self.assert_json_error(result, "Invalid source")

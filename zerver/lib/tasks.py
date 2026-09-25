@@ -69,6 +69,8 @@ def task_api_dict(task: Task, *, task_id_prefix: str) -> dict[str, Any]:
     once and passes it in."""
     data = task.to_api_dict()
     data["display_id"] = f"{task_id_prefix}-{task.counter}"
+    # 05-D6: Task.to_api_dict() does not send the card's source.
+    data["source"] = task.source
     return data
 
 

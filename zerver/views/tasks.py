@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from django.http import HttpRequest, HttpResponse
 from django.utils.translation import gettext as _
@@ -112,6 +112,7 @@ def create_task(
     labels: Json[list[str]] | None = None,
     origin_message_id: Json[int] | None = None,
     reviewer_id: Json[int] | None = None,
+    source: Literal["manual", "brief", "meeting", "whatsapp", "agent"] = "manual",
     stream_id: Json[int] | None = None,
     title: TaskTitle,
     topic: str = "",
@@ -149,6 +150,7 @@ def create_task(
         labels=clean_labels(labels or []),
         checklist=clean_checklist(checklist or []),
         due_at=None if due_at is None else timestamp_to_datetime(due_at),
+        source=source,
     )
     display_id = f"{realm_task_id_prefix(user_profile.realm)}-{task.counter}"
     return json_success(request, data={"task_id": task.id, "display_id": display_id})

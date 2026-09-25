@@ -156,6 +156,14 @@ paths:
                   description: |
                     UNIX timestamp for the card's deadline.
                   example: 1790000000
+                source:
+                  type: string
+                  enum: ["manual", "brief", "meeting", "whatsapp", "agent"]
+                  description: |
+                    Where the card came from. Defaults to `manual`.
+
+                    **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+                  example: brief
               required:
                 - title
                 - column_id
@@ -711,6 +719,13 @@ components:
           type: integer
           description: |
             The UNIX timestamp for the card's last change, in UTC seconds.
+        source:
+          type: string
+          enum: ["manual", "brief", "meeting", "whatsapp", "agent"]
+          description: |
+            Where the card came from.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
     TaskHistoryEntry:
       type: object
       description: |
