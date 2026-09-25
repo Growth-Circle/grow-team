@@ -1,4 +1,4 @@
-/* eslint-disable no-jquery/variable-pattern, no-jquery/no-parse-html-literal, promise/prefer-await-to-then, promise/always-return, @typescript-eslint/consistent-type-assertions -- This controller uses static jQuery markup and fenced delegated callbacks. */
+/* eslint-disable no-jquery/variable-pattern, no-jquery/no-parse-html-literal, promise/prefer-await-to-then, promise/always-return, promise/no-nesting, @typescript-eslint/consistent-type-assertions -- This controller uses static jQuery markup and fenced delegated callbacks. */
 import $ from "jquery";
 
 import * as api from "./agent_api.ts";

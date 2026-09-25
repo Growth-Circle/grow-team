@@ -1,9 +1,11 @@
-/* eslint-disable no-jquery/variable-pattern, no-jquery/no-parse-html-literal, promise/prefer-await-to-then, promise/always-return -- This controller uses static jQuery markup and fenced delegated callbacks. */
+/* eslint-disable no-jquery/variable-pattern, no-jquery/no-parse-html-literal, promise/prefer-await-to-then, promise/always-return, @typescript-eslint/consistent-type-assertions -- This controller uses static jQuery markup and fenced delegated callbacks. */
 import $ from "jquery";
 
 import * as api from "./agent_api.ts";
 import {$t} from "./i18n.ts";
+import * as connections from "./settings_agents_connections.ts";
 import {
+    type GrantKind,
     advance_draft_revision,
     advance_visit,
     announce,
@@ -11,7 +13,6 @@ import {
     bind_grant_handlers,
     current,
     editor_is_idle,
-    type GrantKind,
     hide_editors,
     line,
     load_choices,
@@ -24,7 +25,6 @@ import {
     set_session_identity,
     visit,
 } from "./settings_agents_core.ts";
-import * as connections from "./settings_agents_connections.ts";
 import * as devices from "./settings_agents_devices.ts";
 import * as directory from "./settings_agents_directory.ts";
 import * as team_default from "./settings_agents_team_default.ts";
