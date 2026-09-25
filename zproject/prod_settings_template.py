@@ -1013,11 +1013,9 @@ CAMO_URI = "/external_content/"
 # VAPID_SUBJECT = "mailto:support@example.com"
 
 ## Controls cloud-hosted agent runners. You must also set
-## cloud_runner_aws_access_key_id and cloud_runner_aws_secret_access_key
-## in zulip-secrets.conf.
-# CLOUD_RUNNER_PROVIDER = "aws"
-# CLOUD_RUNNER_AWS_AMI = "<your AMI ID>"
-# CLOUD_RUNNER_AWS_SUBNETS = "<comma-separated subnet IDs>"
+## cloud_runner_cloudflare_api_token in zulip-secrets.conf.
+# CLOUD_RUNNER_PROVIDER = "cloudflare"
+# CLOUD_RUNNER_CLOUDFLARE_ACCOUNT_ID = "<your Cloudflare account ID>"
 
 ## Controls the local runner installer.
 # RUNNER_DOWNLOAD_DIR = "/srv/sanji-runner-downloads"
@@ -1028,6 +1026,9 @@ CAMO_URI = "/external_content/"
 
 ## Fixed host that every third-party OAuth connect flow (Google, GitHub,
 ## OpenRouter, MCP) redirects back to, regardless of which workspace
-## started the flow. This host must be reachable and configured as the
-## single redirect URI on each provider.
-# OAUTH_CALLBACK_HOST = "auth.example.com"
+## started the flow. Give a host name only, no scheme: either your root
+## host or one of ROOT_SUBDOMAIN_ALIASES (for example, app.zulip.example.com).
+## Register "https://<this host>/oauth/callback/<provider>" as the redirect
+## URI with each provider. Leave this unset to have each workspace use its
+## own host instead, which only works with a single workspace.
+# OAUTH_CALLBACK_HOST = "app.zulip.example.com"

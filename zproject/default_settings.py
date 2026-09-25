@@ -800,10 +800,10 @@ SCIM_CONFIG: dict[str, SCIMConfigDict] = {}
 # send full subscriber data to the client.
 MIN_PARTIAL_SUBSCRIBERS_CHANNEL_SIZE = 1000
 
-# Sanji feature settings (PLAN.md section 4.6). Each area treats a
-# missing value as "not configured" and hides or disables the matching
-# feature instead of failing; matching secrets are read at point of use
-# with get_secret() and are not declared here.
+# Sanji feature settings. Each area treats a missing value as "not
+# configured" and hides or disables the matching feature instead of
+# failing; matching secrets are read at point of use with get_secret()
+# and are not declared here.
 
 # Google Drive and Calendar (Drive, Calendar).
 GOOGLE_INTEGRATIONS_CLIENT_ID: str | None = None
@@ -829,10 +829,9 @@ OPENROUTER_GUARDRAILS_API = False
 VAPID_PUBLIC_KEY: str | None = None
 VAPID_SUBJECT: str | None = None
 
-# Cloud-hosted agent runners. CLOUD_RUNNER_PROVIDER is "aws" or "".
+# Cloud-hosted agent runners. CLOUD_RUNNER_PROVIDER is "cloudflare" or "".
 CLOUD_RUNNER_PROVIDER = ""
-CLOUD_RUNNER_AWS_AMI: str | None = None
-CLOUD_RUNNER_AWS_SUBNETS: str | None = None
+CLOUD_RUNNER_CLOUDFLARE_ACCOUNT_ID: str | None = None
 
 # Local runner installer.
 RUNNER_DOWNLOAD_DIR: str | None = None
