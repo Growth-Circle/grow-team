@@ -8,11 +8,13 @@ import copy
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from datetime import timedelta
+from datetime import date, timedelta
 from enum import Enum
 from io import StringIO
+from types import SimpleNamespace
 from typing import Any
 from unittest import mock
+from uuid import uuid4
 
 import orjson
 import time_machine
@@ -20,6 +22,7 @@ from dateutil.parser import parse as dateparser
 from django.utils.timezone import now as timezone_now
 from typing_extensions import override
 
+from zerver.actions.agents import approve_pairing, start_pairing
 from zerver.actions.alert_words import do_add_alert_words, do_remove_alert_words
 from zerver.actions.bots import (
     do_change_bot_owner,
@@ -165,8 +168,20 @@ from zerver.actions.users import (
     do_update_outgoing_webhook_service,
 )
 from zerver.actions.video_calls import do_set_video_call_provider_token
+from zerver.lib.agent_events import (
+    send_agent_job_event,
+    send_agent_realm_settings_event,
+    send_agent_runner_event,
+    send_pairing_event,
+    send_realm_permissions_event,
+    send_room_meta_event,
+)
 from zerver.lib.drafts import DraftData, do_create_drafts, do_delete_draft, do_edit_draft
 from zerver.lib.event_schema import (
+    check_agent_job_update,
+    check_agent_realm_settings_update,
+    check_agent_runner_pairing,
+    check_agent_runner_update,
     check_alert_words,
     check_attachment_add,
     check_attachment_remove,
@@ -214,6 +229,7 @@ from zerver.lib.event_schema import (
     check_realm_export,
     check_realm_export_consent,
     check_realm_linkifiers,
+    check_realm_permissions_update,
     check_realm_playgrounds,
     check_realm_update,
     check_realm_update_dict,
@@ -222,6 +238,7 @@ from zerver.lib.event_schema import (
     check_realm_user_update,
     check_reminder_add,
     check_reminder_remove,
+    check_room_meta_update,
     check_saved_snippets_add,
     check_saved_snippets_remove,
     check_saved_snippets_update,
@@ -308,6 +325,7 @@ from zerver.models import (
     UserProfile,
     UserStatus,
     UserTopic,
+    agents,
 )
 from zerver.models.bots import get_bot_services
 from zerver.models.clients import get_client
@@ -5808,3 +5826,181 @@ class ChannelFolderActionTest(BaseAction):
 
         check_channel_folder_reorder("events[0]", events[0])
         self.assertEqual(events[0]["order"], new_order)
+
+
+class AgentAndRoomEventsTest(BaseAction):
+    """Event shape for the job, runner, room, and permission events,
+    exercising the senders directly: the same senders `transition()`,
+    `heartbeat()`, and the pairing actions call once wired. `verify_action`
+    also validates these against the OpenAPI spec for `GET /events`; that
+    spec gains these event schemas only once the fragment loader merges
+    them, at the wave gate. Until then, this checks shape with
+    `capture_send_event_calls`, the same capture `verify_action` uses,
+    without that merge-dependent step."""
+
+    @staticmethod
+    def _stamped(event: dict[str, Any]) -> dict[str, Any]:
+        """A client's queue stamps `id` when it appends an event
+        (`EventQueue.append`); `capture_send_event_calls` captures the
+        notice one step before that, so the checkers need it added back."""
+        return {**event, "id": 1}
+
+    def _agent_job_fixture(self) -> agents.AgentJob:
+        runner = agents.AgentRunner.objects.create(
+            realm=self.user_profile.realm,
+            owner=self.user_profile,
+            name="Fixture",
+            fingerprint="a" * 64,
+        )
+        profile = agents.AgentProfile.objects.create(
+            realm=self.user_profile.realm,
+            owner=self.user_profile,
+            runner=runner,
+            bot_user=self.example_user("default_bot"),
+            name="Fixture",
+            adapter_id="codex-acp",
+            adapter_version="1.12.0",
+        )
+        message_id = self.send_stream_message(self.user_profile, "Denmark", "Agent fixture")
+        conversation = agents.AgentConversation.objects.create(
+            realm=self.user_profile.realm,
+            profile=profile,
+            anchor_message_id=message_id,
+            audience_binding={"stream_id": self.get_stream_id("Denmark")},
+        )
+        return agents.AgentJob.objects.create(
+            realm=self.user_profile.realm,
+            requester=self.user_profile,
+            conversation=conversation,
+            profile=profile,
+            runner=runner,
+            request="Explain",
+            idempotency_key=uuid4(),
+            payload_digest="a" * 64,
+            admission_revision=1,
+        )
+
+    def test_agent_job_update_event(self) -> None:
+        job = self._agent_job_fixture()
+        with self.capture_send_event_calls(expected_num_events=1) as events:
+            send_agent_job_event(job)
+        check_agent_job_update("events[0]", self._stamped(events[0]["event"]))
+
+    def test_agent_runner_update_event(self) -> None:
+        runner = agents.AgentRunner.objects.create(
+            realm=self.user_profile.realm,
+            owner=self.user_profile,
+            name="Fixture",
+            fingerprint="a" * 64,
+        )
+        with self.capture_send_event_calls(expected_num_events=1) as events:
+            send_agent_runner_event(runner)
+        check_agent_runner_update("events[0]", self._stamped(events[0]["event"]))
+
+    def test_agent_runner_pairing_event(self) -> None:
+        pairing = start_pairing("Laptop", "f" * 64, "ABCD1234", "s" * 40)
+        approve_pairing(self.user_profile, pairing, "ABCD1234")
+        pairing.refresh_from_db()
+        with self.capture_send_event_calls(expected_num_events=1) as events:
+            send_pairing_event(pairing, "approved", [self.user_profile.id])
+        check_agent_runner_pairing("events[0]", self._stamped(events[0]["event"]))
+
+    def test_room_meta_update_event(self) -> None:
+        stream = self.make_stream("wp05-room-meta")
+        room_meta = SimpleNamespace(
+            stream_id=stream.id, due_date=date(2026, 12, 31), summary_enabled=True
+        )
+        with self.capture_send_event_calls(expected_num_events=1) as events:
+            send_room_meta_event(room_meta)
+        check_room_meta_update("events[0]", self._stamped(events[0]["event"]))
+
+    def test_realm_permissions_update_event(self) -> None:
+        with self.capture_send_event_calls(expected_num_events=1) as events:
+            send_realm_permissions_event(self.user_profile.realm)
+        check_realm_permissions_update("events[0]", self._stamped(events[0]["event"]))
+
+    def test_agent_realm_settings_update_event(self) -> None:
+        with self.capture_send_event_calls(expected_num_events=1) as events:
+            send_agent_realm_settings_event(self.user_profile.realm, {"timezone": "Asia/Jakarta"})
+        check_agent_realm_settings_update("events[0]", self._stamped(events[0]["event"]))
+
+    def test_apply_event_is_a_no_op_for_every_agent_and_room_event(self) -> None:
+        """`apply_event` patches nothing for any of these: every recipient
+        re-fetches what changed instead of reading it from register state."""
+        job = self._agent_job_fixture()
+        state = fetch_initial_state_data(
+            self.user_profile,
+            realm=self.user_profile.realm,
+            event_types=None,
+            client_gravatar=True,
+            user_avatar_url_field_optional=False,
+            slim_presence=False,
+            include_subscribers=True,
+            include_streams=True,
+            pronouns_field_type_supported=True,
+            linkifier_url_template=True,
+            user_list_incomplete=False,
+            include_deactivated_groups=False,
+            archived_channels=False,
+        )
+        initial_state = copy.deepcopy(state)
+        post_process_state(self.user_profile, initial_state, False, True)
+        before = orjson.dumps(initial_state)
+        events = [
+            self._stamped(
+                {
+                    "type": "agent_job",
+                    "op": "update",
+                    "job_id": str(job.id),
+                    "status": "running",
+                    "phase": "edit",
+                    "version": 1,
+                    "profile_id": str(job.profile_id),
+                    "stream_id": None,
+                    "reason_code": None,
+                }
+            ),
+            self._stamped(
+                {
+                    "type": "agent_runner",
+                    "op": "update",
+                    "runner_id": "1",
+                    "status": "online",
+                    "last_heartbeat_at": None,
+                }
+            ),
+            self._stamped(
+                {
+                    "type": "agent_runner",
+                    "op": "pairing",
+                    "pairing_id": "1",
+                    "state": "approved",
+                    "device_name": "Laptop",
+                }
+            ),
+            self._stamped(
+                {
+                    "type": "room_meta",
+                    "op": "update",
+                    "stream_id": self.get_stream_id("Denmark"),
+                    "due_date": None,
+                    "summary_enabled": False,
+                }
+            ),
+            self._stamped({"type": "realm_permissions", "op": "update"}),
+            self._stamped({"type": "agent_realm_settings", "op": "update", "data": {}}),
+        ]
+        apply_events(
+            self.user_profile,
+            state=state,
+            events=events,
+            fetch_event_types=None,
+            client_gravatar=True,
+            slim_presence=False,
+            include_subscribers=True,
+            linkifier_url_template=True,
+            user_list_incomplete=False,
+            include_deactivated_groups=False,
+        )
+        post_process_state(self.user_profile, state, False, True)
+        self.assertEqual(before, orjson.dumps(state))

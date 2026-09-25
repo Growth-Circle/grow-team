@@ -2080,6 +2080,18 @@ def apply_event(
                 ]
         else:
             raise AssertionError("Unexpected event type {type}/{op}".format(**event))
+
+    elif event["type"] in (
+        "agent_job",
+        "agent_runner",
+        "room_meta",
+        "realm_permissions",
+        "agent_realm_settings",
+    ):
+        # Every recipient re-fetches what it needs; none of these carry
+        # local register state to update.
+        pass
+
     else:
         raise AssertionError("Unexpected event type {}".format(event["type"]))
 

@@ -19,6 +19,10 @@ from zerver.lib.event_types import (
     BaseEvent,
     BotServicesEmbedded,
     BotServicesOutgoing,
+    EventAgentJobUpdate,
+    EventAgentRealmSettingsUpdate,
+    EventAgentRunnerPairing,
+    EventAgentRunnerUpdate,
     EventAlertWords,
     EventAttachmentAdd,
     EventAttachmentRemove,
@@ -65,6 +69,7 @@ from zerver.lib.event_types import (
     EventRealmExport,
     EventRealmExportConsent,
     EventRealmLinkifiers,
+    EventRealmPermissionsUpdate,
     EventRealmPlaygrounds,
     EventRealmUpdate,
     EventRealmUpdateDict,
@@ -75,6 +80,7 @@ from zerver.lib.event_types import (
     EventRemindersAdd,
     EventRemindersRemove,
     EventRestart,
+    EventRoomMetaUpdate,
     EventSavedSnippetsAdd,
     EventSavedSnippetsRemove,
     EventSavedSnippetsUpdate,
@@ -230,6 +236,12 @@ check_task_add = make_checker(EventTaskAdd)
 check_task_board_update = make_checker(EventTaskBoardUpdate)
 check_task_remove = make_checker(EventTaskRemove)
 check_task_update = make_checker(EventTaskUpdate)
+check_agent_job_update = make_checker(EventAgentJobUpdate)
+check_agent_runner_update = make_checker(EventAgentRunnerUpdate)
+check_agent_runner_pairing = make_checker(EventAgentRunnerPairing)
+check_room_meta_update = make_checker(EventRoomMetaUpdate)
+check_realm_permissions_update = make_checker(EventRealmPermissionsUpdate)
+check_agent_realm_settings_update = make_checker(EventAgentRealmSettingsUpdate)
 check_subscription_add = make_checker(EventSubscriptionAdd)
 check_subscription_peer_add = make_checker(EventSubscriptionPeerAdd)
 check_subscription_peer_remove = make_checker(EventSubscriptionPeerRemove)

@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from pydantic import AfterValidator, BaseModel
 
+from zerver.lib import agent_protocol as p
 from zerver.lib.types import UserGroupMembersDict
 from zerver.models.realms import RealmExportSlug
 
@@ -1005,6 +1006,53 @@ class EventTaskBoardUpdate(BaseEvent):
     type: Literal["task_board"]
     op: Literal["update"]
     board: TaskBoardFields
+
+
+class EventAgentJobUpdate(BaseEvent):
+    type: Literal["agent_job"]
+    op: Literal["update"]
+    job_id: str
+    status: p.JobState
+    phase: p.Phase
+    version: int
+    profile_id: str
+    stream_id: int | None
+    reason_code: str | None
+
+
+class EventAgentRunnerUpdate(BaseEvent):
+    type: Literal["agent_runner"]
+    op: Literal["update"]
+    runner_id: str
+    status: Literal["online", "offline", "stale", "revoked", "unknown"]
+    last_heartbeat_at: str | None
+
+
+class EventAgentRunnerPairing(BaseEvent):
+    type: Literal["agent_runner"]
+    op: Literal["pairing"]
+    pairing_id: str
+    state: Literal["pending", "approved", "denied", "expired"]
+    device_name: str
+
+
+class EventRoomMetaUpdate(BaseEvent):
+    type: Literal["room_meta"]
+    op: Literal["update"]
+    stream_id: int
+    due_date: str | None
+    summary_enabled: bool
+
+
+class EventRealmPermissionsUpdate(BaseEvent):
+    type: Literal["realm_permissions"]
+    op: Literal["update"]
+
+
+class EventAgentRealmSettingsUpdate(BaseEvent):
+    type: Literal["agent_realm_settings"]
+    op: Literal["update"]
+    data: dict[str, Any]
 
 
 class EventSubmessage(BaseEvent):

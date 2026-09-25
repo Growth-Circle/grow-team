@@ -1,0 +1,326 @@
+# OpenAPI fragment for the agent, runner, room, and permission events. The
+# fragment loader merges `paths` and `components.schemas` into zulip.yaml,
+# and appends every `events` entry to the `oneOf` list of the `GET /events`
+# response.
+paths: {}
+components:
+  schemas:
+    EventAgentJobUpdate:
+      additionalProperties: false
+      type: object
+      description: |
+        A job's status, phase, or version changed. Sent to the requester,
+        the agent's owner, and every principal with review access to it.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-c17a16).
+      properties:
+        id:
+          $ref: "#/components/schemas/EventIdSchema"
+        type:
+          allOf:
+            - $ref: "#/components/schemas/EventTypeSchema"
+            - enum:
+                - agent_job
+        op:
+          type: string
+          enum:
+            - update
+        job_id:
+          type: string
+          description: The job's ID.
+        status:
+          type: string
+          description: The job's current status.
+          enum:
+            - draft
+            - queued
+            - running
+            - waiting_for_input
+            - waiting_for_approval
+            - blocked
+            - verifying
+            - cancel_requested
+            - cancelled
+            - interrupted
+            - failed
+            - completed
+        phase:
+          type: string
+          description: The step of the job the agent is currently on.
+          enum:
+            - inspect
+            - plan
+            - edit
+            - verify
+            - review
+            - deliver
+        version:
+          type: integer
+          description: |
+            The job's version. A client discards a stale response to a
+            request it made against an earlier version.
+        profile_id:
+          type: string
+          description: The ID of the agent profile running the job.
+        stream_id:
+          type: integer
+          nullable: true
+          description: |
+            The ID of the channel the job posts to, or `null` for a job in
+            a direct message conversation.
+        reason_code:
+          type: string
+          nullable: true
+          description: |
+            A stable code for why the job stopped, or `null` when the job
+            is not stopped or carries no such code.
+      required:
+        - id
+        - type
+        - op
+        - job_id
+        - status
+        - phase
+        - version
+        - profile_id
+        - stream_id
+        - reason_code
+      example:
+        {
+          "id": 0,
+          "type": "agent_job",
+          "op": "update",
+          "job_id": "5fc3a7e6-2b3b-4b8e-9c3a-1e2f3a4b5c6d",
+          "status": "waiting_for_approval",
+          "phase": "review",
+          "version": 4,
+          "profile_id": "2",
+          "stream_id": 3,
+          "reason_code": null,
+        }
+    EventAgentRunnerUpdate:
+      additionalProperties: false
+      type: object
+      description: |
+        A runner's status changed. Sent to the runner's owner and to the
+        workspace's Owner and Admin users.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-c17a16).
+      properties:
+        id:
+          $ref: "#/components/schemas/EventIdSchema"
+        type:
+          allOf:
+            - $ref: "#/components/schemas/EventTypeSchema"
+            - enum:
+                - agent_runner
+        op:
+          type: string
+          enum:
+            - update
+        runner_id:
+          type: string
+          description: The runner's ID.
+        status:
+          type: string
+          description: The runner's current observed status.
+          enum:
+            - online
+            - offline
+            - stale
+            - revoked
+            - unknown
+        last_heartbeat_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            When the runner last reported in, or `null` if it never has.
+      required:
+        - id
+        - type
+        - op
+        - runner_id
+        - status
+        - last_heartbeat_at
+      example:
+        {
+          "id": 0,
+          "type": "agent_runner",
+          "op": "update",
+          "runner_id": "7",
+          "status": "online",
+          "last_heartbeat_at": "2026-09-25T02:00:00Z",
+        }
+    EventAgentRunnerPairing:
+      additionalProperties: false
+      type: object
+      description: |
+        A runner pairing changed state. Sent to the users with an active
+        interest in that pairing.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-c17a16).
+      properties:
+        id:
+          $ref: "#/components/schemas/EventIdSchema"
+        type:
+          allOf:
+            - $ref: "#/components/schemas/EventTypeSchema"
+            - enum:
+                - agent_runner
+        op:
+          type: string
+          enum:
+            - pairing
+        pairing_id:
+          type: string
+          description: The pairing's ID.
+        state:
+          type: string
+          description: The pairing's current state.
+          enum:
+            - pending
+            - approved
+            - denied
+            - expired
+        device_name:
+          type: string
+          description: The name the device gave itself when it started pairing.
+      required:
+        - id
+        - type
+        - op
+        - pairing_id
+        - state
+        - device_name
+      example:
+        {
+          "id": 0,
+          "type": "agent_runner",
+          "op": "pairing",
+          "pairing_id": "9",
+          "state": "approved",
+          "device_name": "Laptop",
+        }
+    EventRoomMetaUpdate:
+      additionalProperties: false
+      type: object
+      description: |
+        A room's due date or summary setting changed. Sent to the users who
+        can see that room's metadata.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-c17a16).
+      properties:
+        id:
+          $ref: "#/components/schemas/EventIdSchema"
+        type:
+          allOf:
+            - $ref: "#/components/schemas/EventTypeSchema"
+            - enum:
+                - room_meta
+        op:
+          type: string
+          enum:
+            - update
+        stream_id:
+          type: integer
+          description: The ID of the channel this room metadata belongs to.
+        due_date:
+          type: string
+          format: date
+          nullable: true
+          description: The room's current due date, or `null` if it has none.
+        summary_enabled:
+          type: boolean
+          description: Whether the room's daily summary is turned on.
+      required:
+        - id
+        - type
+        - op
+        - stream_id
+        - due_date
+        - summary_enabled
+      example:
+        {
+          "id": 0,
+          "type": "room_meta",
+          "op": "update",
+          "stream_id": 3,
+          "due_date": "2026-12-31",
+          "summary_enabled": true,
+        }
+    EventRealmPermissionsUpdate:
+      additionalProperties: false
+      type: object
+      description: |
+        The workspace's permission matrix changed. Carries no content; every
+        active user re-fetches GET /json/realm/permissions.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-c17a16).
+      properties:
+        id:
+          $ref: "#/components/schemas/EventIdSchema"
+        type:
+          allOf:
+            - $ref: "#/components/schemas/EventTypeSchema"
+            - enum:
+                - realm_permissions
+        op:
+          type: string
+          enum:
+            - update
+      required:
+        - id
+        - type
+        - op
+      example: { "id": 0, "type": "realm_permissions", "op": "update" }
+    EventAgentRealmSettingsUpdate:
+      additionalProperties: false
+      type: object
+      description: |
+        A workspace agent setting changed. Sent to every active user.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-c17a16).
+      properties:
+        id:
+          $ref: "#/components/schemas/EventIdSchema"
+        type:
+          allOf:
+            - $ref: "#/components/schemas/EventTypeSchema"
+            - enum:
+                - agent_realm_settings
+        op:
+          type: string
+          enum:
+            - update
+        data:
+          type: object
+          description: The GET /json/agent/realm-settings fields that changed.
+          additionalProperties:
+            description: A changed field's new value.
+            oneOf:
+              - type: string
+                nullable: true
+              - type: integer
+                nullable: true
+              - type: boolean
+                nullable: true
+      required:
+        - id
+        - type
+        - op
+        - data
+      example:
+        {
+          "id": 0,
+          "type": "agent_realm_settings",
+          "op": "update",
+          "data": { "timezone": "Asia/Jakarta" },
+        }
+events:
+  - $ref: "#/components/schemas/EventAgentJobUpdate"
+  - $ref: "#/components/schemas/EventAgentRunnerUpdate"
+  - $ref: "#/components/schemas/EventAgentRunnerPairing"
+  - $ref: "#/components/schemas/EventRoomMetaUpdate"
+  - $ref: "#/components/schemas/EventRealmPermissionsUpdate"
+  - $ref: "#/components/schemas/EventAgentRealmSettingsUpdate"
