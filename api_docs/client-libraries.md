@@ -48,5 +48,5 @@ writing new ones. Report Grow Team documentation changes through the
 * [Scala](https://github.com/cqfd/zulip-scala)
 * [EventMachine](https://github.com/cqfd/zulip_machine)
 * [Ruby](https://github.com/verg/zulip-rb)
-* [Perl](https://github.com/Stantheman/WebService-Grow Team)
+* [Perl](https://github.com/Stantheman/WebService-Zulip)
 * [.Net](https://github.com/Shayan-To/ZulipClientApi)
