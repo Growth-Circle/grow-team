@@ -447,6 +447,65 @@ export function open_grant_editor(kind: GrantKind, id: string, revision: number,
     void load_grants(kind, id, $("#agent-resource-grants"), editor);
     form.find("select").first().trigger("focus");
 }
+function read_grant_form(): {
+    principal_kind: string;
+    principal_id: number;
+    actions: string[];
+    scope_kind: string;
+    channel_id: number;
+    topic: string;
+    participants: number[];
+    repository_id: string;
+    expiry: string;
+} {
+    const selected_actions = $("#agent-grant-actions").val();
+    const actions = Array.isArray(selected_actions)
+        ? selected_actions.map(String)
+        : selected_actions
+          ? [String(selected_actions)]
+          : [];
+    const dm = $("#agent-grant-dm").val();
+    const participants = (Array.isArray(dm) ? dm : dm ? [dm] : []).map(Number);
+    return {
+        principal_kind: value("#agent-grant-principal-kind"),
+        principal_id: number("#agent-grant-principal"),
+        actions,
+        scope_kind: value("#agent-grant-scope-kind"),
+        channel_id: number("#agent-grant-channel"),
+        topic: value("#agent-grant-topic"),
+        participants,
+        repository_id: value("#agent-grant-repository"),
+        expiry: value("#agent-grant-expiry"),
+    };
+}
+// Pure: computes the create-grant request body from an already-read form
+// and its target. Never touches the DOM, so a caller can unit test it with
+// a plain object instead of a live grant editor.
+export function build_grant_payload(
+    form: ReturnType<typeof read_grant_form>,
+    target: {kind: GrantKind; id: string; revision: number},
+): Record<string, unknown> {
+    const scope =
+        form.scope_kind === "stream"
+            ? {kind: "stream", stream_id: form.channel_id, topic: form.topic || null}
+            : form.scope_kind === "direct"
+              ? {kind: "direct", participant_user_ids: form.participants}
+              : null;
+    return {
+        target_kind: target.kind,
+        target_id: target.id,
+        expected_revision: target.revision,
+        ...(form.principal_kind === "group"
+            ? {principal_group_id: form.principal_id}
+            : {principal_user_id: form.principal_id}),
+        actions: form.actions,
+        scope,
+        ...(target.kind === "profile" && form.repository_id
+            ? {repository_id: form.repository_id}
+            : {}),
+        expires_at: form.expiry ? new Date(form.expiry).toISOString() : null,
+    };
+}
 // Binds the resource-grant editor's own form and action handlers. Separate
 // from settings_agents.ts's general handlers, which still decide *which*
 // profile, runner, provider, or repository a "grant-open-*" or
@@ -477,26 +536,12 @@ export function bind_grant_handlers(): void {
         const token = visit;
         const editor = form_visit;
         const draft = draft_revision;
-        const principal_kind = value("#agent-grant-principal-kind");
-        const principal_id = number("#agent-grant-principal");
-        const selected_actions = $("#agent-grant-actions").val();
-        const actions = Array.isArray(selected_actions)
-            ? selected_actions.map(String)
-            : selected_actions
-              ? [String(selected_actions)]
-              : [];
-        const scope_kind = value("#agent-grant-scope-kind");
-        const channel_id = number("#agent-grant-channel");
-        const topic = value("#agent-grant-topic");
-        const dm = $("#agent-grant-dm").val();
-        const participants = (Array.isArray(dm) ? dm : dm ? [dm] : []).map(Number);
-        const repository_id = value("#agent-grant-repository");
-        const expiry = value("#agent-grant-expiry");
+        const form = read_grant_form();
         if (
-            !principal_id ||
-            actions.length === 0 ||
-            (scope_kind === "direct" && participants.length === 0) ||
-            (scope_kind === "stream" && !channel_id)
+            !form.principal_id ||
+            form.actions.length === 0 ||
+            (form.scope_kind === "direct" && form.participants.length === 0) ||
+            (form.scope_kind === "stream" && !form.channel_id)
         ) {
             $("#agent-grant-result").text(
                 $t({
@@ -506,24 +551,7 @@ export function bind_grant_handlers(): void {
             );
             return;
         }
-        const scope =
-            scope_kind === "stream"
-                ? {kind: "stream", stream_id: channel_id, topic: topic || null}
-                : scope_kind === "direct"
-                  ? {kind: "direct", participant_user_ids: participants}
-                  : null;
-        const payload: Record<string, unknown> = {
-            target_kind: target.kind,
-            target_id: target.id,
-            expected_revision: target.revision,
-            ...(principal_kind === "group"
-                ? {principal_group_id: principal_id}
-                : {principal_user_id: principal_id}),
-            actions,
-            scope,
-            ...(target.kind === "profile" && repository_id ? {repository_id} : {}),
-            expires_at: expiry ? new Date(expiry).toISOString() : null,
-        };
+        const payload = build_grant_payload(form, target);
         void api
             .create_grant(payload)
             .then(() => {

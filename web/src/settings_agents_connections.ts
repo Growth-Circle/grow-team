@@ -258,35 +258,67 @@ export async function load_provider_impact(id: string, editor: number): Promise<
         }
     }
 }
-export async function save_provider(): Promise<void> {
-    const token = visit;
-    const editor = form_visit;
-    const revision = draft_revision;
-    const provider = selected_provider;
-    const credential = value("#agent-provider-credential");
-    if (credential.includes("••") || credential === "********") {
-        $("#agent-provider-result").text(
-            $t({defaultMessage: "Enter a new credential, not a masked value."}),
-        );
-        return;
-    }
-    const scopes = $("#agent-provider-scopes input:checked")
-        .map((_, element) => String($(element).val()))
-        .get();
-    if (scopes.length === 0) {
-        $("#agent-provider-result").text($t({defaultMessage: "Select at least one data scope."}));
-        return;
-    }
-    const network_host = value("#agent-provider-network-host");
-    const prior_network = provider?.network;
+type ProviderForm = {
+    name: string;
+    base_url: string;
+    api_mode: string;
+    model_id: string;
+    allowed_models_text: string;
+    context_window_tokens: number;
+    max_output_tokens: number;
+    scopes: string[];
+    network_host: string;
+    network_port: number;
+    network_allow_private: boolean;
+    network_allow_http_loopback: boolean;
+    network_allow_http_private: boolean;
+    runner_id: string;
+    credential: string;
+    local_credential_ref: string;
+};
+// Pure DOM read: every field the model connection form carries, with no
+// computation beyond what the fields themselves already encode.
+export function read_provider_form(): ProviderForm {
+    return {
+        name: value("#agent-provider-name"),
+        base_url: value("#agent-provider-url"),
+        api_mode: value("#agent-provider-api-mode"),
+        model_id: value("#agent-provider-model"),
+        allowed_models_text: value("#agent-provider-allowed-models"),
+        context_window_tokens: number("#agent-provider-context"),
+        max_output_tokens: number("#agent-provider-output"),
+        scopes: $("#agent-provider-scopes input:checked")
+            .map((_, element) => String($(element).val()))
+            .get(),
+        network_host: value("#agent-provider-network-host"),
+        network_port: number("#agent-provider-network-port"),
+        network_allow_private: Boolean($("#agent-provider-network-private").prop("checked")),
+        network_allow_http_loopback: Boolean(
+            $("#agent-provider-network-loopback").prop("checked"),
+        ),
+        network_allow_http_private: Boolean(
+            $("#agent-provider-network-http-private").prop("checked"),
+        ),
+        runner_id: value("#agent-provider-runner"),
+        credential: value("#agent-provider-credential"),
+        local_credential_ref: value("#agent-provider-local-ref"),
+    };
+}
+// Pure: computes the create/update-provider request body from an
+// already-read form and its context. Never touches the DOM.
+export function build_provider_payload(
+    form: ProviderForm,
+    context: {provider: api.AgentProvider | undefined; default_network: typeof default_network},
+): Record<string, unknown> {
+    const prior_network = context.provider?.network;
     const prior_policy =
         prior_network && typeof prior_network === "object"
             ? (prior_network as Record<string, unknown>)
-            : default_network;
+            : context.default_network;
     const prior_targets: unknown[] = Array.isArray(prior_policy.targets)
         ? (prior_policy.targets as unknown[])
         : [];
-    const network = network_host
+    const network = form.network_host
         ? {
               ...prior_policy,
               targets: [
@@ -294,53 +326,67 @@ export async function save_provider(): Promise<void> {
                       ...(prior_targets[0] && typeof prior_targets[0] === "object"
                           ? (prior_targets[0] as Record<string, unknown>)
                           : {}),
-                      hostname: network_host,
-                      port: number("#agent-provider-network-port"),
-                      allow_private: Boolean($("#agent-provider-network-private").prop("checked")),
-                      allow_http_loopback: Boolean(
-                          $("#agent-provider-network-loopback").prop("checked"),
-                      ),
-                      allow_http_private: Boolean(
-                          $("#agent-provider-network-http-private").prop("checked"),
-                      ),
+                      hostname: form.network_host,
+                      port: form.network_port,
+                      allow_private: form.network_allow_private,
+                      allow_http_loopback: form.network_allow_http_loopback,
+                      allow_http_private: form.network_allow_http_private,
                   },
                   ...prior_targets.slice(1),
               ],
           }
-        : default_network;
-    const local_credential_ref = value("#agent-provider-local-ref");
+        : context.default_network;
     const payload: Record<string, unknown> = {
-        name: value("#agent-provider-name"),
-        base_url: value("#agent-provider-url"),
-        api_mode: value("#agent-provider-api-mode"),
-        model_id: value("#agent-provider-model"),
-        allowed_models: value("#agent-provider-allowed-models")
+        name: form.name,
+        base_url: form.base_url,
+        api_mode: form.api_mode,
+        model_id: form.model_id,
+        allowed_models: form.allowed_models_text
             .split(/\n/)
             .map((item) => item.trim())
             .filter(Boolean),
-        context_window_tokens: number("#agent-provider-context"),
-        max_output_tokens: number("#agent-provider-output"),
-        data_scope: scopes,
+        context_window_tokens: form.context_window_tokens,
+        max_output_tokens: form.max_output_tokens,
+        data_scope: form.scopes,
         network,
     };
-    if (provider) {
-        payload["expected_config_version"] = provider.config_version;
-        payload["expected_metadata_revision"] = provider.metadata_revision;
-        if (credential) {
-            payload["credential_replacement"] = credential;
+    if (context.provider) {
+        payload["expected_config_version"] = context.provider.config_version;
+        payload["expected_metadata_revision"] = context.provider.metadata_revision;
+        if (form.credential) {
+            payload["credential_replacement"] = form.credential;
         }
-        if (local_credential_ref) {
-            payload["local_credential_ref"] = local_credential_ref;
+        if (form.local_credential_ref) {
+            payload["local_credential_ref"] = form.local_credential_ref;
         }
     } else {
-        payload["runner_id"] = value("#agent-provider-runner");
-        if (credential) {
-            payload["credential"] = credential;
+        payload["runner_id"] = form.runner_id;
+        if (form.credential) {
+            payload["credential"] = form.credential;
         }
-        if (local_credential_ref) {
-            payload["local_credential_ref"] = local_credential_ref;
+        if (form.local_credential_ref) {
+            payload["local_credential_ref"] = form.local_credential_ref;
         }
     }
+    return payload;
+}
+export async function save_provider(): Promise<void> {
+    const token = visit;
+    const editor = form_visit;
+    const revision = draft_revision;
+    const provider = selected_provider;
+    const form = read_provider_form();
+    if (form.credential.includes("••") || form.credential === "********") {
+        $("#agent-provider-result").text(
+            $t({defaultMessage: "Enter a new credential, not a masked value."}),
+        );
+        return;
+    }
+    if (form.scopes.length === 0) {
+        $("#agent-provider-result").text($t({defaultMessage: "Select at least one data scope."}));
+        return;
+    }
+    const payload = build_provider_payload(form, {provider, default_network});
     $("#agent-provider-result").text($t({defaultMessage: "Saving connection…"}));
     try {
         if (provider) {
@@ -353,13 +399,13 @@ export async function save_provider(): Promise<void> {
         }
         if (
             revision === draft_revision &&
-            value("#agent-provider-credential") === credential
+            value("#agent-provider-credential") === form.credential
         ) {
             $("#agent-provider-credential").val("");
         }
         if (
             revision === draft_revision &&
-            value("#agent-provider-local-ref") === local_credential_ref
+            value("#agent-provider-local-ref") === form.local_credential_ref
         ) {
             $("#agent-provider-local-ref").val("");
         }

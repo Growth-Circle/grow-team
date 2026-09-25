@@ -1249,6 +1249,233 @@ async function main() {
         assert.match($("#agent-settings-status").text(), /Test task sent\./);
         assert.equal(dom.window.location.hash, "#agent-jobs/test-task-job");
         api.get_profile = async (id) => ({profile: profile(id), setup: null, attachments: []});
+
+        // Pure builders: each computes a request body from a plain form
+        // object and its context, with no DOM access, so the same input
+        // always returns a deep-equal payload and a caller can unit test
+        // one with hand-built data instead of a live editor.
+        const profile_form = {
+            name: "Pure",
+            description: "",
+            instructions: "",
+            runner_id: "ra",
+            adapter: "grow@1",
+            mode: "acp",
+            default_mode: "answer",
+            provider_id: "",
+            repository_id: "",
+            sandbox_alias: "safe",
+            actions: ["context.read"],
+            active_seconds: 3600,
+            input_tokens: 1024,
+            output_tokens: 512,
+            hard_cost_cap: false,
+        };
+        const profile_context = {
+            selected_profile: undefined,
+            provider: undefined,
+            user_id: 1,
+            default_network: shared_core.default_network,
+        };
+        assert.deepEqual(
+            structuredClone(directory.build_profile_payload(profile_form, profile_context)),
+            structuredClone(directory.build_profile_payload(profile_form, profile_context)),
+        );
+        const profile_payload_built = directory.build_profile_payload(profile_form, profile_context);
+        assert.equal(profile_payload_built.adapter_id, "grow");
+        assert.equal(profile_payload_built.adapter_version, "1");
+
+        // Edit: the budget merges with the selected profile's own saved
+        // budget fields instead of replacing them outright.
+        const profile_edit_payload = directory.build_profile_payload(profile_form, {
+            selected_profile: {configuration: {budget: {extra_field: "keep"}}},
+            provider: undefined,
+            user_id: 1,
+            default_network: shared_core.default_network,
+        });
+        assert.deepEqual(structuredClone(profile_edit_payload.budget), {
+            extra_field: "keep",
+            active_seconds: profile_form.active_seconds,
+            input_tokens: profile_form.input_tokens,
+            output_tokens: profile_form.output_tokens,
+        });
+
+        assert.deepEqual(
+            structuredClone(
+                directory.build_share_payload({
+                    principal_kind: "group",
+                    principal_id: 9,
+                    allow_job_control: true,
+                    allow_job_review: false,
+                }),
+            ),
+            {principal_group_id: 9, allow_job_control: true, allow_job_review: false},
+        );
+        assert.deepEqual(
+            structuredClone(
+                directory.build_share_payload({
+                    principal_kind: "user",
+                    principal_id: 11,
+                    allow_job_control: false,
+                    allow_job_review: true,
+                }),
+            ),
+            {principal_user_id: 11, allow_job_control: false, allow_job_review: true},
+        );
+
+        assert.deepEqual(
+            structuredClone(
+                shared_core.build_grant_payload(
+                    {
+                        principal_kind: "user",
+                        principal_id: 7,
+                        actions: ["profile.use"],
+                        scope_kind: "stream",
+                        channel_id: 42,
+                        topic: "",
+                        participants: [],
+                        repository_id: "",
+                        expiry: "",
+                    },
+                    {kind: "profile", id: "a", revision: 3},
+                ),
+            ),
+            {
+                target_kind: "profile",
+                target_id: "a",
+                expected_revision: 3,
+                principal_user_id: 7,
+                actions: ["profile.use"],
+                scope: {kind: "stream", stream_id: 42, topic: null},
+                expires_at: null,
+            },
+        );
+        assert.deepEqual(
+            structuredClone(
+                shared_core.build_grant_payload(
+                    {
+                        principal_kind: "user",
+                        principal_id: 7,
+                        actions: ["profile.use"],
+                        scope_kind: "direct",
+                        channel_id: 0,
+                        topic: "",
+                        participants: [5, 6],
+                        repository_id: "",
+                        expiry: "",
+                    },
+                    {kind: "profile", id: "a", revision: 3},
+                ),
+            ).scope,
+            {kind: "direct", participant_user_ids: [5, 6]},
+        );
+        assert.equal(
+            shared_core.build_grant_payload(
+                {
+                    principal_kind: "user",
+                    principal_id: 7,
+                    actions: ["profile.use"],
+                    scope_kind: "",
+                    channel_id: 0,
+                    topic: "",
+                    participants: [],
+                    repository_id: "",
+                    expiry: "",
+                },
+                {kind: "profile", id: "a", revision: 3},
+            ).scope,
+            null,
+        );
+
+        assert.deepEqual(
+            structuredClone(
+                devices.build_runner_payload(
+                    {name: "Renamed", host_kind: "server"},
+                    {id: "ra", metadata_revision: 4},
+                ),
+            ),
+            {runner_id: "ra", expected_metadata_revision: 4, name: "Renamed", host_kind: "server"},
+        );
+
+        assert.deepEqual(
+            structuredClone(
+                devices.build_repository_payload({alias: "repo", origin: "", ref: "main"}, {id: "ra"}),
+            ),
+            {
+                runner_id: "ra",
+                workspace_alias: "repo",
+                canonical_origin: null,
+                allowed_refs: ["main"],
+                required_checks: [],
+            },
+        );
+
+        const provider_payload_built = connections.build_provider_payload(
+            {
+                name: "Model",
+                base_url: "https://model.test",
+                api_mode: "chat_completions",
+                model_id: "m",
+                allowed_models_text: "m",
+                context_window_tokens: 8192,
+                max_output_tokens: 2048,
+                scopes: ["synthetic"],
+                network_host: "",
+                network_port: 443,
+                network_allow_private: false,
+                network_allow_http_loopback: false,
+                network_allow_http_private: false,
+                runner_id: "ra",
+                credential: "secret",
+                local_credential_ref: "",
+            },
+            {provider: undefined, default_network: shared_core.default_network},
+        );
+        assert.equal(provider_payload_built.runner_id, "ra");
+        assert.equal(provider_payload_built.credential, "secret");
+        assert.deepEqual(
+            structuredClone(provider_payload_built.network),
+            structuredClone(shared_core.default_network),
+        );
+
+        // With a network host, the payload carries a single restricted
+        // target instead of the default open network policy.
+        const provider_with_host = connections.build_provider_payload(
+            {
+                name: "Model",
+                base_url: "https://model.test",
+                api_mode: "chat_completions",
+                model_id: "m",
+                allowed_models_text: "m",
+                context_window_tokens: 8192,
+                max_output_tokens: 2048,
+                scopes: ["synthetic"],
+                network_host: "workstation.local",
+                network_port: 8022,
+                network_allow_private: true,
+                network_allow_http_loopback: true,
+                network_allow_http_private: false,
+                runner_id: "ra",
+                credential: "secret",
+                local_credential_ref: "",
+            },
+            {provider: undefined, default_network: shared_core.default_network},
+        );
+        assert.deepEqual(structuredClone(provider_with_host.network), {
+            targets: [
+                {
+                    hostname: "workstation.local",
+                    port: 8022,
+                    allow_private: true,
+                    allow_http_loopback: true,
+                    allow_http_private: false,
+                },
+            ],
+            public_https_only: true,
+            block_metadata: true,
+            cross_origin_authorization: false,
+            project_network: false,
+        });
     } finally {
         out.reset();
         dom.window.close();

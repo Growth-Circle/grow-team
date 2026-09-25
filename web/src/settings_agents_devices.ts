@@ -165,6 +165,35 @@ export function open_runner(id: string): void {
     $("#agent-runner-name").val(selected_runner.name).trigger("focus");
     $("#agent-runner-kind").val(selected_runner.host_kind);
 }
+type RunnerForm = {name: string; host_kind: api.AgentRunner["host_kind"]};
+// Pure DOM read: the runner metadata form's own two fields.
+export function read_runner_form(): RunnerForm {
+    return {
+        name: value("#agent-runner-name"),
+        host_kind: value("#agent-runner-kind") as api.AgentRunner["host_kind"],
+    };
+}
+// Pure: computes the update-runner-metadata request body from an
+// already-read form and the runner it edits. The return type mirrors
+// update_runner_metadata()'s own argument type exactly, since that API
+// function (unlike its siblings) declares a specific shape rather than
+// accepting a loose Record<string, unknown>.
+export function build_runner_payload(
+    form: RunnerForm,
+    runner: {id: string; metadata_revision: number},
+): {
+    runner_id: string;
+    expected_metadata_revision: number;
+    name: string;
+    host_kind: api.AgentRunner["host_kind"];
+} {
+    return {
+        runner_id: runner.id,
+        expected_metadata_revision: runner.metadata_revision,
+        name: form.name,
+        host_kind: form.host_kind,
+    };
+}
 export async function save_runner(): Promise<void> {
     const runner = selected_runner;
     if (!runner) {
@@ -174,12 +203,7 @@ export async function save_runner(): Promise<void> {
     const editor = form_visit;
     const revision = draft_revision;
     try {
-        await api.update_runner_metadata({
-            runner_id: runner.id,
-            expected_metadata_revision: runner.metadata_revision,
-            name: value("#agent-runner-name"),
-            host_kind: value("#agent-runner-kind") as api.AgentRunner["host_kind"],
-        });
+        await api.update_runner_metadata(build_runner_payload(read_runner_form(), runner));
         if (!owns_editor(token, editor, "runner", runner.id)) {
             return;
         }
@@ -194,6 +218,29 @@ export async function save_runner(): Promise<void> {
         }
     }
 }
+type RepositoryForm = {alias: string; origin: string; ref: string};
+// Pure DOM read: the new-repository form's own three fields.
+export function read_repository_form(): RepositoryForm {
+    return {
+        alias: value("#agent-repository-alias"),
+        origin: value("#agent-repository-origin"),
+        ref: value("#agent-repository-ref"),
+    };
+}
+// Pure: computes the create-repository request body from an already-read
+// form and the runner it registers against.
+export function build_repository_payload(
+    form: RepositoryForm,
+    runner: {id: string},
+): Record<string, unknown> {
+    return {
+        runner_id: runner.id,
+        workspace_alias: form.alias,
+        canonical_origin: form.origin || null,
+        allowed_refs: [form.ref],
+        required_checks: [],
+    };
+}
 export async function save_repository(): Promise<void> {
     const runner = selected_runner;
     if (!runner) {
@@ -203,13 +250,7 @@ export async function save_repository(): Promise<void> {
     const editor = form_visit;
     const submitted_draft = draft_revision;
     try {
-        await api.create_repository({
-            runner_id: runner.id,
-            workspace_alias: value("#agent-repository-alias"),
-            canonical_origin: value("#agent-repository-origin") || null,
-            allowed_refs: [value("#agent-repository-ref")],
-            required_checks: [],
-        });
+        await api.create_repository(build_repository_payload(read_repository_form(), runner));
         if (!owns_editor(token, editor, "repository", runner.id)) {
             return;
         }

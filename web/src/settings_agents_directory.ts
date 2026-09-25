@@ -485,51 +485,109 @@ export function open_profile(
     update_step();
     $("#agent-profile-name").trigger("focus");
 }
-export function profile_payload(): Record<string, unknown> {
-    const provider_id = value("#agent-profile-provider");
-    const provider = providers.find((item) => item.id === provider_id);
-    const [adapter_id, adapter_version] = value("#agent-profile-adapter").split("@");
-    const budget = selected_profile?.configuration?.budget;
-    const base = budget && typeof budget === "object" ? (budget as Record<string, unknown>) : {};
-    const actions = [
-        $("#agent-profile-context").prop("checked") ? "context.read" : "",
-        $("#agent-profile-shell").prop("checked") ? "shell.run" : "",
-        $("#agent-profile-repository-read").prop("checked") ? "repository.read" : "",
-        $("#agent-profile-repository-edit").prop("checked") ? "repository.edit" : "",
-        $("#agent-profile-checks").prop("checked") ? "checks.run" : "",
-        $("#agent-profile-dependencies").prop("checked") ? "dependencies.install" : "",
-        $("#agent-profile-commit").prop("checked") ? "git.commit" : "",
-        $("#agent-profile-push").prop("checked") ? "git.push" : "",
-        $("#agent-profile-pr").prop("checked") ? "git.draft_pr" : "",
-    ].filter(Boolean);
+type ProfileForm = {
+    name: string;
+    description: string;
+    instructions: string;
+    runner_id: string;
+    adapter: string;
+    mode: string;
+    default_mode: string;
+    provider_id: string;
+    repository_id: string;
+    sandbox_alias: string;
+    actions: string[];
+    active_seconds: number;
+    input_tokens: number;
+    output_tokens: number;
+    hard_cost_cap: boolean;
+};
+// Pure DOM read: every field the profile form carries, with no computation
+// beyond what the fields themselves already encode (adapter is still the
+// combined "id@version" string; build_profile_payload splits it).
+export function read_profile_form(): ProfileForm {
     return {
         name: value("#agent-profile-name"),
         description: value("#agent-profile-description"),
         instructions: value("#agent-profile-instructions"),
         runner_id: value("#agent-profile-runner"),
-        adapter_id,
-        adapter_version,
+        adapter: value("#agent-profile-adapter"),
         mode: value("#agent-profile-mode"),
         default_mode: value("#agent-profile-default-mode"),
-        provider_id: provider_id || null,
-        repository_id: value("#agent-profile-repository") || null,
+        provider_id: value("#agent-profile-provider"),
+        repository_id: value("#agent-profile-repository"),
         sandbox_alias: value("#agent-profile-sandbox"),
-        actions,
+        actions: [
+            $("#agent-profile-context").prop("checked") ? "context.read" : "",
+            $("#agent-profile-shell").prop("checked") ? "shell.run" : "",
+            $("#agent-profile-repository-read").prop("checked") ? "repository.read" : "",
+            $("#agent-profile-repository-edit").prop("checked") ? "repository.edit" : "",
+            $("#agent-profile-checks").prop("checked") ? "checks.run" : "",
+            $("#agent-profile-dependencies").prop("checked") ? "dependencies.install" : "",
+            $("#agent-profile-commit").prop("checked") ? "git.commit" : "",
+            $("#agent-profile-push").prop("checked") ? "git.push" : "",
+            $("#agent-profile-pr").prop("checked") ? "git.draft_pr" : "",
+        ].filter(Boolean),
+        active_seconds: number("#agent-profile-active-seconds"),
+        input_tokens: number("#agent-profile-input-tokens"),
+        output_tokens: number("#agent-profile-output-tokens"),
+        hard_cost_cap: Boolean($("#agent-profile-hard-cap").prop("checked")),
+    };
+}
+// Pure: computes the create/update-profile request body from an
+// already-read form and its context. Never touches the DOM or the
+// providers cache itself (the caller looks the provider up), so a caller
+// can unit test it with plain objects.
+export function build_profile_payload(
+    form: ProfileForm,
+    context: {
+        selected_profile: api.AgentProfile | undefined;
+        provider: api.AgentProvider | undefined;
+        user_id: number;
+        default_network: typeof default_network;
+    },
+): Record<string, unknown> {
+    const [adapter_id, adapter_version] = form.adapter.split("@");
+    const budget = context.selected_profile?.configuration?.budget;
+    const base = budget && typeof budget === "object" ? (budget as Record<string, unknown>) : {};
+    return {
+        name: form.name,
+        description: form.description,
+        instructions: form.instructions,
+        runner_id: form.runner_id,
+        adapter_id,
+        adapter_version,
+        mode: form.mode,
+        default_mode: form.default_mode,
+        provider_id: form.provider_id || null,
+        repository_id: form.repository_id || null,
+        sandbox_alias: form.sandbox_alias,
+        actions: form.actions,
         budget: {
             ...base,
-            active_seconds: number("#agent-profile-active-seconds"),
-            input_tokens: number("#agent-profile-input-tokens"),
-            output_tokens: number("#agent-profile-output-tokens"),
+            active_seconds: form.active_seconds,
+            input_tokens: form.input_tokens,
+            output_tokens: form.output_tokens,
         },
-        hard_cost_cap: Boolean($("#agent-profile-hard-cap").prop("checked")),
+        hard_cost_cap: form.hard_cost_cap,
         ...api.profile_network_choice(
-            provider_id,
-            provider,
-            selected_profile,
-            current_user.user_id,
-            default_network,
+            form.provider_id,
+            context.provider,
+            context.selected_profile,
+            context.user_id,
+            context.default_network,
         ),
     };
+}
+export function profile_payload(): Record<string, unknown> {
+    const form = read_profile_form();
+    const provider = providers.find((item) => item.id === form.provider_id);
+    return build_profile_payload(form, {
+        selected_profile,
+        provider,
+        user_id: current_user.user_id,
+        default_network,
+    });
 }
 export async function save_profile(): Promise<void> {
     const token = visit;
@@ -952,6 +1010,31 @@ export async function submit_test_task(id: string): Promise<void> {
         }
     }
 }
+type ShareForm = {
+    principal_kind: string;
+    principal_id: number;
+    allow_job_control: boolean;
+    allow_job_review: boolean;
+};
+function read_share_form(): ShareForm {
+    return {
+        principal_kind: value("#agent-share-principal-kind"),
+        principal_id: number("#agent-share-principal"),
+        allow_job_control: Boolean($("#agent-share-control").prop("checked")),
+        allow_job_review: Boolean($("#agent-share-review").prop("checked")),
+    };
+}
+// Pure: computes the share-profile request body from an already-read form.
+export function build_share_payload(form: ShareForm): Record<string, unknown> {
+    return {
+        ...(form.principal_kind === "group"
+            ? {principal_group_id: form.principal_id}
+            : {principal_user_id: form.principal_id}),
+        allow_job_control: form.allow_job_control,
+        allow_job_review: form.allow_job_review,
+    };
+}
+
 export function bind_handlers(): void {
     const root = $(document);
     root.on("submit", "#agent-directory-filter", (event) => {
@@ -1061,21 +1144,14 @@ export function bind_handlers(): void {
         }
         const token = visit;
         const editor = form_visit;
-        const principal_kind = value("#agent-share-principal-kind");
-        const principal_id = number("#agent-share-principal");
-        if (!principal_id) {
+        const form = read_share_form();
+        if (!form.principal_id) {
             $("#agent-share-result").text(
                 $t({defaultMessage: "Choose a person or a group to share with."}),
             );
             return;
         }
-        const payload: Record<string, unknown> = {
-            ...(principal_kind === "group"
-                ? {principal_group_id: principal_id}
-                : {principal_user_id: principal_id}),
-            allow_job_control: Boolean($("#agent-share-control").prop("checked")),
-            allow_job_review: Boolean($("#agent-share-review").prop("checked")),
-        };
+        const payload = build_share_payload(form);
         void api
             .share_profile(profile.id, payload)
             .then(() => {
