@@ -1528,3 +1528,12 @@ input.invalid-input {
     outline: 2px solid transparent !important;
     box-shadow: var(--sj-ring-focus) !important;
 }
+
+/* A card that loads: a static cream stripe, without a spinner. */
+.sj-skeleton {
+    background-image: repeating-linear-gradient(
+        135deg,
+        var(--sj-surface) 0 10px,
+        light-dark(hsl(41.54deg 39.39% 93.53%), var(--sj-gelap-3)) 10px 20px
+    );
+}
