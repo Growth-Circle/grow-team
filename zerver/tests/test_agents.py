@@ -501,3 +501,58 @@ class AgentProfileAuditTest(AgentDirectoryTestCase):
         rows = self.audit_rows(profile, AuditLogEventType.AGENT_PROFILE_SHARED)
         self.assertEqual([row.extra_data["shared"] for row in rows], [True, False])
         self.assertEqual({row.modified_user_id for row in rows}, {self.member.id})
+
+
+class AdminPauseTest(AgentDirectoryTestCase):
+    @override
+    def setUp(self) -> None:
+        super().setUp()
+        self.login_user(self.owner)
+        result = self.post_agent("profiles", self.profile_payload())
+        self.profile = self.make_ready(agents.AgentProfile.objects.get(id=result["profile"]["id"]))
+
+    def revision_payload(self) -> dict[str, object]:
+        return {"expected_revision": self.profile.revision}
+
+    def test_admin_may_pause_but_not_enable_or_patch(self) -> None:
+        self.login_user(self.admin)
+        # The agent is ready, so only the role blocks the Admin here.
+        response = self.agent_request(
+            "post", f"profiles/{self.profile.id}/enable", self.revision_payload()
+        )
+        self.assert_json_error(response, "Agent request rejected.")
+        response = self.agent_request(
+            "patch", f"profiles/{self.profile.id}", self.patch_payload(self.profile, name="Admin's")
+        )
+        self.assert_json_error(response, "Agent request rejected.")
+
+        self.login_user(self.owner)
+        self.post_agent(f"profiles/{self.profile.id}/enable", self.revision_payload())
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.desired_state, "enabled")
+
+        self.login_user(self.admin)
+        result = self.post_agent(f"profiles/{self.profile.id}/pause", self.revision_payload())
+        # P-35: the Admin sees one action on another member's agent.
+        self.assertEqual(result["profile"]["allowed_actions"], ["pause"])
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.desired_state, "paused")
+        audit_row = RealmAuditLog.objects.filter(
+            realm=self.owner.realm,
+            event_type=AuditLogEventType.AGENT_PROFILE_PAUSED,
+            extra_data__profile_id=str(self.profile.id),
+        ).latest("id")
+        self.assertEqual(audit_row.acting_user_id, self.admin.id)
+
+    def test_owner_may_pause_their_own_agent(self) -> None:
+        self.login_user(self.owner)
+        self.post_agent(f"profiles/{self.profile.id}/pause", self.revision_payload())
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.desired_state, "paused")
+
+    def test_unrelated_member_cannot_pause(self) -> None:
+        self.login_user(self.member)
+        response = self.agent_request(
+            "post", f"profiles/{self.profile.id}/pause", self.revision_payload()
+        )
+        self.assert_json_error(response, "Agent request rejected.")

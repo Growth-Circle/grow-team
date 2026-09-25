@@ -1873,7 +1873,12 @@ def pause_profile(
     owner: UserProfile, profile: agents.AgentProfile, *, expected_revision: int | None = None
 ) -> agents.AgentProfile:
     profile = agents.AgentProfile.objects.select_for_update().get(id=profile.id)
-    check_agent_access(owner, profile, None, None, "profile.manage")
+    # P-35: a realm admin may pause anyone's agent, but every other write
+    # (enable, PATCH) stays owner-or-grant only; see enable_profile and
+    # update_profile, which do not carry this bypass.
+    admin_override = owner.is_realm_admin and profile.realm_id == owner.realm_id
+    if not admin_override:
+        check_agent_access(owner, profile, None, None, "profile.manage")
     if profile.desired_state == "archived" or (
         expected_revision is not None and expected_revision != profile.revision
     ):

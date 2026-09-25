@@ -198,7 +198,9 @@ def _profile_data(
                 ).exists():
                     allowed_actions.append("archive")
         except JsonableError:
-            pass
+            # P-35: an Admin may pause any agent in the workspace.
+            if actor.is_realm_admin and profile.desired_state != "archived":
+                allowed_actions = ["pause"]
 
     def visible(resource: object, kind: str, action: str) -> bool:
         if actor is None:

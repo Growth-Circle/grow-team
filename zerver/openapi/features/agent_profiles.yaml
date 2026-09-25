@@ -2320,6 +2320,14 @@ paths:
       tags:
         - agents
       summary: Pause an agent profile
+      description: |
+        Pause an agent profile. The owner, a user with a `profile.manage`
+        grant, or an organization administrator can pause an agent. The
+        audit log records who paused it.
+
+        **Changes**: Before Zulip 12.0 (feature level ZF-4f1745), an
+        organization administrator could pause only an agent they own or
+        manage.
       responses:
         "200":
           description: Success.
