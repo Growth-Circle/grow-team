@@ -253,7 +253,7 @@
         --search-box-height: 1.75em; /* 28px at 16px em */
     }
 
-    --search-pill-label-min-width: 2.1875em; /* 35px at 16px/1em */
+    --search-pill-label-min-width: 2.5em; /* 35px at 14px/em */
 
     /*
     This is the space for the searchbar's search icon, and the left padding
@@ -339,7 +339,7 @@
     /* 50px per icon * 4 icons + 3px space (legacy) = 203px at 20px/1em */
     --right-column-collapsed-sidebar-width: 10.15em;
     /* 288px at 16px/1em */
-    --right-sidebar-max-width: 18em;
+    --right-sidebar-max-width: 20.57em;
     /* We open the right sidebar at xl_min at a size of 240px,
        here expressed as precisely 20% of the viewport. */
     --right-sidebar-width: min(20vw, var(--right-sidebar-max-width));
@@ -348,13 +348,13 @@
     /* The width of the icon is reduced by 2px, to account for 2px
        of top and bottom margin needed for hover backgrounds to
        not touch the row outline. */
-    --left-sidebar-header-icon-width: calc(1.5em - 2px); /* 24px / 16px/1em */
+    --left-sidebar-header-icon-width: calc(1.7142em - 2px); /* 24px / 14px em */
     /* Space between section in the left sidebar. */
     --left-sidebar-sections-vertical-gutter: 8px;
     /* The legacy value here is 25px; that's the unitless legacy line-height
-       of 20px, plus 5px at 16px/1em */
+       of 20px, plus 5px at 14px/1em */
     --left-sidebar-bottom-scrolling-buffer: calc(
-        (var(--legacy-body-line-height-unitless) * 1em) + 0.3125em
+        (var(--legacy-body-line-height-unitless) * 1em) + 0.3571em
     );
     /* Used in both left and right sidebar at the bottom, to allow
        the user to scroll past the bottom-most elements a little bit.
@@ -378,9 +378,9 @@
        Prominent rows include things like headers (e.g., VIEWS)
        as well as navigation items. Everything else takes
        the smaller line-height. */
-    --line-height-sidebar-row-prominent: 1.5em; /* 24px / 16px/1em */
-    --line-height-sidebar-row: 1.375em; /* 22px / 16px/1em */
-    --line-height-sidebar-row-with-avatars: 1.1875em; /* 19px / 16px/1em */
+    --line-height-sidebar-row-prominent: 1.7142em; /* 24px / 14px em */
+    --line-height-sidebar-row: 1.5714em; /* 22px / 14px em */
+    --line-height-sidebar-row-with-avatars: 1.3571em; /* 19px / 14px em */
     --line-height-sidebar-topic-inner: 1.2em;
     /* This spacing value is to compensate for the
        additional space of the prominent row-height
@@ -412,7 +412,7 @@
     --right-sidebar-avatar-width: 2em;
     --right-sidebar-avatar-height: var(--right-sidebar-avatar-width);
     --right-sidebar-avatar-right-margin: 0.85ch;
-    --right-sidebar-presence-circle-width: 1.25em; /* 20px at 16px/1em */
+    --right-sidebar-presence-circle-width: 1.4285em; /* 20px at 14px em */
     /* toggle + avatar + avatar margin + 2px border */
     --right-sidebar-text-indent-with-avatar: calc(
         var(--right-sidebar-header-icon-toggle-width) / 2 +
@@ -427,7 +427,7 @@
     /* Tippy popover related values */
     --navbar-popover-menu-min-width: 230px;
     --message-actions-popover-min-width: 230px;
-    --user-group-info-popover-min-width: 14.375em; /* 230px / 16px/1em */
+    --user-group-info-popover-min-width: 16.4285em; /* 230px / 14px em */
     --topic-actions-popover-min-width: 200px;
     --user-card-popover-min-width: 200px;
     --stream-card-popover-min-width: 16.4285em;
@@ -493,8 +493,7 @@
     --box-shadow-overlay: none;
 
     /* Shared sidebar typography and effects values. */
-    /* 12px at the 14px app em, per the section headings in the design. */
-    --font-size-sidebar-heading: 0.8571em;
+    --font-size-sidebar-heading: 0.75em; /* 12px at 16px/1em */
     --font-weight-sidebar-heading: 700;
     --font-weight-sidebar-action-heading: 370;
     --font-variant-sidebar-action-heading: all-small-caps;
@@ -528,10 +527,10 @@
        2px at 20px/1em */
     --message-box-link-focus-ring-block-padding: 0.1em;
     /* 35px at 16px/1em */
-    --message-box-avatar-width: 2.1875em;
+    --message-box-avatar-width: 2.5em;
     --message-box-avatar-height: var(--message-box-avatar-width);
     /* 46px at 16px/1em */
-    --message-box-avatar-column-width: 2.875em;
+    --message-box-avatar-column-width: 3.2857em;
     /* Increase the margin here to account for the
        focus ring, which is offset by -1px, as well
        as the vertical height between the hover icons
@@ -603,7 +602,7 @@
        uses font-sizing to adjust the size of the icon. Related
        values have been noted in comments with this variable name,
        to make their coordination a little less painful. */
-    --compose-formatting-buttons-row-height: 1.75em;
+    --compose-formatting-buttons-row-height: 2em; /* 32px at 16px/1em */
 
     /* Every control in the message box toolbar is a 32px square with
        an 18px icon, grouped four to a set. Groups are told apart by
@@ -689,29 +688,29 @@
        based on the height of the new filter elements in the sidebars
        and for the topics filter. 31px at 16px/1em. */
     --recent-topics-filters-height: 1.9375em;
-    /* Legacy margin/flex-gap value for filters. 10px at 16px/1em. */
-    --recent-topics-filters-gap: 0.625em;
+    /* Legacy margin/flex-gap value for filters. 10px at 14px/1em. */
+    --recent-topics-filters-gap: 0.7142em;
 
     /* Pill dimensions. */
     /* 1.375em is 22px (border-inclusive) at 16px/1em */
-    --height-input-pill: 1.375em;
+    --height-input-pill: 1.5714em;
     /* Reduce user pill height by 2px to preserve an apparent border
        around them even under `box-sizing: border-box` in the area. */
     --length-user-pill-height: calc(var(--height-input-pill) - 2px);
     /* Fills whole pill height. */
     --length-search-pill-image: var(--length-user-pill-height);
-    --length-input-pill-exit: 1em; /* 16px at 16px/1em */
-    --input-pill-side-padding: 0.3125em; /* 5px at 16px/1em */
+    --length-input-pill-exit: 1.1429em; /* 16px at 14px/em */
+    --input-pill-side-padding: 0.3571em; /* 5px at 14px/em */
     --vertical-spacing-input-pill: 2px;
     --outer-spacing-input-pill-container: var(--vertical-spacing-input-pill);
     --horizontal-spacing-input-pill: 6px;
 
     /* User circles. */
     /* 8px at 16px/1em */
-    --length-user-status-circle: 0.5em;
+    --length-user-status-circle: 0.5714em;
     /* Shrink the user activity circle for the Recent Conversations context. */
     /* 7px at 16px/1em */
-    --length-user-status-circle-recent-conversations: 0.4375em;
+    --length-user-status-circle-recent-conversations: 0.5em;
     --length-user-status-circle-popover-menu: 8px;
     --length-user-popover-menu-avatar: 64px;
 
@@ -719,12 +718,12 @@
     --overlay-container-height: 95vh;
     --overlay-container-max-height: 1000px;
     /* The width of the settings sidebar. */
-    --settings-sidebar-width: 15.9375em; /* 255px at 16px/1em */
+    --settings-sidebar-width: 18.2142em; /* 255px at 14px/em */
     /* .two-pane-settings-header and .settings-header */
-    --settings-overlay-header-height: 2.8125em; /* 45px at 16px/1em */
+    --settings-overlay-header-height: 3.2143em; /* 45px at 14px/em */
     /* .display-type and .list-toggler-container
        in subscriptions and user group settings overlays */
-    --settings-overlay-subheader-height: 2.75em; /* 44px at 16px/1em */
+    --settings-overlay-subheader-height: 3.1429em; /* 44px at 14px/em */
     --settings-overlay-header-button-height: 2em;
     /* Informational overlay */
     --informational-overlay-max-width: 43.75em;
@@ -763,7 +762,7 @@
     layout shifts originating with non-Latin characters in this area.
     1.25em is 20px at 16px em.
     */
-    --line-height-compose-buttons: 1.25em;
+    --line-height-compose-buttons: 1.429em;
 
     /*
     Maximum height of the subscribers list in stream settings so that
@@ -910,10 +909,7 @@
     /* Active-row text color for the nav row.
        The topic row needs a different dark shade.
        See the li.active-sub-filter override after this block. */
-    --color-text-active-narrow-filter: light-dark(
-        hsl(172.58deg 85.84% 22.16%),
-        hsl(168deg 55% 72%)
-    );
+    --color-text-active-narrow-filter: var(--sj-text);
     --color-background-active-narrow-filter: light-dark(
         hsl(172deg 55% 95%),
         hsl(172deg 40% 20%)
@@ -1021,7 +1017,7 @@
         hsl(0deg 0% 0% / 60%)
     );
     --focus-border-color-textarea: light-dark(
-        hsl(172.44deg 88.15% 26.47% / 80%),
+        color-mix(in oklch, var(--sj-outline) 80%, transparent),
         hsl(0deg 0% 0% / 90%)
     );
     --color-background-pill-container-without-placeholder: light-dark(
@@ -1033,7 +1029,7 @@
         hsl(0deg 0% 0% / 19%),
         hsl(0deg 0% 100% / 19%)
     );
-    --color-outline-focus: var(--sj-kuning);
+    --color-outline-focus: light-dark(var(--sj-tinta), var(--sj-kuning));
     --color-background-search: light-dark(hsl(0deg 0% 100%), hsl(0deg 0% 17%));
     --color-background-search-collapsed: light-dark(
         hsl(170deg 8% 96%),
@@ -1089,10 +1085,7 @@
         hsl(0deg 0% 0% / 10%),
         hsl(0deg 0% 100% / 20%)
     );
-    --color-background-unread-counter-prominent: light-dark(
-        hsl(172.44deg 88.15% 26.47%),
-        hsl(171.36deg 58.41% 44.31%)
-    );
+    --color-background-unread-counter-prominent: var(--sj-kaki);
     --color-background-unread-counter-normal: light-dark(
         hsl(172deg 60% 94%),
         hsl(172deg 35% 18%)
@@ -1103,10 +1096,7 @@
         hsl(0deg 0% 100%),
         hsl(185deg 30% 10%)
     );
-    --color-unread-counter-normal: light-dark(
-        hsl(172.58deg 85.84% 22.16%),
-        hsl(168deg 55% 72%)
-    );
+    --color-unread-counter-normal: var(--sj-text);
     --color-unread-counter-quiet: light-dark(
         hsl(180deg 10% 45%),
         hsl(170deg 8% 60%)
@@ -1136,10 +1126,7 @@
             var(--color-background)
         )
     );
-    --color-background-unread-counter-dot: light-dark(
-        hsl(172.44deg 88.15% 26.47%),
-        hsl(171.36deg 58.41% 44.31%)
-    );
+    --color-background-unread-counter-dot: var(--sj-kaki);
     --color-border-unread-counter: light-dark(
         var(--color-background-unread-counter),
         hsl(105deg 2% 50%)
@@ -1209,10 +1196,7 @@
         hsl(0deg 0% 0%),
         hsl(0deg 0% 100%)
     );
-    --color-background-animated-button-hover: light-dark(
-        hsl(172.44deg 88.15% 26.47%),
-        hsl(171.36deg 58.41% 44.31%)
-    );
+    --color-background-animated-button-hover: var(--sj-kaki);
     --color-invalid-input-border: light-dark(
         hsl(3deg 57% 33%),
         hsl(3deg 73% 74%)
@@ -1342,20 +1326,11 @@
         hsl(0deg 0% 100%),
         hsl(185deg 30% 10%)
     );
-    --color-compose-send-button-background: light-dark(
-        hsl(172.44deg 88.15% 26.47%),
-        hsl(171.36deg 58.41% 44.31%)
-    );
-    --color-compose-send-button-background-interactive: light-dark(
-        hsl(172.58deg 85.84% 22.16%),
-        hsl(172deg 58% 50%)
-    );
-    --color-compose-send-button-focus-border: light-dark(
-        hsl(180deg 20% 10%),
-        hsl(171.36deg 58.41% 44.31%)
-    );
+    --color-compose-send-button-background: var(--sj-kaki);
+    --color-compose-send-button-background-interactive: var(--sj-ink);
+    --color-compose-send-button-focus-border: var(--sj-outline);
     --color-compose-send-button-focus-shadow: light-dark(
-        hsl(172deg 100% 20%),
+        var(--sj-outline),
         hsl(0deg 0% 100% / 80%)
     );
     --color-compose-send-control-button: light-dark(
@@ -1594,10 +1569,7 @@
         hsl(0deg 0% 13.33%),
         hsl(0deg 0% 95%)
     );
-    --color-text-self-direct-mention: light-dark(
-        hsl(172.09deg 90.1% 19.8% / 100%),
-        hsl(168deg 60% 78% / 100%)
-    );
+    --color-text-self-direct-mention: var(--sj-text-ayame);
     --color-text-self-group-mention: light-dark(
         hsl(183deg 52% 26% / 100%),
         hsl(184deg 52% 63% / 100%)
@@ -1650,14 +1622,8 @@
         var(--grey-550),
         var(--grey-400)
     );
-    --color-text-url: light-dark(
-        hsl(172.44deg 88.15% 26.47%),
-        hsl(168deg 55% 72%)
-    );
-    --color-text-url-hover: light-dark(
-        hsl(172.09deg 90.1% 19.8%),
-        hsl(168deg 60% 78%)
-    );
+    --color-text-url: var(--sj-text);
+    --color-text-url-hover: var(--sj-text);
     --color-text-settings-field-hint: light-dark(
         hsl(180deg 10% 34%),
         hsl(0deg 0% 52%)
@@ -1917,15 +1883,9 @@
         transparent,
         var(--color-markdown-pre-border)
     );
-    --color-markdown-link: light-dark(
-        hsl(172.44deg 88.15% 26.47%),
-        var(--color-text-generic-link)
-    );
+    --color-markdown-link: var(--color-text-generic-link);
     --color-markdown-code-link: var(--color-markdown-link);
-    --color-markdown-link-hover: light-dark(
-        hsl(172.09deg 90.1% 19.8%),
-        var(--color-text-generic-link-interactive)
-    );
+    --color-markdown-link-hover: var(--color-text-generic-link-interactive);
     --color-markdown-code-link-hover: var(--color-markdown-link-hover);
     --color-background-image-thumbnail: light-dark(
         hsl(0deg 0% 0% / 3%),
@@ -2162,7 +2122,7 @@
     --color-text-direct-mention: var(--sj-text-ayame);
     --color-background-text-hover-direct-mention: color-mix(
         in oklch,
-        var(--sj-ayame) 30%,
+        var(--sj-ayame) 25%,
         transparent
     );
     --color-background-text-group-mention: color-mix(
@@ -2244,11 +2204,8 @@
     /* Inbox view constants - Values from Figma design */
     --inbox-view-folder-component-border-width: 0.5px;
     --width-inbox-search: calc(27.4375em); /* 439px / 16px em */
-    --width-inbox-filters-dropdown: 9.375em; /* 150px / 16px/1em */
-    --color-background-inbox-no-unreads-illustration: light-dark(
-        hsl(172.44deg 88.15% 26.47%),
-        hsl(171.36deg 58.41% 44.31%)
-    );
+    --width-inbox-filters-dropdown: 10.7142em; /* 150px / 14px em */
+    --color-background-inbox-no-unreads-illustration: var(--sj-kaki);
     --color-background-inbox: var(--color-background);
     --color-border-inbox-folder-component: light-dark(
         hsl(0deg 0% 0% / 13%),
@@ -2582,7 +2539,7 @@
     --color-background-brand-solid-action-button-active: var(--sj-ink);
     --color-text-brand-subtle-action-button: var(--sj-text);
     --color-background-brand-subtle-action-button: var(--sj-tint-kaki);
-    --color-background-brand-subtle-action-button-hover: var(--sj-tint-kaki);
+    --color-background-brand-subtle-action-button-hover: var(--sj-tint-kuning);
     --color-background-brand-subtle-action-button-active: var(--sj-tint-kaki);
     --color-text-brand-text-action-button: var(--sj-text);
     --color-background-brand-text-action-button-hover: color-mix(
@@ -2791,29 +2748,25 @@
         color-mix(in oklch, hsl(230deg 9% 60%) 18%, transparent)
     );
     /* Icon buttons -- Brand Variant */
-    --color-text-brand-icon-button: light-dark(
-        color-mix(in oklch, hsl(172.58deg 85.84% 22.16%) 85%, transparent),
-        color-mix(in oklch, hsl(168deg 55% 72%) 85%, transparent)
+    --color-text-brand-icon-button: color-mix(
+        in oklch,
+        var(--sj-text) 85%,
+        transparent
     );
-    --color-text-brand-icon-button-hover: light-dark(
-        hsl(172.58deg 85.84% 22.16%),
-        hsl(168deg 55% 72%)
+    --color-text-brand-icon-button-hover: var(--sj-text);
+    --color-text-brand-icon-button-active: color-mix(
+        in oklch,
+        var(--sj-text) 70%,
+        transparent
     );
-    --color-text-brand-icon-button-active: light-dark(
-        color-mix(in oklch, hsl(172.58deg 85.84% 22.16%) 70%, transparent),
-        color-mix(in oklch, hsl(168deg 55% 72%) 70%, transparent)
-    );
-    --color-text-brand-icon-button-square-active: light-dark(
-        hsl(172.58deg 85.84% 22.16%),
-        hsl(168deg 55% 72%)
-    );
+    --color-text-brand-icon-button-square-active: var(--sj-text);
     --color-background-brand-icon-button-square-hover: light-dark(
-        color-mix(in oklch, hsl(172deg 55% 30%) 5%, transparent),
-        color-mix(in oklch, hsl(172deg 45% 60%) 14%, transparent)
+        color-mix(in oklch, var(--sj-text) 5%, transparent),
+        color-mix(in oklch, var(--sj-text) 14%, transparent)
     );
     --color-background-brand-icon-button-square-active: light-dark(
-        color-mix(in oklch, hsl(172deg 55% 30%) 10%, transparent),
-        color-mix(in oklch, hsl(172deg 45% 60%) 18%, transparent)
+        color-mix(in oklch, var(--sj-text) 10%, transparent),
+        color-mix(in oklch, var(--sj-text) 18%, transparent)
     );
     /* Icon buttons -- Info Variant */
     --color-text-info-icon-button: light-dark(
@@ -3330,13 +3283,19 @@
     --box-shadow-drawer: -12px 0 30px hsl(180deg 20% 20% / 8%);
 }
 
+/* The task board view is a page, not a sidebar, so it keeps the
+   ordinary page surface here even though --color-background-sidebar
+   and --color-border-sidebar are a fixed dark tone (P-16). Owned by
+   web/styles/task_board.css's #task-board-view container. */
+#task-board-view {
+    --color-background-sidebar: var(--sj-surface);
+    --color-border-sidebar: var(--sj-divider);
+}
+
 /* Topic-row-only dark shade for the active-row text color.
    See --color-text-active-narrow-filter above. */
 li.active-sub-filter {
-    --color-text-active-narrow-filter: light-dark(
-        hsl(172.58deg 85.84% 22.16%),
-        hsl(168deg 50% 76%)
-    );
+    --color-text-active-narrow-filter: var(--sj-text);
 }
 
 %dark-theme {
