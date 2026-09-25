@@ -30,6 +30,7 @@ from zerver.lib.agent_results import (
 )
 from zerver.lib.tasks import get_or_create_default_board
 from zerver.lib.test_classes import ZulipTestCase
+from zerver.lib.test_helpers import queries_captured
 from zerver.lib.validator import check_widget_content
 from zerver.models import Message, PushDeviceToken, Reaction, UserMessage, UserProfile, agents
 from zerver.models.tasks import Task
@@ -772,3 +773,38 @@ class AgentJobCardTests(ZulipTestCase):
         self.assertEqual(Reaction.objects.get(message_id=message_id).emoji_name, "prohibited")
         receipt = agents.AgentDispatchReceipt.objects.get()
         self.assertEqual((receipt.decision, receipt.reason), ("rejected", "profile_paused"))
+
+    # ---- list_jobs (O2) ----
+
+    def _other_job(self) -> agents.AgentJob:
+        other_owner = self.example_user("cordelia")
+        profile = self._profile(other_owner, self._runner(other_owner, "Other", "d"), "Other")
+        source_id = self.send_personal_message(other_owner, profile.bot_user, "Private request")
+        return actions.create_job(
+            other_owner,
+            profile=profile,
+            source=Message.objects.get(id=source_id),
+            request="Private request",
+            idempotency_key=uuid4(),
+            job_kind="answer",
+            delivery_target="answer",
+        )
+
+    def test_list_jobs_prefilter_excludes_a_job_the_viewer_cannot_access(self) -> None:
+        self._ask()
+        my_job = self._job()
+        other_job = self._other_job()
+        response = self.api_get(self.owner, "/api/v1/agent/jobs")
+        job_ids = {item["id"] for item in self.assert_json_success(response)["jobs"]}
+        self.assertIn(str(my_job.id), job_ids)
+        self.assertNotIn(str(other_job.id), job_ids)
+
+    def test_list_jobs_query_count_ignores_jobs_the_viewer_cannot_see(self) -> None:
+        self._ask()
+        self.login_user(self.owner)
+        with self.assert_database_query_count(27):
+            self.assert_json_success(self.client_get("/json/agent/jobs"))
+        self._other_job()
+        with queries_captured() as queries:
+            self.assert_json_success(self.client_get("/json/agent/jobs"))
+        self.assert_length(queries, 27)

@@ -3,6 +3,7 @@
 from uuid import UUID
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
 from django.utils.timezone import now
 
@@ -19,6 +20,7 @@ from zerver.lib.agent_policy import AgentAccessDenied, check_agent_access
 from zerver.lib.agent_results import deliver_result_privately, download_artifact
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.message import access_message
+from zerver.lib.user_groups import get_recursive_membership_groups
 from zerver.models import Message, UserProfile, agents
 from zerver.views.agents import _success, payload, safe_agent_endpoint
 
@@ -370,6 +372,21 @@ def send_intent(request: HttpRequest, user_profile: UserProfile, client_key: UUI
     )
 
 
+def _accessible_profile_ids(user_profile: UserProfile) -> set[UUID]:
+    """Profile ids require_job_access would accept for this user (O2): the
+    profile-level owner-or-grant check is one of several require_job_access
+    ANDs together, so passing it is necessary for overall access. A safe
+    superset is enough here, list_jobs still runs the exact check per row."""
+    member_group_ids = get_recursive_membership_groups(user_profile).values_list("id", flat=True)
+    active = Q(revoked_at__isnull=True) & (Q(expires_at__isnull=True) | Q(expires_at__gt=now()))
+    principal = Q(principal_user=user_profile) | Q(principal_group_id__in=member_group_ids)
+    return set(
+        agents.AgentGrant.objects.filter(
+            active, principal, realm=user_profile.realm, target_kind="profile"
+        ).values_list("profile_id", flat=True)
+    )
+
+
 @safe_agent_endpoint
 def list_jobs(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
     offset, limit = window(request)
@@ -377,7 +394,14 @@ def list_jobs(request: HttpRequest, user_profile: UserProfile) -> HttpResponse:
     if view not in JOB_LIST_VIEWS:
         raise ValueError("Invalid task view.")
     with agent_transaction(read_only=True):
-        candidates = agents.AgentJob.objects.filter(realm=user_profile.realm)
+        # O2: a query narrows the field first (requester, profile owner, a
+        # profile-level grant), so the per-row require_job_access below runs
+        # on a small candidate set instead of every job in the realm.
+        candidates = agents.AgentJob.objects.filter(realm=user_profile.realm).filter(
+            Q(requester=user_profile)
+            | Q(profile__owner=user_profile)
+            | Q(profile_id__in=_accessible_profile_ids(user_profile))
+        )
         if view == "mine":
             candidates = candidates.filter(requester=user_profile)
         elif view == "waiting":
