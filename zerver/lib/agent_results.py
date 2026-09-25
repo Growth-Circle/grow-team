@@ -41,6 +41,7 @@ from zerver.lib.agent_context import (
 )
 from zerver.lib.agent_job_requests import Draft
 from zerver.lib.exceptions import JsonableError
+from zerver.lib.message import truncate_content
 from zerver.models import Message, Stream, UserProfile, agents
 
 
@@ -475,6 +476,30 @@ def publish_draft(runner: agents.AgentRunner, data: Draft) -> None:
         raise
 
 
+def _answer_text(summary: str, summary_data: bytes) -> str:
+    """Q-19: ResultPayload.summary holds at most 4096 characters. A longer
+    answer arrives whole in the summary artifact, and the summary is its
+    start; use that full text, else the summary as it is."""
+    text = summary_data.decode(errors="replace")
+    return text if len(text) > len(summary) and text.startswith(summary) else summary
+
+
+def _fit_message_limit(job: agents.AgentJob, content: str) -> tuple[str, bool]:
+    """Q-19/13-Q2: a result that does not fit in one message is cut at the
+    limit, with one closing sentence instead of Zulip's generic "[message
+    truncated]" marker. Returns whether it cut: the caller then shows the
+    summary artifact, which holds the full text, as a file chip."""
+    if len(content) <= settings.MAX_MESSAGE_LENGTH:
+        return content, False
+    with override_language(agent_language(job.realm_id)):
+        closing = _("The full answer is attached as a file.")
+    return truncate_content(content, settings.MAX_MESSAGE_LENGTH, f"\n\n{closing}"), True
+
+
+def _summary_artifact(artifacts: list[agents.AgentArtifact]) -> agents.AgentArtifact | None:
+    return next((item for item in artifacts if item.kind == "summary"), None)
+
+
 def _publish_result(job_id: UUID) -> dict[str, object]:
     job = agents.AgentJob.objects.get(id=job_id)
     if job.result_receipt is not None:
@@ -488,9 +513,13 @@ def _publish_result(job_id: UUID) -> dict[str, object]:
     verification_artifacts = list(
         agents.AgentArtifact.objects.filter(agentverification__attempt__job=job).distinct()
     )
+    summary_artifact = _summary_artifact(artifacts)
+    summary_data = None
     # File checks run before database locks. Stored artifact files are immutable.
     for artifact in [*artifacts, *verification_artifacts]:
-        read_artifact(artifact)
+        data = read_artifact(artifact)
+        if artifact == summary_artifact:
+            summary_data = data
     from zerver.actions.message_send import check_message, do_send_messages
     from zerver.lib.addressee import Addressee
     from zerver.lib.mention import silent_mention_syntax_for_user
@@ -514,11 +543,15 @@ def _publish_result(job_id: UUID) -> dict[str, object]:
         audience = require_audience(job)
         check_attempt_access(job.requester, job, attempt, "profile.use")
         verify_result(job, attempt, artifacts)
-        reject_secrets(job, proposal.summary.encode())
+        # verify_result requires a summary artifact, read before the locks.
+        assert summary_data is not None
+        answer = _answer_text(proposal.summary, summary_data)
+        reject_secrets(job, answer.encode())
         # 13-R2: no raw job URL in the message; the card's own Detail action
         # opens the job instead.
-        content = _result_message_content(job, proposal.summary)
+        content = _result_message_content(job, answer)
         content = f"{silent_mention_syntax_for_user(job.requester)} {content}"
+        content, cut = _fit_message_limit(job, content)
         if job.result_message_id is not None:
             # The card message becomes the result message.
             message = _lock_card_message(job.result_message_id)
@@ -548,6 +581,9 @@ def _publish_result(job_id: UUID) -> dict[str, object]:
             "attempt_id": str(attempt.id),
             "published_at": now().isoformat(),
         }
+        if cut:
+            assert summary_artifact is not None
+            receipt["full_text_artifact_id"] = str(summary_artifact.id)
         job.result_message_id = message_id
         job.result_receipt = receipt
         job.completed_at = now()
@@ -624,11 +660,15 @@ def deliver_result_privately(
         # Only this action skips the audience check: that check is exactly
         # why the job is here, and re-running it would always fail again.
         verify_result(job, attempt, artifacts, check_audience=False)
-        reject_secrets(job, proposal.summary.encode())
+        summary_artifact = _summary_artifact(artifacts)
+        assert summary_artifact is not None
+        answer = _answer_text(proposal.summary, read_artifact(summary_artifact))
+        reject_secrets(job, answer.encode())
         with override_language(job.realm.default_language):
             first_line = _("This result was sent here because the conversation changed.")
-        content = _result_message_content(job, proposal.summary)
+        content = _result_message_content(job, answer)
         content = f"{first_line}\n{silent_mention_syntax_for_user(job.requester)} {content}"
+        content, cut = _fit_message_limit(job, content)
         message = check_message(
             job.profile.bot_user,
             get_client("Grow Agent"),
@@ -645,6 +685,8 @@ def deliver_result_privately(
             "published_at": now().isoformat(),
             "destination": "direct",
         }
+        if cut:
+            receipt["full_text_artifact_id"] = str(summary_artifact.id)
         job.result_receipt = receipt
         job.completed_at = now()
         job.phase = "deliver"

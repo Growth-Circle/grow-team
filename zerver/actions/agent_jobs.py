@@ -14,7 +14,7 @@ from uuid import UUID, uuid4
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.utils.timezone import now
 from django.utils.translation import gettext as _
 from django.utils.translation import override as override_language
@@ -1227,9 +1227,16 @@ def job_card_facts(jobs: Sequence[agents.AgentJob]) -> JobCardFacts:
         .values_list("id", "agent_job_id", "title")
     ):
         artifacts[job_id].append({"kind": "task", "label": title, "url": None, "task_id": task_id})
+    # A long answer keeps its full text as the summary artifact (Q-19).
+    full_text_ids = [
+        job.result_receipt["full_text_artifact_id"]
+        for job in jobs
+        if job.result_receipt and job.result_receipt.get("full_text_artifact_id")
+    ]
     for artifact_id, job_id, filename in (
         agents.AgentArtifact.objects.filter(
-            attempt__job_id__in=job_ids, kind="file", unavailable_at__isnull=True
+            Q(attempt__job_id__in=job_ids, kind="file") | Q(id__in=full_text_ids),
+            unavailable_at__isnull=True,
         )
         .order_by("created_at")
         .values_list("id", "attempt__job_id", "filename")

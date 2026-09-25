@@ -11,6 +11,7 @@ from unittest import mock
 from uuid import uuid4
 
 import time_machine
+from django.conf import settings
 from django.test import override_settings
 from django.utils.timezone import now
 from typing_extensions import override
@@ -24,7 +25,9 @@ from zerver.lib.agent_job_requests import Draft
 from zerver.lib.agent_reconcile import reconcile_agents
 from zerver.lib.agent_results import (
     DRAFT_WRITING_MARK,
+    _fit_message_limit,
     publish_draft,
+    publish_result,
     store_artifact,
     update_job_card,
 )
@@ -894,3 +897,85 @@ class AgentJobCardTests(ZulipTestCase):
         self.assertEqual(reconcile_agents()["publication_timeouts"], 0)
         job.refresh_from_db()
         self.assertEqual(job.status, "verifying")
+
+    # ---- long answers (Q-19, 13-Q2) ----
+
+    def test_answer_longer_than_the_summary_limit_is_shown_whole(self) -> None:
+        self._ask()
+        job = self._job()
+        attempt = self._claim(job)
+        answer = "a" * 5999 + "Z"
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            override_settings(AGENT_ARTIFACT_ROOT=directory),
+        ):
+            self._answer(job, attempt, answer)
+        card = self._card(job)
+        self.assertTrue(card.content.endswith(answer))
+        self.assertEqual(self._widget(job)["artifacts"], [])
+
+    def test_answer_longer_than_one_message_is_cut_and_attached(self) -> None:
+        self._ask()
+        job = self._job()
+        attempt = self._claim(job)
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            override_settings(AGENT_ARTIFACT_ROOT=directory),
+        ):
+            self._answer(job, attempt, "a" * (settings.MAX_MESSAGE_LENGTH + 2000))
+        card = self._card(job)
+        self.assertEqual(len(card.content), settings.MAX_MESSAGE_LENGTH)
+        self.assertTrue(card.content.endswith("\n\nThe full answer is attached as a file."))
+        job.refresh_from_db()
+        assert job.result_receipt is not None
+        summary = agents.AgentArtifact.objects.get(attempt=attempt, kind="summary")
+        self.assertEqual(job.result_receipt["full_text_artifact_id"], str(summary.id))
+        self.assertEqual(
+            self._widget(job)["artifacts"],
+            [
+                {
+                    "kind": "file",
+                    "label": "answer.txt",
+                    "url": f"/json/agent/artifacts/{summary.id}",
+                    "task_id": None,
+                }
+            ],
+        )
+        self.assertFalse(agents.AgentArtifact.objects.filter(kind="file").exists())
+
+    def test_long_answer_sent_privately_is_cut_and_attached(self) -> None:
+        from zerver.lib.agent_results import deliver_result_privately
+
+        self._ask()
+        job = self._job()
+        attempt = self._claim(job)
+        binding = job.conversation.audience_binding
+        assert binding is not None
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            override_settings(AGENT_ARTIFACT_ROOT=directory),
+        ):
+            # The conversation moves on after the result is prepared.
+            with mock.patch("zerver.actions.agent_jobs._publish_after_commit"):
+                self._answer(job, attempt, "a" * (settings.MAX_MESSAGE_LENGTH + 2000))
+            agents.AgentConversation.objects.filter(id=job.conversation_id).update(
+                audience_binding={**binding, "epoch": binding["epoch"] + 1}
+            )
+            with self.captureOnCommitCallbacks(execute=True), self.assertRaises(AudienceChanged):
+                publish_result(job.id)
+            job.refresh_from_db()
+            self.assertEqual(job.blocked_reason, "audience_changed")
+            with self.captureOnCommitCallbacks(execute=True):
+                job = deliver_result_privately(self.owner, job.id, job.version)
+        assert job.result_receipt is not None
+        summary = agents.AgentArtifact.objects.get(attempt=attempt, kind="summary")
+        self.assertEqual(job.result_receipt["full_text_artifact_id"], str(summary.id))
+        message = Message.objects.get(id=job.result_receipt["message_id"])
+        self.assertTrue(message.content.endswith("\n\nThe full answer is attached as a file."))
+        self.assertEqual(self._card(job).content, NEUTRAL_LINE)
+
+    def test_short_answer_is_not_cut(self) -> None:
+        self._ask()
+        self.assertEqual(
+            _fit_message_limit(self._job(), "A short answer."), ("A short answer.", False)
+        )

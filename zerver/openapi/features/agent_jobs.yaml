@@ -3672,7 +3672,8 @@ components:
               - task_id
           description: Chips the card shows for this job's outcome, from what the
             job already has. A `task` chip names a linked task board card by
-            `task_id`. A `file` chip links a file. A `pr` chip links a draft
+            `task_id`. A `file` chip links a file, including the full text of an
+            answer that is too long for one message. A `pr` chip links a draft
             pull request. A `check` chip links a required check's output.
         version:
           type: integer

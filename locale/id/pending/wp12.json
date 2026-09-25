@@ -13,6 +13,7 @@
     "{name} · Stopped": "{name} · Berhenti",
     "Cancelled.": "Dibatalkan.",
     "This task's answer is no longer shown here.": "Jawaban tugas ini tidak lagi tampil di sini.",
+    "The full answer is attached as a file.": "Jawaban lengkap ada di berkas lampiran.",
     "Widgets: This widget type cannot be sent.": "Widget: Jenis widget ini tidak bisa dikirim.",
     "{var_name} is not an allowed link": "{var_name} bukan tautan yang diizinkan"
   }
