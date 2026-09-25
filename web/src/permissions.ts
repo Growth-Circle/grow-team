@@ -14,7 +14,7 @@ export type Role = z.infer<typeof role_schema>;
 const permission_cell_schema = z.object({
     allowed: z.boolean(),
     locked: z.boolean(),
-    reason: z.optional(z.string()),
+    reason: z.nullable(z.string()),
 });
 
 const permission_row_schema = z.object({
