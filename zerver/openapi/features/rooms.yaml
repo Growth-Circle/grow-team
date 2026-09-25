@@ -1,1 +1,201 @@
-paths: {}
+paths:
+  /streams/{stream_id}/meta:
+    get:
+      operationId: get-room-meta
+      tags: ["channels"]
+      summary: Get a channel's meta
+      description: |
+        Fetch the type folder, owner, due date, summary opt-in, and member
+        counts for the channel with the ID `stream_id`.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-98ffbd).
+      parameters:
+        - $ref: "#/components/parameters/ChannelIdInPath"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - $ref: "#/components/schemas/RoomMetaResponse"
+              example:
+                result: success
+                msg: ""
+                stream_id: 7
+                folder_name: "Proyek"
+                owner: { "id": 11, "full_name": "Iago" }
+                due_date: "2026-10-30"
+                summary_enabled: true
+                people_count: 4
+                agent_count: 1
+                whatsapp: false
+                drive_folder_link_id: null
+                can_edit_meta: true
+                can_toggle_summary: true
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/InvalidChannelError"
+                  - description: |
+                      An example JSON response for when the channel ID is not valid:
+    patch:
+      operationId: update-room-meta
+      tags: ["channels"]
+      summary: Update a channel's meta
+      description: |
+        Change the due date and summary opt-in for the channel with the ID
+        `stream_id`, and optionally have the channel's built-in assistant
+        post its first message.
+
+        Changing `due_date` or asking for `announce` requires being the
+        channel's owner or an organization administrator. Changing
+        `summary_enabled` requires being the channel's owner and having the
+        `room_summary` permission.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-98ffbd).
+      parameters:
+        - $ref: "#/components/parameters/ChannelIdInPath"
+      requestBody:
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                due_date:
+                  description: |
+                    The channel's new due date, as `YYYY-MM-DD`. `null`
+                    clears it. Omit this parameter to leave the due date
+                    unchanged.
+                  type: string
+                  nullable: true
+                  example: "2026-10-30"
+                summary_enabled:
+                  description: |
+                    Whether the channel opts in to a daily summary.
+                  type: boolean
+                  example: true
+                announce:
+                  description: |
+                    Whether to have the channel's built-in assistant post
+                    its first message in the channel.
+                  type: boolean
+                  example: true
+            encoding:
+              due_date:
+                contentType: application/json
+              summary_enabled:
+                contentType: application/json
+              announce:
+                contentType: application/json
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - $ref: "#/components/schemas/RoomMetaResponse"
+              example:
+                result: success
+                msg: ""
+                stream_id: 7
+                folder_name: "Proyek"
+                owner: { "id": 11, "full_name": "Iago" }
+                due_date: "2026-10-30"
+                summary_enabled: true
+                people_count: 4
+                agent_count: 1
+                whatsapp: false
+                drive_folder_link_id: null
+                can_edit_meta: true
+                can_toggle_summary: true
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/InvalidChannelError"
+                  - $ref: "#/components/schemas/CodedError"
+              examples:
+                invalid_channel:
+                  summary: The channel ID is not valid.
+                  value:
+                    result: error
+                    msg: Invalid channel ID
+                    code: BAD_REQUEST
+                no_permission:
+                  summary: The requesting user cannot change this channel.
+                  value:
+                    result: error
+                    msg: You do not have permission to change this channel.
+                    code: BAD_REQUEST
+                bad_due_date:
+                  summary: due_date is not a valid YYYY-MM-DD date.
+                  value:
+                    result: error
+                    msg: Enter the date as YYYY-MM-DD.
+                    code: BAD_REQUEST
+components:
+  schemas:
+    RoomMetaResponse:
+      additionalProperties: false
+      properties:
+        result: {}
+        msg: {}
+        ignored_parameters_unsupported: {}
+        stream_id:
+          type: integer
+          description: The channel's ID.
+        folder_name:
+          type: string
+          nullable: true
+          description: The name of the channel's type folder, or `null` when it has none.
+        owner:
+          type: object
+          nullable: true
+          description: The channel's owner, or `null` when the realm has nobody to fall back on.
+          additionalProperties: false
+          required:
+            - id
+            - full_name
+          properties:
+            id:
+              type: integer
+              description: The owner's user ID.
+            full_name:
+              type: string
+              description: The owner's full name.
+        due_date:
+          type: string
+          nullable: true
+          description: The channel's due date, as `YYYY-MM-DD`, or `null` when it has none.
+        summary_enabled:
+          type: boolean
+          description: Whether the channel opts in to a daily summary.
+        people_count:
+          type: integer
+          description: How many non-agent subscribers the channel has.
+        agent_count:
+          type: integer
+          description: How many agent subscribers the channel has.
+        whatsapp:
+          type: boolean
+          description: Whether the channel is linked to WhatsApp.
+        drive_folder_link_id:
+          type: integer
+          nullable: true
+          description: The ID of the channel's linked Drive folder, or `null` when it has none.
+        can_edit_meta:
+          type: boolean
+          description: Whether the requesting user can change the channel's due date.
+        can_toggle_summary:
+          type: boolean
+          description: Whether the requesting user can change the channel's summary opt-in.

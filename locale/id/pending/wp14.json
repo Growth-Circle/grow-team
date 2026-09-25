@@ -1,0 +1,11 @@
+{
+  "frontend": {},
+  "backend": {
+    "Channel #**{stream_name}** created. Owner: {owner_name}. Mention me to start splitting tasks.": "Ruang #**{stream_name}** dibuat. Pemilik: {owner_name}. Mention aku kalau mau mulai bagi tugas.",
+    "Channel #**{stream_name}** created. Owner: {owner_name}. Due {due_date}. Mention me to start splitting tasks.": "Ruang #**{stream_name}** dibuat. Pemilik: {owner_name}. Selesai {due_date}. Mention aku kalau mau mulai bagi tugas.",
+    "Channel #**{stream_name}** created. Owner: {owner_name}. Due {due_date}, and Kaki will remind the owner to archive this channel after {due_date}. Mention me to start splitting tasks.": "Ruang #**{stream_name}** dibuat. Pemilik: {owner_name}. Selesai {due_date}, dan Kaki akan mengingatkan pemilik untuk mengarsip ruang ini sesudah {due_date}. Mention aku kalau mau mulai bagi tugas.",
+    "nobody": "tidak ada",
+    "Enter the date as YYYY-MM-DD.": "Isi tanggal dengan format YYYY-MM-DD.",
+    "You do not have permission to change this channel.": "Kamu tidak berhak mengubah ruang ini."
+  }
+}
