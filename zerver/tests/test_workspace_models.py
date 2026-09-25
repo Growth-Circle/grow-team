@@ -22,6 +22,7 @@ from zerver.models import (
     McpJobPlan,
     McpServer,
     McpToolPolicy,
+    RolePermission,
     RoomChannelLink,
     RoomDigest,
     RoomMeta,
@@ -434,6 +435,15 @@ class WorkspaceSchemaTests(ZulipTestCase):
         with self.assertRaises(IntegrityError):
             CloudRunnerInstance.objects.create(
                 realm=self.realm, created_by=self.owner, provider="gcp"
+            )
+
+    # -- 0832 RolePermission model-level constraint (see test_role_permissions.py
+    # for has_role_permission/permission_matrix behaviour) -------------------
+
+    def test_role_permission_rejects_unknown_role(self) -> None:
+        with self.assertRaises(IntegrityError):
+            RolePermission.objects.create(
+                realm=self.realm, permission_key="ws_settings", role=999, allowed=True
             )
 
     # -- helpers --------------------------------------------------------------
