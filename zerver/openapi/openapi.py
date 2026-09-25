@@ -25,10 +25,9 @@ OPENAPI_SPEC_PATH = os.path.abspath(
 
 # Feature areas document their own routes and OpenAPI paths in
 # zerver/openapi/features/*.yaml, so that adding an area never requires
-# editing zulip.yaml again (see PLAN.md Sanji WP04). Only the real spec
-# gets fragments merged in; other OpenAPI documents (e.g. the test
-# fixture testing.yaml, which lives in the same directory) stay
-# self-contained.
+# editing zulip.yaml again. Only the real spec gets fragments merged in;
+# other OpenAPI documents (e.g. the test fixture testing.yaml, which
+# lives in the same directory) stay self-contained.
 FEATURES_DIRNAME = "features"
 
 
@@ -39,20 +38,47 @@ def get_fragment_paths(openapi_path: str) -> list[str]:
     return sorted(glob.glob(os.path.join(features_dir, "*.yaml")))
 
 
+FRAGMENT_TOP_LEVEL_KEYS = {"paths", "components", "events"}
+FRAGMENT_COMPONENT_KEYS = {"schemas", "securitySchemes"}
+
+
 def merge_openapi_fragment(
     openapi: dict[str, Any], fragment_path: str, fragment: dict[str, Any]
 ) -> None:
+    # A fragment that misspells a key (e.g. `path:`) or uses one this loader
+    # does not merge (e.g. `responses`) fails silently otherwise: the $ref
+    # to it breaks far away, with no indication the fragment was the cause.
+    unknown_keys = set(fragment) - FRAGMENT_TOP_LEVEL_KEYS
+    if unknown_keys:
+        raise AssertionError(f"Unsupported top-level key(s) {unknown_keys} in {fragment_path}")
+    unknown_component_keys = set(fragment.get("components") or {}) - FRAGMENT_COMPONENT_KEYS
+    if unknown_component_keys:
+        raise AssertionError(
+            f"Unsupported components key(s) {unknown_component_keys} in {fragment_path}"
+        )
+
     paths = openapi.setdefault("paths", {})
     for path, path_item in (fragment.get("paths") or {}).items():
         if path in paths:
             raise AssertionError(f"Duplicate OpenAPI path {path!r} found in {fragment_path}")
         paths[path] = path_item
 
-    schemas = openapi.setdefault("components", {}).setdefault("schemas", {})
+    components = openapi.setdefault("components", {})
+    schemas = components.setdefault("schemas", {})
     for name, schema in ((fragment.get("components") or {}).get("schemas") or {}).items():
         if name in schemas:
             raise AssertionError(f"Duplicate OpenAPI schema {name!r} found in {fragment_path}")
         schemas[name] = schema
+
+    security_schemes = components.setdefault("securitySchemes", {})
+    for name, scheme in (
+        (fragment.get("components") or {}).get("securitySchemes") or {}
+    ).items():
+        if name in security_schemes:
+            raise AssertionError(
+                f"Duplicate OpenAPI security scheme {name!r} found in {fragment_path}"
+            )
+        security_schemes[name] = scheme
 
     # A fragment may add new realtime event types to document; each one
     # is appended to the `oneOf` list of the GET /events response, the
@@ -187,10 +213,10 @@ class OpenAPISpec:
             if "{" not in endpoint:
                 continue
             path_regex = "^" + endpoint + "$"
-            # Numeric arguments have id at their end
-            # so find such arguments and replace them with numeric
-            # regex
-            path_regex = re.sub(r"{[^}]*id}", r"[0-9]*", path_regex)
+            # Arguments with id at their end are either a decimal database
+            # ID or a UUID (hex digits and hyphens); replace them with a
+            # regex that matches either.
+            path_regex = re.sub(r"{[^}]*id}", r"[0-9a-f-]*", path_regex)
             # Email arguments end with email
             path_regex = re.sub(r"{[^}]*email}", email_regex, path_regex)
             # All other types of arguments are supposed to be
@@ -260,10 +286,22 @@ def get_openapi_fixture(
     endpoint: str, method: str, status_code: str = "200"
 ) -> list[dict[str, Any]]:
     """Fetch a fixture from the full spec object."""
-    if "example" not in get_schema(endpoint, method, status_code):
-        return openapi_spec.openapi()["paths"][endpoint][method.lower()]["responses"][status_code][
-            "content"
-        ]["application/json"]["examples"].values()
+    # `status_code` is either a plain "200" or, for one branch of a oneOf
+    # response, "200_1"; `responses` is only ever keyed by the plain form.
+    plain_status_code = status_code[0:3]
+    content = openapi_spec.openapi()["paths"][endpoint][method.lower()]["responses"][
+        plain_status_code
+    ]["content"]["application/json"]
+    # A response's `content.application/json` (Media Type Object) may carry
+    # its own `example` or `examples` directly, as a sibling of `schema`;
+    # per the OpenAPI 3.0 spec that takes precedence over an `example` on
+    # the schema itself, which is the older convention this function
+    # originally supported (an inline example on an allOf branch, merged
+    # onto the resolved schema object by naively_merge_allOf_dict).
+    if "example" in content:
+        return [{"value": content["example"]}]
+    if "examples" in content:
+        return list(content["examples"].values())
     return [
         {
             "description": get_schema(endpoint, method, status_code)["description"],
@@ -323,17 +361,21 @@ def generate_openapi_fixture(endpoint: str, method: str) -> list[str]:
     for status_code in sorted(
         openapi_spec.openapi()["paths"][endpoint][method.lower()]["responses"]
     ):
-        if (
-            "oneOf"
-            in openapi_spec.openapi()["paths"][endpoint][method.lower()]["responses"][status_code][
-                "content"
-            ]["application/json"]["schema"]
-        ):
-            subschema_count = len(
-                openapi_spec.openapi()["paths"][endpoint][method.lower()]["responses"][status_code][
-                    "content"
-                ]["application/json"]["schema"]["oneOf"]
-            )
+        response = openapi_spec.openapi()["paths"][endpoint][method.lower()]["responses"][
+            status_code
+        ]
+        content = response.get("content", {})
+        if "application/json" not in content:
+            # A response documented with no JSON content (e.g. a shared
+            # 405 that renders as text/html) has no fixture to render.
+            continue
+        if "examples" in content["application/json"]:
+            # Named Media Type Object examples (a sibling of "schema") are
+            # not tied to individual oneOf branches; get_openapi_fixture
+            # returns every one of them in a single call.
+            subschema_count = 1
+        elif "oneOf" in content["application/json"]["schema"]:
+            subschema_count = len(content["application/json"]["schema"]["oneOf"])
         else:
             subschema_count = 1
         for subschema_index in range(subschema_count):
@@ -575,7 +617,10 @@ def validate_schema(schema: dict[str, Any]) -> None:
             )
         for property_schema in schema.get("properties", {}).values():
             validate_schema(property_schema)
-        if schema["additionalProperties"]:
+        # additionalProperties is False, True, or a schema. True means
+        # arbitrary extra properties are intentionally allowed (nothing
+        # further to check here); only a schema needs recursing into.
+        if isinstance(schema["additionalProperties"], dict):
             validate_schema(schema["additionalProperties"])
 
 
@@ -656,6 +701,12 @@ def validate_test_request(
         return
     if status_code.startswith("2") and intentionally_undocumented:
         return
+
+    # A path converter such as <uuid:client_key> hands the resolved kwarg to
+    # openapi_core as a uuid.UUID object, but every path parameter is
+    # documented as `type: string`; cast each one back to a string so a
+    # UUID path segment validates the same way a decimal ID does.
+    request.parameters.path = {k: str(v) for k, v in request.parameters.path.items()}
 
     # Now using the openapi_core APIs, validate the request schema
     # against the OpenAPI documentation.

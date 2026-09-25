@@ -21,6 +21,7 @@ from zerver.openapi.openapi import (
     Parameter,
     SchemaError,
     find_openapi_endpoint,
+    generate_openapi_fixture,
     get_openapi_fixture,
     get_openapi_parameters,
     get_openapi_paths,
@@ -200,6 +201,15 @@ class OpenAPIToolsTest(ZulipTestCase):
         new_openapi = openapi_spec.openapi()
         self.assertIs(old_openapi, new_openapi)
 
+    def test_generate_openapi_fixture_for_every_operation(self) -> None:
+        """Every documented operation's fixtures must render without
+        error; api_docs/api-doc-template.md calls generate_openapi_fixture
+        this same way for each operation's doc page."""
+        paths = openapi_spec.openapi()["paths"]
+        for path, path_item in paths.items():
+            for method in path_item:
+                generate_openapi_fixture(path, method)
+
 
 class OpenAPIArgumentsTest(ZulipTestCase):
     # This will be filled during test_openapi_arguments:
@@ -258,12 +268,16 @@ class OpenAPIArgumentsTest(ZulipTestCase):
         "/remotes/server/analytics",
         "/remotes/server/analytics/status",
         "/remotes/server/billing",
-        # Agent runner device protocol: bearer-token machine endpoints
-        # registered directly on urlpatterns (not through rest_dispatch),
-        # so this REST-focused test never visits them. See PLAN.md Sanji
-        # WP04 and api_docs/include/rest-endpoints.md for the runner
-        # protocol's own reference (zerver/openapi/features/agent_devices.yaml
-        # and agent_runner_extras.yaml already document every one of these).
+    }
+
+    # Agent runner device protocol: bearer-token machine endpoints,
+    # registered directly on urlpatterns instead of through rest_dispatch,
+    # so this REST-focused test never visits them to add them to
+    # checked_endpoints. Each one is fully documented (see
+    # zerver/openapi/features/agent_devices.yaml and
+    # agent_runner_extras.yaml); unlike pending_endpoints above, none of
+    # these are missing documentation.
+    documented_non_rest_endpoints = {
         "/agent/runner/claims",
         "/agent/runner/operations",
         "/agent/runner/leases",
@@ -383,6 +397,7 @@ so maybe we shouldn't mark it as intentionally undocumented in the URLs.
         undocumented_paths = openapi_paths - self.checked_endpoints
         undocumented_paths -= self.buggy_documentation_endpoints
         undocumented_paths -= self.pending_endpoints
+        undocumented_paths -= self.documented_non_rest_endpoints
         try:
             self.assert_length(undocumented_paths, 0)
         except AssertionError:  # nocoverage
@@ -1067,27 +1082,31 @@ class OpenAPIAttributesTest(ZulipTestCase):
                                 content, path, method, status_code
                             )
                     if "oneOf" in schema:
+                        # Some agent routes document their oneOf branches
+                        # with named Media Type Object examples (a sibling
+                        # of "schema") instead of an "example" field on
+                        # each branch; either is valid OpenAPI 3.0. Either
+                        # way, validate every example this operation
+                        # documents exactly once, against the whole oneOf
+                        # (each only needs to match its own branch), rather
+                        # than reusing one example for every branch.
                         content_obj = response["content"]["application/json"]
+                        examples_checked = 0
                         for subschema in schema["oneOf"]:
                             validate_schema(subschema)
                             if "example" in subschema:
-                                example = subschema["example"]
-                            else:
-                                # Some agent routes document their oneOf
-                                # branches with one named Media Type Object
-                                # example per branch (a sibling of "schema")
-                                # instead of a "example" field on each
-                                # branch; either is valid OpenAPI 3.0, and
-                                # any example that matches at least one
-                                # branch validates against the whole oneOf.
-                                assert "examples" in content_obj
-                                example = next(iter(content_obj["examples"].values()))["value"]
+                                assert validate_against_openapi_schema(
+                                    subschema["example"], path, method, status_code
+                                )
+                                examples_checked += 1
+                        for named_example in content_obj.get("examples", {}).values():
                             assert validate_against_openapi_schema(
-                                example,
-                                path,
-                                method,
-                                status_code,
+                                named_example["value"], path, method, status_code
                             )
+                            examples_checked += 1
+                        assert examples_checked > 0, (
+                            f"No example to validate for {method} {path} ({status_code})"
+                        )
                         continue
                     validate_schema(schema)
                     content_obj = response["content"]["application/json"]
@@ -1171,8 +1190,8 @@ class APIDocsSidebarTest(ZulipTestCase):
             # linked in the sidebar.
             "zulip-outgoing-webhooks",
             # Agent runner device protocol: bearer-token machine endpoints,
-            # not part of the public API docs (see pending_endpoints in
-            # OpenAPIArgumentsTest for the matching route-scanning exemption).
+            # not part of the public API docs (see documented_non_rest_endpoints
+            # in OpenAPIArgumentsTest for the matching route-scanning exemption).
             "agent-runtime-draft",
             "agent-runtime-claims",
             "agent-runtime-leases",
