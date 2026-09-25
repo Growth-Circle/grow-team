@@ -13,12 +13,15 @@ import * as about_zulip from "./about_zulip.ts";
 import * as activity from "./activity.ts";
 import * as activity_ui from "./activity_ui.ts";
 import * as add_stream_options_popover from "./add_stream_options_popover.ts";
+import * as agent_create_ui from "./agent_create_ui.ts";
+import * as agents_ui from "./agents_ui.ts";
 import * as alert_words from "./alert_words.ts";
 import * as audible_notifications from "./audible_notifications.ts";
 import * as banners from "./banners.ts";
 import * as blueslip from "./blueslip.ts";
 import * as bot_data from "./bot_data.ts";
 import {is_browser_unsupported_old_version} from "./browser_support.ts";
+import * as center_views from "./center_views.ts";
 import * as channel from "./channel.ts";
 import * as channel_folders from "./channel_folders.ts";
 import * as channel_folders_popover from "./channel_folders_popover.ts";
@@ -45,6 +48,7 @@ import * as desktop_notifications from "./desktop_notifications.ts";
 import * as dialog_widget from "./dialog_widget.ts";
 import * as drafts from "./drafts.ts";
 import * as drafts_overlay_ui from "./drafts_overlay_ui.ts";
+import * as drive_ui from "./drive_ui.ts";
 import * as echo from "./echo.ts";
 import * as emoji from "./emoji.ts";
 import * as emoji_picker from "./emoji_picker.ts";
@@ -68,6 +72,7 @@ import * as linkifiers from "./linkifiers.ts";
 import * as local_message from "./local_message.ts";
 import * as markdown from "./markdown.ts";
 import * as markdown_config from "./markdown_config.ts";
+import * as mcp_ui from "./mcp_ui.ts";
 import * as message_actions_popover from "./message_actions_popover.ts";
 import * as message_edit_history from "./message_edit_history.ts";
 import * as message_fetch from "./message_fetch.ts";
@@ -89,6 +94,7 @@ import * as navbar_alerts from "./navbar_alerts.ts";
 import * as navbar_help_menu from "./navbar_help_menu.ts";
 import * as navigate from "./navigate.ts";
 import * as navigation_views from "./navigation_views.ts";
+import * as needs_ui from "./needs_ui.ts";
 import * as onboarding_steps from "./onboarding_steps.ts";
 import * as overlays from "./overlays.ts";
 import {page_params} from "./page_params.ts";
@@ -110,6 +116,8 @@ import * as recent_view_ui from "./recent_view_ui.ts";
 import * as reload_setup from "./reload_setup.ts";
 import * as reminders_overlay_ui from "./reminders_overlay_ui.ts";
 import * as resize_handler from "./resize_handler.ts";
+import * as runner_add_ui from "./runner_add_ui.ts";
+import * as runners_ui from "./runners_ui.ts";
 import * as saved_snippets from "./saved_snippets.ts";
 import * as scheduled_messages from "./scheduled_messages.ts";
 import * as scheduled_messages_overlay_ui from "./scheduled_messages_overlay_ui.ts";
@@ -151,11 +159,13 @@ import * as stream_settings_ui from "./stream_settings_ui.ts";
 import * as stream_topic_history from "./stream_topic_history.ts";
 import * as stream_topic_history_util from "./stream_topic_history_util.ts";
 import * as sub_store from "./sub_store.ts";
+import * as task_board_data from "./task_board_data.ts";
 import * as task_board_ui from "./task_board_ui.ts";
 import * as theme from "./theme.ts";
 import * as thumbnail from "./thumbnail.ts";
 import * as timerender from "./timerender.ts";
 import * as tippyjs from "./tippyjs.ts";
+import * as today_ui from "./today_ui.ts";
 import * as topic_list from "./topic_list.ts";
 import * as topic_popover from "./topic_popover.ts";
 import * as transmit from "./transmit.ts";
@@ -179,6 +189,7 @@ import * as user_topics from "./user_topics.ts";
 import * as util from "./util.ts";
 import * as watchdog from "./watchdog.ts";
 import * as widgets from "./widgets.ts";
+import * as workspace_settings_ui from "./workspace_settings_ui.ts";
 
 function update_page_loading_indicator_notice() {
     const $unsupported_desktop_app_notice = $("#app-loading-unsupported-desktop-app");
@@ -566,22 +577,71 @@ export async function initialize_everything(state_data) {
             });
         },
         hide_other_views() {
-            inbox_ui.hide();
-            task_board_ui.hide();
+            center_views.hide_others("recent");
         },
     });
     inbox_ui.initialize({
         hide_other_views() {
-            recent_view_ui.hide();
-            task_board_ui.hide();
+            center_views.hide_others("inbox");
         },
     });
     task_board_ui.initialize({
         hide_other_views() {
-            recent_view_ui.hide();
-            inbox_ui.hide();
+            center_views.hide_others("tasks");
         },
     });
+
+    // Every view that can fill the main column registers here: the
+    // Zulip views (Recent, Inbox, the task board) and the Sanji
+    // screens.
+    center_views.register({
+        id: "recent",
+        hash: "recent",
+        show() {
+            recent_view_ui.show();
+        },
+        hide() {
+            recent_view_ui.hide();
+        },
+        title: () => i18n.$t({defaultMessage: "Recent conversations"}),
+    });
+    center_views.register({
+        id: "inbox",
+        hash: "inbox",
+        show() {
+            inbox_ui.show();
+        },
+        hide() {
+            inbox_ui.hide();
+        },
+        title: () => i18n.$t({defaultMessage: "Inbox"}),
+    });
+    center_views.register({
+        id: "tasks",
+        hash: "tasks",
+        show(args) {
+            task_board_ui.show(task_board_data.parse_filter(args[0]));
+        },
+        hide() {
+            task_board_ui.hide();
+        },
+        title: task_board_ui.title,
+    });
+    for (const [id, hash, mod] of [
+        ["today", "today", today_ui],
+        ["needs", "needs", needs_ui],
+        ["agents", "agents", agents_ui],
+        ["agent-create", "agents/new", agent_create_ui],
+        ["drive", "drive", drive_ui],
+        ["runners", "runners", runners_ui],
+        ["runner-add", "runners/new", runner_add_ui],
+        ["mcp", "mcp", mcp_ui],
+        ["workspace-settings", "workspace-settings", workspace_settings_ui],
+    ]) {
+        mod.initialize();
+        center_views.register({id, hash, show: mod.show, hide: mod.hide, title: mod.title});
+    }
+
     alert_words.initialize(state_data.alert_words);
     saved_snippets.initialize(state_data.saved_snippets);
     emojisets.initialize(user_settings.emojiset);

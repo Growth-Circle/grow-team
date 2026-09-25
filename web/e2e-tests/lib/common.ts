@@ -275,7 +275,8 @@ export async function log_in(
         form.submit();
     });
 
-    await page.waitForSelector("#inbox-main", {visible: true});
+    // The app always starts on Today.
+    await page.waitForSelector("#today-view", {visible: true});
 }
 
 export async function log_out(page: Page): Promise<void> {

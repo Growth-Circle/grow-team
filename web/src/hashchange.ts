@@ -7,6 +7,7 @@ import * as agent_job_panel from "./agent_job_panel.ts";
 import * as agent_task_list from "./agent_task_list.ts";
 import * as blueslip from "./blueslip.ts";
 import * as browser_history from "./browser_history.ts";
+import * as center_views from "./center_views.ts";
 import * as drafts_overlay_ui from "./drafts_overlay_ui.ts";
 import {Filter} from "./filter.ts";
 import * as hash_parser from "./hash_parser.ts";
@@ -22,7 +23,6 @@ import * as overlays from "./overlays.ts";
 import {page_params} from "./page_params.ts";
 import * as people from "./people.ts";
 import * as popovers from "./popovers.ts";
-import * as recent_view_ui from "./recent_view_ui.ts";
 import * as reminders_overlay_ui from "./reminders_overlay_ui.ts";
 import * as scheduled_messages_overlay_ui from "./scheduled_messages_overlay_ui.ts";
 import * as settings from "./settings.ts";
@@ -32,12 +32,9 @@ import * as sidebar_ui from "./sidebar_ui.ts";
 import * as spectators from "./spectators.ts";
 import {current_user} from "./state_data.ts";
 import * as stream_settings_ui from "./stream_settings_ui.ts";
-import * as task_board_data from "./task_board_data.ts";
-import * as task_board_ui from "./task_board_ui.ts";
 import * as ui_report from "./ui_report.ts";
 import * as user_group_edit from "./user_group_edit.ts";
 import * as user_profile from "./user_profile.ts";
-import {user_settings} from "./user_settings.ts";
 
 // Read https://zulip.readthedocs.io/en/latest/subsystems/hashchange-system.html
 // or locally: docs/subsystems/hashchange-system.md
@@ -114,36 +111,14 @@ export function set_hash_to_home_view(triggered_by_escape_key = false): void {
     hashchanged(false);
 }
 
-function show_home_view(narrow_opts?: message_view.ShowMessageViewOpts): void {
+function show_home_view(): void {
     // This function should only be called from the hashchange
     // handlers, as it does not set the hash to "".
     //
-    // We only allow the primary recommended options for home views
-    // rendered without a hash.
-    switch (user_settings.web_home_view) {
-        case "recent": {
-            recent_view_ui.show();
-            break;
-        }
-        case "all_messages": {
-            // Hides inbox/recent views internally if open.
-            show_all_message_view(narrow_opts);
-            break;
-        }
-        case "inbox": {
-            inbox_ui.show();
-            break;
-        }
-        default: {
-            // NOTE: Setting a hash which is not rendered on
-            // empty hash (like a stream narrow) will
-            // introduce a bug that user will not be able to
-            // go back in browser history. See
-            // https://chat.zulip.org/#narrow/channel/9-issues/topic/Browser.20back.20button.20on.20RT
-            // for detailed description of the issue.
-            window.location.hash = user_settings.web_home_view;
-        }
-    }
+    // The app always starts on Today, whatever the personal "home
+    // view" setting says; settings no longer show that setting.
+    // Today needs an account, so a spectator gets Recent instead.
+    center_views.show(page_params.is_spectator ? "recent" : "today", []);
 }
 
 // Returns true if this function performed a narrow
@@ -160,6 +135,9 @@ function do_hashchange_normal(from_reload: boolean, restore_selected_id: boolean
         trigger: "hash change",
         show_more_topics: false,
     };
+    // Only the #narrow, #topics, #feed, and #all_messages branches
+    // below use narrow_opts. The other views take the hash segments
+    // after their own name instead.
     if (from_reload) {
         blueslip.debug("We are narrowing as part of a reload.");
         if (message_fetch.initial_narrow_pointer !== undefined) {
@@ -214,7 +192,40 @@ function do_hashchange_normal(from_reload: boolean, restore_selected_id: boolean
         }
         case "":
         case "#":
-            show_home_view(narrow_opts);
+            show_home_view();
+            break;
+        case "#today":
+            center_views.show("today", hash.slice(1));
+            break;
+        case "#needs":
+            center_views.show("needs", hash.slice(1));
+            break;
+        case "#agents":
+            // #agents/new[/coding/<runner_id>] opens the Add agent
+            // wizard instead of the agent list.
+            if (hash[1] === "new") {
+                center_views.show("agent-create", hash.slice(2));
+            } else {
+                center_views.show("agents", hash.slice(1));
+            }
+            break;
+        case "#drive":
+            center_views.show("drive", hash.slice(1));
+            break;
+        case "#runners":
+            // #runners/new opens the Add runner wizard instead of the
+            // runner list.
+            if (hash[1] === "new") {
+                center_views.show("runner-add", hash.slice(2));
+            } else {
+                center_views.show("runners", hash.slice(1));
+            }
+            break;
+        case "#mcp":
+            center_views.show("mcp", hash.slice(1));
+            break;
+        case "#workspace-settings":
+            center_views.show("workspace-settings", hash.slice(1));
             break;
         case "#recent_topics":
             // The URL for Recent Conversations was changed from
@@ -224,19 +235,19 @@ function do_hashchange_normal(from_reload: boolean, restore_selected_id: boolean
             // for #recent permanently. We show the view and then
             // replace the current URL hash in a way designed to hide
             // this detail in the browser's forward/back session history.
-            recent_view_ui.show();
+            center_views.show("recent", []);
             window.location.replace("#recent");
             break;
         case "#recent":
-            recent_view_ui.show();
+            center_views.show("recent", []);
             break;
         case "#inbox":
-            inbox_ui.show();
+            center_views.show("inbox", []);
             break;
         case "#tasks":
             // #tasks/mine and #tasks/review open the board already filtered;
             // the Work rows in the left sidebar link to them.
-            task_board_ui.show(task_board_data.parse_filter(hash[1]));
+            center_views.show("tasks", hash.slice(1));
             break;
         case "#all_messages":
             // "#all_messages" was renamed to "#feed" in 2024. Unlike
@@ -265,7 +276,7 @@ function do_hashchange_normal(from_reload: boolean, restore_selected_id: boolean
             blueslip.error("overlay logic skipped for: " + hash[0]);
             break;
         default:
-            show_home_view(narrow_opts);
+            show_home_view();
     }
     return false;
 }

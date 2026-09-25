@@ -84,6 +84,132 @@ async function test_reload_hash(page: Page): Promise<void> {
     assert.strictEqual(hash, initial_hash, "Hash not preserved.");
 }
 
+// Every container that can fill the main column.
+const VIEW_CONTAINERS = [
+    "#today-view",
+    "#needs-view",
+    "#agents-view",
+    "#agent-create-view",
+    "#drive-view",
+    "#runners-view",
+    "#runner-add-view",
+    "#mcp-view",
+    "#workspace-settings-view",
+    "#recent_view",
+    "#inbox-view",
+    "#task-board-view",
+    "#message_feed_container",
+];
+
+type ViewCase = {
+    hash: string;
+    container: string;
+    title: string;
+    // A view without conversations hides the closed compose bar.
+    hides_compose_bar: boolean;
+};
+
+function view_cases(verona_id: number): ViewCase[] {
+    return [
+        {hash: "#today", container: "#today-view", title: "Today", hides_compose_bar: true},
+        {hash: "#needs", container: "#needs-view", title: "Needs you", hides_compose_bar: true},
+        {
+            hash: "#needs/1/confirm",
+            container: "#needs-view",
+            title: "Needs you",
+            hides_compose_bar: true,
+        },
+        {hash: "#agents", container: "#agents-view", title: "Agents", hides_compose_bar: true},
+        {
+            hash: "#agents/new",
+            container: "#agent-create-view",
+            title: "Add agent",
+            hides_compose_bar: true,
+        },
+        {
+            hash: "#agents/new/coding/1",
+            container: "#agent-create-view",
+            title: "Add agent",
+            hides_compose_bar: true,
+        },
+        {hash: "#drive", container: "#drive-view", title: "Drive", hides_compose_bar: true},
+        {
+            hash: `#drive/room/${verona_id}`,
+            container: "#drive-view",
+            title: "Drive",
+            hides_compose_bar: true,
+        },
+        {hash: "#runners", container: "#runners-view", title: "Runners", hides_compose_bar: true},
+        {
+            hash: "#runners/new",
+            container: "#runner-add-view",
+            title: "Add runner",
+            hides_compose_bar: true,
+        },
+        {hash: "#mcp", container: "#mcp-view", title: "MCP connections", hides_compose_bar: true},
+        {
+            hash: "#mcp/catalog",
+            container: "#mcp-view",
+            title: "MCP connections",
+            hides_compose_bar: true,
+        },
+        {
+            hash: "#workspace-settings/general",
+            container: "#workspace-settings-view",
+            title: "Settings",
+            hides_compose_bar: true,
+        },
+        {
+            hash: "#recent",
+            container: "#recent_view",
+            title: "Recent conversations",
+            hides_compose_bar: false,
+        },
+        {hash: "#inbox", container: "#inbox-view", title: "Inbox", hides_compose_bar: false},
+        {
+            hash: "#tasks",
+            container: "#task-board-view",
+            title: "Task board",
+            hides_compose_bar: false,
+        },
+        {
+            hash: "#tasks/mine",
+            container: "#task-board-view",
+            title: "Task board",
+            hides_compose_bar: false,
+        },
+    ];
+}
+
+async function navigate_center_views(page: Page): Promise<void> {
+    console.log("Navigating to every view of the main column");
+
+    const verona_id = await common.get_stream_id(page, "Verona");
+    assert.ok(verona_id !== undefined);
+
+    for (const view_case of view_cases(verona_id)) {
+        await common.go_to_hash(page, view_case.hash);
+        await page.waitForSelector(view_case.container, {visible: true});
+        await wait_for_title(page, view_case.title);
+
+        // Only one view fills the main column at a time.
+        for (const other of VIEW_CONTAINERS) {
+            if (other !== view_case.container) {
+                await page.waitForSelector(other, {hidden: true});
+            }
+        }
+        if (view_case.hides_compose_bar) {
+            await page.waitForSelector("#compose", {hidden: true});
+        }
+    }
+
+    // #agent-jobs opens the task list overlay over the current view.
+    await common.go_to_hash(page, "#agent-jobs");
+    await page.waitForSelector("#agent-job-list-overlay", {visible: true});
+    await page.keyboard.press("Escape");
+    await page.waitForSelector("#agent-job-list-overlay", {hidden: true});
+}
+
 async function navigation_tests(page: Page): Promise<void> {
     await common.log_in(page);
 
@@ -106,6 +232,8 @@ async function navigation_tests(page: Page): Promise<void> {
 
     // Verify that we're still narrowed to the target stream after the reload.
     assert.ok((await page.title()).startsWith("#Verona"), "Not narrowed to the Verona channel.");
+
+    await navigate_center_views(page);
 }
 
 await common.run_test(navigation_tests);

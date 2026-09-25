@@ -1,0 +1,36 @@
+/* Containers for the views that can fill the main column. Each one
+   stays hidden until center_views.ts shows it. The room header shows
+   only with a message feed. */
+#today-view,
+#needs-view,
+#room-header,
+#room-topics-column,
+#agents-view,
+#agent-create-view,
+#drive-view,
+#runners-view,
+#runner-add-view,
+#mcp-view,
+#workspace-settings-view {
+    display: none;
+}
+
+/* The center views clear the fixed navbar, the same way the message
+   feed does. */
+#today-view,
+#needs-view,
+#agents-view,
+#agent-create-view,
+#drive-view,
+#runners-view,
+#runner-add-view,
+#mcp-view,
+#workspace-settings-view {
+    padding-top: var(--navbar-fixed-height);
+}
+
+/* A view without a message feed hides the closed compose bar. When
+   the user opens the compose box, it shows. */
+#compose.hide-closed-compose:not(.compose-box-open) {
+    display: none;
+}

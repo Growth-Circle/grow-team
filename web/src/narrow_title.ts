@@ -1,5 +1,6 @@
 import assert from "minimalistic-assert";
 
+import * as center_views from "./center_views.ts";
 import {electron_bridge} from "./electron_bridge.ts";
 import * as favicon from "./favicon.ts";
 import type {Filter} from "./filter.ts";
@@ -26,6 +27,13 @@ export function compute_narrow_title(filter?: Filter): string {
 
         if (task_board_data.is_visible()) {
             return $t({defaultMessage: "Task board"});
+        }
+
+        // Every view that registers with center_views.ts supplies
+        // its own title, so a new view needs no branch here.
+        const center_view_title = center_views.current_title();
+        if (center_view_title !== undefined) {
+            return center_view_title;
         }
 
         assert(inbox_util.is_visible());

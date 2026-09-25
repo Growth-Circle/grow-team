@@ -62,6 +62,7 @@ import "../../styles/inbox.css";
 import "../../styles/task_board.css";
 import "../../styles/color_picker.css";
 import "../../styles/animate.css";
+import "../../styles/app_frame.css";
 import "../../styles/today.css";
 import "../../styles/needs.css";
 import "../../styles/room.css";

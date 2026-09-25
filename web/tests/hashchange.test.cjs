@@ -16,12 +16,17 @@ set_global("document", "document-stub");
 const history = set_global("history", {state: null});
 
 const admin = mock_esm("../src/admin");
+const center_views = mock_esm("../src/center_views", {
+    // A default for the tests below that reach show_home_view()
+    // through an unknown or unparsable hash and do not check it.
+    // hash_interactions and center_view_routes override it.
+    show: noop,
+});
 const drafts_overlay_ui = mock_esm("../src/drafts_overlay_ui");
 const info_overlay = mock_esm("../src/info_overlay");
 const message_viewport = mock_esm("../src/message_viewport");
 const overlays = mock_esm("../src/overlays");
 const popovers = mock_esm("../src/popovers");
-const recent_view_ui = mock_esm("../src/recent_view_ui");
 const settings = mock_esm("../src/settings");
 mock_esm("../src/settings_data", {
     user_can_create_public_streams: () => true,
@@ -190,14 +195,19 @@ function test_helper({override, override_rewire, change_tab}) {
 
 run_test("hash_interactions", ({override, override_rewire}) => {
     $window_stub = $.create("window-stub");
-    override(user_settings, "web_home_view", "recent");
 
     const helper = test_helper({override, override_rewire, change_tab: true});
 
-    let recent_view_ui_shown = false;
-    override(recent_view_ui, "show", () => {
-        recent_view_ui_shown = true;
+    // This test records center_views.show outside the events array
+    // of test_helper. The plain .trigger("hashchange") of zjquery has
+    // no oldURL, so do_hashchange_overlay() calls show_home_view()
+    // again for each overlay hash below. In the events array, those
+    // calls would add an entry to each unrelated assertion.
+    let center_views_shown;
+    override(center_views, "show", (id, args) => {
+        center_views_shown = [id, args];
     });
+
     let hide_all_called = false;
     override(popovers, "hide_all", () => {
         hide_all_called = true;
@@ -206,9 +216,10 @@ run_test("hash_interactions", ({override, override_rewire}) => {
 
     browser_history.clear_for_testing();
     hashchange.initialize();
-    // If it's an unknown hash it should show the home view.
-    assert.equal(recent_view_ui_shown, true);
+    // If it's an unknown hash it should show the home view, which
+    // is always Today.
     assert.equal(hide_all_called, true);
+    assert.deepEqual(center_views_shown, ["today", []]);
     helper.assert_events([
         [overlays, "close_for_hash_change"],
         [message_viewport, "stop_auto_scrolling"],
@@ -235,12 +246,12 @@ run_test("hash_interactions", ({override, override_rewire}) => {
     ]);
 
     // Test old "#recent_topics" hash redirects to "#recent".
-    recent_view_ui_shown = false;
+    center_views_shown = undefined;
     window.location.hash = "#recent_topics";
 
     helper.clear_events();
     $window_stub.trigger("hashchange");
-    assert.equal(recent_view_ui_shown, true);
+    assert.deepEqual(center_views_shown, ["recent", []]);
     helper.assert_events([
         [overlays, "close_for_hash_change"],
         [message_viewport, "stop_auto_scrolling"],
@@ -299,6 +310,19 @@ run_test("hash_interactions", ({override, override_rewire}) => {
     $window_stub.trigger("hashchange");
     helper.assert_events([[spectators, "login_to_access"]]);
 
+    // A spectator cannot open the new views, and starts on Recent
+    // instead of Today.
+    window.location.hash = "#today";
+    helper.clear_events();
+    $window_stub.trigger("hashchange");
+    helper.assert_events([[spectators, "login_to_access"]]);
+
+    center_views_shown = undefined;
+    window.location.hash = "";
+    helper.clear_events();
+    $window_stub.trigger("hashchange");
+    assert.deepEqual(center_views_shown, ["recent", []]);
+
     page_params.is_spectator = false;
 
     // Test an invalid narrow hash
@@ -321,14 +345,13 @@ run_test("hash_interactions", ({override, override_rewire}) => {
         [stream_settings_ui, "launch"],
     ]);
 
-    recent_view_ui_shown = false;
     window.location.hash = "#reload:send_after_reload=0...";
 
     helper.clear_events();
     $window_stub.trigger("hashchange");
+    // If it's reload hash it shouldn't show the home view (or
+    // anything else: no event fires at all).
     helper.assert_events([]);
-    // If it's reload hash it shouldn't show the home view.
-    assert.equal(recent_view_ui_shown, false);
 
     window.location.hash = "#keyboard-shortcuts/whatever";
 
@@ -558,4 +581,61 @@ run_test("agent_jobs_list_closes_other_overlay", ({override, override_rewire}) =
     // overlay first, so only one overlay is ever open at a time (RL-6).
     go("#agent-jobs");
     assert.equal(close_calls, 1);
+});
+
+run_test("center_view_routes", ({override}) => {
+    browser_history.clear_for_testing();
+    override(popovers, "hide_all", noop);
+    override(overlays, "close_for_hash_change", noop);
+    override(message_viewport, "stop_auto_scrolling", noop);
+
+    const shown = [];
+    override(center_views, "show", (id, args) => {
+        shown.push([id, args]);
+    });
+
+    function go(new_hash) {
+        window.location.hash = new_hash;
+        $window_stub.trigger("hashchange");
+    }
+
+    // Each view hash goes to center_views.show with the id of the
+    // view and the path segments after its name. The hash parser
+    // splits on "/", so parameters are path segments, never a "?"
+    // query string.
+    go("#today");
+    go("#needs");
+    go("#needs/5/confirm");
+    go("#agents");
+    go("#agents/new");
+    go("#agents/new/coding/55");
+    go("#drive/room/42");
+    go("#runners");
+    go("#runners/new");
+    go("#mcp");
+    go("#mcp/catalog");
+    go("#workspace-settings/general");
+    go("#recent");
+    go("#inbox");
+    go("#tasks");
+    go("#tasks/mine");
+
+    assert.deepEqual(shown, [
+        ["today", []],
+        ["needs", []],
+        ["needs", ["5", "confirm"]],
+        ["agents", []],
+        ["agent-create", []],
+        ["agent-create", ["coding", "55"]],
+        ["drive", ["room", "42"]],
+        ["runners", []],
+        ["runner-add", []],
+        ["mcp", []],
+        ["mcp", ["catalog"]],
+        ["workspace-settings", ["general"]],
+        ["recent", []],
+        ["inbox", []],
+        ["tasks", []],
+        ["tasks", ["mine"]],
+    ]);
 });

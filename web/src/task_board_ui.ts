@@ -31,6 +31,11 @@ const history_by_task_id = new Map<number, TaskHistoryEntry[]>();
 export const is_visible = task_board_data.is_visible;
 const set_visible = task_board_data.set_visible;
 
+// The title center_views.ts shows in the browser tab.
+export function title(): string {
+    return $t({defaultMessage: "Task board"});
+}
+
 function day_label(timestamp: number): string {
     return timerender.get_localized_date_or_time_for_format(
         new Date(timestamp * 1000),

@@ -7,6 +7,7 @@ import * as z from "zod/mini";
 import * as activity_ui from "./activity_ui.ts";
 import * as blueslip from "./blueslip.ts";
 import * as browser_history from "./browser_history.ts";
+import * as center_views from "./center_views.ts";
 import * as channel from "./channel.ts";
 import * as compose_actions from "./compose_actions.ts";
 import type {NarrowActivateOpts} from "./compose_actions.ts";
@@ -21,8 +22,6 @@ import {Filter} from "./filter.ts";
 import * as hash_parser from "./hash_parser.ts";
 import * as hash_util from "./hash_util.ts";
 import {$t} from "./i18n.ts";
-import * as inbox_ui from "./inbox_ui.ts";
-import * as inbox_util from "./inbox_util.ts";
 import * as left_sidebar_navigation_area from "./left_sidebar_navigation_area.ts";
 import * as message_edit from "./message_edit.ts";
 import * as message_feed_loading from "./message_feed_loading.ts";
@@ -48,8 +47,6 @@ import {page_params} from "./page_params.ts";
 import * as people from "./people.ts";
 import * as pm_list from "./pm_list.ts";
 import * as popup_banners from "./popup_banners.ts";
-import * as recent_view_ui from "./recent_view_ui.ts";
-import * as recent_view_util from "./recent_view_util.ts";
 import * as resize from "./resize.ts";
 import * as scheduled_messages_feed_ui from "./scheduled_messages_feed_ui.ts";
 import {
@@ -62,7 +59,6 @@ import {realm} from "./state_data.ts";
 import * as stream_data from "./stream_data.ts";
 import * as stream_list from "./stream_list.ts";
 import * as submessage from "./submessage.ts";
-import * as task_board_ui from "./task_board_ui.ts";
 import * as topic_generator from "./topic_generator.ts";
 import * as typing_events from "./typing_events.ts";
 import * as unread from "./unread.ts";
@@ -511,10 +507,6 @@ export let show = (raw_terms: NarrowTerm[], show_opts: ShowMessageViewOpts): voi
         return;
     }
 
-    const coming_from_recent_view = recent_view_util.is_visible();
-    const coming_from_inbox = inbox_util.is_visible();
-    const coming_from_task_board = task_board_ui.is_visible();
-
     const preserve_zoomed_in_channel =
         stream_list.is_zoomed_in() &&
         stream_list.get_sidebar_stream_topic_info(filter).stream_id === narrow_state.stream_id();
@@ -689,13 +681,11 @@ export let show = (raw_terms: NarrowTerm[], show_opts: ShowMessageViewOpts): voi
         // recursively.
         reset_ui_state(opts);
 
-        if (coming_from_recent_view) {
-            recent_view_ui.hide();
-        } else if (coming_from_inbox) {
-            inbox_ui.hide();
-        } else if (coming_from_task_board) {
-            task_board_ui.hide();
-        }
+        // Hide whichever view fills the main column, then show the
+        // room header and the message feed that this narrow renders
+        // into.
+        center_views.hide_all();
+        $("#room-header, #room-topics-column, #message_feed_container").show();
 
         blueslip.debug("Narrowed", {
             operators: terms.map((e) => e.operator),
