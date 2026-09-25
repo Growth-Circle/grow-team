@@ -1,0 +1,9 @@
+{
+  "frontend": {
+    "Undo": "Urungkan",
+    "Cancelled.": "Dibatalkan.",
+    "Try again": "Coba lagi",
+    "Close modal": "Tutup"
+  },
+  "backend": {}
+}
