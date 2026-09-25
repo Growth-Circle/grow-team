@@ -1,11 +1,13 @@
-"""Tests for zerver/lib/workspace_settings.py and
-zerver/views/workspace_settings.py: workspace settings."""
+"""Tests for zerver/lib/workspace_settings.py,
+zerver/views/workspace_settings.py, and zerver/lib/model_budget.py:
+workspace settings and the model budget state."""
 
 from unittest import mock
 
 from django.utils.timezone import now as timezone_now
 from typing_extensions import override
 
+from zerver.lib.model_budget import model_budget_state
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.lib.workspace_settings import BRAND_COLORS, capabilities
 from zerver.models import AgentProvider, AgentRealmSettings, AgentRunner, RealmAuditLog, UserProfile
@@ -381,3 +383,8 @@ class RealmSettingsTests(ZulipTestCase):
             self.assertTrue(data["web_push"])
             self.assertEqual(data["vapid_public_key"], "a-test-key")
             self.assertTrue(data["whatsapp"])
+
+
+class ModelBudgetTests(ZulipTestCase):
+    def test_model_budget_state_reports_ok(self) -> None:
+        self.assertEqual(model_budget_state(get_realm("zulip")), "ok")
