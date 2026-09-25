@@ -143,6 +143,73 @@ paths:
                     result: error
                     msg: Enter the date as YYYY-MM-DD.
                     code: BAD_REQUEST
+
+  /streams/{stream_id}/topics:
+    get:
+      operationId: get-room-topics
+      tags: ["channels"]
+      summary: Get a channel's topics
+      description: |
+        Fetch the 50 most recently active topics in the channel with the ID
+        `stream_id`, each with its message count.
+
+        In a channel with protected history, only messages the requesting
+        user can access count toward `message_count`.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-98ffbd).
+      parameters:
+        - $ref: "#/components/parameters/ChannelIdInPath"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      topics:
+                        type: array
+                        description: |
+                          The channel's most recently active topics, newest
+                          first.
+                        items:
+                          type: object
+                          additionalProperties: false
+                          required:
+                            - name
+                            - max_id
+                            - message_count
+                          properties:
+                            name:
+                              type: string
+                              description: The topic's name.
+                            max_id:
+                              type: integer
+                              description: The ID of the topic's most recent message.
+                            message_count:
+                              type: integer
+                              description: How many messages the topic has.
+              example:
+                result: success
+                msg: ""
+                topics:
+                  - name: "rilis"
+                    max_id: 812
+                    message_count: 34
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/InvalidChannelError"
+                  - description: |
+                      An example JSON response for when the channel ID is not valid:
 components:
   schemas:
     RoomMetaResponse:

@@ -1,4 +1,4 @@
-"""Views for room meta (spec 01, 04; PLAN.md WP14)."""
+"""Views for room meta and room topics (spec 01, 04; PLAN.md WP14)."""
 
 from datetime import date
 from typing import Any
@@ -15,6 +15,7 @@ from zerver.actions.room_meta import (
 )
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.response import json_success
+from zerver.lib.room_topics import get_room_topics
 from zerver.lib.streams import access_stream_by_id
 from zerver.lib.typed_endpoint import PathOnly, typed_endpoint
 from zerver.models import DriveFolderLink, RoomChannelLink, RoomMeta, Stream, Subscription, UserProfile
@@ -94,3 +95,11 @@ def update_room_meta(
         announce=announce, acting_user=user_profile,
     )
     return json_success(request, data=_room_meta_data(user_profile, stream, room_meta))
+
+
+@typed_endpoint
+def get_room_topics_view(
+    request: HttpRequest, user_profile: UserProfile, *, stream_id: PathOnly[int],
+) -> HttpResponse:
+    (stream, _sub) = access_stream_by_id(user_profile, stream_id, require_active_channel=False)
+    return json_success(request, data={"topics": get_room_topics(user_profile, stream)})
