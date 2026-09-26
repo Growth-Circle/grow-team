@@ -1,9 +1,12 @@
 /* The left sidebar keeps a dark surface in both app themes (P-16), but
    its light-dark() text tokens follow the page color-scheme, not the
    sidebar's own fixed-dark background. Force the dark branch here so
-   sidebar text stays readable in the light theme too. */
+   sidebar text stays readable in the light theme too.
+   Plain text such as channel names inherits `color` from <body>, which
+   resolved there in the page theme, so resolve it again here too. */
 .left-sidebar {
     color-scheme: dark;
+    color: var(--color-text-default);
 }
 
 .left-sidebar-title {
