@@ -217,9 +217,9 @@ run_test("hash_interactions", ({override, override_rewire}) => {
     browser_history.clear_for_testing();
     hashchange.initialize();
     // If it's an unknown hash it should show the home view, which
-    // is always Today.
+    // is Inbox until the Today screen is built.
     assert.equal(hide_all_called, true);
-    assert.deepEqual(center_views_shown, ["today", []]);
+    assert.deepEqual(center_views_shown, ["inbox", []]);
     helper.assert_events([
         [overlays, "close_for_hash_change"],
         [message_viewport, "stop_auto_scrolling"],

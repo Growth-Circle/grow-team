@@ -115,10 +115,10 @@ function show_home_view(): void {
     // This function should only be called from the hashchange
     // handlers, as it does not set the hash to "".
     //
-    // The app always starts on Today, whatever the personal "home
-    // view" setting says; settings no longer show that setting.
-    // Today needs an account, so a spectator gets Recent instead.
-    center_views.show(page_params.is_spectator ? "recent" : "today", []);
+    // The app starts on Inbox until the Today screen replaces its
+    // placeholder; settings no longer show the "home view" setting.
+    // Inbox needs an account, so a spectator gets Recent instead.
+    center_views.show(page_params.is_spectator ? "recent" : "inbox", []);
 }
 
 // Returns true if this function performed a narrow
