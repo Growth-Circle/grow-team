@@ -42,6 +42,7 @@ from zerver.lib.agent_policy import (
     _owner_or_grant,
     check_agent_access,
     require_manage_command,
+    work_agent_fast_path,
 )
 from zerver.lib.agent_presence import observed_runner_status
 from zerver.lib.exceptions import JsonableError, ReactionExistsError
@@ -900,27 +901,41 @@ def require_snapshot_resources(
 ) -> None:
     actor = actor or job.requester
     runner = agents.AgentRunner.objects.get(id=attempt.runner_id, realm_id=job.realm_id)
-    if runner.revoked_at is not None or not _owner_or_grant(
-        actor,
-        runner,
-        target_kind="runner",
-        action="runner.use",
-        repository=job.repository,
-        source_message=job.source_message,
-        require_active_authority=True,
-    ):
-        raise AgentAccessDenied("Agent access denied.")
     descriptor = p.AttemptDescriptor.model_validate(attempt.descriptor)
-    if descriptor.provider is not None:
-        current = agents.AgentProvider.objects.get(id=descriptor.provider.id, realm_id=job.realm_id)
-        if current.disabled_at is not None or not _owner_or_grant(
+    # P-19: the same rule as check_agent_access. A work agent needs no
+    # runner or provider grant, while its snapshot still uses the
+    # profile's own work runner and work provider.
+    fast_path = (
+        work_agent_fast_path(job.profile)
+        and runner.id == job.profile.runner_id
+        and (descriptor.provider is None or descriptor.provider.id == job.profile.provider_id)
+    )
+    if runner.revoked_at is not None or (
+        not fast_path
+        and not _owner_or_grant(
             actor,
-            current,
-            target_kind="provider",
-            action="provider.use",
+            runner,
+            target_kind="runner",
+            action="runner.use",
             repository=job.repository,
             source_message=job.source_message,
             require_active_authority=True,
+        )
+    ):
+        raise AgentAccessDenied("Agent access denied.")
+    if descriptor.provider is not None:
+        current = agents.AgentProvider.objects.get(id=descriptor.provider.id, realm_id=job.realm_id)
+        if current.disabled_at is not None or (
+            not fast_path
+            and not _owner_or_grant(
+                actor,
+                current,
+                target_kind="provider",
+                action="provider.use",
+                repository=job.repository,
+                source_message=job.source_message,
+                require_active_authority=True,
+            )
         ):
             raise AgentAccessDenied("Agent access denied.")
         if current.config_version != descriptor.provider.config_version or provider_config(current)[
