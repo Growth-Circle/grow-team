@@ -23,7 +23,7 @@ from zerver.actions.agents import (
     share_agent_profile,
 )
 from zerver.actions.create_user import do_create_user
-from zerver.actions.tasks import do_create_task, do_update_task, link_tasks_to_job, sync_agent_task
+from zerver.actions.tasks import do_create_task, do_update_task, sync_agent_task
 from zerver.actions.users import do_change_user_role
 from zerver.lib import agent_policy
 from zerver.lib.agent_names import (
@@ -545,7 +545,6 @@ class TaskAgentLinkTest(AgentDirectoryAPITestCase):
             job_kind="answer",
             delivery_target="answer",
         )
-        link_tasks_to_job(job)
         card.refresh_from_db()
         people_card.refresh_from_db()
         self.assertEqual(card.agent_job_id, job.id)

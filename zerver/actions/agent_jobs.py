@@ -25,7 +25,7 @@ from zerver.actions.agents import (
     provider_config,
     validate_runtime,
 )
-from zerver.actions.tasks import sync_agent_task
+from zerver.actions.tasks import link_tasks_to_job, sync_agent_task
 from zerver.lib import agent_protocol as p
 from zerver.lib.agent_context import (
     AgentBusy,
@@ -498,6 +498,8 @@ def create_job(
                 scope=scope,
             )
             selected_context(job, [ref.id])
+        # 05-D8: the cards made from the source message follow this job.
+        link_tasks_to_job(job)
         if not draft and not blocked_reason:
             agents.AgentOutbox.objects.create(
                 realm=actor.realm, job=job, delivery_key=f"wake:{job.id}:1", event_type="job.wake"
