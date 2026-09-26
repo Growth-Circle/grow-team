@@ -13,7 +13,12 @@ from django.utils.log import log_response
 from two_factor.middleware.threadlocals import get_current_request
 
 from zerver.lib import agent_protocol as p
-from zerver.lib.agent_policy import AgentAccessDenied, _owner_or_grant, check_agent_access
+from zerver.lib.agent_policy import (
+    AgentAccessDenied,
+    _owner_or_grant,
+    check_agent_access,
+    work_agent_fast_path,
+)
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.message import access_message
 from zerver.lib.streams import user_has_content_access
@@ -310,9 +315,7 @@ def require_job_access(actor: UserProfile, job: agents.AgentJob) -> None:
             str,
             str,
         ]
-    ] = [(job.profile, "profile", "profile.use"), (job.runner, "runner", "runner.use")]
-    if job.repository is not None:
-        resources.append((job.repository, "repository", "repository.read"))
+    ] = [(job.profile, "profile", "profile.use")]
     attempt = agents.AgentAttempt.objects.filter(job=job).order_by("-number").first()
     provider_data = attempt.descriptor.get("provider") if attempt is not None else None
     provider = (
@@ -324,7 +327,18 @@ def require_job_access(actor: UserProfile, job: agents.AgentJob) -> None:
         if attempt is not None
         else job.profile.provider
     )
-    if provider is not None:
+    # P-19: a work agent's job needs no runner or provider grant, the same
+    # rule as check_agent_access.
+    fast_path = (
+        work_agent_fast_path(job.profile)
+        and job.runner_id == job.profile.runner_id
+        and (provider is None or provider.id == job.profile.provider_id)
+    )
+    if not fast_path:
+        resources.append((job.runner, "runner", "runner.use"))
+    if job.repository is not None:
+        resources.append((job.repository, "repository", "repository.read"))
+    if provider is not None and not fast_path:
         resources.append((provider, "provider", "provider.use"))
     for resource, kind, action in resources:
         if resource.realm_id != actor.realm_id or not _owner_or_grant(
