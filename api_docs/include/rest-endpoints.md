@@ -153,6 +153,8 @@
 * [Get a channel's meta](/api/get-room-meta)
 * [Update a channel's meta](/api/update-room-meta)
 * [Get a channel's topics](/api/get-room-topics)
+* [Summarize a channel](/api/summarize-room)
+* [Get a channel's digest](/api/get-room-digest)
 * [Get quiet channels](/api/get-quiet-channels)
 * [Archive several channels](/api/archive-channels)
 
