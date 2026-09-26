@@ -523,6 +523,7 @@ def _publish_result(job_id: UUID) -> dict[str, object]:
     from zerver.actions.message_send import check_message, do_send_messages
     from zerver.lib.addressee import Addressee
     from zerver.lib.mention import silent_mention_syntax_for_user
+    from zerver.lib.room_digests import fill_room_digest
     from zerver.models.clients import get_client
 
     client = get_client("Grow Agent")
@@ -546,6 +547,9 @@ def _publish_result(job_id: UUID) -> dict[str, object]:
         # verify_result requires a summary artifact, read before the locks.
         assert summary_data is not None
         answer = _answer_text(proposal.summary, summary_data)
+        digest_text = fill_room_digest(job, answer)
+        if digest_text is not None:
+            answer = digest_text
         reject_secrets(job, answer.encode())
         # 13-R2: no raw job URL in the message; the card's own Detail action
         # opens the job instead.
@@ -621,6 +625,7 @@ def deliver_result_privately(
     from zerver.lib.addressee import Addressee
     from zerver.lib.mention import silent_mention_syntax_for_user
     from zerver.lib.message import access_message
+    from zerver.lib.room_digests import fill_room_digest
     from zerver.models.clients import get_client
 
     with agent_transaction():
@@ -663,6 +668,9 @@ def deliver_result_privately(
         summary_artifact = _summary_artifact(artifacts)
         assert summary_artifact is not None
         answer = _answer_text(proposal.summary, read_artifact(summary_artifact))
+        digest_text = fill_room_digest(job, answer)
+        if digest_text is not None:
+            answer = digest_text
         reject_secrets(job, answer.encode())
         with override_language(job.realm.default_language):
             first_line = _("This result was sent here because the conversation changed.")

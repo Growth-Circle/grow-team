@@ -211,6 +211,171 @@ paths:
                   - description: |
                       An example JSON response for when the channel ID is not valid:
 
+  /streams/{stream_id}/summarize:
+    post:
+      operationId: summarize-room
+      tags: ["channels"]
+      summary: Summarize a channel
+      description: |
+        Ask the channel's built-in assistant for a fresh summary of the
+        channel with the ID `stream_id`, right away instead of waiting for
+        the next scheduled one.
+
+        The channel must already opt in to a daily summary, and the
+        requesting user must be the channel's owner and hold the
+        `room_summary` permission.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-9df9b7).
+      parameters:
+        - $ref: "#/components/parameters/ChannelIdInPath"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      job_id:
+                        type: string
+                        description: The ID of the summary job that was started.
+              example:
+                result: success
+                msg: ""
+                job_id: "5b1b6f9e-2f2a-4b8a-9c1a-1e2b3c4d5e6f"
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/InvalidChannelError"
+                  - $ref: "#/components/schemas/CodedError"
+              examples:
+                invalid_channel:
+                  summary: The channel ID is not valid.
+                  value:
+                    result: error
+                    msg: Invalid channel ID
+                    code: BAD_REQUEST
+                summary_disabled:
+                  summary: The channel does not opt in to a daily summary.
+                  value:
+                    result: error
+                    msg: Turn on summaries for this channel first.
+                    code: BAD_REQUEST
+                no_permission:
+                  summary: The requesting user cannot change this channel.
+                  value:
+                    result: error
+                    msg: You do not have permission to change this channel.
+                    code: BAD_REQUEST
+                not_available:
+                  summary: The organization has no built-in assistant to summarize with.
+                  value:
+                    result: error
+                    msg: Summaries are not available for this organization.
+                    code: BAD_REQUEST
+
+  /streams/{stream_id}/digest:
+    get:
+      operationId: get-room-digest
+      tags: ["channels"]
+      summary: Get a channel's digest
+      description: |
+        Fetch the channel's summary for one day: what was decided, what is
+        blocking progress, and what is being waited on.
+
+        Requires being able to see the channel's content.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-9df9b7).
+      parameters:
+        - $ref: "#/components/parameters/ChannelIdInPath"
+        - name: date
+          in: query
+          schema:
+            type: string
+          description: |
+            The day to fetch, as `YYYY-MM-DD`. Defaults to today in the
+            organization's own time zone.
+          example: "2026-09-27"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      digest:
+                        type: object
+                        nullable: true
+                        description: |
+                          The channel's digest for the requested day, or
+                          `null` when it does not have one.
+                        additionalProperties: false
+                        required:
+                          - date
+                          - decided
+                          - blocker
+                          - waiting
+                          - summary
+                          - message_count
+                        properties:
+                          date:
+                            type: string
+                            description: The digest's day, as `YYYY-MM-DD`.
+                          decided:
+                            type: array
+                            description: What the channel decided.
+                            items:
+                              type: string
+                          blocker:
+                            type: array
+                            description: What is blocking progress in the channel.
+                            items:
+                              type: string
+                          waiting:
+                            type: array
+                            description: What the channel is waiting on.
+                            items:
+                              type: string
+                          summary:
+                            type: string
+                            description: A short prose summary of the day.
+                          message_count:
+                            type: integer
+                            description: How many messages the digest covers.
+              example:
+                result: success
+                msg: ""
+                digest:
+                  date: "2026-09-27"
+                  decided: ["Ship the WP24 digest with the fast preset."]
+                  blocker: []
+                  waiting: ["Design review of the Room banner."]
+                  summary: "Quiet day; mostly review comments."
+                  message_count: 12
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/InvalidChannelError"
+                  - description: |
+                      An example JSON response for when the channel ID is not valid:
+
   /channels/quiet:
     get:
       operationId: get-quiet-channels

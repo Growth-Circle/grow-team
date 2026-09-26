@@ -1,0 +1,14 @@
+{
+  "frontend": {},
+  "backend": {
+    "Kaki's summary": "Ringkasan Kaki",
+    "Read this channel's messages since the last summary. Reply with JSON only, in this exact shape: {\"decided\": [\"...\"], \"blocker\": [\"...\"], \"waiting\": [\"...\"], \"summary\": \"...\"}. Keep each item short.": "Baca pesan ruang ini sejak ringkasan terakhir. Balas hanya dengan JSON, persis bentuk ini: {\"decided\": [\"...\"], \"blocker\": [\"...\"], \"waiting\": [\"...\"], \"summary\": \"...\"}. Buat tiap item singkat.",
+    "Decisions:": "Keputusan:",
+    "Blocker:": "Blocker:",
+    "Waiting on:": "Menunggu:",
+    "Turn on summaries for this channel first.": "Aktifkan ringkasan untuk ruang ini dulu.",
+    "You do not have permission to change this channel.": "Kamu tidak berhak mengubah ruang ini.",
+    "Summaries are not available for this organization.": "Ringkasan tidak tersedia untuk organisasi ini.",
+    "Enter the date as YYYY-MM-DD.": "Isi tanggal dengan format YYYY-MM-DD."
+  }
+}
