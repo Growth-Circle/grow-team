@@ -25,22 +25,31 @@ function get_bottom_whitespace_height(): number {
     return message_viewport.height() * 0.4;
 }
 
+// A hidden element takes no space. The user card has an auto top
+// margin that equals all free space, so callers pass
+// include_margin=false for it.
+function visible_outer_height(selector: string, include_margin = true): number {
+    const $el = $(selector);
+    if ($el.css("display") === "none") {
+        return 0;
+    }
+    return $el.outerHeight(include_margin) ?? 0;
+}
+
 export function get_stream_filters_max_height(): number {
     const viewport_height = message_viewport.height();
-    // The user card sits right below the list, so there is no gap.
-    const GAP = 0;
-
-    const $left_sidebar_search = $("#left-sidebar-search");
-    const is_search_visible = $left_sidebar_search.css("display") !== "none";
+    // Add some gap for bottom element to be properly visible.
+    const GAP = 15;
 
     let stream_filters_max_height =
         viewport_height -
         Number.parseInt($("#left-sidebar").css("paddingTop"), 10) -
-        ($("#left-sidebar-workspace-switcher").outerHeight(true) ?? 0) -
-        ($("#left-sidebar-command-search").outerHeight(true) ?? 0) -
-        (is_search_visible ? ($left_sidebar_search.outerHeight(true) ?? 0) : 0) -
+        visible_outer_height("#left-sidebar-workspace-switcher") -
+        visible_outer_height("#left-sidebar-command-search") -
+        visible_outer_height("#left-sidebar-search") -
         ($("#left-sidebar-navigation-area").not(".hidden-by-filters").outerHeight(true) ?? 0) -
-        ($("#sidebar-user-card").outerHeight(true) ?? 0) -
+        visible_outer_height("#sidebar-user-card", false) -
+        visible_outer_height("#left-sidebar-modal", false) -
         GAP;
 
     // Don't let us crush the stream sidebar completely out of view
