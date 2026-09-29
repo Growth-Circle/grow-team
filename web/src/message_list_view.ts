@@ -13,6 +13,7 @@ import render_revealed_message_hide_button from "../templates/revealed_message_h
 import render_single_message from "../templates/single_message.hbs";
 
 import * as activity from "./activity.ts";
+import * as agent_avatars from "./agent_avatars.ts";
 import * as blueslip from "./blueslip.ts";
 import * as compose_fade from "./compose_fade.ts";
 import * as condense from "./condense.ts";
@@ -620,6 +621,10 @@ export class MessageListView {
         is_hidden: boolean;
         mention_classname: string | undefined;
         include_sender: boolean;
+        room_view: boolean;
+        sender_initials?: string;
+        agent_avatar_shape?: agent_avatars.AgentAvatarShape;
+        agent_avatar_color?: string;
         status_message: string | false;
         last_edit_timestamp: number | undefined;
         last_moved_timestamp: number | undefined;
@@ -710,6 +715,16 @@ export class MessageListView {
             background_color = stream_data.get_color(message.stream_id);
         }
 
+        // A room (RM-24..34) draws an initials avatar for a person and
+        // a shaped one for an agent. A direct message or a search keeps
+        // the Zulip rendering. message_view.ts uses the same test.
+        const filter = this.list.data.filter;
+        const room_view =
+            filter.has_operator("channel") && !filter.is_keyword_search() && !is_hidden;
+        const agent = room_view
+            ? agent_avatars.get_agent_for_bot_user_id(message.sender_id)
+            : undefined;
+
         return {
             timestr: get_timestr(message),
             // this is only relevant for streams, don't use it if it wasn't set
@@ -722,6 +737,13 @@ export class MessageListView {
             is_hidden,
             mention_classname,
             include_sender,
+            room_view,
+            ...(room_view && {
+                sender_initials: agent_avatars.initials_for_name(
+                    agent?.name ?? message.sender_full_name,
+                ),
+            }),
+            ...(agent && {agent_avatar_shape: agent.shape, agent_avatar_color: agent.color}),
             ...this._maybe_get_me_message(is_hidden, message),
             ...this._get_message_edited_and_moved_vars(message),
         };

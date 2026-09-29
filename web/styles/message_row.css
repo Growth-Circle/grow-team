@@ -1568,3 +1568,141 @@
         vertical-align: -0.1429em; /* -2px at 14px/1em */
     }
 }
+
+/* A room draws its own avatar, AGENT label, and time style (RM-24..34).
+   message_list_view.ts sets room_view for a channel narrow only, so a
+   direct message or a search keeps the stock Zulip look. */
+.room-message-avatar {
+    display: flex;
+}
+
+/* A bot sender gets an ink square with a bot glyph in the stock rows.
+   A room draws the shape itself, so it cancels that look. */
+.messagebox-includes-sender
+    .messagebox-content:has(.room-message-time)
+    .message-avatar.room-message-avatar {
+    width: auto;
+    height: auto;
+    border-radius: 0;
+    background-color: transparent;
+
+    &::before {
+        content: none;
+    }
+}
+
+.room-avatar {
+    box-sizing: border-box;
+    flex: none;
+    margin-top: var(--message-box-vertical-margin);
+}
+
+/* RM-25: a person is initials on ink. */
+.room-avatar-person {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.125em; /* 34px at 16px/1em */
+    height: 2.125em;
+    border-radius: var(--sj-radius-circle);
+    background: var(--sj-ink);
+    color: var(--sj-on-ink);
+
+    > span {
+        font-size: 0.6875em; /* 11px at 16px/1em */
+        font-weight: 800;
+    }
+}
+
+/* RM-26..28: an agent is its shape and color, without text. */
+.room-avatar-circle,
+.room-avatar-ring,
+.room-avatar-box {
+    --room-avatar-color: var(--sj-ink);
+}
+
+.room-avatar-circle {
+    width: 2.125em; /* 34px at 16px/1em */
+    height: 2.125em;
+    border-radius: var(--sj-radius-circle);
+    background: var(--room-avatar-color);
+}
+
+.room-avatar-ring {
+    width: 2.125em; /* 34px at 16px/1em */
+    height: 2.125em;
+    border: 0.5em solid var(--room-avatar-color); /* 8px at 16px/1em */
+    border-radius: var(--sj-radius-circle);
+}
+
+.room-avatar-box {
+    width: 2em; /* 32px at 16px/1em */
+    height: 2em;
+    border-radius: 0.5625em; /* 9px at 16px/1em */
+    background: var(--room-avatar-color);
+}
+
+/* RM-32: the AGENT label after the name. */
+.room-agent-label {
+    display: inline-block;
+    /* The name is a flex row with a 3px gap already. */
+    align-self: center;
+    margin-left: 0.4444em; /* 4px at 9px/1em */
+    padding: 0.2222em 0.6667em; /* 2px 6px at 9px/1em */
+    border-radius: 0.5556em; /* 5px at 9px/1em */
+    background: var(--sj-ink);
+    color: var(--sj-on-ink);
+    font-family: var(--sj-font-mono);
+    font-size: 0.6em; /* 9px at 15px/1em, the size of the name */
+    font-weight: 500;
+    /* The sender line sets a line height in pixels for the avatar. */
+    line-height: 1.2;
+    vertical-align: middle;
+}
+
+/* RM-31: the name is 15px and heavy. The selector repeats the chain of
+   the stock rule it overrides. */
+.messagebox-includes-sender
+    .messagebox-content
+    .message_sender.room-message-sender
+    .sender_name {
+    font-size: 0.9375em; /* 15px at 16px/1em */
+    font-weight: 800;
+}
+
+/* RM-33: the time is small mono text in the muted color. */
+.messagebox-includes-sender
+    .messagebox-content:not(.is-me-message, .content_edit_mode)
+    .message-time.room-message-time {
+    font-family: var(--sj-font-mono);
+    font-size: 0.6875em; /* 11px at 16px/1em */
+    font-weight: 400;
+    color: var(--sj-text-muted);
+}
+
+/* The avatar column is 46px (34px avatar and a 12px gap), not the 58px
+   of the other views. */
+.messagebox-content:not(.content_edit_mode):has(.room-message-time) {
+    grid-template-columns:
+        2.875em minmax(0, 1fr) max-content 8px
+        minmax(var(--message-box-timestamp-column-width), max-content);
+}
+
+/* RM-34: message text is 15px with a line height of 1.5. */
+.messagebox-content:has(.room-message-time) .message_content {
+    font-size: 0.9375em; /* 15px at 16px/1em */
+    line-height: 1.5;
+    color: light-dark(var(--sj-gelap-2), var(--sj-teks-gelap-1));
+}
+
+/* RM-48, RM-49: a reaction is a small chip. */
+.messagebox-content:has(.room-message-time) .message_reaction {
+    height: auto;
+    min-width: 0;
+    padding: 0.1667em 0.6667em; /* 2px 8px at 12px/1em */
+    border-color: var(--sj-divider);
+    background-color: var(--sj-surface);
+    box-shadow: none;
+    color: var(--sj-text);
+    font-size: 0.75em; /* 12px at 16px/1em */
+}

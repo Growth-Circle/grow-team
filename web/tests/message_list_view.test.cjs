@@ -30,6 +30,12 @@ mock_esm("../src/people", {
     maybe_get_user_by_id: noop,
 });
 
+const room_agents = new Map();
+mock_esm("../src/agent_avatars", {
+    get_agent_for_bot_user_id: (user_id) => room_agents.get(user_id),
+    initials_for_name: (name) => `initials of ${name}`,
+});
+
 const {Filter} = zrequire("../src/filter");
 const {MessageListView} = zrequire("../src/message_list_view");
 const message_list = zrequire("message_list");
@@ -58,6 +64,7 @@ test("msg_edited_and_moved_vars", () => {
         const list = new MessageListView(
             {
                 id: 1,
+                data: {filter: new Filter([])},
             },
             true,
             true,
@@ -234,6 +241,7 @@ test("message_edited_vars", () => {
         const list = new MessageListView(
             {
                 id: 1,
+                data: {filter: new Filter([])},
             },
             true,
             true,
@@ -319,6 +327,7 @@ test("muted_message_vars", () => {
         const list = new MessageListView(
             {
                 id: 1,
+                data: {filter: new Filter([])},
             },
             true,
             true,
@@ -943,4 +952,54 @@ test("render_windows", ({mock_template}) => {
         move_end: 250,
         no_move_start: 0,
     });
+});
+
+test("room_message_vars", () => {
+    room_agents.set(10, {name: "Kaki", shape: "ring", color: "#8B74FF"});
+    function room_variables(terms, sender_id, sender_full_name) {
+        const list = new MessageListView({id: 1, data: {filter: new Filter(terms)}}, true, true);
+        list._get_message_edited_and_moved_vars = noop;
+        return list.get_calculated_message_container_variables(
+            {
+                id: 1,
+                status_message: false,
+                type: "stream",
+                stream_id: 2,
+                sender_id,
+                sender_full_name,
+                content: "<p>hi</p>",
+            },
+            true,
+            false,
+        );
+    }
+
+    // A channel narrow draws the room avatar. A person gets initials.
+    let result = room_variables([{operator: "channel", operand: "2"}], 20, "Dita Anggraini");
+    assert.equal(result.room_view, true);
+    assert.equal(result.sender_initials, "initials of Dita Anggraini");
+    assert.equal(result.agent_avatar_shape, undefined);
+
+    // An agent gets its shape and color, and the AGENT label.
+    result = room_variables([{operator: "channel", operand: "2"}], 10, "Kaki Bot");
+    assert.equal(result.agent_avatar_shape, "ring");
+    assert.equal(result.agent_avatar_color, "#8B74FF");
+    assert.equal(result.sender_initials, "initials of Kaki");
+
+    // A search inside the channel, a direct message, and the combined
+    // feed keep the Zulip look.
+    result = room_variables(
+        [
+            {operator: "channel", operand: "2"},
+            {operator: "search", operand: "release"},
+        ],
+        10,
+        "Kaki Bot",
+    );
+    assert.equal(result.room_view, false);
+    assert.equal(result.agent_avatar_shape, undefined);
+    result = room_variables([{operator: "dm", operand: [10]}], 10, "Kaki Bot");
+    assert.equal(result.room_view, false);
+    result = room_variables([], 10, "Kaki Bot");
+    assert.equal(result.room_view, false);
 });

@@ -1,12 +1,27 @@
 {{#if include_sender}}
-    {{> message_avatar . ~}}
+    {{#if room_view}}
+        {{!-- A room draws its own avatar: initials for a person, and the
+        shape of the agent (RM-25..28). --}}
+        <div class="u-{{msg/sender_id}} message-avatar room-message-avatar sender_info_hover view_user_card_tooltip no-select" aria-hidden="true" data-is-bot="{{#if sender_is_bot}}true{{else}}false{{/if}}">
+            {{#if agent_avatar_shape}}
+                <div class="room-avatar room-avatar-{{agent_avatar_shape}}"{{#if agent_avatar_color}} style="--room-avatar-color: {{agent_avatar_color}};"{{/if}}></div>
+            {{else}}
+                <div class="room-avatar room-avatar-person"><span>{{sender_initials}}</span></div>
+            {{/if}}
+        </div>
+    {{else}}
+        {{> message_avatar . ~}}
+    {{/if}}
 {{/if}}
-<span class="message_sender">
+<span class="message_sender{{#if room_view}} room-message-sender{{/if}}">
     {{#if include_sender}}
         <span class="sender_info_hover sender_name" role="button" tabindex="0">
             <span class="view_user_card_tooltip sender_name_text" data-is-bot="{{#if sender_is_bot}}true{{else}}false{{/if}}">
                 {{> user_full_name name=msg/sender_full_name should_add_guest_user_indicator=should_add_guest_indicator_for_sender is_hidden=is_hidden}}
             </span>
+            {{#if agent_avatar_shape}}
+                <span class="room-agent-label">{{t 'AGENT' }}</span>
+            {{/if}}
             {{#unless status_message}}
                 {{#unless is_hidden}}
                 {{> status_emoji msg/status_emoji_info}}
@@ -15,7 +30,9 @@
         </span>
         {{#unless is_hidden}}
             {{#if sender_is_bot}}
+                {{#unless agent_avatar_shape}}
                 <i class="zulip-icon zulip-icon-bot" aria-label="{{t 'Bot' }}"></i>
+                {{/unless}}
             {{/if}}
             {{#if status_message}}
                 <span class="message_content rendered_markdown status-message">{{rendered_markdown status_message}}</span>
@@ -30,7 +47,7 @@
     {{/if}}
 </span>
 
-<a {{#unless msg/locally_echoed}}href="{{ msg/url }}"{{/unless}} class="message-time">
+<a {{#unless msg/locally_echoed}}href="{{ msg/url }}"{{/unless}} class="message-time{{#if room_view}} room-message-time{{/if}}">
     {{#unless include_sender}}
     <span class="copy-paste-text">&nbsp;</span>
     {{/unless}}
