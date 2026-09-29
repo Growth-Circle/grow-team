@@ -40,9 +40,9 @@ run_test("get_stream_filters_max_height", () => {
         set_box("#left-sidebar-navigation-area", {height: 156, margin: 10});
         set_box("#sidebar-user-card", {height: 58, margin: 500});
 
-        // 844 - 78 - 48 - 166 - 58 - 15 (gap). The hidden box and
+        // 844 - 78 - 48 - 166 - 58. The hidden box and
         // and the user card margin add nothing.
-        assert.equal(resize.get_stream_filters_max_height(), 479);
+        assert.equal(resize.get_stream_filters_max_height(), 494);
     } finally {
         Object.assign(proto, {css, outerHeight, not});
     }

@@ -38,8 +38,6 @@ function visible_outer_height(selector: string, include_margin = true): number {
 
 export function get_stream_filters_max_height(): number {
     const viewport_height = message_viewport.height();
-    // Add some gap for bottom element to be properly visible.
-    const GAP = 15;
 
     let stream_filters_max_height =
         viewport_height -
@@ -48,8 +46,7 @@ export function get_stream_filters_max_height(): number {
         visible_outer_height("#left-sidebar-command-search") -
         visible_outer_height("#left-sidebar-search") -
         ($("#left-sidebar-navigation-area").not(".hidden-by-filters").outerHeight(true) ?? 0) -
-        visible_outer_height("#sidebar-user-card", false) -
-        GAP;
+        visible_outer_height("#sidebar-user-card", false);
 
     // Don't let us crush the stream sidebar completely out of view
     stream_filters_max_height = Math.max(80, stream_filters_max_height);
