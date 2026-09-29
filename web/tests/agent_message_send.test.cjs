@@ -174,6 +174,18 @@ run_test(
     },
 );
 
+run_test("a plain accepted task shows no banner", () => {
+    const plain = {decision: "accepted", reason: "", job_id: "j", job_status: "queued"};
+    assert.equal(send.needs_banner([]), false);
+    assert.equal(send.needs_banner([plain]), false);
+    assert.equal(send.needs_banner([plain, {...plain, reason: "runner_busy"}]), true);
+    assert.equal(send.needs_banner([{...plain, reason: "runner_offline"}]), true);
+    assert.equal(send.needs_banner([{...plain, job_status: "blocked"}]), true);
+    assert.equal(send.needs_banner([plain, {decision: "rejected", job_id: null}]), true);
+    assert.equal(send.needs_banner([{decision: "needs_input", job_id: null}]), true);
+    assert.equal(send.needs_banner([{decision: "unknown", job_id: null}]), true);
+});
+
 run_test("contract 12.1: accepted, needs_input, and admission_denied receipts", () => {
     const names = new Map([["a", "Helper"]]);
     const [offline] = send.receipt_rows(

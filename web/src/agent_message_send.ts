@@ -236,10 +236,23 @@ function show_banner(rows: ReceiptRow[], unavailable: boolean): void {
     compose_banner.append_compose_banner_to_banner_list($banner, $("#compose_banners"));
 }
 
+// The job card in the room already shows a plain accepted task. Only a
+// receipt that tells the sender something else needs the compose banner.
+export function needs_banner(
+    receipts: {decision: string; reason?: string; job_status?: string | null}[],
+): boolean {
+    return receipts.some(
+        (receipt) =>
+            receipt.decision !== "accepted" ||
+            receipt.job_status === "blocked" ||
+            ["runner_offline", "runner_unknown", "runner_busy"].includes(receipt.reason ?? ""),
+    );
+}
+
 export async function report_dispatch(message_id: number): Promise<void> {
     try {
         const result = await api.message_dispatch(message_id);
-        if (result.dispatch_receipts.length === 0) {
+        if (!needs_banner(result.dispatch_receipts)) {
             return;
         }
         show_banner(receipt_rows(result.dispatch_receipts, await profile_names()), false);
