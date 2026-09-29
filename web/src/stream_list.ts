@@ -374,17 +374,6 @@ export function update_unread_counts_visibility(): void {
     // `update_section_unread_count`, since they depend on unread counts.
 }
 
-function maybe_change_channel_folders_option_visibility(): void {
-    const $channel_folders_sidebar_option = $(
-        "#left-sidebar-search .channel-folders-sidebar-menu-icon",
-    );
-    if (channel_folders.user_has_folders()) {
-        $channel_folders_sidebar_option.show();
-    } else {
-        $channel_folders_sidebar_option.hide();
-    }
-}
-
 // The user might already have most of the sections collapsed or uncollapsed
 // when toggling the "show channel folders" setting, and we use that information
 // to decide which sections should be collapsed when this setting is changed.
@@ -441,7 +430,6 @@ export function build_stream_list(force_rerender: boolean): void {
         return;
     }
 
-    maybe_change_channel_folders_option_visibility();
 
     function add_sidebar_li(stream_id: number, $list: JQuery, inactive_or_muted = false): void {
         const sidebar_row = stream_sidebar.get_row(stream_id);
