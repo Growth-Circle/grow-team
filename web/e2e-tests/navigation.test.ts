@@ -203,11 +203,10 @@ async function navigate_center_views(page: Page): Promise<void> {
         }
     }
 
-    // #agent-jobs opens the task list overlay over the current view.
+    // #agent-jobs is an old link to the task list. It opens Today.
     await common.go_to_hash(page, "#agent-jobs");
-    await page.waitForSelector("#agent-job-list-overlay", {visible: true});
-    await page.keyboard.press("Escape");
-    await page.waitForSelector("#agent-job-list-overlay", {hidden: true});
+    await page.waitForSelector("#today-view", {visible: true});
+    assert.ok((await common.page_url_with_fragment(page)).endsWith("#today"));
 }
 
 type Box = {x: number; y: number; width: number; height: number};
