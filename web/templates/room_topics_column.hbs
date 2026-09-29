@@ -1,13 +1,13 @@
 {{! The room topic column (RM-11..16). room_topics_column.ts draws it
-    into #room-topics-column whenever a narrow shows a channel. }}
+into #room-topics-column whenever a narrow shows a channel. }}
 {{#if loading}}
 <div class="room-topics-skeleton sj-skeleton" aria-hidden="true"></div>
 {{else}}
 <div class="room-topics-label">{{t "Topics" }}</div>
 {{#each topics}}
-<a href="{{this.url}}" class="room-topic-item{{#if this.is_active}} room-topic-item-active{{/if}}"{{#if this.is_active}} aria-current="page"{{/if}}>
-    <span class="room-topic-item-name">{{this.name}}</span>
-    <span class="room-topic-item-meta">{{this.meta}}</span>
-</a>
+    <a href="{{this.url}}" class="room-topic-item{{#if this.is_active}} room-topic-item-active{{/if}}"{{#if this.is_active}} aria-current="page"{{/if}}>
+        <span class="room-topic-item-name">{{this.name}}</span>
+        <span class="room-topic-item-meta">{{this.meta}}</span>
+    </a>
 {{/each}}
 {{/if}}
