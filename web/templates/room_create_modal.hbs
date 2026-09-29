@@ -11,25 +11,25 @@
 <div class="sanji-modal-field">
     <label for="room_create_name" class="sanji-modal-label">{{t "ROOM NAME" }}</label>
     <input
-        type="text"
-        id="room_create_name"
-        class="sanji-modal-input"
-        autocomplete="off"
-        placeholder="{{t 'e.g. ramadan-campaign' }}"
-        maxlength="60"
-    />
+      type="text"
+      id="room_create_name"
+      class="sanji-modal-input"
+      autocomplete="off"
+      placeholder="{{t 'e.g. ramadan-campaign' }}"
+      maxlength="60"
+      />
 </div>
 <div class="sanji-modal-field">
     <span class="sanji-modal-label" id="room_create_type_label">{{t "TYPE" }}</span>
     <div class="sanji-modal-pills" role="radiogroup" aria-labelledby="room_create_type_label">
         {{#each room_types}}
             <button
-                type="button"
-                class="sanji-modal-pill room-create-type-pill"
-                data-room-type="{{this.key}}"
-                role="radio"
-                aria-checked="false"
-            >{{this.label}}</button>
+              type="button"
+              class="sanji-modal-pill room-create-type-pill"
+              data-room-type="{{this.key}}"
+              role="radio"
+              aria-checked="false"
+              >{{this.label}}</button>
         {{/each}}
     </div>
 </div>
