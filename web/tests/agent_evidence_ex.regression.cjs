@@ -137,6 +137,25 @@ async function test_ex_54_unconfirmed_cancel_survives_a_failed_poll() {
                 if (name === "./agent_task_composer.ts") {
                     return {open_for_followup() {}};
                 }
+                // The drawer parts of the panel need a browser and the
+                // message store, so these tests use stand-ins for them.
+                if (name === "./agent_job_labels.ts") {
+                    return {job_progress: () => 0.5};
+                }
+                if (name === "./agent_job_drawer.ts") {
+                    return {
+                        render_shape() {},
+                        render_steps() {},
+                        async room_for_message() {},
+                        open_room() {},
+                    };
+                }
+                if (name === "./feedback_widget.ts") {
+                    return {show_toast() {}};
+                }
+                if (name === "./live_updates.ts") {
+                    return {on() {}};
+                }
                 if (name === "./i18n.ts") {
                     return {$t: format_message};
                 }

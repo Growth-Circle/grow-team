@@ -4,6 +4,8 @@ import $ from "jquery";
 import render_panel from "../templates/agent/job_panel.hbs";
 
 import * as api from "./agent_api.ts";
+import * as agent_job_drawer from "./agent_job_drawer.ts";
+import {job_progress} from "./agent_job_labels.ts";
 import {open_for_followup} from "./agent_task_composer.ts";
 import {
     accepts_auxiliary_response,
@@ -21,7 +23,9 @@ import {
 } from "./agent_ui_state.ts";
 import type {InputIntent} from "./agent_ui_state.ts";
 import * as browser_history from "./browser_history.ts";
+import * as feedback_widget from "./feedback_widget.ts";
 import {$t} from "./i18n.ts";
+import * as live_updates from "./live_updates.ts";
 import * as overlays from "./overlays.ts";
 import * as people from "./people.ts";
 import {current_user} from "./state_data.ts";
@@ -57,8 +61,17 @@ let input_intent: InputIntent | undefined;
 // Holds an unresolved input intent while its job is not the open one.
 // The key is the actor and the job ID. A visit to another job keeps this retry key.
 const unresolved_inputs = new Map<string, InputIntent>();
-// Profile names change rarely, so one lookup serves every job of that profile.
+// Profile names and bot users change rarely, so one lookup serves every
+// job of that profile. The pause state of a profile changes more often,
+// so a lookup is repeated after 30 seconds.
 const profile_names = new Map<string, string>();
+const profile_bot_user_ids = new Map<string, number>();
+const profile_states = new Map<string, string>();
+const profile_loaded_at = new Map<string, number>();
+const profile_refresh_ms = 30_000;
+// The room of the open job, read from the message that asked for it.
+let job_room: agent_job_drawer.RoomRef | undefined;
+let room_lookup_for = "";
 
 export function valid_job_id(id: string): boolean {
     return uuid.test(id);
@@ -177,38 +190,64 @@ function action(
         .attr("data-job-id", id)
         .appendTo(parent);
 }
+// DR-48..55: the shape of the agent, the title, and the line
+// "agent · # room · state".
 function render_header(job: api.AgentJobDetail["job"]): void {
     $("#agent-job-heading")
-        .text($t({defaultMessage: "Task #{id}"}, {id: job.id.slice(0, 8)}))
+        .text(job.title ?? job.request.slice(0, 80))
         .attr("title", job.id);
+    // The drawer stops a job with "Pause job", so a cancelled job reads
+    // as paused, and "Resume job" starts it again.
     $("#agent-job-state")
-        .text(job_status_label(job.status))
+        .text(
+            job.status === "cancelled"
+                ? $t({defaultMessage: "Paused"})
+                : job_status_label(job.status),
+        )
         .attr("data-tone", state_tone(job.status))
         .prop("hidden", false);
-    const requester = people.maybe_get_user_by_id(job.requester_id, true)?.full_name;
-    const parts = [
-        requester
-            ? $t({defaultMessage: "Requested by {name}"}, {name: requester})
-            : $t({defaultMessage: "Requested by a former member"}),
-    ];
+    const parts: string[] = [];
     const profile_name = profile_names.get(job.profile_id);
     if (profile_name) {
         parts.push(profile_name);
     }
-    $("#agent-job-subtitle").text(parts.join(" · "));
+    if (job_room) {
+        parts.push(`# ${job_room.name}`);
+    }
+    $("#agent-job-owner").text(parts.length > 0 ? `${parts.join(" · ")} · ` : "");
+    agent_job_drawer.render_shape($("#agent-job-shape"), profile_bot_user_ids.get(job.profile_id));
 }
 async function load_profile_name(profile_id: string, id: string, token: number): Promise<void> {
-    if (profile_names.has(profile_id)) {
+    const loaded_at = profile_loaded_at.get(profile_id);
+    if (loaded_at !== undefined && Date.now() - loaded_at < profile_refresh_ms) {
         return;
     }
+    profile_loaded_at.set(profile_id, Date.now());
     try {
         const {profile} = await api.get_profile(profile_id);
         profile_names.set(profile_id, profile.name);
+        profile_bot_user_ids.set(profile_id, profile.bot_user_id);
+        profile_states.set(profile_id, profile.desired_state);
         if (active(id, token) && detail) {
             render_header(detail.job);
+            render_pause_note(detail.job);
         }
     } catch {
-        // The subtitle keeps the requester when the profile is not visible to this member.
+        // The line keeps the room when the profile is not visible to this member.
+        profile_loaded_at.delete(profile_id);
+    }
+}
+// The room of the job is the room of the message that asked for it.
+async function load_room(job: api.AgentJobDetail["job"], id: string, token: number): Promise<void> {
+    if (room_lookup_for === job.id || job.source_message_id === null) {
+        return;
+    }
+    room_lookup_for = job.id;
+    const room = await agent_job_drawer.room_for_message(job.source_message_id);
+    if (active(id, token) && detail) {
+        job_room = room;
+        render_header(detail.job);
+        render_controls(detail.job);
     }
 }
 function status(message: string): void {
@@ -310,15 +349,102 @@ function render_operation_card(box: JQuery, item: api.AgentJobDetail["operations
         item.approval_decision ?? $t({defaultMessage: "None"}),
     );
 }
+// DR-56..61: the bar and the five steps.
+function render_progress(job: api.AgentJobDetail["job"]): void {
+    agent_job_drawer.render_steps(
+        $("#agent-job-steps"),
+        $("#agent-job-progress-fill"),
+        job_progress(job.status, job.phase),
+        job.status,
+    );
+    // A stopped job does not move, so its bar does not run.
+    $("#agent-job-progress").toggleClass(
+        "sj-job-drawer__bar--still",
+        !executing_states.has(job.status),
+    );
+}
+// A job that a person paused, or a job of a paused agent, ends its
+// current step and then stops (spec 09 F).
+function render_pause_note(job: api.AgentJobDetail["job"]): void {
+    const waits =
+        job.status === "cancel_requested" ||
+        ((job.status === "running" || job.status === "verifying") &&
+            profile_states.get(job.profile_id) === "paused");
+    $("#agent-job-paused-note")
+        .prop("hidden", !waits)
+        .text(
+            waits
+                ? $t({defaultMessage: "Waiting for the step to finish, then the job stops."})
+                : "",
+        );
+}
+function footer_action(parent: JQuery, label: string, name: string, primary = false): void {
+    $("<button type='button'>")
+        .addClass("sj-drawer__action")
+        .toggleClass("sj-drawer__action--primary", primary)
+        .text(label)
+        .attr("data-job-action", name)
+        .attr("data-job-id", "")
+        .appendTo(parent);
+}
+// DR-93, DR-94: "Pause job" or "Resume job" as the plain button, and
+// "Open room" as the primary button.
+function render_controls(job: api.AgentJobDetail["job"]): void {
+    const resume_available = job.resume_available ?? false;
+    const controls = $("#agent-job-controls").empty();
+    if (job.allowed_actions.includes("cancel")) {
+        footer_action(controls, $t({defaultMessage: "Pause job"}), "cancel");
+    }
+    if (job.allowed_actions.includes("resume")) {
+        if (resume_available) {
+            footer_action(controls, $t({defaultMessage: "Resume job"}), "resume");
+            if (job.job_kind === "code") {
+                $("<p class='agent-job-note'>")
+                    .text(
+                        $t({
+                            defaultMessage:
+                                "Resume continues on the same device, from its saved work.",
+                        }),
+                    )
+                    .appendTo(controls);
+            }
+        } else {
+            $("<p class='agent-job-note'>")
+                .text(resume_unavailable_sentence(job.resume_unavailable_reason))
+                .appendTo(controls);
+        }
+    }
+    if (job.allowed_actions.includes("deliver_privately")) {
+        footer_action(
+            controls,
+            $t({defaultMessage: "Send the result to me privately"}),
+            "deliver-privately",
+        );
+    }
+    if (job.allowed_actions.includes("follow_up")) {
+        footer_action(controls, $t({defaultMessage: "Create follow-up task"}), "follow-up");
+    }
+    if (job_room) {
+        footer_action(controls, $t({defaultMessage: "Open room"}), "open-room", true);
+    }
+}
 function render(data: api.AgentJobDetail): void {
     const {job} = data;
     const attempt = selected_attempt(data);
     const attempt_id = attempt?.id;
     render_header(job);
+    render_progress(job);
+    render_pause_note(job);
     // Only an answer-mode job gets this note; a manage job answers by
     // taking team actions, not by refusing to write code.
     $("#agent-job-answer-note").prop("hidden", job.job_kind !== "answer");
     const summary = $("#agent-job-summary").empty();
+    const requester = people.maybe_get_user_by_id(job.requester_id, true)?.full_name;
+    fact(
+        summary,
+        $t({defaultMessage: "Requested by"}),
+        requester ?? $t({defaultMessage: "A former member"}),
+    );
     fact(
         summary,
         $t({defaultMessage: "Task type"}),
@@ -538,6 +664,10 @@ function render(data: api.AgentJobDetail): void {
                 : $t({defaultMessage: "No more operations"}),
         );
     $("#agent-job-first-operations").remove();
+    $("#agent-job-operations-section").prop(
+        "hidden",
+        data.operations.length === 0 && operation_offset === 0,
+    );
     if (operation_offset > 0) {
         $(
             "<button type='button' id='agent-job-first-operations' class='action-button action-button-text-brand agent-job-more'>",
@@ -578,6 +708,10 @@ function render(data: api.AgentJobDetail): void {
             action(line, $t({defaultMessage: "Preview"}), "preview", item.id, "text-brand");
         }
     }
+    $("#agent-job-artifacts-section").prop(
+        "hidden",
+        current_artifacts.length === 0 && !data.artifacts_cursor.truncated,
+    );
     $("#agent-job-more-artifacts")
         .prop("hidden", !data.artifacts_cursor.truncated)
         .text(
@@ -586,39 +720,7 @@ function render(data: api.AgentJobDetail): void {
                 : $t({defaultMessage: "All artifacts shown"}),
         );
     const resume_available = job.resume_available ?? false;
-    const controls = $("#agent-job-controls").empty();
-    if (job.allowed_actions.includes("cancel")) {
-        action(controls, $t({defaultMessage: "Request stop"}), "cancel");
-    }
-    if (job.allowed_actions.includes("resume")) {
-        if (resume_available) {
-            action(controls, $t({defaultMessage: "Resume job"}), "resume", "", "subtle-brand");
-            if (job.job_kind === "code") {
-                $("<p class='agent-job-note'>")
-                    .text(
-                        $t({
-                            defaultMessage:
-                                "Resume continues on the same device, from its saved work.",
-                        }),
-                    )
-                    .appendTo(controls);
-            }
-        } else {
-            $("<p class='agent-job-note'>")
-                .text(resume_unavailable_sentence(job.resume_unavailable_reason))
-                .appendTo(controls);
-        }
-    }
-    if (job.allowed_actions.includes("deliver_privately")) {
-        action(
-            controls,
-            $t({defaultMessage: "Send the result to me privately"}),
-            "deliver-privately",
-        );
-    }
-    if (job.allowed_actions.includes("follow_up")) {
-        action(controls, $t({defaultMessage: "Create follow-up task"}), "follow-up");
-    }
+    render_controls(job);
     const input_allowed =
         job.allowed_actions.includes("input") &&
         (job.status === "queued" ||
@@ -694,6 +796,7 @@ async function fetch_detail(id: string, token: number): Promise<void> {
         detail = fresh;
         render(fresh);
         void load_profile_name(fresh.job.profile_id, id, token);
+        void load_room(fresh.job, id, token);
         await fetch_events(id, token);
         await fetch_inputs(id, token);
     } catch {
@@ -741,17 +844,23 @@ async function fetch_events(id: string, token: number): Promise<void> {
         const shown = events.filter((item) => item.attempt_id === attempt_id).slice(-100);
         // The newest event still waits for the next step while the job runs.
         const running = executing_states.has(detail?.job.status ?? "");
+        // DR-62..65: one line for each event, with the time before the
+        // words. The line of a running step says "new" and ends with "…".
         for (const [index, event] of shown.entries()) {
             const pending = running && index === shown.length - 1;
-            row(
-                box,
-                pending ? "clock" : "check",
-                agent_activity_label(event.type),
-                clock_time(event.occurred_at),
-            ).toggleClass("pending", pending);
+            const line = $("<div class='sj-job-drawer__log-line'>")
+                .toggleClass("pending", pending)
+                .appendTo(box);
+            $("<span class='sj-job-drawer__log-time'>")
+                .text(pending ? $t({defaultMessage: "new"}) : clock_time(event.occurred_at))
+                .appendTo(line);
+            $("<span class='sj-job-drawer__log-text'>")
+                .text(`${agent_activity_label(event.type)}${pending ? "…" : ""}`)
+                .appendTo(line);
         }
+        box.scrollTop(box[0]?.scrollHeight ?? 0);
         if (shown.length === 0) {
-            $("<p class='agent-job-empty'>")
+            $("<p class='sj-job-drawer__log-line'>")
                 .text($t({defaultMessage: "No events for this attempt."}))
                 .appendTo(box);
         }
@@ -842,6 +951,8 @@ function clear(): void {
     visit += 1;
     target = "";
     detail = undefined;
+    job_room = undefined;
+    room_lookup_for = "";
     events = [];
     event_after = 0;
     operation_offset = 0;
@@ -922,6 +1033,13 @@ function bind(): void {
         return;
     }
     handlers_bound = true;
+    // The server tells about each change of a job, so the drawer does
+    // not wait for its next poll.
+    live_updates.on("agent_job", (event) => {
+        if (target !== "" && event["job_id"] === target) {
+            void fetch_detail(target, visit);
+        }
+    });
     $("body").on("input", "#agent-job-input", () => {
         input_revision += 1;
     });
@@ -1064,17 +1182,40 @@ function bind(): void {
                 status($t({defaultMessage: "Action failed. Refresh the current job state."}));
             }
         };
-        if (name === "cancel" && job.allowed_actions.includes("cancel")) {
+        // A failed change puts the drawer back as it was and offers a retry.
+        const run_change = (
+            change: "cancel" | "resume",
+            payload: Record<string, unknown>,
+            done_text: string,
+        ): void => {
             void api
-                .job_action(id, "cancel", {expected_version: job.version})
-                .then(on_success)
-                .catch(on_error);
+                .job_action(id, change, {expected_version: detail?.job.version, ...payload})
+                .then(() => {
+                    on_success();
+                    feedback_widget.show_toast({text: done_text, variant: "info"});
+                })
+                .catch(() => {
+                    on_error();
+                    feedback_widget.show_toast({
+                        text: $t({defaultMessage: "Could not save the change."}),
+                        variant: "error",
+                        on_retry() {
+                            if (active(id, token)) {
+                                run_change(change, payload, done_text);
+                            }
+                        },
+                    });
+                });
+        };
+        if (name === "cancel" && job.allowed_actions.includes("cancel")) {
+            run_change("cancel", {}, $t({defaultMessage: "The job pauses when this step ends."}));
         }
         if (name === "resume" && job.allowed_actions.includes("resume")) {
-            void api
-                .job_action(id, "resume", {expected_version: job.version, checkpoint_id: null})
-                .then(on_success)
-                .catch(on_error);
+            run_change("resume", {checkpoint_id: null}, $t({defaultMessage: "Job resumed."}));
+        }
+        if (name === "open-room" && job_room) {
+            agent_job_drawer.open_room(job_room);
+            return;
         }
         if (name === "follow-up" && job.allowed_actions.includes("follow_up")) {
             open_for_followup({
@@ -1151,9 +1292,12 @@ export let change_target = (id: string): void => {
     $("#agent-job-heading")
         .text($t({defaultMessage: "Agent task"}))
         .removeAttr("title");
-    $("#agent-job-subtitle, #agent-job-updated").text("");
+    $("#agent-job-owner, #agent-job-updated").text("");
     $("#agent-job-state").prop("hidden", true);
-    $("#agent-job-answer-note").prop("hidden", true);
+    $("#agent-job-shape").prop("hidden", true);
+    $("#agent-job-steps").empty();
+    $("#agent-job-progress-fill").css("width", "0%");
+    $("#agent-job-answer-note, #agent-job-paused-note").prop("hidden", true);
     $(
         "#agent-job-summary, #agent-job-attempt, #agent-job-checks, #agent-job-operations, #agent-job-artifacts, #agent-job-inputs, #agent-job-events, #agent-job-controls",
     ).empty();

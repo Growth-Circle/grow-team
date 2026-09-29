@@ -1,133 +1,182 @@
 <div
-    id="agent-job-overlay"
-    class="overlay"
-    data-overlay="agent-jobs"
-    aria-hidden="true"
->
-    <div class="flex overlay-content"><aside
-            class="overlay-container agent-job-container"
-            role="dialog"
-            aria-labelledby="agent-job-heading"
-        >
-            <header class="agent-job-header">
-                <div class="agent-job-title"><h1
-                        id="agent-job-heading"
-                        tabindex="-1"
-                    >{{t "Agent task" }}</h1><p
-                        id="agent-job-subtitle"
-                        class="agent-job-subtitle"
-                    ></p></div>
-                <span id="agent-job-state" class="agent-job-state" hidden></span>
+  id="agent-job-overlay"
+  class="overlay sj-job-drawer"
+  data-overlay="agent-jobs"
+  aria-hidden="true"
+  >
+    <div class="flex overlay-content">
+        <aside
+          class="overlay-container sj-job-drawer__panel"
+          role="dialog"
+          aria-labelledby="agent-job-heading"
+          >
+            <header class="sj-job-drawer__header">
+                <span class="sj-job-drawer__kind">{{t "AGENT JOB" }}</span>
                 <button
-                    type="button"
-                    class="exit agent-job-close"
-                    aria-label="{{t 'Close agent task' }}"
-                ><i class="zulip-icon zulip-icon-close" aria-hidden="true"></i></button>
+                  type="button"
+                  class="exit sj-job-drawer__close"
+                  aria-label="{{t 'Close agent task' }}"
+                  >
+                    <span aria-hidden="true">✕</span>
+                </button>
             </header>
-            <div class="agent-job-body">
+            <div class="agent-job-body sj-job-drawer__body">
+                <div class="sj-job-drawer__head">
+                    <span id="agent-job-shape" class="sj-job-drawer__shape" hidden></span>
+                    <div class="sj-job-drawer__titles">
+                        <h1
+                          id="agent-job-heading"
+                          class="sj-job-drawer__title"
+                          tabindex="-1"
+                          >
+                            {{t "Agent task" }}
+                        </h1>
+                        <p id="agent-job-subtitle" class="sj-job-drawer__meta">
+                            <span id="agent-job-owner"></span>
+                            <span id="agent-job-state" hidden></span>
+                        </p>
+                    </div>
+                </div>
+                <div
+                  id="agent-job-progress"
+                  class="sj-job-drawer__bar"
+                  role="progressbar"
+                  aria-label="{{t 'Job progress' }}"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  >
+                    <div id="agent-job-progress-fill" class="sj-job-drawer__bar-fill"></div>
+                </div>
                 <p
-                    id="agent-job-status"
-                    class="agent-job-status"
-                    role="status"
-                    aria-live="polite"
-                >{{t "Loading job…" }}</p>
+                  id="agent-job-status"
+                  class="agent-job-status sj-job-drawer__status"
+                  role="status"
+                  aria-live="polite"
+                  >
+                    {{t "Loading job…" }}
+                </p>
                 <p
-                    id="agent-job-answer-note"
-                    class="agent-job-note"
-                    hidden
-                >{{t "This agent only answers. Create a Coding task to change code." }}</p>
-                <dl id="agent-job-summary" class="agent-job-facts"></dl>
-                <section
-                    class="agent-job-card"
-                    aria-labelledby="agent-job-events-heading"
-                ><h2
-                        id="agent-job-events-heading"
-                        class="agent-job-card-title"
-                    >{{t "Activity" }}</h2><div
-                        id="agent-job-events"
-                        class="agent-job-rows"
-                    ></div><button
-                        type="button"
-                        id="agent-job-more-events"
-                        class="action-button action-button-text-brand agent-job-more"
-                        hidden
-                    >{{t "Show more events" }}</button></section>
-                <section
-                    class="agent-job-card"
-                    aria-labelledby="agent-job-artifacts-heading"
-                ><h2
-                        id="agent-job-artifacts-heading"
-                        class="agent-job-card-title"
-                    >{{t "Files" }}</h2><div
-                        id="agent-job-artifacts"
-                        class="agent-job-rows"
-                    ></div><button
-                        type="button"
-                        id="agent-job-more-artifacts"
-                        class="action-button action-button-text-brand agent-job-more"
-                        hidden
-                    >{{t "Show more artifacts" }}</button></section>
-                <section
-                    class="agent-job-card"
-                    aria-labelledby="agent-job-checks-heading"
-                ><h2
-                        id="agent-job-checks-heading"
-                        class="agent-job-card-title"
-                    >{{t "Checks" }}</h2><div
-                        id="agent-job-checks"
-                        class="agent-job-rows"
-                    ></div></section>
-                <section
-                    class="agent-job-card"
-                    aria-labelledby="agent-job-operations-heading"
-                ><h2
-                        id="agent-job-operations-heading"
-                        class="agent-job-card-title"
-                    >{{t "Operations and approvals" }}</h2><div
-                        id="agent-job-operations"
-                        class="agent-job-rows"
-                    ></div><button
-                        type="button"
-                        id="agent-job-more-operations"
-                        class="action-button action-button-text-brand agent-job-more"
-                        hidden
-                    >{{t "Show the next operations" }}</button></section>
-                <details
-                    class="agent-job-card"
-                ><summary
-                        id="agent-job-attempt-heading"
-                        class="agent-job-card-title"
-                    >{{t "Technical details" }}</summary><div
-                        id="agent-job-attempt"
-                        class="agent-job-rows"
-                    ></div></details>
-                <section
-                    class="agent-job-card"
-                    aria-labelledby="agent-job-inputs-heading"
-                ><h2
-                        id="agent-job-inputs-heading"
-                        class="agent-job-card-title"
-                    >{{t "Follow-up input" }}</h2><div
-                        id="agent-job-inputs"
-                        class="agent-job-rows"
-                    ></div>
-                    <form id="agent-job-input-form" class="agent-job-input-form" hidden><label
-                            class="settings-field-label"
-                            for="agent-job-input"
-                        >{{t "Follow-up input for this job" }}</label><textarea
-                            id="agent-job-input"
-                            class="settings-textarea"
-                            required
-                            maxlength="20000"
-                        ></textarea><button
-                            type="submit"
-                            class="action-button action-button-solid-brand"
-                        >{{t "Send input" }}</button></form>
+                  id="agent-job-paused-note"
+                  class="agent-job-note sj-job-drawer__note"
+                  hidden
+                  >
+                </p>
+                <p
+                  id="agent-job-answer-note"
+                  class="agent-job-note sj-job-drawer__note"
+                  hidden
+                  >
+                    {{t "This agent only answers. Create a Coding task to change code." }}
+                </p>
+                <section class="sj-job-drawer__block" aria-labelledby="agent-job-steps-heading">
+                    <h2 id="agent-job-steps-heading" class="sj-job-drawer__label">
+                        {{t "STEPS" }}
+                    </h2>
+                    <ol id="agent-job-steps" class="sj-job-drawer__steps"></ol>
                 </section>
+                <section
+                  class="sj-job-drawer__block sj-job-drawer__block--log"
+                  aria-labelledby="agent-job-events-heading"
+                  >
+                    <h2 id="agent-job-events-heading" class="sj-job-drawer__label">
+                        {{t "LIVE LOG" }}
+                    </h2>
+                    <div
+                      id="agent-job-events"
+                      class="sj-job-drawer__log"
+                      role="log"
+                      aria-live="off"
+                      >
+                    </div>
+                    <button
+                      type="button"
+                      id="agent-job-more-events"
+                      class="action-button action-button-text-brand agent-job-more"
+                      hidden
+                      >
+                        {{t "Show more events" }}
+                    </button>
+                </section>
+                <section
+                  id="agent-job-operations-section"
+                  class="agent-job-card"
+                  aria-labelledby="agent-job-operations-heading"
+                  >
+                    <h2 id="agent-job-operations-heading" class="agent-job-card-title">
+                        {{t "Operations and approvals" }}
+                    </h2>
+                    <div id="agent-job-operations" class="agent-job-rows"></div>
+                    <button
+                      type="button"
+                      id="agent-job-more-operations"
+                      class="action-button action-button-text-brand agent-job-more"
+                      hidden
+                      >
+                        {{t "Show the next operations" }}
+                    </button>
+                </section>
+                <section class="agent-job-card" aria-labelledby="agent-job-inputs-heading">
+                    <h2 id="agent-job-inputs-heading" class="agent-job-card-title">
+                        {{t "Follow-up input" }}
+                    </h2>
+                    <div id="agent-job-inputs" class="agent-job-rows"></div>
+                    <form id="agent-job-input-form" class="agent-job-input-form" hidden>
+                        <label class="settings-field-label" for="agent-job-input">
+                            {{t "Follow-up input for this job" }}
+                        </label>
+                        <textarea
+                          id="agent-job-input"
+                          class="settings-textarea"
+                          required
+                          maxlength="20000"
+                          >
+                        </textarea>
+                        <button type="submit" class="action-button action-button-solid-brand">
+                            {{t "Send input" }}
+                        </button>
+                    </form>
+                </section>
+                <section
+                  id="agent-job-artifacts-section"
+                  class="agent-job-card"
+                  aria-labelledby="agent-job-artifacts-heading"
+                  >
+                    <h2 id="agent-job-artifacts-heading" class="agent-job-card-title">
+                        {{t "Files" }}
+                    </h2>
+                    <div id="agent-job-artifacts" class="agent-job-rows"></div>
+                    <button
+                      type="button"
+                      id="agent-job-more-artifacts"
+                      class="action-button action-button-text-brand agent-job-more"
+                      hidden
+                      >
+                        {{t "Show more artifacts" }}
+                    </button>
+                </section>
+                <section class="agent-job-card" aria-labelledby="agent-job-checks-heading">
+                    <h2 id="agent-job-checks-heading" class="agent-job-card-title">
+                        {{t "Checks" }}
+                    </h2>
+                    <div id="agent-job-checks" class="agent-job-rows"></div>
+                </section>
+                <details class="agent-job-card">
+                    <summary id="agent-job-facts-heading" class="agent-job-card-title">
+                        {{t "Job details" }}
+                    </summary>
+                    <dl id="agent-job-summary" class="agent-job-facts"></dl>
+                </details>
+                <details class="agent-job-card">
+                    <summary id="agent-job-attempt-heading" class="agent-job-card-title">
+                        {{t "Technical details" }}
+                    </summary>
+                    <div id="agent-job-attempt" class="agent-job-rows"></div>
+                </details>
             </div>
-            <footer class="agent-job-footer">
-                <div id="agent-job-controls" class="agent-job-controls"></div>
-                <span id="agent-job-updated" class="agent-job-updated"></span>
+            <footer class="sj-job-drawer__footer">
+                <div id="agent-job-controls" class="sj-job-drawer__controls"></div>
+                <span id="agent-job-updated" class="agent-job-updated" hidden></span>
             </footer>
-        </aside></div>
+        </aside>
+    </div>
 </div>

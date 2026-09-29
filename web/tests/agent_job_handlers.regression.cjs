@@ -26,6 +26,67 @@ function format_t(descriptor, values) {
     return text;
 }
 
+function transpile_module(source) {
+    return ts.transpileModule(source, {
+        compilerOptions: {
+            module: ts.ModuleKind.CommonJS,
+            esModuleInterop: true,
+            target: ts.ScriptTarget.ES2022,
+        },
+    }).outputText;
+}
+
+// The modules that the drawer added to the panel. The real label module
+// runs against the real state module. The drawer parts need a browser
+// and the message store, so they are stand-ins that record their calls.
+function panel_extras(state) {
+    const labels = {};
+    vm.runInNewContext(
+        transpile_module(
+            fs.readFileSync(path.join(__dirname, "../src/agent_job_labels.ts"), "utf8"),
+        ),
+        {
+            exports: labels,
+            require(name) {
+                if (name === "./agent_ui_state.ts") {
+                    return state;
+                }
+                if (name === "./i18n.ts") {
+                    return {$t: format_t};
+                }
+                throw new Error(name);
+            },
+        },
+    );
+    const toasts = [];
+    const live_handlers = [];
+    const drawer_calls = [];
+    return {
+        toasts,
+        live_handlers,
+        drawer_calls,
+        modules: {
+            "./agent_job_labels.ts": labels,
+            "./agent_job_drawer.ts": {
+                render_shape(_$shape, bot_user_id) {
+                    drawer_calls.push(["shape", bot_user_id]);
+                },
+                render_steps(_$list, _$fill, progress, status) {
+                    drawer_calls.push(["steps", progress, status]);
+                },
+                async room_for_message() {
+                    return undefined;
+                },
+                open_room(room) {
+                    drawer_calls.push(["room", room]);
+                },
+            },
+            "./feedback_widget.ts": {show_toast: (options) => toasts.push(options)},
+            "./live_updates.ts": {on: (type, handler) => live_handlers.push([type, handler])},
+        },
+    };
+}
+
 async function main() {
     const dom = new JSDOM("<body></body>", {url: "https://realm.test"});
     global.window = dom.window;
@@ -117,11 +178,15 @@ async function main() {
         },
     );
     const out = {};
+    const extras = panel_extras(state);
     vm.runInNewContext(
         transpile(fs.readFileSync(path.join(__dirname, "../src/agent_job_panel.ts"), "utf8")),
         {
             exports: out,
             require(name) {
+                if (Object.hasOwn(extras.modules, name)) {
+                    return extras.modules[name];
+                }
                 if (name === "jquery") {
                     return $;
                 }
@@ -249,11 +314,15 @@ function build_input_retention_harness(api, composer = {}) {
         },
     );
     const out = {};
+    const extras = panel_extras(state);
     vm.runInNewContext(
         transpile(fs.readFileSync(path.join(__dirname, "../src/agent_job_panel.ts"), "utf8")),
         {
             exports: out,
             require(name) {
+                if (Object.hasOwn(extras.modules, name)) {
+                    return extras.modules[name];
+                }
                 if (name === "jquery") {
                     return $;
                 }
@@ -308,7 +377,7 @@ function build_input_retention_harness(api, composer = {}) {
             await Promise.resolve();
         }
     };
-    return {dom, $, out, flush};
+    return {dom, $, out, flush, extras};
 }
 
 function queued_job_detail(id) {
@@ -996,6 +1065,242 @@ async function cancel_removes_approve_and_shows_stopping_sentence() {
     }
 }
 
+const drawer_attempt = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+
+function drawer_job_detail(id, overrides = {}) {
+    return {
+        job: {
+            id,
+            profile_id: "11111111-1111-4111-8111-111111111111",
+            requester_id: 4,
+            source_message_id: null,
+            version: 3,
+            status: "running",
+            phase: "edit",
+            job_kind: "code",
+            delivery_target: "draft_pr",
+            blocked_reason: null,
+            request: "Take the mobile screenshots for the pull request.",
+            title: "Screenshot mobile PR #214",
+            allowed_actions: ["cancel", "input"],
+            ...overrides,
+        },
+        attempts: [
+            {
+                id: drawer_attempt,
+                number: 1,
+                process_state: "active",
+                active: true,
+                base_commit: null,
+                tree_hash: null,
+            },
+        ],
+        required_checks: [],
+        operations: [],
+        artifacts: [],
+        operations_cursor: {offset: 0, next_offset: 0, truncated: false},
+        artifacts_cursor: {offset: 0, next_offset: 0, truncated: false},
+    };
+}
+
+// Objects from the panel come from another realm. This copies them into
+// this one, so that deepEqual compares them by content.
+function plain(value) {
+    return structuredClone(value);
+}
+
+function drawer_api(overrides = {}, desired_state = "enabled") {
+    const calls = {get_job: 0, job_action: []};
+    const api = {
+        async get_job(id) {
+            calls.get_job += 1;
+            return drawer_job_detail(id, overrides);
+        },
+        async get_job_events() {
+            return {
+                events: [
+                    {
+                        sequence: 1,
+                        attempt_id: drawer_attempt,
+                        type: "attempt.started",
+                        occurred_at: "2026-09-29T09:12:00Z",
+                    },
+                    {
+                        sequence: 2,
+                        attempt_id: drawer_attempt,
+                        type: "tool.started",
+                        occurred_at: "2026-09-29T09:13:00Z",
+                    },
+                ],
+            };
+        },
+        async get_job_inputs() {
+            return {inputs: [], count: 0};
+        },
+        async get_profile() {
+            return {profile: {name: "Ayame", bot_user_id: 7, desired_state}};
+        },
+        async job_action(id, action, payload) {
+            calls.job_action.push(plain([id, action, payload]));
+            return {};
+        },
+    };
+    return {api, calls};
+}
+
+// DR-48..65: the agent shape, the title, the bar, the steps, the live log,
+// and the footer of the job drawer (spec 09 E2).
+async function shows_the_job_drawer() {
+    const job_id = "12121212-1212-4121-8121-121212121212";
+    const {api, calls} = drawer_api({}, "paused");
+    const {dom, $, out, flush, extras} = build_input_retention_harness(api);
+    try {
+        out.open(job_id);
+        await flush();
+        assert.equal($("#agent-job-heading").text(), "Screenshot mobile PR #214");
+        assert.equal($("#agent-job-heading").attr("title"), job_id);
+        assert.equal($("#agent-job-state").text(), "Running");
+        // The line is "agent · state". The room is unknown here.
+        assert.equal($("#agent-job-owner").text(), "Ayame · ");
+        assert.deepEqual(
+            extras.drawer_calls.findLast((call) => call[0] === "shape"),
+            ["shape", 7],
+        );
+        assert.deepEqual(
+            extras.drawer_calls.findLast((call) => call[0] === "steps"),
+            ["steps", 0.55, "running"],
+        );
+        // The agent is paused while the job runs (spec 09 F).
+        assert.equal($("#agent-job-paused-note").prop("hidden"), false);
+        assert.equal(
+            $("#agent-job-paused-note").text(),
+            "Waiting for the step to finish, then the job stops.",
+        );
+        // DR-62..65: one line for each event. The running step says "new".
+        const $lines = $("#agent-job-events .sj-job-drawer__log-line");
+        assert.equal($lines.length, 2);
+        assert.equal($lines.eq(0).find(".sj-job-drawer__log-text").text(), "Agent started");
+        assert.equal($lines.eq(1).find(".sj-job-drawer__log-time").text(), "new");
+        assert.equal($lines.eq(1).find(".sj-job-drawer__log-text").text(), "Step started…");
+        assert.doesNotMatch($("#agent-job-events").text(), /attempt\.|tool\./);
+        // DR-93, DR-94: "Pause job" is the plain button.
+        const $pause = $("#agent-job-controls [data-job-action='cancel']");
+        assert.equal($pause.text(), "Pause job");
+        assert.ok($pause.hasClass("sj-drawer__action"));
+        assert.equal($("#agent-job-controls [data-job-action='open-room']").length, 0);
+
+        $pause.trigger("click");
+        await flush();
+        assert.deepEqual(calls.job_action, [[job_id, "cancel", {expected_version: 3}]]);
+        assert.deepEqual(
+            extras.toasts.map((toast) => [toast.text, toast.variant]),
+            [["The job pauses when this step ends.", "info"]],
+        );
+    } finally {
+        dom.window.close();
+        delete global.window;
+        delete global.document;
+    }
+}
+
+// A failed pause puts the drawer back and offers "Try again" in a toast.
+async function retries_a_failed_pause_from_the_toast() {
+    const job_id = "13131313-1313-4131-8131-131313131313";
+    const {api, calls} = drawer_api();
+    let fail = true;
+    const job_action = api.job_action;
+    api.job_action = async (...args) => {
+        if (fail) {
+            fail = false;
+            throw new Error("The server is busy.");
+        }
+        return await job_action(...args);
+    };
+    const {dom, $, out, flush, extras} = build_input_retention_harness(api);
+    try {
+        out.open(job_id);
+        await flush();
+        $("#agent-job-controls [data-job-action='cancel']").trigger("click");
+        await flush();
+        assert.equal(
+            $("#agent-job-status").text(),
+            "Action failed. Refresh the current job state.",
+        );
+        assert.equal(extras.toasts.length, 1);
+        assert.equal(extras.toasts[0].variant, "error");
+        assert.equal(extras.toasts[0].text, "Could not save the change.");
+        assert.equal(calls.job_action.length, 0);
+
+        extras.toasts[0].on_retry();
+        await flush();
+        assert.deepEqual(calls.job_action, [[job_id, "cancel", {expected_version: 3}]]);
+        assert.equal(extras.toasts.at(-1).text, "The job pauses when this step ends.");
+    } finally {
+        dom.window.close();
+        delete global.window;
+        delete global.document;
+    }
+}
+
+// A paused job reads "Paused", and "Resume job" starts it again.
+async function resumes_a_paused_job_from_the_footer() {
+    const job_id = "14141414-1414-4141-8141-141414141414";
+    const {api, calls} = drawer_api({
+        status: "cancelled",
+        allowed_actions: ["resume", "follow_up"],
+        resume_available: true,
+    });
+    const {dom, $, out, flush, extras} = build_input_retention_harness(api);
+    try {
+        out.open(job_id);
+        await flush();
+        assert.equal($("#agent-job-state").text(), "Paused");
+        assert.equal($("#agent-job-paused-note").prop("hidden"), true);
+        assert.equal($("#agent-job-controls [data-job-action='cancel']").length, 0);
+        const $resume = $("#agent-job-controls [data-job-action='resume']");
+        assert.equal($resume.text(), "Resume job");
+
+        $resume.trigger("click");
+        await flush();
+        assert.deepEqual(calls.job_action, [
+            [job_id, "resume", {expected_version: 3, checkpoint_id: null}],
+        ]);
+        assert.deepEqual(
+            extras.toasts.map((toast) => toast.text),
+            ["Job resumed."],
+        );
+    } finally {
+        dom.window.close();
+        delete global.window;
+        delete global.document;
+    }
+}
+
+// The server sends an event for each change of a job. The open drawer
+// reads the job again for its own job, and only for its own job.
+async function refreshes_on_a_live_update() {
+    const job_id = "15151515-1515-4151-8151-151515151515";
+    const {api, calls} = drawer_api();
+    const {dom, out, flush, extras} = build_input_retention_harness(api);
+    try {
+        out.open(job_id);
+        await flush();
+        const [type, handler] = extras.live_handlers[0];
+        assert.equal(type, "agent_job");
+        const before = calls.get_job;
+        handler({type: "agent_job", job_id: "99999999-9999-4999-8999-999999999999"});
+        await flush();
+        assert.equal(calls.get_job, before);
+        handler({type: "agent_job", job_id});
+        await flush();
+        assert.equal(calls.get_job, before + 1);
+    } finally {
+        dom.window.close();
+        delete global.window;
+        delete global.document;
+    }
+}
+
 void main()
     .then(() => retains_unresolved_input_across_visit())
     .then(() => accepted_input_does_not_return_on_next_visit())
@@ -1008,6 +1313,10 @@ void main()
     .then(() => opens_the_composer_in_followup_mode())
     .then(() => input_from_job_a_never_posts_to_job_b())
     .then(() => cancel_removes_approve_and_shows_stopping_sentence())
+    .then(() => shows_the_job_drawer())
+    .then(() => retries_a_failed_pause_from_the_toast())
+    .then(() => resumes_a_paused_job_from_the_footer())
+    .then(() => refreshes_on_a_live_update())
     .then(() => process.stdout.write("Agent job delegated-handler regressions passed.\n"))
     .catch((error) => {
         console.error(error);
