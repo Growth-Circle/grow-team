@@ -206,6 +206,51 @@ def agent_transaction(
         _deadline.reset(token)
 
 
+# The members of a stream, by stream id, while a stream_audience_cache() block is open.
+_stream_audiences: ContextVar[dict[int, list[int]] | None] = ContextVar(
+    "agent_stream_audiences", default=None
+)
+
+
+@contextmanager
+def stream_audience_cache() -> Iterator[None]:
+    """Work out who can read a stream once, however many of its messages the
+    block checks. The work grows with the size of the workspace, so a job
+    with dozens of context messages would not fit in the time of an agent
+    transaction without it. The block must stay inside one transaction."""
+    token = _stream_audiences.set({})
+    try:
+        yield
+    finally:
+        _stream_audiences.reset(token)
+
+
+def _stream_members(stream: Stream, realm_id: int) -> list[int]:
+    """The ids of the users who can read the stream's messages."""
+    assert stream.recipient_id is not None
+    subscribed = set(
+        Subscription.objects.filter(recipient_id=stream.recipient_id, active=True).values_list(
+            "user_profile_id", flat=True
+        )
+    )
+    users = list(
+        UserProfile.objects.filter(realm_id=realm_id, is_active=True).order_by("id")[:10001]
+    )
+    if len(users) > 10000:
+        raise ValueError("Pilot audience limit exceeded.")
+    members = []
+    for user in users:
+        ensure_budget()
+        if user_has_content_access(
+            user,
+            stream,
+            UserGroupMembershipDetails(user_recursive_group_ids=None),
+            is_subscribed=user.id in subscribed,
+        ):
+            members.append(user.id)
+    return members
+
+
 def current_audience(
     conversation: agents.AgentConversation,
     requester: UserProfile,
@@ -230,28 +275,13 @@ def current_audience(
             id=anchor.recipient.type_id, realm_id=conversation.realm_id, deactivated=False
         )
         assert stream.recipient_id is not None
-        subscribed = set(
-            Subscription.objects.filter(recipient_id=stream.recipient_id, active=True).values_list(
-                "user_profile_id", flat=True
-            )
-        )
-        users = list(
-            UserProfile.objects.filter(realm_id=conversation.realm_id, is_active=True).order_by(
-                "id"
-            )[:10001]
-        )
-        if len(users) > 10000:
-            raise ValueError("Pilot audience limit exceeded.")
-        members = []
-        for user in users:
-            ensure_budget()
-            if user_has_content_access(
-                user,
-                stream,
-                UserGroupMembershipDetails(user_recursive_group_ids=None),
-                is_subscribed=user.id in subscribed,
-            ):
-                members.append(user.id)
+        cache = _stream_audiences.get()
+        if cache is not None and stream.id in cache:
+            members = cache[stream.id]
+        else:
+            members = _stream_members(stream, conversation.realm_id)
+            if cache is not None:
+                cache[stream.id] = members
         route = {
             "kind": "stream",
             "stream_id": stream.id,
@@ -327,8 +357,8 @@ def require_job_access(actor: UserProfile, job: agents.AgentJob) -> None:
         if attempt is not None
         else job.profile.provider
     )
-    # P-19: a work agent's job needs no runner or provider grant, the same
-    # rule as check_agent_access.
+    # A work agent's job needs no runner or provider grant, the same rule
+    # as check_agent_access.
     fast_path = (
         work_agent_fast_path(job.profile)
         and job.runner_id == job.profile.runner_id
@@ -360,8 +390,13 @@ def require_job_access(actor: UserProfile, job: agents.AgentJob) -> None:
         raise AgentAccessDenied("Agent access denied.")
 
 
-def require_reference_audience(job: agents.AgentJob, message_id: int) -> None:
-    accepted = require_audience(job)
+def require_reference_audience(
+    job: agents.AgentJob, message_id: int, *, accepted: p.AudienceBinding | None = None
+) -> None:
+    """Pass `accepted`, the result of require_audience(job), when checking
+    many messages of one job: it is the same for all of them."""
+    if accepted is None:
+        accepted = require_audience(job)
     reference = agents.AgentConversation(
         id=job.conversation_id,
         realm_id=job.realm_id,

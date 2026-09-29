@@ -33,7 +33,9 @@ from zerver.lib.agent_context import (
     current_audience,
     require_audience,
     require_job_access,
+    require_reference_audience,
     scope_for_message,
+    stream_audience_cache,
 )
 from zerver.lib.agent_events import send_agent_job_event, send_agent_runner_event
 from zerver.lib.agent_failure_codes import NOT_RETRYABLE_CARD_CODES, card_reason_code
@@ -473,15 +475,15 @@ def create_job(
         job.save(force_update=completing is not None)
         from zerver.lib.message import access_message
 
-        for message_id in ids:
-            from zerver.lib.agent_context import require_reference_audience
-
-            require_reference_audience(job, message_id)
-            access_message(actor, message_id, is_modifying_message=False)
-            access_message(profile.bot_user, message_id, is_modifying_message=False)
-            agents.AgentContextRef.objects.create(
-                realm=actor.realm, job=job, kind="message", message_id=message_id, scope=scope
-            )
+        with stream_audience_cache():
+            accepted_audience = require_audience(job)
+            for message_id in ids:
+                require_reference_audience(job, message_id, accepted=accepted_audience)
+                access_message(actor, message_id, is_modifying_message=False)
+                access_message(profile.bot_user, message_id, is_modifying_message=False)
+                agents.AgentContextRef.objects.create(
+                    realm=actor.realm, job=job, kind="message", message_id=message_id, scope=scope
+                )
         from zerver.lib.agent_context import selected_context
         from zerver.models import Attachment
 
