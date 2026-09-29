@@ -132,6 +132,7 @@ function render(): void {
 function on_document_click(event: JQuery.ClickEvent): void {
     // A click on a part that a redraw has since removed is not an outside click.
     if (
+        event.target instanceof Node &&
         event.target.isConnected &&
         $(event.target).closest("#left-sidebar-workspace-switcher").length === 0
     ) {

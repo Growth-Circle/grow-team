@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import type {Page} from "puppeteer";
+import type {HTTPRequest, Page} from "puppeteer";
 
 import * as common from "./lib/common.ts";
 
@@ -19,9 +19,15 @@ async function get_box(page: Page, selector: string): Promise<Box> {
 // A test reports every size that is wrong, not only the first one.
 const size_errors: string[] = [];
 
+const box_keys: (keyof Box)[] = ["x", "y", "width", "height"];
+
 function assert_box(actual: Box, expected: Partial<Box>, label: string): void {
-    for (const [key, value] of Object.entries(expected)) {
-        const measured = actual[key as keyof Box];
+    for (const key of box_keys) {
+        const value = expected[key];
+        if (value === undefined) {
+            continue;
+        }
+        const measured = actual[key];
         if (Math.abs(measured - value) > 1) {
             size_errors.push(`${label}: ${key} is ${measured}, expected ${value} (within 1px)`);
         }
@@ -178,9 +184,9 @@ async function check_navigation(page: Page): Promise<void> {
     await page.waitForSelector('.sanji-nav-item-active[data-nav-id="tasks"]');
     // The active entry keeps its look under the pointer.
     const link = '.sanji-nav-item[data-nav-id="tasks"] .sanji-nav-link';
-    const before = await page.$eval(link, (element) => getComputedStyle(element).backgroundColor);
+    const before = await page.$eval(link, (element) => window.getComputedStyle(element).backgroundColor);
     await page.hover(link);
-    const after = await page.$eval(link, (element) => getComputedStyle(element).backgroundColor);
+    const after = await page.$eval(link, (element) => window.getComputedStyle(element).backgroundColor);
     assert.equal(after, before);
 }
 
@@ -190,7 +196,7 @@ async function check_quiet_rooms(page: Page): Promise<void> {
     assert.ok(stream_id !== undefined);
     const now = Math.floor(Date.now() / 1000);
     await page.setRequestInterception(true);
-    const on_request = (request: import("puppeteer").HTTPRequest): void => {
+    const on_request = (request: HTTPRequest): void => {
         if (new URL(request.url()).pathname === "/json/channels/quiet") {
             void request.respond({
                 status: 200,

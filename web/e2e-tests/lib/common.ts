@@ -279,7 +279,7 @@ export async function log_in(
     // Today after that.
     await page.waitForFunction(() =>
         ["today-view", "inbox-view"].some((id) => {
-            const element = document.getElementById(id);
+            const element = document.querySelector(`#${id}`);
             return element !== null && window.getComputedStyle(element).display !== "none";
         }),
     );
