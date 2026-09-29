@@ -200,7 +200,7 @@ async function check_navigation(page: Page): Promise<void> {
     const hidden_ids = await page.$$eval(".sanji-nav-item.hidden", (items) =>
         items.map((item) => item.getAttribute("data-nav-id")),
     );
-    for (const id of ["needs", "agents", "mcp", "runners", "drive"]) {
+    for (const id of ["agents", "mcp", "runners", "drive"]) {
         assert.ok(hidden_ids.includes(id), `${id} should be hidden`);
     }
 

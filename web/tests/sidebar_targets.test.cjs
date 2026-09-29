@@ -9,17 +9,8 @@ const sidebar_targets = zrequire("sidebar_targets");
 
 // The pages that ship. When a page ships, its entry moves from the
 // second list to the first, in sidebar_targets.ts and here.
-const BUILT = ["tasks"];
-const HIDDEN_OR_FALLBACK = [
-    "search",
-    "home",
-    "needs",
-    "agents",
-    "mcp",
-    "runners",
-    "drive",
-    "settings",
-];
+const BUILT = ["tasks", "needs"];
+const HIDDEN_OR_FALLBACK = ["search", "home", "agents", "mcp", "runners", "drive", "settings"];
 
 run_test("built_pages", () => {
     for (const id of BUILT) {
@@ -38,14 +29,15 @@ run_test("get_hash", () => {
     // A page that is not built opens its fallback, or is hidden.
     assert.equal(sidebar_targets.get_hash("home"), "#inbox");
     assert.equal(sidebar_targets.get_hash("settings", "members"), "#organization");
-    assert.equal(sidebar_targets.get_hash("needs"), undefined);
+    assert.equal(sidebar_targets.get_hash("needs"), "#needs");
     assert.equal(sidebar_targets.get_hash("drive"), undefined);
 });
 
 run_test("is_shown", () => {
     assert.equal(sidebar_targets.is_shown("home"), true);
     assert.equal(sidebar_targets.is_shown("settings"), true);
-    for (const id of ["search", "needs", "agents", "mcp", "runners", "drive"]) {
+    assert.equal(sidebar_targets.is_shown("needs"), true);
+    for (const id of ["search", "agents", "mcp", "runners", "drive"]) {
         assert.equal(sidebar_targets.is_shown(id), false, id);
     }
 });
@@ -53,12 +45,15 @@ run_test("is_shown", () => {
 run_test("id_for_hash", () => {
     assert.equal(sidebar_targets.id_for_hash("#tasks"), "tasks");
     assert.equal(sidebar_targets.id_for_hash("#tasks/mine"), "tasks");
+    // A built page marks itself for its links with an item too.
+    assert.equal(sidebar_targets.id_for_hash("#needs"), "needs");
+    assert.equal(sidebar_targets.id_for_hash("#needs/approval:1/confirm"), "needs");
     assert.equal(sidebar_targets.id_for_hash("#tasksboard"), undefined);
     // The fallback of a page marks that page.
     assert.equal(sidebar_targets.id_for_hash("#inbox"), "home");
     assert.equal(sidebar_targets.id_for_hash("#organization/organization-profile"), "settings");
     // A page that is not built and has no fallback marks nothing.
-    assert.equal(sidebar_targets.id_for_hash("#needs"), undefined);
+    assert.equal(sidebar_targets.id_for_hash("#agents"), undefined);
     assert.equal(sidebar_targets.id_for_hash("#narrow/channel/1-general"), undefined);
     assert.equal(sidebar_targets.id_for_hash(""), undefined);
 });

@@ -26,7 +26,7 @@ type Target = {
 const targets: Record<TargetId, Target> = {
     search: {hash: "", built: false, fallback_hash: null},
     home: {hash: "#today", built: false, fallback_hash: "#inbox"},
-    needs: {hash: "#needs", built: false, fallback_hash: null},
+    needs: {hash: "#needs", built: true, fallback_hash: null},
     tasks: {hash: "#tasks", built: true, fallback_hash: null},
     agents: {hash: "#agents", built: false, fallback_hash: null},
     mcp: {hash: "#mcp", built: false, fallback_hash: null},
