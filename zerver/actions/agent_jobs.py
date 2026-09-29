@@ -1219,6 +1219,14 @@ class AgentJobCard(TypedDict):
     can_retry: bool
 
 
+class AgentJobWidgetCard(AgentJobCard):
+    """The card as the chat widget gets it: the card plus the job kind, so
+    the client can hide the card of a plain chat answer. job_data() does
+    not carry the kind."""
+
+    kind: str
+
+
 @dataclass
 class JobCardFacts:
     """What a set of cards needs beyond the job rows themselves, read with a
@@ -1364,6 +1372,10 @@ def card_extra_data(
         "reason_code": reason_code,
         "can_retry": can_retry,
     }
+
+
+def widget_card_data(job: agents.AgentJob) -> AgentJobWidgetCard:
+    return {**card_extra_data(job), "kind": job.job_kind}
 
 
 def resume_job(

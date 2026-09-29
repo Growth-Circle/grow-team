@@ -603,6 +603,16 @@ class AgentJobCardTests(ZulipTestCase):
             {"widget_type": "agent_job", "extra_data": actions.card_extra_data(job)}
         )
 
+    def test_widget_card_carries_the_job_kind(self) -> None:
+        self._ask()
+        job = self._job()
+        agents.AgentJob.objects.filter(id=job.id).update(job_kind="answer")
+        job.refresh_from_db()
+        card = actions.widget_card_data(job)
+        self.assertEqual(card["kind"], "answer")
+        check_widget_content({"widget_type": "agent_job", "extra_data": card})
+        self.assertNotIn("kind", actions.card_extra_data(job))
+
     def test_card_chip_opens_a_linked_task(self) -> None:
         self._ask()
         job = self._job()

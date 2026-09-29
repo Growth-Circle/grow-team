@@ -121,6 +121,15 @@ export function is_fallback_line(text: string, sender_full_name: string): boolea
     return line.startsWith(`${sender_full_name} · `) && !line.includes("\n");
 }
 
+// A plain chat answer is not a job to the sender, so its reply shows
+// alone. A problem state keeps the card, so Retry and Details stay near.
+export function hides_card(card: AgentJobCardData): boolean {
+    return (
+        card.kind === "answer" &&
+        ["queued", "working", "done"].includes(bucket_for_status(card.status))
+    );
+}
+
 export function activate({any_data}: {message: Message; any_data: AnyWidgetData}): {
     inbound_events_handler: (events: Event[]) => void;
     widget_data: WidgetData;
@@ -162,12 +171,19 @@ export function render({
         return;
     }
     $elem.attr("data-card-state", state);
-    $elem.empty().append($(render_agent_job_card(build_template_data(card))));
     const $text = $elem.siblings();
     $text.toggleClass(
         "sj-job-card-fallback-text",
         is_fallback_line($text.text(), message.sender_full_name),
     );
+    if (hides_card(card)) {
+        $elem.empty().hide();
+        return;
+    }
+    $elem
+        .show()
+        .empty()
+        .append($(render_agent_job_card(build_template_data(card))));
     // A click on a message starts a reply to it. A click on a control of
     // the card must not, and it must not undo the new address.
     $elem.find(".sj-job-card__detail").on("click", (event) => {

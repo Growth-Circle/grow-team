@@ -22,7 +22,6 @@ from zerver.actions.agent_jobs import (
     TERMINAL,
     agent_language,
     audit,
-    card_extra_data,
     check_attempt_access,
     locked_attempt,
     react_after_commit,
@@ -30,6 +29,7 @@ from zerver.actions.agent_jobs import (
     throttle,
     transition,
     typing_after_commit,
+    widget_card_data,
 )
 from zerver.actions.submessage import do_add_submessage
 from zerver.lib import agent_protocol as p
@@ -998,7 +998,7 @@ def post_admission_card(job_id: UUID, *, acknowledge: bool) -> None:
             if audience.stream_id is not None
             else Addressee.for_user_ids(audience.audience_user_ids, job.realm)
         )
-        widget = {"widget_type": "agent_job", "extra_data": card_extra_data(job)}
+        widget = {"widget_type": "agent_job", "extra_data": widget_card_data(job)}
         message = check_message(
             job.profile.bot_user,
             get_client("Grow Agent"),
@@ -1037,7 +1037,7 @@ def update_job_card(job_id: UUID) -> None:
             sender_id=job.profile.bot_user_id,
             message_id=message.id,
             msg_type="widget",
-            content=json.dumps(card_extra_data(job)),
+            content=json.dumps(widget_card_data(job)),
         )
         content = _card_content(job, message.content)
         if content != message.content:

@@ -235,6 +235,19 @@ run_test("the fallback line is hidden and an answer is not", () => {
     assert.equal(agent_job_widget.is_fallback_line("Kaki · Done", "Ayame"), false);
 });
 
+// A plain chat answer shows its reply alone, unless it has a problem.
+run_test("the card of a plain answer is hidden unless it has a problem", () => {
+    const hides = (overrides) => agent_job_widget.hides_card(card(overrides));
+    for (const status of ["queued", "running", "completed"]) {
+        assert.equal(hides({kind: "answer", status}), true, status);
+        assert.equal(hides({kind: "code", status}), false, status);
+    }
+    assert.equal(hides({status: "running"}), false);
+    for (const status of ["failed", "stopped", "blocked", "cancelled", "interrupted"]) {
+        assert.equal(hides({kind: "answer", status}), false, status);
+    }
+});
+
 // A message with a card and later snapshots must still load. Those
 // snapshots have no "type" field, and a reload drew no card without this.
 run_test("submessages of a card with later snapshots parse", () => {

@@ -29,6 +29,7 @@ export const agent_job_card_data_schema = z.object({
     artifacts: z.array(agent_job_card_artifact_schema),
     reason_code: z.nullable(z.string()),
     can_retry: z.boolean(),
+    kind: z.optional(z.string()),
 });
 export type AgentJobCardData = z.infer<typeof agent_job_card_data_schema>;
 

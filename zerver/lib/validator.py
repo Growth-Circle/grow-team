@@ -506,7 +506,8 @@ def check_widget_content(widget_content: object) -> dict[str, Any]:
                 ("artifacts", check_artifacts),
                 ("reason_code", check_none_or(check_string)),
                 ("can_retry", check_bool),
-            ]
+            ],
+            optional_keys=[("kind", check_string)],
         )
         checker("extra_data", extra_data)
         return widget_content
