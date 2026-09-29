@@ -48,6 +48,8 @@ import * as people from "./people.ts";
 import * as pm_list from "./pm_list.ts";
 import * as popup_banners from "./popup_banners.ts";
 import * as resize from "./resize.ts";
+import * as room_header from "./room_header.ts";
+import * as room_topics_column from "./room_topics_column.ts";
 import * as scheduled_messages_feed_ui from "./scheduled_messages_feed_ui.ts";
 import {
     message_edit_history_visibility_policy_values,
@@ -686,6 +688,24 @@ export let show = (raw_terms: NarrowTerm[], show_opts: ShowMessageViewOpts): voi
         // into.
         center_views.hide_all();
         $("#room-header, #room-topics-column, #message_feed_container").show();
+
+        // The room header and topic column only apply to a channel
+        // narrow. A direct message or a search keeps the Zulip view.
+        // message_list_view.ts uses the same test.
+        const room_stream =
+            filter.has_operator("channel") && !filter.is_keyword_search()
+                ? stream_data.get_sub_by_id_string(
+                      filter.terms_with_operator("channel")[0]!.operand,
+                  )
+                : undefined;
+        if (room_stream) {
+            const topic = filter.terms_with_operator("topic")[0]?.operand;
+            room_header.show(room_stream);
+            room_topics_column.show(room_stream.stream_id, topic, filter.terms().length === 1);
+        } else {
+            room_header.hide();
+            room_topics_column.hide();
+        }
 
         blueslip.debug("Narrowed", {
             operators: terms.map((e) => e.operator),

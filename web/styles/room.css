@@ -1,1 +1,317 @@
-/* Styles for the room header and the topic column. The full version replaces this file. */
+/* The room screen: header (RM-02..10), topic column (RM-11..16), and
+   summary banner (RM-19..23). Sizes follow the Ruang mockup. The
+   message list, the composer, and the job card have their own files.
+
+   Zulip scrolls the whole page, not a box per column. The feed keeps
+   its natural height, and the topic column stays in view with
+   `position: sticky`. */
+.column-middle-inner.sj-room-active {
+    display: grid;
+    grid-template-columns: 15em minmax(0, 1fr); /* 240px at 16px/1em */
+    grid-template-areas:
+        "header header"
+        "topics banner"
+        "topics feed";
+    grid-template-rows: auto auto 1fr;
+    /* The topic column reaches the bottom of the window, even with few
+       messages. */
+    min-height: 100vh;
+
+    @media (width < $shell_narrow_min) {
+        /* Below the shell breakpoint the topics become a row of chips
+           above the messages. */
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto auto 1fr;
+        grid-template-areas:
+            "header"
+            "topics"
+            "banner"
+            "feed";
+    }
+
+    /* The column background reaches the bottom of the feed, while the
+       list itself stays sticky. */
+    &::before {
+        content: "";
+        grid-area: topics;
+        background: var(--sj-surface-warm);
+        border-right: 1.5px solid var(--sj-divider);
+
+        @media (width < $shell_narrow_min) {
+            display: none;
+        }
+    }
+
+    #message_feed_container {
+        grid-area: feed;
+        min-width: 0;
+        /* The header and the top bar are above it already. */
+        padding-top: 0;
+    }
+}
+
+#room-header {
+    grid-area: header;
+    /* Clear the top bar on a narrow window. It is zero on a wide one. */
+    padding-top: var(--navbar-fixed-height);
+    background: var(--sj-surface);
+    border-bottom: var(--sj-border-strong);
+}
+
+.room-header-skeleton {
+    height: 4.3125em; /* 69px at 16px/1em */
+}
+
+.room-header-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75em;
+    padding: 1em 1.75em; /* 16px 28px at 16px/1em */
+
+    @media (width < $shell_narrow_min) {
+        padding: 1em 0.875em; /* 16px 14px at 16px/1em */
+    }
+}
+
+.room-header-main,
+.room-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75em;
+}
+
+.room-header-actions {
+    gap: 0.5em;
+}
+
+.room-header-name {
+    margin: 0;
+    font-size: 1.375em; /* 22px at 16px/1em */
+    font-weight: 900;
+    line-height: normal;
+    letter-spacing: -0.03em;
+    color: var(--sj-text);
+}
+
+.room-header-type {
+    padding: 0.3em 0.8em; /* 3px 8px at 10px/1em */
+    border: 1px solid var(--sj-outline);
+    border-radius: 0.5em; /* 5px at 10px/1em */
+    background: var(--sj-surface-muted);
+    color: var(--sj-text);
+    font-family: var(--sj-font-mono);
+    font-size: 0.625em; /* 10px at 16px/1em */
+    text-transform: uppercase;
+}
+
+.room-header-type-project {
+    background: var(--sj-tint-kaki);
+}
+
+.room-header-type-client {
+    background: var(--sj-tint-ayame);
+}
+
+.room-header-type-team {
+    background: var(--sj-tint-matcha);
+}
+
+.room-header-owner,
+.room-header-reason {
+    color: var(--sj-text-muted);
+    font-size: 0.8125em; /* 13px at 16px/1em */
+}
+
+.room-header-back,
+.room-header-drive,
+.room-header-summary-toggle {
+    padding: 0.5385em 0.9231em; /* 7px 12px at 13px/1em */
+    border: var(--sj-border);
+    border-radius: var(--sj-radius-pill);
+    background: var(--sj-surface-raised);
+    color: var(--sj-text);
+    font-family: inherit;
+    font-size: 0.8125em; /* 13px at 16px/1em */
+    font-weight: 700;
+    line-height: 1.4;
+    cursor: pointer;
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--sj-ring-focus);
+    }
+
+    @media (width < $shell_narrow_min) {
+        /* A touch target is at least 36px tall. */
+        min-height: 2.7692em; /* 36px at 13px/1em */
+    }
+}
+
+.room-header-back {
+    padding: 0.4615em 0.9231em; /* 6px 12px at 13px/1em */
+
+    &:hover {
+        background: var(--sj-kuning);
+        color: var(--sj-on-accent);
+    }
+}
+
+.room-header-drive:hover {
+    background: var(--sj-tint-matcha);
+}
+
+.room-header-summary-toggle-on {
+    background: var(--sj-kuning);
+    color: var(--sj-on-accent);
+}
+
+.room-header-summary-toggle[aria-disabled="true"] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* RM-19..23: Kaki's summary above the messages. */
+#room-summary-banner {
+    grid-area: banner;
+    min-width: 0;
+
+    &:empty {
+        display: none;
+    }
+}
+
+.room-summary-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75em; /* 12px at 16px/1em */
+    margin: 1.25em 1.75em 0; /* 20px 28px 0 at 16px/1em */
+    padding: 0.875em 1em; /* 14px 16px at 16px/1em */
+    border: var(--sj-border);
+    border-radius: var(--sj-radius-16);
+    background: var(--sj-tint-kaki);
+    color: var(--sj-text);
+
+    @media (width < $shell_narrow_min) {
+        margin: 1em 0.875em 0; /* 16px 14px 0 at 16px/1em */
+    }
+}
+
+.room-summary-banner-dot {
+    flex: none;
+    width: 1.5em; /* 24px at 16px/1em */
+    height: 1.5em;
+    border-radius: var(--sj-radius-circle);
+    background: var(--sj-kaki);
+}
+
+.room-summary-banner-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25em; /* 4px at 16px/1em */
+}
+
+.room-summary-banner-title {
+    font-size: 0.8125em; /* 13px at 16px/1em */
+    font-weight: 800;
+}
+
+.room-summary-banner-text {
+    font-size: 0.875em; /* 14px at 16px/1em */
+    line-height: 1.45;
+}
+
+/* RM-12..16: the topic list. */
+#room-topics-column {
+    grid-area: topics;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25em; /* 4px at 16px/1em */
+    align-self: start;
+    position: sticky;
+    top: var(--navbar-fixed-height);
+    max-height: calc(100vh - var(--navbar-fixed-height));
+    padding: 0.875em 0.625em; /* 14px 10px at 16px/1em */
+    overflow-y: auto;
+
+    @media (width < $shell_narrow_min) {
+        position: static;
+        max-height: none;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5em;
+        padding: 0.625em 0.875em; /* 10px 14px at 16px/1em */
+        overflow: auto hidden;
+        background: var(--sj-surface-warm);
+        border-bottom: 1.5px solid var(--sj-divider);
+    }
+}
+
+.room-topics-skeleton {
+    height: 12.5em; /* 200px at 16px/1em */
+}
+
+.room-topics-label {
+    padding: 0.3636em 0.9091em 0.7273em; /* 4px 10px 8px at 11px/1em */
+    color: var(--sj-text-muted);
+    font-family: var(--sj-font-mono);
+    font-size: 0.6875em; /* 11px at 16px/1em */
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+
+    @media (width < $shell_narrow_min) {
+        display: none;
+    }
+}
+
+.room-topic-item {
+    display: flex;
+    flex-direction: column;
+    line-height: normal;
+    gap: 0.125em; /* 2px at 16px/1em */
+    padding: 0.5625em 0.625em; /* 9px 10px at 16px/1em */
+    border-radius: var(--sj-radius-10);
+    color: var(--sj-text);
+    text-decoration: none;
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--sj-ring-focus);
+    }
+
+    @media (width < $shell_narrow_min) {
+        flex: none;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5em;
+        min-height: 2.25em; /* 36px at 16px/1em */
+        padding: 0.375em 0.75em; /* 6px 12px at 16px/1em */
+        border: 1.5px solid var(--sj-divider);
+        border-radius: var(--sj-radius-pill);
+        white-space: nowrap;
+    }
+}
+
+.room-topic-item-active {
+    background: var(--sj-ink);
+    color: var(--sj-on-ink);
+}
+
+/* Hover wins over the active look, as in the mockup. */
+.room-topic-item:hover {
+    background: var(--sj-tint-kaki);
+    color: var(--sj-text);
+}
+
+.room-topic-item-name {
+    font-size: 0.875em; /* 14px at 16px/1em */
+    font-weight: 700;
+}
+
+.room-topic-item-meta {
+    font-family: var(--sj-font-mono);
+    font-size: 0.625em; /* 10px at 16px/1em */
+    opacity: 0.75;
+}

@@ -1,6 +1,9 @@
 import $ from "jquery";
 import assert from "minimalistic-assert";
 
+import * as room_header from "./room_header.ts";
+import * as room_topics_column from "./room_topics_column.ts";
+
 // Registry for the views that can fill the main column: the Sanji
 // screens (Today, Needs you, Agents, ...) and the Zulip views that
 // predate them (Recent, Inbox, the task board). Each view registers
@@ -38,6 +41,14 @@ export function hide_others(id: string | undefined): void {
         }
     }
     $("#room-header, #room-topics-column").hide();
+    if (id !== undefined) {
+        // A center view replaces the message feed. The room header and
+        // topic column are not in `views`, so they need their own
+        // teardown. `hide_all` skips it: a narrow then draws or hides
+        // them itself.
+        room_header.hide();
+        room_topics_column.hide();
+    }
     current_id = id;
 }
 

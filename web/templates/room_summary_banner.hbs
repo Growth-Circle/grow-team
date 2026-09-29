@@ -1,0 +1,11 @@
+{{! Kaki's summary of the day (RM-19..23). room_header.ts draws it
+    above the message list. }}
+<div class="room-summary-banner">
+    <div class="room-summary-banner-dot" aria-hidden="true"></div>
+    <div class="room-summary-banner-body">
+        <div class="room-summary-banner-title">
+            {{#tr}}Kaki summarized {message_count, plural, one {# message} other {# messages}} since yesterday{{/tr}}
+        </div>
+        <div class="room-summary-banner-text">{{summary}}</div>
+    </div>
+</div>

@@ -1,0 +1,35 @@
+{{! The room header (RM-02..10). room_header.ts draws it into
+    #room-header whenever a narrow shows a channel. }}
+{{#if loading}}
+<div class="room-header-skeleton sj-skeleton" aria-hidden="true"></div>
+{{else}}
+<div class="room-header-bar">
+    <div class="room-header-main">
+        {{#if show_back_link}}
+        <button type="button" class="room-header-back">
+            <span aria-hidden="true">←</span> {{t "Today" }}
+        </button>
+        {{/if}}
+        <h1 class="room-header-name"># {{stream_name}}</h1>
+        {{#if type_label}}
+        <span class="room-header-type{{#if type_kind}} room-header-type-{{type_kind}}{{/if}}">{{type_label}}</span>
+        {{/if}}
+        <span class="room-header-owner">{{owner_line}}</span>
+    </div>
+    <div class="room-header-actions">
+        {{#if show_drive_link}}
+        <button type="button" class="room-header-drive">
+            {{#tr}}Drive / {stream_name} ↗{{/tr}}
+        </button>
+        {{/if}}
+        <button type="button" role="switch" aria-checked="{{#if summary_enabled}}true{{else}}false{{/if}}"
+          class="room-header-summary-toggle{{#if summary_enabled}} room-header-summary-toggle-on{{/if}}"
+          {{#unless can_toggle_summary}}aria-disabled="true" aria-describedby="room-summary-reason" title="{{toggle_disabled_reason}}"{{/unless}}>
+            {{#if summary_enabled}}{{t "Kaki's summary: ON" }}{{else}}{{t "Kaki's summary: OFF" }}{{/if}}
+        </button>
+        {{#unless can_toggle_summary}}
+        <span id="room-summary-reason" class="room-header-reason">{{toggle_disabled_reason}}</span>
+        {{/unless}}
+    </div>
+</div>
+{{/if}}
