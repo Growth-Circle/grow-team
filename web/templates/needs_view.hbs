@@ -1,0 +1,57 @@
+{{! The Needs you page: everything that waits on this person across
+every room, in tabs by kind, and what the person finished today. }}
+<div class="needs-page">
+    <header class="needs-header">
+        <div class="needs-heading">
+            <span class="needs-eyebrow">{{header_eyebrow}}</span>
+            <h1 class="needs-title">{{t "Needs you"}}</h1>
+        </div>
+        <div class="needs-tabs" role="group" aria-label="{{t 'Kinds of request'}}">
+            {{#each tabs}}
+                <button
+                  type="button"
+                  class="needs-tab{{#if this.active}} needs-tab-active{{/if}}"
+                  data-tab="{{this.value}}"
+                  aria-pressed="{{this.active}}"
+                  >{{this.label}}</button>
+            {{/each}}
+        </div>
+    </header>
+
+    {{#if load_failed}}
+        <div class="needs-empty needs-error" role="alert">
+            <span class="needs-empty-text">{{t "Your list did not load."}}</span>
+            <button type="button" class="needs-btn needs-btn-secondary needs-retry">{{t "Try again"}}</button>
+        </div>
+    {{else if loading}}
+        <div class="needs-list" aria-busy="true">
+            <div class="needs-skeleton sj-skeleton"></div>
+            <div class="needs-skeleton sj-skeleton"></div>
+            <div class="needs-skeleton sj-skeleton"></div>
+        </div>
+    {{else}}
+        {{#if is_empty}}
+            <div class="needs-empty">
+                <span class="needs-empty-icon" aria-hidden="true">✓</span>
+                <span class="needs-empty-text">{{t "Nothing is waiting in this category."}}</span>
+            </div>
+        {{/if}}
+        {{#each cards}}
+            {{> need_card . }}
+        {{/each}}
+        {{#if show_done}}
+            <div class="needs-done">
+                <span class="needs-done-label">{{done_label}}</span>
+                {{#each done_rows}}
+                    <div class="needs-done-row" data-need-id="{{this.id}}">
+                        <span class="needs-done-check" aria-hidden="true">✓</span>
+                        <span class="needs-done-text">{{this.text}}</span>
+                        {{#if this.room}}
+                            <span class="needs-done-room"># {{this.room}}</span>
+                        {{/if}}
+                    </div>
+                {{/each}}
+            </div>
+        {{/if}}
+    {{/if}}
+</div>

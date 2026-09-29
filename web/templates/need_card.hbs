@@ -1,0 +1,36 @@
+{{! One item that waits on the person: the avatar of who asked, a kind
+tag, where and when, the text, an optional attachment, and the actions.
+The Needs you page and the Today page both render it. }}
+<article class="needs-card{{#if is_new}} needs-card-new{{/if}}" data-need-id="{{id}}">
+    {{#if is_human}}
+        <span class="needs-avatar needs-avatar-human" aria-hidden="true">{{initials}}</span>
+    {{else}}
+        <span class="needs-avatar needs-avatar-{{avatar_shape}}" style="color: {{avatar_color}}" aria-hidden="true"></span>
+    {{/if}}
+    <div class="needs-body">
+        <div class="needs-meta-row">
+            <span class="needs-tag needs-tag-{{kind}}">{{tag}}</span>
+            <span class="needs-meta">{{meta}}</span>
+        </div>
+        <p class="needs-text line-clamp">{{text}}</p>
+        {{#if attachment}}
+            <span class="needs-attachment"><span aria-hidden="true">📎</span> {{attachment.filename}}</span>
+        {{/if}}
+    </div>
+    <div class="needs-actions">
+        {{#each actions}}
+            {{#if this.href}}
+                <a class="needs-btn needs-btn-secondary" href="{{this.href}}">{{this.label}}</a>
+            {{else if this.is_expired}}
+                <button type="button" class="needs-btn needs-btn-expired" aria-disabled="true">{{this.label}}</button>
+            {{else}}
+                <button
+                  type="button"
+                  class="needs-btn needs-btn-{{this.variant}} needs-card-{{this.variant}}"
+                  data-need-id="{{../id}}"
+                  data-choice="{{this.choice}}"
+                  >{{this.label}}</button>
+            {{/if}}
+        {{/each}}
+    </div>
+</article>

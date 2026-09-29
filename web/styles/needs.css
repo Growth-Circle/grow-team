@@ -1,1 +1,430 @@
-/* Styles for the Needs you view. The full version replaces this file. */
+/* The Needs you page (needs_ui.ts, needs_view.hbs, need_card.hbs).
+   The values come from the inbox block of the Dashboard mockup. Em
+   values use a 16px/1em base; when an element sets its own font size,
+   its em values are measured against that size. Border widths stay in
+   px. */
+
+#needs-view {
+    display: none;
+}
+
+.needs-page {
+    display: flex;
+    flex-direction: column;
+    /* 20px at 16px/1em */
+    gap: 1.25em;
+    /* 960px at 16px/1em. The padding sits outside this width. */
+    max-width: 60em;
+    margin: 0 auto;
+    /* 28px 32px 48px at 16px/1em */
+    padding: 1.75em 2em 3em;
+}
+
+@media (width < $shell_narrow_min) {
+    .needs-page {
+        /* 16px 14px 40px at 16px/1em */
+        padding: 1em 0.875em 2.5em;
+    }
+}
+
+.needs-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    /* 16px at 16px/1em */
+    gap: 1em;
+}
+
+.needs-heading {
+    display: flex;
+    flex-direction: column;
+    /* 6px at 16px/1em */
+    gap: 0.375em;
+}
+
+.needs-eyebrow {
+    color: var(--sj-text-muted);
+    font-family: var(--sj-font-mono);
+    /* 12px at 16px/1em */
+    font-size: 0.75em;
+    letter-spacing: 0.08em;
+    /* The text has the right case already. The name of the workspace
+       in it must not be in capitals, so there is no text-transform. */
+}
+
+.needs-title {
+    margin: 0;
+    color: var(--sj-text);
+    font-size: var(--sj-font-size-page-title);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.045em;
+}
+
+.needs-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    /* 6px at 16px/1em */
+    gap: 0.375em;
+}
+
+.needs-tab {
+    border: var(--sj-border);
+    border-radius: var(--sj-radius-pill);
+    background: var(--sj-surface-raised);
+    color: var(--sj-text);
+    font-family: inherit;
+    /* 13px at 16px/1em */
+    font-size: 0.8125em;
+    font-weight: 700;
+    /* 8px 13px on a 13px font */
+    padding: 0.6154em 1em;
+    cursor: pointer;
+    /* No hover style: the tabs stay flat under the pointer. */
+}
+
+.needs-tab-active {
+    background: var(--sj-ink);
+    color: var(--sj-on-ink);
+}
+
+.needs-list {
+    display: flex;
+    flex-direction: column;
+    /* 20px at 16px/1em */
+    gap: 1.25em;
+}
+
+.needs-skeleton {
+    /* 79px at 16px/1em, the height of one card */
+    height: 4.9375em;
+    border-radius: var(--sj-radius-18);
+}
+
+.needs-empty {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    /* 14px at 16px/1em */
+    gap: 0.875em;
+    border: var(--sj-border-strong);
+    border-radius: var(--sj-radius-18);
+    background: var(--sj-tint-matcha);
+    /* 22px at 16px/1em */
+    padding: 1.375em;
+}
+
+/* A list that did not load is a warning, not the green all-clear. */
+.needs-error {
+    background: var(--sj-tint-kaki);
+}
+
+.needs-empty-icon {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    /* 36px at 16px/1em */
+    width: 2.25em;
+    height: 2.25em;
+    border: var(--sj-border-strong);
+    border-radius: var(--sj-radius-10);
+    background: var(--sj-matcha);
+    color: var(--sj-tinta);
+    font-weight: 900;
+}
+
+.needs-empty-text {
+    color: var(--sj-text);
+    /* 17px at 16px/1em */
+    font-size: 1.0625em;
+    font-weight: 800;
+}
+
+.needs-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    /* 14px at 16px/1em */
+    gap: 0.875em;
+    border: var(--sj-border);
+    border-radius: var(--sj-radius-18);
+    background: var(--sj-surface);
+    /* 16px at 16px/1em */
+    padding: 1em;
+}
+
+/* Only a card that is new pops in. A new drawing of the list does not
+   play the motion again for the cards that were there before. The card
+   keeps 0.3s, not the shared pop time of 200ms: the inbox card is a
+   named exception in the motion tokens. */
+.needs-card-new {
+    animation: sj-pop 0.3s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .needs-card-new {
+        animation: none;
+    }
+}
+
+/* The template sets the color of the agent as the text color of the
+   avatar, and the shape takes it from there. */
+.needs-avatar-circle {
+    /* 34px at 16px/1em */
+    width: 2.125em;
+    height: 2.125em;
+    border-radius: var(--sj-radius-circle);
+    background-color: currentcolor;
+}
+
+.needs-avatar-ring {
+    box-sizing: border-box;
+    width: 2.125em;
+    height: 2.125em;
+    border-style: solid;
+    border-color: currentcolor;
+    /* 8px at 16px/1em */
+    border-width: 0.5em;
+    border-radius: var(--sj-radius-circle);
+}
+
+.needs-avatar-box {
+    /* 32px at 16px/1em */
+    width: 2em;
+    height: 2em;
+    /* 9px at 16px/1em */
+    border-radius: 0.5625em;
+    background-color: currentcolor;
+}
+
+.needs-avatar-human {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* 11px at 16px/1em, and a box of 34px on that font */
+    font-size: 0.6875em;
+    width: 3.0909em;
+    height: 3.0909em;
+    border-radius: var(--sj-radius-circle);
+    background: var(--sj-ink);
+    color: var(--sj-on-ink);
+    font-weight: 800;
+}
+
+.needs-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    /* 4px at 16px/1em */
+    gap: 0.25em;
+}
+
+.needs-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    /* 8px at 16px/1em */
+    gap: 0.5em;
+}
+
+.needs-tag {
+    border: 1px solid var(--sj-outline);
+    border-radius: var(--sj-radius-5);
+    color: var(--sj-text);
+    font-family: var(--sj-font-mono);
+    /* 10px at 16px/1em */
+    font-size: 0.625em;
+    font-weight: 500;
+    /* 2px 7px on a 10px font */
+    padding: 0.2em 0.7em;
+}
+
+.needs-tag-approval {
+    background: var(--sj-tint-kaki);
+}
+
+.needs-tag-mention {
+    background: var(--sj-tint-ayame);
+}
+
+.needs-tag-decision {
+    background: var(--sj-tint-kuning);
+}
+
+.needs-meta {
+    color: var(--sj-text-muted);
+    /* 13px at 16px/1em */
+    font-size: 0.8125em;
+}
+
+.needs-text {
+    /* A long message shows its first lines. Its room has the rest. */
+    --line-clamp-value: 3;
+
+    margin: 0;
+    color: var(--sj-text);
+    /* 16px at 16px/1em */
+    font-size: 1em;
+    font-weight: 700;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.needs-attachment {
+    align-self: flex-start;
+    max-width: 100%;
+    border: 1px solid var(--sj-divider);
+    /* 8px on a 12px font */
+    border-radius: 0.6667em;
+    background: var(--sj-surface-raised);
+    color: var(--sj-text);
+    /* 12px at 16px/1em */
+    font-size: 0.75em;
+    font-weight: 600;
+    /* 4px 9px on a 12px font */
+    padding: 0.3333em 0.75em;
+    overflow-wrap: anywhere;
+}
+
+.needs-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    /* 6px at 16px/1em */
+    gap: 0.375em;
+    /* A long choice must not push the text out of its column. */
+    max-width: 20em;
+}
+
+.needs-btn {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    border: var(--sj-border);
+    border-radius: var(--sj-radius-pill);
+    background: var(--sj-surface-raised);
+    color: var(--sj-text);
+    font-family: inherit;
+    /* 13px at 16px/1em */
+    font-size: 0.8125em;
+    font-weight: 700;
+    text-align: left;
+    text-decoration: none;
+    /* 8px 12px on a 13px font */
+    padding: 0.6154em 0.9231em;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+
+/* A link that looks like a button keeps the button colors. The
+   global link rules would color and underline it on focus. */
+a.needs-btn:hover,
+a.needs-btn:focus {
+    color: var(--sj-text);
+    text-decoration: none;
+}
+
+.needs-btn-secondary:hover,
+a.needs-btn-secondary:hover {
+    background: var(--sj-kuning);
+    color: var(--sj-tinta);
+}
+
+.needs-btn-primary {
+    background: var(--sj-ink);
+    color: var(--sj-on-ink);
+    font-weight: 800;
+    /* 8px 14px on a 13px font */
+    padding: 0.6154em 1.0769em;
+
+    &:hover {
+        background: var(--sj-matcha);
+        color: var(--sj-tinta);
+    }
+}
+
+/* The reason is in the label, so it shows to every person. */
+.needs-btn-expired {
+    color: var(--sj-text-muted);
+    line-height: 1.25;
+    cursor: not-allowed;
+}
+
+.needs-done {
+    display: flex;
+    flex-direction: column;
+    /* 8px at 16px/1em */
+    gap: 0.5em;
+    margin-top: 0.5em;
+}
+
+.needs-done-label {
+    color: var(--sj-text-muted);
+    font-family: var(--sj-font-mono);
+    /* 11px at 16px/1em */
+    font-size: 0.6875em;
+    letter-spacing: 0.08em;
+}
+
+.needs-done-row {
+    display: flex;
+    align-items: center;
+    /* 10px on a 14px font */
+    gap: 0.7143em;
+    border-radius: var(--sj-radius-12);
+    background: var(--sj-surface-warm);
+    color: var(--sj-text-muted);
+    /* 14px at 16px/1em */
+    font-size: 0.875em;
+    /* 10px 14px on a 14px font */
+    padding: 0.7143em 1em;
+}
+
+.needs-done-check {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    /* 10px at 14px, and a box of 16px on that font */
+    font-size: 0.7143em;
+    width: 1.6em;
+    height: 1.6em;
+    border-radius: var(--sj-radius-5);
+    background: var(--sj-matcha);
+    color: var(--sj-tinta);
+    font-weight: 900;
+}
+
+.needs-done-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-decoration: line-through;
+    overflow-wrap: anywhere;
+}
+
+.needs-done-room {
+    font-family: var(--sj-font-mono);
+    /* 10px at 14px */
+    font-size: 0.7143em;
+}
+
+@media (width < $sm_min) {
+    .needs-card {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .needs-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+        max-width: none;
+    }
+
+    .needs-btn,
+    .needs-tab {
+        box-sizing: border-box;
+        /* 36px at 16px/1em, on a 13px font */
+        min-height: 2.7692em;
+    }
+}
