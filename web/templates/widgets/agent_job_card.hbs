@@ -1,0 +1,37 @@
+<div
+  class="sj-job-card"
+  data-bucket="{{bucket}}"
+  data-job-id="{{job_id}}"
+  role="group"
+  aria-label="{{aria_label}}"
+  >
+    <div class="sj-job-card__top">
+        <span class="sj-job-card__pill"><span class="sj-job-card__dot"></span>{{pill_text}}</span>
+        <span class="sj-job-card__title">{{title}}</span>
+        <button type="button" class="sj-job-card__detail">{{t "Details →"}}</button>
+    </div>
+    {{#if show_bar}}
+    <div class="sj-job-card__bar" aria-hidden="true">
+        <div class="sj-job-card__bar-fill" style="width: {{bar_percent}}%"></div>
+    </div>
+    {{/if}}
+    <div class="sj-job-card__foot">
+        <span class="sj-job-card__step">{{step_text}}</span>
+        <div class="sj-job-card__actions">
+            {{#each chips}}
+                {{#if href}}
+                <a
+                  class="sj-job-card__chip sj-job-card__chip--{{tint}}"
+                  href="{{href}}"
+                  {{#if external}}target="_blank" rel="noopener noreferrer"{{/if}}
+                  >{{label}}</a>
+                {{else}}
+                <span class="sj-job-card__chip sj-job-card__chip--{{tint}}">{{label}}</span>
+                {{/if}}
+            {{/each}}
+            {{#if show_retry}}
+            <button type="button" class="sj-job-card__retry">{{t "↻ Try again"}}</button>
+            {{/if}}
+        </div>
+    </div>
+</div>

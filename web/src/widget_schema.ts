@@ -1,5 +1,7 @@
 import * as z from "zod/mini";
 
+import {agent_job_widget_extra_data_schema} from "./agent_job_data.ts";
+import type {AgentJobCardData} from "./agent_job_data.ts";
 import {poll_widget_extra_data_schema} from "./poll_data.ts";
 import type {PollData, PollWidgetOutboundData} from "./poll_data.ts";
 import {todo_widget_extra_data_schema} from "./todo_data.ts";
@@ -26,6 +28,7 @@ export const any_widget_data_schema = z.discriminatedUnion("widget_type", [
         widget_type: z.literal("todo"),
         extra_data: z.nullable(todo_widget_extra_data_schema),
     }),
+    z.object({widget_type: z.literal("agent_job"), extra_data: agent_job_widget_extra_data_schema}),
 ]);
 export type AnyWidgetData = z.infer<typeof any_widget_data_schema>;
 export type WidgetData =
@@ -34,4 +37,5 @@ export type WidgetData =
           data: TaskData;
       }
     | {widget_type: "poll"; data: PollData}
-    | {widget_type: "zform"; data: ZFormExtraData | undefined};
+    | {widget_type: "zform"; data: ZFormExtraData | undefined}
+    | {widget_type: "agent_job"; data: AgentJobCardData};

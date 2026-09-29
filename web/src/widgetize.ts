@@ -39,8 +39,15 @@ export function get_message_ids(): number[] {
     return [...generic_widget_map.keys()];
 }
 
-function set_widget_in_message($row: JQuery, $widget_elem: JQuery): void {
+function set_widget_in_message($row: JQuery, $widget_elem: JQuery, widget_type: string): void {
     const $content_holder = $row.find(".message_content");
+    if (widget_type === "agent_job") {
+        // The agent's answer is the message text. It stays above the card,
+        // and a second render does not add a second card.
+        $content_holder.children(".widget-content").remove();
+        $content_holder.append($widget_elem);
+        return;
+    }
     $content_holder.empty().append($widget_elem);
 }
 
@@ -88,13 +95,14 @@ export function render(in_opts: {
     // DOM and event handlers that eventually go in this div.
     const $widget_elem = $("<div>").addClass("widget-content");
 
-    set_widget_in_message($row, $widget_elem);
+    const widget_data = generic_widget.get_widget_data();
+    set_widget_in_message($row, $widget_elem, widget_data.widget_type);
 
     render_widget_instance({
         post_to_server,
         $widget_elem,
         message,
-        widget_data: generic_widget.get_widget_data(),
+        widget_data,
         rerender: false,
     });
 }

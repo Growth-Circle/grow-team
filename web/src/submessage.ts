@@ -21,7 +21,9 @@ const inbound_data_event_schema = z.object({
     sender_id: z.number(),
     data: z.intersection(
         z.object({
-            type: z.string(),
+            // A poll or todo event has a type. The update of an agent job
+            // card is a full snapshot of the card, and it has none.
+            type: z.optional(z.string()),
         }),
         z.record(z.string(), z.unknown()),
     ),

@@ -1,1 +1,539 @@
-/* Styles for the agent job card in messages. The full version replaces this file. */
+/* The job card of an agent message (spec 13, RM-35..47) and the job
+   drawer (spec 09 E2, DR-48..65). Sizes follow the Ruang and Drawer
+   mockups. Colors come from the --sj-* tokens, so both themes work. */
+
+/* ---- The card in a message ---- */
+
+.sj-job-card {
+    box-sizing: border-box;
+    /* 16px at 15px/1em: the text of a room message is 15px, and the
+       mockup sizes below are written for 16px. */
+    font-size: 1.0667em;
+    /* The message row sets a line height of 1.5. The mockup uses the
+       normal line height, and the card height depends on it. */
+    line-height: normal;
+    max-width: 32.5em; /* 520px at 16px/1em */
+    margin-top: 0.25em; /* 4px at 16px/1em */
+    border: 1.5px solid var(--sj-divider);
+    border-radius: 0.875em; /* 14px at 16px/1em */
+    background: var(--sj-surface);
+    color: var(--sj-text);
+    overflow: hidden;
+    animation: sj-pop 0.25s ease-out;
+
+    &[data-bucket="working"],
+    &[data-bucket="review"] {
+        border-color: var(--sj-outline);
+    }
+}
+
+/* Before the first draft, the message text is a short line for clients
+   that cannot draw a card. This client hides it. */
+.message_content .sj-job-card-fallback-text {
+    display: none;
+}
+
+.sj-job-card__top {
+    display: flex;
+    align-items: center;
+    gap: 0.625em; /* 10px at 16px/1em */
+    padding: 0.625em 0.75em; /* 10px 12px at 16px/1em */
+}
+
+.sj-job-card__pill {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 0.6em; /* 6px at 10px/1em */
+    padding: 0.3em 0.8em; /* 3px 8px at 10px/1em */
+    border: 1px solid var(--sj-outline);
+    border-radius: var(--sj-radius-pill);
+    background: var(--sj-surface-muted);
+    color: var(--sj-text);
+    font-family: var(--sj-font-mono);
+    font-size: 0.625em; /* 10px at 16px/1em */
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.sj-job-card__dot {
+    width: 0.7em; /* 7px at 10px/1em */
+    height: 0.7em;
+    border-radius: var(--sj-radius-circle);
+    background: var(--sj-garis-gelap);
+}
+
+.sj-job-card[data-bucket="working"] {
+    .sj-job-card__pill {
+        background: var(--sj-tint-kuning);
+    }
+
+    .sj-job-card__dot {
+        background: var(--sj-kaki);
+        animation: sj-dots 1s infinite;
+    }
+}
+
+.sj-job-card[data-bucket="review"] {
+    .sj-job-card__pill {
+        background: var(--sj-tint-kaki);
+    }
+
+    .sj-job-card__dot {
+        background: var(--sj-kaki);
+    }
+}
+
+.sj-job-card[data-bucket="done"] {
+    .sj-job-card__pill {
+        background: var(--sj-tint-matcha);
+    }
+
+    .sj-job-card__dot {
+        background: var(--sj-matcha);
+    }
+}
+
+.sj-job-card[data-bucket="stopped"] {
+    border-color: var(--sj-text-bahaya);
+
+    .sj-job-card__pill {
+        background: var(--sj-tint-kaki);
+    }
+
+    .sj-job-card__dot {
+        background: var(--sj-text-bahaya);
+    }
+}
+
+.sj-job-card__title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 0.875em; /* 14px at 16px/1em */
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sj-job-card__detail {
+    flex: none;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--sj-text);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.75em; /* 12px at 16px/1em */
+    font-weight: 700;
+
+    &:hover {
+        color: var(--sj-kaki);
+    }
+}
+
+.sj-job-card__bar {
+    height: 0.3125em; /* 5px at 16px/1em */
+    background: var(--sj-surface-muted);
+}
+
+.sj-job-card__bar-fill {
+    height: 100%;
+    background-image: repeating-linear-gradient(
+        45deg,
+        var(--sj-ink) 0 6px,
+        var(--sj-text-2) 6px 12px
+    );
+    animation: sj-stripe 1s linear infinite;
+    /* The mockup grows the bar by its width, and the stripes must not
+       stretch as they would with a scale. */
+    /* stylelint-disable-next-line plugin/no-low-performance-animation-properties */
+    transition: width 0.6s;
+
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
+}
+
+.sj-job-card__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.625em; /* 10px at 16px/1em */
+    padding: 0.5em 0.75em; /* 8px 12px at 16px/1em */
+    border-top: 1px solid var(--sj-surface-muted);
+    background: var(--sj-bg);
+}
+
+.sj-job-card__step {
+    min-width: 0;
+    color: var(--sj-text-2);
+    font-family: var(--sj-font-mono);
+    font-size: 0.6875em; /* 11px at 16px/1em */
+}
+
+.sj-job-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375em; /* 6px at 16px/1em */
+}
+
+.sj-job-card__chip {
+    padding: 0.25em 0.75em; /* 3px 9px at 12px/1em */
+    border: 1px solid var(--sj-outline);
+    border-radius: 0.6667em; /* 8px at 12px/1em */
+    background: var(--sj-tint-kuning);
+    color: var(--sj-text);
+    font-size: 0.75em; /* 12px at 16px/1em */
+    font-weight: 700;
+    /* The chip is 23px high in the mockup, with 15px of text. */
+    line-height: 1.25;
+    text-decoration: none;
+
+    &.sj-job-card__chip--ayame {
+        background: var(--sj-tint-ayame);
+    }
+
+    &.sj-job-card__chip--matcha {
+        background: var(--sj-tint-matcha);
+    }
+
+    &:is(a):hover {
+        text-decoration: underline;
+    }
+}
+
+.sj-job-card__retry {
+    padding: 0.3333em 0.8333em; /* 4px 10px at 12px/1em */
+    border: 1.5px solid var(--sj-ink);
+    border-radius: var(--sj-radius-pill);
+    background: var(--sj-ink);
+    color: var(--sj-on-ink);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.75em; /* 12px at 16px/1em */
+    font-weight: 800;
+    /* The button is 28px high in the mockup, with 17px of text. */
+    line-height: 1.4167;
+
+    &:disabled {
+        cursor: progress;
+        opacity: 0.6;
+    }
+}
+
+/* ---- The job drawer ---- */
+
+/* DR-01: the scrim is the ink color at 30%. The old panel slid in from
+   the side. The mockup panel rises 8px (DR-02). */
+#agent-job-overlay.sj-job-drawer {
+    background: hsl(240deg 13.73% 10% / 30%);
+
+    .overlay-content,
+    &.show .overlay-content {
+        justify-content: flex-end;
+        align-items: stretch;
+        height: 100%;
+        transform: none;
+    }
+}
+
+/* DR-02: 480px and a 2px border on the left. */
+.sj-job-drawer__panel {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    width: min(482px, 100vw);
+    height: 100%;
+    border-left: 2px solid var(--sj-outline);
+    background: var(--sj-bg);
+    box-shadow: var(--sj-shadow-drawer);
+    color: var(--sj-text);
+    overflow: hidden;
+    animation: sj-pop var(--sj-duration-pop) ease-out;
+
+    @media (width < $shell_narrow_min) {
+        width: 100vw;
+        border-left: 0;
+    }
+}
+
+/* DR-03..05 */
+.sj-job-drawer__header {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75em; /* 12px at 16px/1em */
+    padding: 0.875em 1.125em; /* 14px 18px at 16px/1em */
+    border-bottom: var(--sj-border);
+    background: var(--sj-surface);
+}
+
+.sj-job-drawer__kind {
+    color: var(--sj-text-muted);
+    font-family: var(--sj-font-mono);
+    font-size: 0.625em; /* 10px at 16px/1em */
+    letter-spacing: 0.08em;
+}
+
+.sj-job-drawer__close {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 2.2857em; /* 32px at 14px/1em */
+    height: 2.2857em;
+    padding: 0;
+    border: var(--sj-border);
+    border-radius: var(--sj-radius-circle);
+    background: var(--sj-bg);
+    color: var(--sj-text);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.875em; /* 14px at 16px/1em */
+    font-weight: 800;
+
+    &:hover {
+        background: var(--sj-kuning);
+        color: var(--sj-on-accent);
+    }
+
+    /* overlays.ts closes an overlay only when the click target is the
+       .exit button, so the mark must not take the click. */
+    span {
+        pointer-events: none;
+    }
+}
+
+/* DR-06 */
+#agent-job-overlay .agent-job-body.sj-job-drawer__body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.125em; /* 18px at 16px/1em */
+    padding: 1.25em 1.125em; /* 20px 18px at 16px/1em */
+    overflow: hidden auto;
+    overflow-wrap: anywhere;
+}
+
+/* DR-48..55 */
+.sj-job-drawer__head {
+    display: flex;
+    align-items: center;
+    gap: 0.75em; /* 12px at 16px/1em */
+}
+
+.sj-job-drawer__shape {
+    --sj-job-shape-color: var(--sj-ink);
+
+    box-sizing: border-box;
+    flex: none;
+    width: 2.5em; /* 40px at 16px/1em */
+    height: 2.5em;
+    border-radius: var(--sj-radius-circle);
+    background: var(--sj-job-shape-color);
+
+    &.sj-job-drawer__shape--ring {
+        border: 0.625em solid var(--sj-job-shape-color); /* 10px at 16px/1em */
+        background: transparent;
+    }
+
+    &.sj-job-drawer__shape--box {
+        width: 2.375em; /* 38px at 16px/1em */
+        height: 2.375em;
+        border-radius: 0.6875em; /* 11px at 16px/1em */
+    }
+}
+
+.sj-job-drawer__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125em; /* 2px at 16px/1em */
+    min-width: 0;
+}
+
+#agent-job-overlay .sj-job-drawer__title {
+    margin: 0;
+    color: var(--sj-text);
+    font-family: inherit;
+    font-size: 1.375em; /* 22px at 16px/1em */
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+}
+
+.sj-job-drawer__meta {
+    margin: 0;
+    color: var(--sj-text-muted);
+    font-size: 0.8125em; /* 13px at 16px/1em */
+}
+
+/* DR-56, DR-57 */
+.sj-job-drawer__bar {
+    box-sizing: content-box;
+    flex: none;
+    height: 0.625em; /* 10px at 16px/1em */
+    border: var(--sj-border);
+    border-radius: 99px;
+    background: var(--sj-tint-ayame);
+    overflow: hidden;
+}
+
+.sj-job-drawer__bar-fill {
+    height: 100%;
+    background-image: repeating-linear-gradient(
+        45deg,
+        var(--sj-ink) 0 7px,
+        var(--sj-text-2) 7px 14px
+    );
+    animation: sj-stripe 1s linear infinite;
+
+    .sj-job-drawer__bar--still & {
+        animation: none;
+    }
+}
+
+#agent-job-overlay .sj-job-drawer__status {
+    margin: 0;
+    color: var(--sj-text-2);
+    font-size: 0.875em; /* 14px at 16px/1em */
+    line-height: 1.45;
+}
+
+#agent-job-overlay .sj-job-drawer__note {
+    margin: 0;
+    color: var(--sj-text-2);
+    font-size: 0.8125em; /* 13px at 16px/1em */
+}
+
+/* DR-58..61 and DR-62..65 */
+.sj-job-drawer__block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em; /* 8px at 16px/1em */
+
+    &.sj-job-drawer__block--log {
+        gap: 0.375em; /* 6px at 16px/1em */
+    }
+}
+
+#agent-job-overlay .sj-job-drawer__label {
+    margin: 0;
+    color: var(--sj-text-muted);
+    font-family: var(--sj-font-mono);
+    font-size: 0.625em; /* 10px at 16px/1em */
+    font-weight: 400;
+    letter-spacing: 0.08em;
+}
+
+.sj-job-drawer__steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em; /* 8px at 16px/1em */
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sj-job-drawer__step {
+    display: flex;
+    align-items: center;
+    gap: 0.625em; /* 10px at 16px/1em */
+    color: var(--sj-text-muted);
+    font-size: 0.875em; /* 14px at 16px/1em */
+    font-weight: 600;
+
+    &[data-state="done"],
+    &[data-state="active"] {
+        color: var(--sj-text);
+    }
+
+    &[data-state="active"] {
+        font-weight: 800;
+    }
+}
+
+.sj-job-drawer__step-mark {
+    box-sizing: border-box;
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 1.2857em; /* 18px at 14px/1em */
+    height: 1.2857em;
+    border: 1.5px solid var(--sj-outline);
+    border-radius: var(--sj-radius-circle);
+    background: var(--sj-surface);
+    color: var(--sj-on-accent);
+    font-size: 0.7143em; /* 10px at 14px/1em */
+    font-weight: 900;
+
+    [data-state="done"] > & {
+        background: var(--sj-matcha);
+    }
+
+    [data-state="active"] > & {
+        background: var(--sj-kuning);
+    }
+}
+
+.sj-job-drawer__log {
+    max-height: 14em;
+    padding: 0.75em; /* 12px at 16px/1em */
+    border-radius: 0.75em; /* 12px at 16px/1em */
+    background: light-dark(var(--sj-tinta), var(--sj-malam));
+    color: var(--sj-teks-gelap-2);
+    font-family: var(--sj-font-mono);
+    font-size: 0.6875em; /* 11px at 16px/1em */
+    line-height: 1.7;
+    overflow-y: auto;
+}
+
+.sj-job-drawer__log-line {
+    display: flex;
+    gap: 0.9091em; /* 10px at 11px/1em */
+    margin: 0;
+
+    &.pending .sj-job-drawer__log-text {
+        color: var(--sj-kuning);
+    }
+}
+
+.sj-job-drawer__log-time {
+    flex: none;
+    min-width: 3.6364em; /* 40px at 11px/1em */
+}
+
+/* DR-93, DR-94: the buttons use the classes of the shared drawer. */
+.sj-job-drawer__footer {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5em; /* 8px at 16px/1em */
+    padding: 0.875em 1.125em; /* 14px 18px at 16px/1em */
+    border-top: var(--sj-border);
+    background: var(--sj-surface);
+
+    &:has(.sj-job-drawer__controls:empty) {
+        display: none;
+    }
+}
+
+.sj-job-drawer__controls {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5em; /* 8px at 16px/1em */
+
+    .agent-job-note {
+        flex: 1 0 100%;
+        margin: 0;
+        color: var(--sj-text-2);
+        font-size: 0.8125em; /* 13px at 16px/1em */
+    }
+}
