@@ -49,7 +49,6 @@ export function get_stream_filters_max_height(): number {
         visible_outer_height("#left-sidebar-search") -
         ($("#left-sidebar-navigation-area").not(".hidden-by-filters").outerHeight(true) ?? 0) -
         visible_outer_height("#sidebar-user-card", false) -
-        visible_outer_height("#left-sidebar-modal", false) -
         GAP;
 
     // Don't let us crush the stream sidebar completely out of view

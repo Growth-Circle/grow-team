@@ -2708,6 +2708,12 @@ li.topic-list-item {
     /* Hidden instead of display: none so that we scroll to the
        correct height more easily as it becomes visible again */
     visibility: hidden;
+    /* Same place as when visible, so it takes no space in the
+       column while hidden. */
+    position: absolute;
+    left: 0;
+    top: var(--navbar-fixed-height);
+    width: var(--left-sidebar-width);
 }
 
 /* The two modals have different top paddings */
