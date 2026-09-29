@@ -1317,7 +1317,9 @@ def _job_progress(job: agents.AgentJob) -> float:
 
 
 def job_title(job: agents.AgentJob) -> str:
-    return _MENTION_SYNTAX.sub(r"@\1", job.request).strip()[:80]
+    """The first line of the request. Any later line, such as the format
+    that a summary job asks for, stays out of the card."""
+    return _MENTION_SYNTAX.sub(r"@\1", job.request).strip().partition("\n")[0].strip()[:80]
 
 
 def job_status_reason(job: agents.AgentJob) -> str | None:
