@@ -690,10 +690,13 @@ export let show = (raw_terms: NarrowTerm[], show_opts: ShowMessageViewOpts): voi
         $("#room-header, #room-topics-column, #message_feed_container").show();
 
         // The room header and topic column only apply to a channel
-        // narrow. A direct message or a search keeps the Zulip view.
-        // message_list_view.ts uses the same test.
+        // narrow of a signed-in user. A direct message, a search, and
+        // a spectator keep the Zulip view. message_list_view.ts uses
+        // the same test.
         const room_stream =
-            filter.has_operator("channel") && !filter.is_keyword_search()
+            filter.has_operator("channel") &&
+            !filter.is_keyword_search() &&
+            !page_params.is_spectator
                 ? stream_data.get_sub_by_id_string(
                       filter.terms_with_operator("channel")[0]!.operand,
                   )

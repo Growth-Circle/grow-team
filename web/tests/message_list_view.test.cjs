@@ -7,6 +7,7 @@ const _ = require("lodash");
 const {mock_esm, set_global, zrequire} = require("./lib/namespace.cjs");
 const {run_test, noop} = require("./lib/test.cjs");
 const $ = require("./lib/zjquery.cjs");
+const {page_params} = require("./lib/zpage_params.cjs");
 
 set_global("document", "document-stub");
 
@@ -1002,4 +1003,8 @@ test("room_message_vars", () => {
     assert.equal(result.room_view, false);
     result = room_variables([], 10, "Kaki Bot");
     assert.equal(result.room_view, false);
+    page_params.is_spectator = true;
+    result = room_variables([{operator: "channel", operand: "2"}], 20, "Dita Anggraini");
+    assert.equal(result.room_view, false);
+    page_params.is_spectator = false;
 });

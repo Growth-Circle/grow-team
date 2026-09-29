@@ -12,6 +12,7 @@ import * as z from "zod/mini";
 import * as channel from "./channel.ts";
 import {$t} from "./i18n.ts";
 import * as message_live_update from "./message_live_update.ts";
+import {page_params} from "./page_params.ts";
 import * as peer_data from "./peer_data.ts";
 import * as util from "./util.ts";
 
@@ -80,6 +81,10 @@ async function load(): Promise<void> {
 }
 
 export async function ensure_loaded(): Promise<void> {
+    if (page_params.is_spectator) {
+        // A spectator cannot read the agent directory.
+        return;
+    }
     load_promise ??= load();
     await load_promise;
 }

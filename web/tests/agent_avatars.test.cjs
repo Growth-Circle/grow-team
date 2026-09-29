@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 
 const {mock_esm, zrequire} = require("./lib/namespace.cjs");
 const {run_test} = require("./lib/test.cjs");
+const {page_params} = require("./lib/zpage_params.cjs");
 
 let next_response;
 const requested_urls = [];
@@ -40,6 +41,14 @@ run_test("initials_for_name", () => {
     assert.equal(agent_avatars.initials_for_name("Kaki"), "KA");
     assert.equal(agent_avatars.initials_for_name("Dita Anggraini"), "DA");
     assert.equal(agent_avatars.initials_for_name("  "), "");
+});
+
+run_test("a spectator does not read the agent directory", async () => {
+    page_params.is_spectator = true;
+    await agent_avatars.ensure_loaded();
+    assert.equal(agent_avatars.get_agent_for_bot_user_id(10), undefined);
+    assert.deepEqual(requested_urls, []);
+    page_params.is_spectator = false;
 });
 
 // The module fetches the directory once per page, so the tests below

@@ -716,11 +716,15 @@ export class MessageListView {
         }
 
         // A room (RM-24..34) draws an initials avatar for a person and
-        // a shaped one for an agent. A direct message or a search keeps
-        // the Zulip rendering. message_view.ts uses the same test.
+        // a shaped one for an agent. A direct message, a search, and a
+        // spectator keep the Zulip rendering. message_view.ts uses the
+        // same test.
         const filter = this.list.data.filter;
         const room_view =
-            filter.has_operator("channel") && !filter.is_keyword_search() && !is_hidden;
+            filter.has_operator("channel") &&
+            !filter.is_keyword_search() &&
+            !page_params.is_spectator &&
+            !is_hidden;
         const agent = room_view
             ? agent_avatars.get_agent_for_bot_user_id(message.sender_id)
             : undefined;
