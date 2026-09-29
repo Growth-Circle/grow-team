@@ -1,0 +1,24 @@
+{
+  "frontend": {
+    "Today": "Hari ini",
+    "Drive / {stream_name} ↗": "Drive / {stream_name} ↗",
+    "Kaki's summary: ON": "Ringkasan Kaki: ON",
+    "Kaki's summary: OFF": "Ringkasan Kaki: OFF",
+    "Only the room owner can change the summary.": "Hanya pemilik ruang yang bisa mengubah ringkasan.",
+    "{N, plural, one {# person} other {# people}}": "{N, plural, other {# orang}}",
+    "{N, plural, one {# agent} other {# agents}}": "{N, plural, other {# agen}}",
+    "Owner: {owner_name} · {members}": "Pemilik: {owner_name} · {members}",
+    "Could not load this room.": "Ruang tidak bisa dimuat.",
+    "Could not change the summary.": "Ringkasan tidak bisa diubah.",
+    "Summary is on. Kaki summarizes this room each morning.": "Ringkasan dinyalakan. Kaki merangkum ruang ini tiap pagi.",
+    "Summary is off. Kaki stops reading this room for summaries.": "Ringkasan dimatikan. Kaki berhenti membaca ruang ini untuk rangkuman.",
+    "Kaki summarized {message_count, plural, one {# message} other {# messages}} since yesterday": "Kaki merangkum {message_count, plural, other {# pesan}} sejak kemarin",
+    "Topics": "Topik",
+    "Open": "dibuka",
+    "{N, plural, one {# message} other {# messages}}": "{N, plural, other {# pesan}}",
+    "AGENT": "AGEN",
+    "Write in {topic_name}…": "Tulis di {topic_name}…",
+    "Write in {topic_name}… type {agent_mentions} to call an agent": "Tulis di {topic_name}… ketik {agent_mentions} untuk memanggil agen"
+  },
+  "backend": {}
+}
