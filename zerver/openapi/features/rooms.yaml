@@ -217,13 +217,17 @@ paths:
       tags: ["channels"]
       summary: Summarize a channel
       description: |
-        Ask the channel's built-in assistant for a fresh summary of the
-        channel with the ID `stream_id`, right away instead of waiting for
-        the next scheduled one.
+        Ask the channel's built-in assistant for a summary of the last 24
+        hours of the channel with the ID `stream_id`, right away instead of
+        waiting for the next scheduled one. The summary replaces the
+        channel's digest of today.
 
         The channel must already opt in to a daily summary, and the
         requesting user must be the channel's owner and hold the
         `room_summary` permission.
+
+        When the assistant is already writing today's summary, the request
+        starts nothing new and returns the ID of the job that is running.
 
         **Changes**: New in Zulip 12.0 (feature level ZF-9df9b7).
       parameters:
@@ -270,16 +274,34 @@ paths:
                     msg: Turn on summaries for this channel first.
                     code: BAD_REQUEST
                 no_permission:
-                  summary: The requesting user cannot change this channel.
+                  summary: The requesting user is not the channel's owner.
                   value:
                     result: error
-                    msg: You do not have permission to change this channel.
+                    msg: Only the channel owner can ask for a summary.
+                    code: BAD_REQUEST
+                budget_used_up:
+                  summary: The organization used its model budget for the month.
+                  value:
+                    result: error
+                    msg: The budget for this month is used up. Kaki cannot write a summary now.
                     code: BAD_REQUEST
                 not_available:
                   summary: The organization has no built-in assistant to summarize with.
                   value:
                     result: error
-                    msg: Summaries are not available for this organization.
+                    msg: Kaki is not available in this workspace. Ask an admin to turn it on.
+                    code: BAD_REQUEST
+                no_new_messages:
+                  summary: The channel got no message in the last 24 hours.
+                  value:
+                    result: error
+                    msg: There are no new messages to summarize.
+                    code: BAD_REQUEST
+                cannot_summarize:
+                  summary: The summary job could not start.
+                  value:
+                    result: error
+                    msg: Kaki cannot write a summary for this channel right now.
                     code: BAD_REQUEST
 
   /streams/{stream_id}/digest:
@@ -361,7 +383,7 @@ paths:
                 msg: ""
                 digest:
                   date: "2026-09-27"
-                  decided: ["Ship the WP24 digest with the fast preset."]
+                  decided: ["Ship the new pricing page on Friday."]
                   blocker: []
                   waiting: ["Design review of the Room banner."]
                   summary: "Quiet day; mostly review comments."

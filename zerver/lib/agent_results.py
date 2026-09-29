@@ -668,7 +668,9 @@ def deliver_result_privately(
         summary_artifact = _summary_artifact(artifacts)
         assert summary_artifact is not None
         answer = _answer_text(proposal.summary, read_artifact(summary_artifact))
-        digest_text = fill_room_digest(job, answer)
+        # This answer goes to one person because the room changed under it,
+        # so the room's banner must not show it.
+        digest_text = fill_room_digest(job, answer, keep=False)
         if digest_text is not None:
             answer = digest_text
         reject_secrets(job, answer.encode())

@@ -501,7 +501,7 @@ def create_job(
                 scope=scope,
             )
             selected_context(job, [ref.id])
-        # 05-D8: the cards made from the source message follow this job.
+        # The task cards made from the source message follow this job.
         link_tasks_to_job(job)
         if not draft and not blocked_reason:
             agents.AgentOutbox.objects.create(
@@ -904,9 +904,9 @@ def require_snapshot_resources(
     actor = actor or job.requester
     runner = agents.AgentRunner.objects.get(id=attempt.runner_id, realm_id=job.realm_id)
     descriptor = p.AttemptDescriptor.model_validate(attempt.descriptor)
-    # P-19: the same rule as check_agent_access. A work agent needs no
-    # runner or provider grant, while its snapshot still uses the
-    # profile's own work runner and work provider.
+    # The rule of check_agent_access: a work agent needs no runner or
+    # provider grant. Its snapshot must still use the runner and the
+    # provider of the profile itself.
     fast_path = (
         work_agent_fast_path(job.profile)
         and runner.id == job.profile.runner_id

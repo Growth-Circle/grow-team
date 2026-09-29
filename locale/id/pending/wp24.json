@@ -2,13 +2,17 @@
   "frontend": {},
   "backend": {
     "Kaki's summary": "Ringkasan Kaki",
-    "Read this channel's messages since the last summary. Reply with JSON only, in this exact shape: {\"decided\": [\"...\"], \"blocker\": [\"...\"], \"waiting\": [\"...\"], \"summary\": \"...\"}. Keep each item short.": "Baca pesan ruang ini sejak ringkasan terakhir. Balas hanya dengan JSON, persis bentuk ini: {\"decided\": [\"...\"], \"blocker\": [\"...\"], \"waiting\": [\"...\"], \"summary\": \"...\"}. Buat tiap item singkat.",
-    "Decisions:": "Keputusan:",
-    "Blocker:": "Blocker:",
-    "Waiting on:": "Menunggu:",
+    "Summarize this channel since the last summary.": "Ringkas ruang ini sejak ringkasan terakhir.",
+    "Read the messages of this channel since the last summary. Reply with JSON only, in this exact shape: {\"decided\": [\"...\"], \"blocker\": [\"...\"], \"waiting\": [\"...\"], \"summary\": \"...\"}. Keep each item short.": "Baca pesan ruang ini sejak ringkasan terakhir. Balas hanya dengan JSON, persis bentuk ini: {\"decided\": [\"...\"], \"blocker\": [\"...\"], \"waiting\": [\"...\"], \"summary\": \"...\"}. Buat tiap item singkat.",
+    "Decisions": "Keputusan",
+    "Blockers": "Blocker",
+    "Waiting on": "Menunggu",
+    "Nothing to report.": "Tidak ada yang perlu dilaporkan.",
+    "Only the channel owner can ask for a summary.": "Hanya pemilik ruang yang bisa meminta ringkasan.",
     "Turn on summaries for this channel first.": "Aktifkan ringkasan untuk ruang ini dulu.",
-    "You do not have permission to change this channel.": "Kamu tidak berhak mengubah ruang ini.",
-    "Summaries are not available for this organization.": "Ringkasan tidak tersedia untuk organisasi ini.",
-    "Enter the date as YYYY-MM-DD.": "Isi tanggal dengan format YYYY-MM-DD."
+    "The budget for this month is used up. Kaki cannot write a summary now.": "Anggaran bulan ini sudah habis. Kaki tidak bisa menulis ringkasan sekarang.",
+    "Kaki is not available in this workspace. Ask an admin to turn it on.": "Kaki tidak tersedia di workspace ini. Minta admin untuk mengaktifkannya.",
+    "There are no new messages to summarize.": "Tidak ada pesan baru untuk diringkas.",
+    "Kaki cannot write a summary for this channel right now.": "Kaki tidak bisa menulis ringkasan untuk ruang ini sekarang."
   }
 }

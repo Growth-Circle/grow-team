@@ -1,13 +1,15 @@
-"""Kaki's opt-in morning room digest: schedule gating, digest generation,
-and the two endpoints that back it (spec 02, 04; PLAN.md WP24).
+"""Kaki's opt-in morning summary of a room: the schedule, the digest job,
+and the two endpoints that back the Room banner.
 
-RoomDigest and RoomMeta (zerver/models/rooms.py) already exist; this module
-is what fills and reads them.
+RoomDigest and RoomMeta (zerver/models/rooms.py) hold the data. This
+module fills and reads them.
 """
 
 import json
+import logging
+import re
 import zoneinfo
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -17,7 +19,7 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 from django.utils.translation import override as override_language
 
-from zerver.actions.agent_jobs import create_job
+from zerver.actions.agent_jobs import TERMINAL, agent_language, create_job
 from zerver.actions.message_send import check_message, do_send_messages
 from zerver.actions.room_meta import (
     can_toggle_room_summary,
@@ -26,7 +28,9 @@ from zerver.actions.room_meta import (
 )
 from zerver.actions.streams import bulk_add_subscriptions
 from zerver.lib.addressee import Addressee
-from zerver.lib.agent_context import agent_transaction
+from zerver.lib.agent_context import AgentBusy, agent_transaction
+from zerver.lib.agent_events import send_room_meta_event
+from zerver.lib.agent_policy import AgentAccessDenied
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.model_budget import model_budget_state
 from zerver.lib.response import json_success
@@ -45,60 +49,77 @@ from zerver.models import (
 )
 from zerver.models.clients import get_client
 
-# A fixed topic so a room's digests read as one running thread, translated
-# the same way as Realm.STREAM_EVENTS_NOTIFICATION_TOPIC_NAME.
+logger = logging.getLogger(__name__)
+
+# A fixed topic, so the digests of a room read as one running thread.
 ROOM_DIGEST_TOPIC_NAME = gettext_lazy("Kaki's summary")
 
 DIGEST_HOUR = 7
 
-# create_job caps a job's total context references (the source message
-# plus selected context) at 100. Leave one slot for the source message.
-# ponytail: the brief asks for up to 200 context messages; 99 is the most
-# that still fits create_job's shared cap without raising it for every
-# caller of that function, not only digests.
+# The first summary of a room, and every manual one, covers this much time.
+DIGEST_LOOKBACK = timedelta(hours=24)
+
+# The job protocol allows 100 context references in one job, and the
+# digest's own source message takes one of them.
 CONTEXT_MESSAGE_LIMIT = 99
+
+# A digest is a routine job, so it runs on the cheap model preset. The
+# preset of a job comes from its profile, and Kaki's profile serves other
+# work too: the code that picks the model asks is_room_digest_job.
+ROOM_DIGEST_MODEL_PRESET = "fast"
 
 
 def _realm_local_now(realm: Realm) -> datetime:
-    """`realm`'s current time in its own configured timezone (WP14's
-    quiet_rooms._realm_today follows the same pattern for its own file;
-    that helper is private to its module, so this repeats the ~5 lines
-    instead of importing it)."""
-    settings_row = AgentRealmSettings.objects.filter(realm=realm).first()
-    tz_name = "Asia/Jakarta" if settings_row is None else settings_row.timezone
-    zone = zoneinfo.ZoneInfo(canonicalize_timezone(tz_name))
-    return timezone_now().astimezone(zone)
+    """The current time in the timezone that the workspace chose."""
+    tz_name = (
+        AgentRealmSettings.objects.filter(realm=realm).values_list("timezone", flat=True).first()
+    ) or "Asia/Jakarta"
+    return timezone_now().astimezone(zoneinfo.ZoneInfo(canonicalize_timezone(tz_name)))
 
 
-def _find_builtin_agent_profile(realm: Realm, name: str) -> agents.AgentProfile | None:
-    """The named built-in agent's own profile. room_meta._find_builtin_agent_bot
-    runs the same lookup for its bot user only, and is private to its module."""
+def _find_kaki(realm: Realm) -> agents.AgentProfile | None:
+    """The built-in planner agent. The role finds it, so a rename does not
+    hide it (ensure_builtin_agents.live_builtin does the same)."""
     return (
         agents.AgentProfile.objects.filter(
             realm=realm,
             is_builtin=True,
-            name=name,
+            agent_role="planner",
             archived_at__isnull=True,
             bot_user__is_active=True,
         )
         .select_related("bot_user")
-        .order_by("id")
+        .order_by("-created_at")
         .first()
     )
 
 
-def _recent_message_ids(stream: Stream, since: datetime | None) -> tuple[list[int], int]:
-    """Up to CONTEXT_MESSAGE_LIMIT message ids from `stream`, all topics,
-    sent after `since` (or ever, when `since` is None), oldest first. Also
-    returns the true total, which can be higher than the capped list."""
+def _recent_message_ids(stream: Stream, since: datetime) -> list[int]:
+    """The ids of the newest messages that `stream` got after `since`, in
+    every topic, oldest first, at most CONTEXT_MESSAGE_LIMIT of them. The
+    messages of earlier digests do not count: Kaki must not summarize its
+    own summaries, and a quiet room must stay quiet.
+
+    ponytail: a digest row keeps only its newest job and line. A manual
+    summary replaces the row of the day, so the card of the digest that it
+    replaced counts as one new message later. Keep every job and line of a
+    day in a table of their own, if that ever matters."""
     assert stream.recipient_id is not None
-    query = Message.objects.filter(realm=stream.realm, recipient_id=stream.recipient_id)
-    if since is not None:
-        query = query.filter(date_sent__gt=since)
-    total = query.count()
+    digests = RoomDigest.objects.filter(stream=stream)
+    query = (
+        Message.objects.filter(
+            realm_id=stream.realm_id, recipient_id=stream.recipient_id, date_sent__gt=since
+        )
+        .exclude(id__in=digests.filter(source_message__isnull=False).values("source_message_id"))
+        .exclude(
+            id__in=digests.filter(job__result_message__isnull=False).values(
+                "job__result_message_id"
+            )
+        )
+    )
     ids = list(query.order_by("-id").values_list("id", flat=True)[:CONTEXT_MESSAGE_LIMIT])
     ids.reverse()
-    return ids, total
+    return ids
 
 
 def _post_kaki_message(
@@ -107,9 +128,8 @@ def _post_kaki_message(
     try:
         access_stream_for_send_message(bot, stream, forwarder_user_profile=None)
     except JsonableError:
-        # Not yet a subscriber of a private room, or one with a restricted
-        # send policy: subscribe it and retry once (room_meta._send_room_announce
-        # follows the same pattern for the room-created announcement).
+        # Kaki is not yet in a private room, or the room limits who can
+        # post: add Kaki to the room and try once more.
         bulk_add_subscriptions(stream.realm, [stream], [bot], acting_user=acting_user)
         access_stream_for_send_message(bot, stream, forwarder_user_profile=None)
     message = check_message(
@@ -123,50 +143,48 @@ def _post_kaki_message(
     return Message.objects.get(id=do_send_messages([message])[0].message_id)
 
 
-def _digest_request_text() -> str:
-    return _(
-        "Read this channel's messages since the last summary. Reply with "
-        'JSON only, in this exact shape: {"decided": ["..."], "blocker": '
-        '["..."], "waiting": ["..."], "summary": "..."}. Keep each item short.'
-    )
-
-
 def create_room_digest_job(
     stream: Stream,
-    room_meta: RoomMeta,
     actor: UserProfile,
     kaki: agents.AgentProfile,
     *,
     today: date,
     context_ids: list[int],
-    message_count: int,
 ) -> agents.AgentJob:
-    """Post Kaki's digest source message, start its answer job, and file
-    the room's RoomDigest row for `today`. Replaces a row already made for
-    that date, so a manual re-summarize redoes the day's digest (spec 04)."""
-    with override_language(stream.realm.default_language):
+    """Post Kaki's source message, start the answer job for it, and file
+    the RoomDigest of `today` as waiting for that job. A row that already
+    exists for `today` starts over, so a manual summary redoes the day.
+
+    The first line of the request is the job's title on its card, so it
+    must read well without the rest."""
+    with override_language(agent_language(stream.realm_id)):
         topic_name = str(ROOM_DIGEST_TOPIC_NAME)
-        text = _digest_request_text()
-    source = _post_kaki_message(kaki.bot_user, stream, topic_name, text, actor)
+        title = _("Summarize this channel since the last summary.")
+        request = f"{title}\n\n" + _(
+            "Read the messages of this channel since the last summary. Reply with "
+            'JSON only, in this exact shape: {"decided": ["..."], "blocker": '
+            '["..."], "waiting": ["..."], "summary": "..."}. Keep each item short.'
+        )
+    source = _post_kaki_message(kaki.bot_user, stream, topic_name, title, actor)
     job = create_job(
         actor,
         profile=kaki,
         source=source,
-        request=text,
+        request=request,
         idempotency_key=uuid4(),
         job_kind="answer",
         delivery_target="answer",
         trigger_kind="manual",
         context_message_ids=context_ids,
-        # A digest must not fail outright just because Kaki needs setup
-        # attention; it waits as a blocked job instead (T-21).
+        # A job for Kaki that needs setup waits as a blocked job. It does
+        # not stop the summaries of the other rooms.
         allow_blocked=True,
     )
     RoomDigest.objects.update_or_create(
         stream=stream,
         date=today,
         defaults={
-            "message_count": message_count,
+            "message_count": len(context_ids),
             "source_message": source,
             "job": job,
             "decided": [],
@@ -175,60 +193,89 @@ def create_room_digest_job(
             "summary": "",
         },
     )
-    room_meta.last_digest_at = timezone_now()
-    room_meta.save(update_fields=["last_digest_at"])
     return job
 
 
+def is_room_digest_job(job: agents.AgentJob) -> bool:
+    return RoomDigest.objects.filter(job=job).exists()
+
+
+def _digest_actor(room_meta: RoomMeta) -> UserProfile | None:
+    """Who the digest job runs for: the person who turned summaries on,
+    or the room owner when that person has left."""
+    actor = room_meta.summary_enabled_by
+    if actor is not None and actor.is_active and not actor.is_bot:
+        return actor
+    return get_room_owner(room_meta.stream)
+
+
+def _send_room_digest(
+    room_meta: RoomMeta, kaki: agents.AgentProfile, today: date, context_ids: list[int]
+) -> bool:
+    """Start the digest job of one room. Call inside agent_transaction().
+    The checks that decided to call it run again here, under the lock, so
+    two runs at the same time never start two digests of one room."""
+    current = RoomMeta.objects.select_for_update().get(id=room_meta.id)
+    if (
+        not current.summary_enabled
+        or RoomDigest.objects.filter(stream_id=current.stream_id, date=today).exists()
+    ):
+        return False
+    actor = _digest_actor(room_meta)
+    if actor is None:
+        return False
+    create_room_digest_job(room_meta.stream, actor, kaki, today=today, context_ids=context_ids)
+    current.last_digest_at = timezone_now()
+    current.save(update_fields=["last_digest_at"])
+    return True
+
+
 def send_realm_room_digests(realm: Realm) -> int:
-    """Post the morning digest for every opted-in room in `realm` that has
-    new messages since its last one, once the realm's local time reaches
-    07:00 (PLAN.md WP24 step 1). Call once per realm, inside
-    agent_context.agent_realm(realm.id) (send_room_digests does this)."""
+    """Start the morning digest of every room in `realm` that turned
+    summaries on and has new messages since its last digest, once the
+    workspace's own clock reaches 07:00. Returns how many digests started.
+    Call once per realm, inside agent_context.agent_realm(realm.id)."""
+    if not AgentRealmSettings.objects.filter(realm=realm, enabled=True).exists():
+        return 0
     if model_budget_state(realm) == "exceeded":
         return 0
     local_now = _realm_local_now(realm)
     if local_now.time() < time(DIGEST_HOUR, 0):
         return 0
-    today = local_now.date()
-    kaki = _find_builtin_agent_profile(realm, "Kaki")
+    kaki = _find_kaki(realm)
     if kaki is None:
-        # Built-in agents are seeded per realm by a separate command; skip
-        # quietly rather than fail the whole run until that has happened
-        # (room_meta._send_room_announce follows the same precedent).
         return 0
+    today = local_now.date()
+    done_stream_ids = set(
+        RoomDigest.objects.filter(stream__realm=realm, date=today).values_list(
+            "stream_id", flat=True
+        )
+    )
     sent = 0
+    # Only a room that turned summaries on is read. The room's history stays
+    # unread for a room that did not.
     room_metas = RoomMeta.objects.filter(
         stream__realm=realm, stream__deactivated=False, summary_enabled=True
     ).select_related("stream", "summary_enabled_by")
     for room_meta in room_metas:
-        if RoomDigest.objects.filter(stream=room_meta.stream, date=today).exists():
+        if room_meta.stream_id in done_stream_ids:
             continue
-        ids, total = _recent_message_ids(room_meta.stream, room_meta.last_digest_at)
-        if not ids:
-            continue
-        actor = room_meta.summary_enabled_by
-        if actor is None or not actor.is_active:
-            actor = get_room_owner(room_meta.stream)
-        if actor is None:
+        since = room_meta.last_digest_at or timezone_now() - DIGEST_LOOKBACK
+        context_ids = _recent_message_ids(room_meta.stream, since)
+        if not context_ids:
             continue
         try:
             with agent_transaction():
-                create_room_digest_job(
-                    room_meta.stream,
-                    room_meta,
-                    actor,
-                    kaki,
-                    today=today,
-                    context_ids=ids,
-                    message_count=total,
-                )
-        except (ValueError, JsonableError, AgentRealmSettings.DoesNotExist):
-            # One room's broken configuration, or the realm's agents not
-            # being enabled at all, must not stop every other room's
-            # digest in this realm, nor any other realm's (T-21).
+                started = _send_room_digest(room_meta, kaki, today, context_ids)
+        except AgentBusy:
+            # Another agent write holds the lock. The next run tries again.
             continue
-        sent += 1
+        except (ValueError, JsonableError, AgentRealmSettings.DoesNotExist) as error:
+            # One room that cannot be summarized must not stop the summaries
+            # of the other rooms.
+            logger.warning("No digest for channel %s: %s", room_meta.stream_id, error)
+            continue
+        sent += started
     return sent
 
 
@@ -254,34 +301,44 @@ def _parse_digest_date(raw: str) -> date:
 def summarize_room(
     request: HttpRequest, user_profile: UserProfile, *, stream_id: PathOnly[int]
 ) -> HttpResponse:
-    """POST .../summarize (spec 04): a one-off re-run of the room's
-    digest, room owner only (04-A3)."""
+    """The owner of a room asks Kaki for a summary of the last 24 hours."""
     (stream, _sub) = access_stream_by_id(user_profile, stream_id, require_content_access=False)
-    room_meta = get_room_meta_or_unsaved(stream)
-    if not room_meta.summary_enabled:
-        raise JsonableError(_("Turn on summaries for this channel first."))
     if not can_toggle_room_summary(user_profile, stream):
-        raise JsonableError(_("You do not have permission to change this channel."))
-    kaki = _find_builtin_agent_profile(stream.realm, "Kaki")
+        raise JsonableError(_("Only the channel owner can ask for a summary."))
+    if not get_room_meta_or_unsaved(stream).summary_enabled:
+        raise JsonableError(_("Turn on summaries for this channel first."))
+    if model_budget_state(stream.realm) == "exceeded":
+        raise JsonableError(
+            _("The budget for this month is used up. Kaki cannot write a summary now.")
+        )
+    kaki = _find_kaki(stream.realm)
     if kaki is None:
-        raise JsonableError(_("Summaries are not available for this organization."))
+        raise JsonableError(
+            _("Kaki is not available in this workspace. Ask an admin to turn it on.")
+        )
     today = _realm_local_now(stream.realm).date()
-    ids, total = _recent_message_ids(stream, room_meta.last_digest_at)
     try:
         with agent_transaction():
-            job = create_room_digest_job(
-                stream,
-                room_meta,
-                user_profile,
-                kaki,
-                today=today,
-                context_ids=ids,
-                message_count=total,
+            waiting = (
+                RoomDigest.objects.filter(stream=stream, date=today, job__isnull=False)
+                .select_related("job")
+                .first()
             )
-    except AgentRealmSettings.DoesNotExist:
-        raise JsonableError(_("Summaries are not available for this organization."))
-    except ValueError as e:
-        raise JsonableError(str(e))
+            if (
+                waiting is not None
+                and waiting.job is not None
+                and waiting.job.status not in TERMINAL
+            ):
+                # Kaki is already writing this summary.
+                return json_success(request, data={"job_id": str(waiting.job.id)})
+            context_ids = _recent_message_ids(stream, timezone_now() - DIGEST_LOOKBACK)
+            if not context_ids:
+                raise JsonableError(_("There are no new messages to summarize."))
+            job = create_room_digest_job(
+                stream, user_profile, kaki, today=today, context_ids=context_ids
+            )
+    except (AgentRealmSettings.DoesNotExist, ValueError, AgentAccessDenied):
+        raise JsonableError(_("Kaki cannot write a summary for this channel right now."))
     return json_success(request, data={"job_id": str(job.id)})
 
 
@@ -293,8 +350,8 @@ def get_room_digest_view(
     stream_id: PathOnly[int],
     date: str | None = None,
 ) -> HttpResponse:
-    """GET .../digest?date= (spec 02): the room's digest for one day, for
-    the Room banner. `date` defaults to the realm's local today."""
+    """The digest of one day for the Room banner: today in the workspace's
+    timezone, when `date` is not given."""
     (stream, _sub) = access_stream_by_id(user_profile, stream_id)
     target_date = (
         _parse_digest_date(date) if date is not None else _realm_local_now(stream.realm).date()
@@ -304,47 +361,74 @@ def get_room_digest_view(
 
 
 def _coerce_str_list(value: object) -> list[str]:
-    if isinstance(value, list):
-        return [str(item) for item in value if str(item).strip()]
-    if isinstance(value, str) and value.strip():
-        return [value]
-    return []
+    """The model's list as a list of one-line strings. A single string
+    counts as a list of one item."""
+    if isinstance(value, str):
+        value = [value]
+    if not isinstance(value, list):
+        return []
+    items = (" ".join(str(item).split()) for item in value)
+    return [item for item in items if item]
 
 
-def _render_digest_text(job: agents.AgentJob, digest: RoomDigest, fallback: str) -> str:
-    with override_language(job.realm.default_language):
-        lines = [digest.summary] if digest.summary else []
+def _parse_digest_answer(answer: str) -> dict[str, Any] | None:
+    """The digest object in the model's answer, or None when there is none.
+    A model often wraps the JSON in a code fence or a line of prose."""
+    text = answer.strip()
+    fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
+    if fenced is not None:
+        text = fenced.group(1)
+    candidates = [text]
+    start, end = text.find("{"), text.rfind("}")
+    if 0 <= start < end:
+        candidates.append(text[start : end + 1])
+    for candidate in candidates:
+        try:
+            parsed = json.loads(candidate)
+        except ValueError:
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+    return None
+
+
+def _render_digest_text(digest: RoomDigest, language: str) -> str:
+    """The digest as a message that people read: the summary, then the
+    sections that have items."""
+    with override_language(language):
+        sections = [digest.summary] if digest.summary else []
         for label, items in (
-            (_("Decisions:"), digest.decided),
-            (_("Blocker:"), digest.blocker),
-            (_("Waiting on:"), digest.waiting),
+            (_("Decisions"), digest.decided),
+            (_("Blockers"), digest.blocker),
+            (_("Waiting on"), digest.waiting),
         ):
             if items:
-                lines.append(label)
-                lines.extend(f"- {item}" for item in items)
-    return "\n".join(lines) if lines else fallback
+                sections.append(f"**{label}**\n\n" + "\n".join(f"- {item}" for item in items))
+        return "\n\n".join(sections) if sections else _("Nothing to report.")
 
 
-def fill_room_digest(job: agents.AgentJob, answer: str) -> str | None:
-    """When `job` backs a RoomDigest, parse its answer as the digest JSON,
-    fill the row, and return the human-readable text to post in the room
-    instead of raw JSON (PLAN.md WP24 step 2). Broken JSON still fills the
-    row, with `answer` kept as-is in `summary`. Returns None for a job
-    that is not a digest job, so the caller keeps `answer` unchanged."""
-    digest = RoomDigest.objects.filter(job=job).first()
+def fill_room_digest(job: agents.AgentJob, answer: str, *, keep: bool = True) -> str | None:
+    """When `job` writes a room digest, read the digest from its `answer`
+    and return the message to post instead of the raw answer. Returns None
+    for any other job.
+
+    `keep` fills the RoomDigest, so the Room banner shows it. An answer that
+    is not a digest object stays as text in `summary`. Pass keep=False when
+    the answer goes to one person only: the room must not see it then."""
+    digest = RoomDigest.objects.select_related("stream").filter(job=job).first()
     if digest is None:
         return None
-    try:
-        parsed = json.loads(answer)
-        if not isinstance(parsed, dict):
-            raise ValueError("Digest reply is not a JSON object.")
-    except ValueError:
+    parsed = _parse_digest_answer(answer)
+    if parsed is None:
         digest.summary = answer
-        digest.save(update_fields=["summary"])
-        return answer
-    digest.decided = _coerce_str_list(parsed.get("decided"))
-    digest.blocker = _coerce_str_list(parsed.get("blocker"))
-    digest.waiting = _coerce_str_list(parsed.get("waiting"))
-    digest.summary = str(parsed.get("summary") or "")
-    digest.save(update_fields=["decided", "blocker", "waiting", "summary"])
-    return _render_digest_text(job, digest, answer)
+    else:
+        digest.decided = _coerce_str_list(parsed.get("decided"))
+        digest.blocker = _coerce_str_list(parsed.get("blocker"))
+        digest.waiting = _coerce_str_list(parsed.get("waiting"))
+        digest.summary = str(parsed.get("summary") or "").strip()
+    text = answer if parsed is None else _render_digest_text(digest, agent_language(job.realm_id))
+    if keep:
+        digest.save(update_fields=["decided", "blocker", "waiting", "summary"])
+        # An open Room shows the banner as soon as the digest is ready.
+        send_room_meta_event(get_room_meta_or_unsaved(digest.stream))
+    return text

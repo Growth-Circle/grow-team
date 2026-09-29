@@ -1,6 +1,6 @@
-"""Every 15 minutes: once a realm's local time reaches 07:00, post Kaki's
-morning digest for each opted-in room with new messages (PLAN.md WP24
-step 1)."""
+"""Run every 15 minutes. Once the clock of a workspace reaches 07:00, start
+Kaki's morning summary for each room that turned summaries on and has new
+messages."""
 
 from typing import Any
 
@@ -13,12 +13,12 @@ from zerver.models import Realm
 
 
 class Command(ZulipBaseCommand):
-    help = "Post Kaki's morning digest for each opted-in room with new messages."
+    help = "Start Kaki's morning summary for each room that turned summaries on."
 
     @override
     def handle(self, *args: Any, **options: Any) -> None:
-        sent = 0
+        started = 0
         for realm in Realm.objects.filter(deactivated=False):
             with agent_realm(realm.id):
-                sent += send_realm_room_digests(realm)
-        self.stdout.write(f"Sent {sent} digest(s).")
+                started += send_realm_room_digests(realm)
+        self.stdout.write(f"Started {started} summary job(s).")
