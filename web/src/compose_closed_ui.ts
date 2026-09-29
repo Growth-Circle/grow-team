@@ -3,6 +3,7 @@ import assert from "minimalistic-assert";
 
 import render_reply_recipient_label from "../templates/reply_recipient_label.hbs";
 
+import * as agent_avatars from "./agent_avatars.ts";
 import * as compose_actions from "./compose_actions.ts";
 import {$t} from "./i18n.ts";
 import * as inbox_util from "./inbox_util.ts";
@@ -235,13 +236,29 @@ function set_reply_button_label(label: string): void {
     $("#left_bar_compose_reply_button_big").text(label);
 }
 
+// In a room, the closed compose bar reads like the composer (RM-51).
+function room_reply_label(): string | undefined {
+    const filter = narrow_state.filter();
+    const stream_id = narrow_state.stream_id(filter, true);
+    const topic = narrow_state.topic(filter);
+    if (filter === undefined || filter.is_keyword_search() || stream_id === undefined || !topic) {
+        return undefined;
+    }
+    return agent_avatars.room_composer_placeholder(stream_id, topic);
+}
+
 export function set_standard_text_for_reply_button(): void {
-    set_reply_button_label($t({defaultMessage: "Compose message"}));
+    set_reply_button_label(room_reply_label() ?? $t({defaultMessage: "Compose message"}));
 }
 
 export function update_recipient_text_for_reply_button(
     recipient_information?: ReplyRecipientInformation,
 ): void {
+    const room_label = room_reply_label();
+    if (room_label !== undefined) {
+        set_reply_button_label(room_label);
+        return;
+    }
     const recipient_label = get_recipient_label(recipient_information);
     if (recipient_label !== undefined) {
         const empty_string_topic_display_name = util.get_final_topic_display_name("");
@@ -271,6 +288,11 @@ function can_user_reply_to_message(message_id: number): boolean {
 }
 
 export function initialize(): void {
+    // The bar of a room names its agents once they are known.
+    agent_avatars.on_loaded(() => {
+        update_recipient_text_for_reply_button();
+    });
+
     // When the message selection changes, change the label on the Reply button.
     $(document).on("message_selected.zulip", () => {
         if (narrow_state.is_message_feed_visible()) {

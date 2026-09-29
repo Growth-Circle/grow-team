@@ -7,6 +7,7 @@ import type * as tippy from "tippy.js";
 
 import render_decorated_channel_name from "../templates/decorated_channel_name.hbs";
 
+import * as agent_avatars from "./agent_avatars.ts";
 import * as compose_banner from "./compose_banner.ts";
 import * as compose_fade from "./compose_fade.ts";
 import * as compose_pm_pill from "./compose_pm_pill.ts";
@@ -391,6 +392,10 @@ export function handle_middle_pane_transition(): void {
 }
 
 export function initialize(): void {
+    agent_avatars.on_loaded(() => {
+        update_compose_area_placeholder_text();
+    });
+
     compose_select_recipient_dropdown_widget = new dropdown_widget.DropdownWidget({
         widget_name: "compose_select_recipient",
         get_options: get_options_for_recipient_widget,
@@ -554,11 +559,19 @@ export let update_compose_area_placeholder_text = (): void => {
     let placeholder = compose_ui.DEFAULT_COMPOSE_PLACEHOLDER;
     if (message_type === "stream") {
         const stream_id = compose_state.stream_id();
-        placeholder = compose_ui.compute_placeholder_text({
-            message_type,
-            stream_id,
-            topic: compose_state.topic(),
-        });
+        const topic = compose_state.topic();
+        placeholder = compose_ui.compute_placeholder_text({message_type, stream_id, topic});
+        const filter = narrow_state.filter();
+        if (
+            stream_id !== undefined &&
+            topic !== "" &&
+            filter !== undefined &&
+            !filter.is_keyword_search() &&
+            narrow_state.stream_id(filter) === stream_id
+        ) {
+            // The composer of a room (RM-51).
+            placeholder = agent_avatars.room_composer_placeholder(stream_id, topic);
+        }
     } else if (message_type === "private") {
         placeholder = compose_ui.compute_placeholder_text({
             message_type,

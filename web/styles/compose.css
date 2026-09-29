@@ -2374,3 +2374,31 @@ textarea.new_message_textarea {
         }
     }
 }
+
+/* The composer of a room (RM-50..52). It starts where the message
+   column starts: the sidebar and the 240px topic column sit to its
+   left. Below the shell breakpoint the topic column becomes a row above
+   the messages, and the composer keeps its normal place at the bottom. */
+@media (width >= $shell_narrow_min) {
+    #compose.sj-room-composer #compose-content {
+        margin-left: calc(
+            var(--left-sidebar-width) + 15em
+        ); /* 240px at 16px/1em */
+    }
+}
+
+/* The formatting toolbar is hidden. The attachment button stays. */
+#compose.sj-room-composer {
+    .compose-control-buttons-group,
+    .formatting-control-scroller-button {
+        display: none;
+    }
+
+    .compose-control-buttons-group:has(.compose_upload_file) {
+        display: flex;
+
+        > .compose_control_button_container:not(:has(.compose_upload_file)) {
+            display: none;
+        }
+    }
+}
