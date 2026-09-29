@@ -1,19 +1,26 @@
 import $ from "jquery";
 import _ from "lodash";
 
+import * as command_palette from "./command_palette.ts";
+import * as common from "./common.ts";
 import * as drafts from "./drafts.ts";
 import type {Filter} from "./filter.ts";
+import * as live_updates from "./live_updates.ts";
 import {localstorage} from "./localstorage.ts";
 import * as message_reminder from "./message_reminder.ts";
+import * as nav_counts from "./nav_counts.ts";
 import * as navigation_views from "./navigation_views.ts";
 import {page_params} from "./page_params.ts";
 import * as people from "./people.ts";
 import * as resize from "./resize.ts";
 import * as scheduled_messages from "./scheduled_messages.ts";
 import * as settings_config from "./settings_config.ts";
-import type {NarrowTerm} from "./state_data.ts";
+import * as sidebar_rooms from "./sidebar_rooms.ts";
+import * as sidebar_targets from "./sidebar_targets.ts";
+import {type NarrowTerm, current_user} from "./state_data.ts";
 import * as ui_util from "./ui_util.ts";
 import * as unread from "./unread.ts";
+import * as workspace_switcher from "./workspace_switcher.ts";
 
 let last_mention_count = 0;
 const ls_key = "left_sidebar_views_state";
@@ -391,46 +398,91 @@ export function get_built_in_views(): navigation_views.BuiltInViewMetadata[] {
         });
 }
 
-const work_collapsed_ls_key = "left_sidebar_work_collapsed";
-
-function set_work_section_collapsed(collapsed: boolean): void {
-    $("#left-sidebar-work-area").toggleClass("collapsed", collapsed);
-    $("#work-section-header").attr("aria-expanded", String(!collapsed));
-    $("#toggle-work-section-icon")
-        .toggleClass("rotate-icon-down", !collapsed)
-        .toggleClass("rotate-icon-right", collapsed);
-}
-
-function toggle_work_section(): void {
-    const collapsed = !$("#left-sidebar-work-area").hasClass("collapsed");
-    set_work_section_collapsed(collapsed);
-    ls.set(work_collapsed_ls_key, collapsed);
-    resize.resize_stream_filters_container();
-}
-
 export function initialize(): void {
     update_reminders_row();
     update_scheduled_messages_row();
     restore_views_state();
-    set_work_section_collapsed(ls.get(work_collapsed_ls_key) === true);
 
-    $("body").on("click", "#work-section-header", (e) => {
-        e.stopPropagation();
-        toggle_work_section();
-    });
-    $("body").on("keydown", "#work-section-header", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            toggle_work_section();
+    initialize_sanji_sidebar();
+}
+
+// The sidebar (map-mockup-a.md section 4.2): workspace switcher, search
+// button, the eight navigation entries, rooms, and the user card.
+
+const NAV_COUNT_IDS: nav_counts.NavCountId[] = ["needs", "tasks", "mcp", "runners"];
+
+const NAV_IDS: sidebar_targets.TargetId[] = [
+    "home",
+    "needs",
+    "tasks",
+    "agents",
+    "mcp",
+    "runners",
+    "drive",
+    "settings",
+];
+
+function update_nav_badge(id: nav_counts.NavCountId): void {
+    const $li = $(`.sanji-nav-item[data-nav-id="${id}"]`);
+    ui_util.update_unread_count_in_dom($li, nav_counts.get_count(id));
+}
+
+export function update_sanji_nav_active_state(): void {
+    const active_id = sidebar_targets.id_for_hash(window.location.hash);
+    $(".sanji-nav-item").removeClass("sanji-nav-item-active").removeAttr("aria-current");
+    if (active_id !== undefined) {
+        $(`.sanji-nav-item[data-nav-id="${active_id}"]`)
+            .addClass("sanji-nav-item-active")
+            .attr("aria-current", "page");
+    }
+}
+
+// Shows each entry whose page is built (or has a fallback), points it at
+// that page, and keeps the Settings entry for Owner and Admin only.
+export function update_nav_targets(): void {
+    const can_manage = sidebar_targets.can_manage_workspace(sidebar_targets.role_of(current_user));
+    for (const id of NAV_IDS) {
+        const hash = sidebar_targets.get_hash(id, id === "settings" ? "general" : undefined);
+        const shown = hash !== undefined && (id !== "settings" || can_manage);
+        const $li = $(`.sanji-nav-item[data-nav-id="${id}"]`);
+        $li.toggleClass("hidden", !shown);
+        if (hash !== undefined) {
+            $li.find("a").attr("href", hash);
         }
+    }
+    // The search slot holds the palette button. Until the palette is
+    // ready, it holds the filter for rooms instead.
+    const palette_is_ready = sidebar_targets.is_shown("search");
+    $("#left-sidebar-command-search").toggleClass("hidden", !palette_is_ready);
+    $("#left-sidebar-search").toggleClass("hidden", palette_is_ready);
+    update_sanji_nav_active_state();
+    resize.resize_stream_filters_container();
+}
+
+function initialize_sanji_sidebar(): void {
+    workspace_switcher.initialize();
+    sidebar_rooms.initialize();
+
+    update_nav_targets();
+    live_updates.on("realm_permissions", update_nav_targets);
+
+    // A count that no page has set yet must not hide a badge that the
+    // task board already filled in.
+    for (const id of NAV_COUNT_IDS) {
+        if (nav_counts.get_count(id) > 0) {
+            update_nav_badge(id);
+        }
+    }
+    nav_counts.on_change((id) => {
+        update_nav_badge(id);
     });
 
-    $("body").on(
-        "click",
-        "#toggle-top-left-navigation-area-icon, #views-label-container .left-sidebar-title",
-        (e) => {
-            e.stopPropagation();
-            toggle_condensed_navigation_area();
-        },
+    window.addEventListener("hashchange", update_sanji_nav_active_state);
+
+    $("#left-sidebar-command-search-hint").text(
+        sidebar_targets.search_shortcut_hint(common.has_mac_keyboard()),
     );
+    $("body").on("click", "#left-sidebar-command-search", () => {
+        command_palette.open();
+    });
 }

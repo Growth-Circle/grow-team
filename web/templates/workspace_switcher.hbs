@@ -1,0 +1,47 @@
+<button type="button" id="left-sidebar-workspace-button" class="workspace-switcher-button" aria-haspopup="true" aria-expanded="false" aria-controls="left-sidebar-workspace-dropdown">
+    <span class="workspace-switcher-avatar" style="background: {{current.avatar_color}}" aria-hidden="true">{{current.initial}}</span>
+    <span class="workspace-switcher-text">
+        <span class="workspace-switcher-name">{{current.name}}</span>
+        <span class="workspace-switcher-host">{{current.hostname}}</span>
+    </span>
+    <span class="workspace-switcher-chevron" aria-hidden="true"></span>
+</button>
+<div id="left-sidebar-workspace-dropdown" class="workspace-switcher-dropdown">
+    <span class="workspace-switcher-dropdown-label">{{t "YOUR WORKSPACES" }}</span>
+    {{#if is_loading}}
+        <div class="workspace-switcher-item-skeleton sj-skeleton" aria-hidden="true"></div>
+    {{/if}}
+    {{#each rows}}
+        <button type="button" class="workspace-switcher-item{{#if this.current}} workspace-switcher-item-current{{/if}}" data-realm-id="{{this.realm_id}}">
+            <span class="workspace-switcher-item-avatar" style="background: {{this.avatar_color}}" aria-hidden="true">{{this.initial}}</span>
+            <span class="workspace-switcher-item-text">
+                <span class="workspace-switcher-item-name">{{this.name}}</span>
+                <span class="workspace-switcher-item-meta">{{this.role_label}}</span>
+            </span>
+            {{#if this.current}}
+                <span class="workspace-switcher-item-check" aria-hidden="true">✓</span>
+            {{/if}}
+        </button>
+    {{/each}}
+    {{#if load_failed}}
+        <div class="workspace-switcher-dropdown-note">{{t "Could not load your workspaces." }}</div>
+    {{/if}}
+    {{#if can_create_workspace}}
+        <div class="workspace-switcher-divider"></div>
+        <button type="button" class="workspace-switcher-action workspace-switcher-create">{{t "+ Create new workspace" }}</button>
+    {{/if}}
+    {{#if can_manage_workspace}}
+        {{#unless can_create_workspace}}
+            <div class="workspace-switcher-divider"></div>
+        {{/unless}}
+        <button type="button" class="workspace-switcher-action workspace-switcher-settings">{{t "Workspace settings" }}</button>
+    {{/if}}
+    <div class="workspace-switcher-brand">
+        <svg viewBox="0 0 48 48" width="14" height="14" aria-hidden="true">
+            <path d="M34 5H15.5a9.5 9.5 0 0 0 0 19H34z" fill="#FF6A3D"></path>
+            <path d="M14 26h21a7 7 0 0 1 7 7v3a7 7 0 0 1-7 7H14z" fill="#8B74FF"></path>
+            <circle cx="41" cy="12" r="4.5" fill="#16C784"></circle>
+        </svg>
+        <span class="workspace-switcher-brand-name">sanji<span class="workspace-switcher-brand-dot">.</span><span class="workspace-switcher-brand-space">space</span></span>
+    </div>
+</div>

@@ -31,6 +31,7 @@ import * as popovers from "./popovers.ts";
 import * as scroll_util from "./scroll_util.ts";
 import {web_channel_default_view_values} from "./settings_config.ts";
 import * as settings_data from "./settings_data.ts";
+import * as sidebar_rooms from "./sidebar_rooms.ts";
 import {realm} from "./state_data.ts";
 import * as stream_data from "./stream_data.ts";
 import * as stream_list_sort from "./stream_list_sort.ts";
@@ -516,6 +517,9 @@ export function build_stream_list(force_rerender: boolean): void {
             }
         }
     }
+
+    sidebar_rooms.apply_section_accents(stream_groups.sections);
+    sidebar_rooms.update_no_rooms_cta();
 
     // Rerendering can moving channels between folders and change heading unread counts.
     const counts = unread.get_counts();

@@ -27,8 +27,8 @@ function get_bottom_whitespace_height(): number {
 
 export function get_stream_filters_max_height(): number {
     const viewport_height = message_viewport.height();
-    // Add some gap for bottom element to be properly visible.
-    const GAP = 15;
+    // The user card sits right below the list, so there is no gap.
+    const GAP = 0;
 
     const $left_sidebar_search = $("#left-sidebar-search");
     const is_search_visible = $left_sidebar_search.css("display") !== "none";
@@ -36,10 +36,11 @@ export function get_stream_filters_max_height(): number {
     let stream_filters_max_height =
         viewport_height -
         Number.parseInt($("#left-sidebar").css("paddingTop"), 10) -
-        ($(".left-sidebar-new-conversation-button").outerHeight(true) ?? 0) -
+        ($("#left-sidebar-workspace-switcher").outerHeight(true) ?? 0) -
+        ($("#left-sidebar-command-search").outerHeight(true) ?? 0) -
         (is_search_visible ? ($left_sidebar_search.outerHeight(true) ?? 0) : 0) -
-        ($("#left-sidebar-work-area").not(".hidden-by-filters").outerHeight(true) ?? 0) -
         ($("#left-sidebar-navigation-area").not(".hidden-by-filters").outerHeight(true) ?? 0) -
+        ($("#sidebar-user-card").outerHeight(true) ?? 0) -
         GAP;
 
     // Don't let us crush the stream sidebar completely out of view

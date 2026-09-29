@@ -25,6 +25,10 @@ let unread_unmuted_count;
 let stream_has_any_unread_mentions;
 
 const topic_list = mock_esm("../src/topic_list");
+mock_esm("../src/sidebar_rooms", {
+    apply_section_accents() {},
+    update_no_rooms_cta() {},
+});
 mock_esm("../src/unread", {
     unread_count_info_for_stream: () => ({
         unmuted_count: unread_unmuted_count,

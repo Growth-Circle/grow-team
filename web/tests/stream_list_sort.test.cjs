@@ -191,7 +191,7 @@ test("no_subscribed_streams", () => {
                 folder_id: null,
                 inactive_streams: [],
                 muted_streams: [],
-                section_title: "translated: PINNED CHANNELS",
+                section_title: "translated: Pinned",
                 default_visible_streams: [],
             },
             {
@@ -199,7 +199,7 @@ test("no_subscribed_streams", () => {
                 folder_id: null,
                 inactive_streams: [],
                 muted_streams: [],
-                section_title: "translated: CHANNELS",
+                section_title: "translated: Other",
                 default_visible_streams: [],
             },
         ],
@@ -340,13 +340,13 @@ test("basics", ({override}) => {
     sorted_sections = sort_groups("").sections;
     assert.deepEqual(sorted_sections.length, 5);
     assert.deepEqual(sorted_sections[0].id, "pinned-streams");
-    assert.deepEqual(sorted_sections[0].section_title, "translated: PINNED CHANNELS");
+    assert.deepEqual(sorted_sections[0].section_title, "translated: Pinned");
     assert.deepEqual(sorted_sections[1].id, backend_folder.id.toString());
     assert.deepEqual(sorted_sections[1].section_title, "BACKEND");
     assert.deepEqual(sorted_sections[2].id, frontend_folder.id.toString());
     assert.deepEqual(sorted_sections[2].section_title, "FRONTEND");
     assert.deepEqual(sorted_sections[3].id, "normal-streams");
-    assert.deepEqual(sorted_sections[3].section_title, "translated: OTHER");
+    assert.deepEqual(sorted_sections[3].section_title, "translated: Other");
     assert.deepEqual(sorted_sections[4].id, expect_demoted_folder.id.toString());
     assert.deepEqual(sorted_sections[4].section_title, "EMPTY");
 
@@ -389,7 +389,7 @@ test("basics", ({override}) => {
     assert.deepEqual(sorted_sections[0].id, "pinned-streams");
     assert.deepEqual(sorted_sections[0].default_visible_streams, []);
     assert.deepEqual(sorted_sections[0].inactive_streams, []);
-    assert.deepEqual(sorted_sections[1].section_title, "translated: OTHER");
+    assert.deepEqual(sorted_sections[1].section_title, "translated: Other");
     assert.deepEqual(sorted_sections[1].default_visible_streams, [clarinet.stream_id]);
     assert.deepEqual(sorted_sections[1].muted_streams, []);
     assert.deepEqual(sorted_sections[1].inactive_streams, []);
@@ -442,7 +442,7 @@ test("current_section_id_for_stream", ({override}) => {
             id: "pinned-streams",
             inactive_streams: [],
             muted_streams: [8],
-            section_title: "translated: PINNED CHANNELS",
+            section_title: "translated: Pinned",
             default_visible_streams: [1],
         },
         {
@@ -468,7 +468,7 @@ test("current_section_id_for_stream", ({override}) => {
             id: "normal-streams",
             inactive_streams: [],
             muted_streams: [],
-            section_title: "translated: OTHER",
+            section_title: "translated: Other",
             default_visible_streams: [4],
         },
         {

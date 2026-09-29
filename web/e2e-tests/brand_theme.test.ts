@@ -75,13 +75,13 @@ async function check_body_theme(page: Page, theme: (typeof themes)[number]): Pro
 }
 
 async function check_sidebar_theme(page: Page): Promise<void> {
-    await page.waitForSelector(".top_left_task_board .left-sidebar-navigation-label", {
+    await page.waitForSelector('.sanji-nav-item[data-nav-id="tasks"] .sanji-nav-label', {
         visible: true,
     });
     const style = await page.evaluate(() => {
         const sidebar = document.querySelector<HTMLElement>("#left-sidebar")!;
         const label = document.querySelector<HTMLElement>(
-            ".top_left_task_board .left-sidebar-navigation-label",
+            '.sanji-nav-item[data-nav-id="tasks"] .sanji-nav-label',
         )!;
         return {
             sidebarBackground: window.getComputedStyle(sidebar).backgroundColor,

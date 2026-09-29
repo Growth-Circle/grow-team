@@ -1,0 +1,27 @@
+<div class="sanji-modal-field">
+    <label for="workspace_create_name" class="sanji-modal-label">{{t "WORKSPACE NAME" }}</label>
+    <input
+        type="text"
+        id="workspace_create_name"
+        class="sanji-modal-input"
+        autocomplete="off"
+        placeholder="{{t 'e.g. Studio Arunika' }}"
+        maxlength="30"
+    />
+    <span id="workspace_create_slug_preview" class="workspace-create-slug-preview"></span>
+</div>
+<div class="sanji-modal-field">
+    <span class="sanji-modal-label" id="workspace_create_color_label">{{t "COLOR" }}</span>
+    <div class="sanji-modal-pills" role="radiogroup" aria-labelledby="workspace_create_color_label">
+        {{#each colors}}
+            <button
+                type="button"
+                class="sanji-modal-pill workspace-create-color-pill"
+                data-color-index="{{this.index}}"
+                style="--pill-color: {{this.hex}}"
+                role="radio"
+                aria-checked="false"
+            >{{this.label}}</button>
+        {{/each}}
+    </div>
+</div>

@@ -194,6 +194,10 @@ export function update_private_messages(): void {
         // If there is no search term, always show the header.
         !search_term;
     $("#left-sidebar").toggleClass("direct-messages-hidden-by-filters", !is_header_visible);
+    // With no direct messages at all, the whole group stays out of the way.
+    const has_any_conversation =
+        search_term === "" ? conversations.length > 0 : pm_list_data.get_conversations().length > 0;
+    $("#left-sidebar").toggleClass("no-direct-messages", !zoomed && !has_any_conversation);
 
     if (!is_dm_section_expanded) {
         // In the collapsed state, we will still display the current

@@ -1,0 +1,14 @@
+<button type="button" id="sidebar-quiet-rooms-toggle" class="sidebar-quiet-rooms-toggle" aria-expanded="{{is_expanded}}" aria-controls="sidebar-quiet-rooms-list">
+    <span>{{toggle_label}}</span>
+    <span class="sidebar-quiet-rooms-chevron" aria-hidden="true">{{#if is_expanded}}▲{{else}}▼{{/if}}</span>
+</button>
+{{#if is_expanded}}
+    <ul id="sidebar-quiet-rooms-list" class="sidebar-quiet-rooms-list">
+        {{#each rooms}}
+            <li class="sidebar-quiet-room-row">
+                <span class="sidebar-quiet-room-name"># {{this.name}}</span>
+                <span class="sidebar-quiet-room-idle">{{this.idle_label}}</span>
+            </li>
+        {{/each}}
+    </ul>
+{{/if}}

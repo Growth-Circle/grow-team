@@ -125,7 +125,7 @@ export function sort_groups(
     const pinned_section: StreamListSection = {
         id: "pinned-streams",
         folder_id: null,
-        section_title: $t({defaultMessage: "PINNED CHANNELS"}),
+        section_title: $t({defaultMessage: "Pinned"}),
         default_visible_streams: [],
         muted_streams: [],
         inactive_streams: [],
@@ -133,14 +133,18 @@ export function sort_groups(
     const normal_section: StreamListSection = {
         id: "normal-streams",
         folder_id: null,
-        section_title: $t({defaultMessage: "CHANNELS"}),
+        section_title: $t({defaultMessage: "Other"}),
         default_visible_streams: [],
         muted_streams: [],
         inactive_streams: [],
     };
-    const NORMAL_SECTION_TITLE_WITH_OTHER_FOLDERS = $t({defaultMessage: "OTHER"});
+    const NORMAL_SECTION_TITLE_WITH_OTHER_FOLDERS = $t({defaultMessage: "Other"});
 
-    const show_all_channels = util.prefix_match({value: normal_section.section_title, search_term});
+    // Typing "channels" shows every channel, whatever the group titles are.
+    const show_all_channels = util.prefix_match({
+        value: $t({defaultMessage: "CHANNELS"}),
+        search_term,
+    });
     const include_all_pinned_channels =
         show_all_channels || util.prefix_match({value: pinned_section.section_title, search_term});
     const search_term_prefix_matches_other_section_title =

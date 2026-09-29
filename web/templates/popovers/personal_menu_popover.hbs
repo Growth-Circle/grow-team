@@ -1,0 +1,31 @@
+<button type="button" id="sidebar-user-card-button" class="sidebar-user-card-button" aria-haspopup="true" aria-expanded="false">
+    <img class="sidebar-user-card-avatar" src="{{avatar_url}}" alt="" />
+    <span class="sidebar-user-card-text">
+        <span class="sidebar-user-card-name">{{full_name}}</span>
+        <span class="sidebar-user-card-sub">{{role_label}} · {{workspace_name}}</span>
+    </span>
+</button>
+<div class="sidebar-user-card-dropdown" role="menu">
+    <div class="sidebar-user-card-dropdown-head">
+        <span class="sidebar-user-card-dropdown-name">{{full_name}}</span>
+        <span class="sidebar-user-card-dropdown-email">{{email}}</span>
+    </div>
+    <button type="button" class="sidebar-user-card-item" data-item="profile" role="menuitem">
+        <span>{{t "My profile" }}</span>
+    </button>
+    <button type="button" class="sidebar-user-card-item" data-item="notifications" role="menuitem">
+        <span>{{t "Notifications" }}</span>
+    </button>
+    <button type="button" class="sidebar-user-card-item" data-item="shortcuts" role="menuitem">
+        <span>{{t "Keyboard shortcuts" }}</span>
+        <span class="sidebar-user-card-item-hint">{{shortcut_hint}}</span>
+    </button>
+    {{#if can_manage_workspace}}
+        <button type="button" class="sidebar-user-card-item" data-item="workspace-settings" role="menuitem">
+            <span>{{t "Workspace settings" }}</span>
+        </button>
+    {{/if}}
+    <button type="button" class="sidebar-user-card-item sidebar-user-card-item-danger logout_button" role="menuitem">
+        <span>{{t "Log out" }}</span>
+    </button>
+</div>

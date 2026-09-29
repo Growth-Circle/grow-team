@@ -275,8 +275,14 @@ export async function log_in(
         form.submit();
     });
 
-    // The app always starts on Today.
-    await page.waitForSelector("#today-view", {visible: true});
+    // The app starts on Inbox until the Today screen is built, and on
+    // Today after that.
+    await page.waitForFunction(() =>
+        ["today-view", "inbox-view"].some((id) => {
+            const element = document.getElementById(id);
+            return element !== null && window.getComputedStyle(element).display !== "none";
+        }),
+    );
 }
 
 export async function log_out(page: Page): Promise<void> {

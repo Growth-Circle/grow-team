@@ -1,19 +1,28 @@
 import $ from "jquery";
 
 import render_navbar_personal_menu_popover from "../templates/popovers/navbar/navbar_personal_menu_popover.hbs";
+import render_sidebar_user_card from "../templates/popovers/personal_menu_popover.hbs";
 
 import * as channel from "./channel.ts";
+import * as common from "./common.ts";
+import * as feedback_widget from "./feedback_widget.ts";
+import {$t} from "./i18n.ts";
 import * as information_density from "./information_density.ts";
+import * as live_updates from "./live_updates.ts";
 import * as message_view from "./message_view.ts";
+import * as people from "./people.ts";
 import * as popover_menus from "./popover_menus.ts";
 import * as popover_menus_data from "./popover_menus_data.ts";
 import * as popovers from "./popovers.ts";
-import {current_user} from "./state_data.ts";
+import * as sidebar_targets from "./sidebar_targets.ts";
+import {current_user, realm} from "./state_data.ts";
 import {parse_html} from "./ui_util.ts";
 import {user_settings} from "./user_settings.ts";
 import * as user_status from "./user_status.ts";
+import * as workspace_switcher from "./workspace_switcher.ts";
 
 export function initialize(): void {
+    initialize_sidebar_user_card();
     popover_menus.register_popover_menu("#personal-menu", {
         theme: "popover-menu",
         placement: "bottom",
@@ -174,4 +183,132 @@ export function toggle(): void {
     // tippyjs.hideAll()), or go via gear menu if using hotkeys, we don't need to
     // call tippyjs.hideAll() for it.
     $("#personal-menu").trigger("click");
+}
+
+// The user card at the bottom of the sidebar, and the menu that it
+// opens. A click outside the menu closes it, through a scrim behind it.
+
+function shortcut_hint(): string {
+    return common.has_mac_keyboard() ? "⌘/" : "Ctrl+/";
+}
+
+// The key combination of the search button. It is not the key that opens
+// the list of shortcuts, so it has its own function.
+function search_shortcut_hint(): string {
+    return sidebar_targets.search_shortcut_hint(common.has_mac_keyboard());
+}
+
+function render_user_card(): void {
+    const $container = $("#sidebar-user-card");
+    if ($container.length === 0) {
+        return;
+    }
+    const role = sidebar_targets.role_of(current_user);
+    $container.html(
+        render_sidebar_user_card({
+            full_name: current_user.full_name,
+            email: current_user.delivery_email,
+            avatar_url: people.small_avatar_url_for_person(current_user),
+            role_label: workspace_switcher.role_label(role),
+            workspace_name: realm.realm_name,
+            can_manage_workspace:
+                sidebar_targets.can_manage_workspace(role) &&
+                sidebar_targets.get_hash("settings", "members") !== undefined,
+            shortcut_hint: shortcut_hint(),
+        }),
+    );
+    $("#sidebar-user-card-button").attr("aria-expanded", String(user_card_is_open));
+}
+
+let user_card_is_open = false;
+let $user_card_scrim: JQuery | undefined;
+
+export function close_user_card(): void {
+    if (!user_card_is_open) {
+        return;
+    }
+    user_card_is_open = false;
+    $("#sidebar-user-card").removeClass("sidebar-user-card-open");
+    $("#sidebar-user-card-button").attr("aria-expanded", "false");
+    $user_card_scrim?.remove();
+    $user_card_scrim = undefined;
+    $(document).off("keydown.sanji-user-card");
+}
+
+function open_user_card(): void {
+    if (user_card_is_open) {
+        return;
+    }
+    user_card_is_open = true;
+    $(document).trigger("sidebar_overlay_opened", ["user-card"]);
+    $("#sidebar-user-card").addClass("sidebar-user-card-open");
+    $("#sidebar-user-card-button").attr("aria-expanded", "true");
+    $user_card_scrim = $("<div>")
+        .addClass("sidebar-user-card-scrim")
+        .on("click", close_user_card)
+        .appendTo("body");
+    $(document).on("keydown.sanji-user-card", (e: JQuery.KeyDownEvent) => {
+        if (e.key === "Escape") {
+            close_user_card();
+            $("#sidebar-user-card-button").trigger("focus");
+        }
+    });
+}
+
+function toggle_user_card(): void {
+    if (user_card_is_open) {
+        close_user_card();
+    } else {
+        open_user_card();
+    }
+}
+
+function initialize_sidebar_user_card(): void {
+    const $container = $("#sidebar-user-card");
+    render_user_card();
+
+    $container.on("click", "#sidebar-user-card-button", (e) => {
+        e.stopPropagation();
+        toggle_user_card();
+    });
+
+    $container.on("click", '.sidebar-user-card-item[data-item="profile"]', () => {
+        close_user_card();
+        window.location.hash = "settings/profile";
+    });
+    $container.on("click", '.sidebar-user-card-item[data-item="notifications"]', () => {
+        close_user_card();
+        window.location.hash = "settings/notifications";
+    });
+    $container.on("click", '.sidebar-user-card-item[data-item="shortcuts"]', () => {
+        close_user_card();
+        if (sidebar_targets.is_shown("search")) {
+            feedback_widget.show_toast({
+                text: $t(
+                    {defaultMessage: "{shortcut} search · Esc close · Enter open top result"},
+                    {shortcut: search_shortcut_hint()},
+                ),
+            });
+        } else {
+            window.location.hash = "keyboard-shortcuts";
+        }
+    });
+    $container.on("click", '.sidebar-user-card-item[data-item="workspace-settings"]', () => {
+        close_user_card();
+        const hash = sidebar_targets.get_hash("settings", "members");
+        if (hash !== undefined) {
+            window.location.hash = hash.slice(1);
+        }
+    });
+    // The "Log out" item needs no click handler of its own: it carries
+    // the same logout_button class the navbar menu's own item uses,
+    // and web/src/click_handlers.ts already submits #logout_form for
+    // any element with that class.
+
+    $(document).on("sidebar_overlay_opened", (_event, source: string) => {
+        if (source !== "user-card") {
+            close_user_card();
+        }
+    });
+    live_updates.on("realm_permissions", render_user_card);
 }

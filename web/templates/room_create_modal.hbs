@@ -1,0 +1,39 @@
+{{#if show_kaki_card}}
+    <button type="button" class="room-create-kaki-card">
+        <span class="room-create-kaki-dot" aria-hidden="true"></span>
+        <span class="room-create-kaki-text">
+            <span class="room-create-kaki-title">{{t "Let Kaki build it from a brief (recommended)" }}</span>
+            <span class="room-create-kaki-sub">{{t "Write the work in Today. Kaki helps you plan it in a DM." }}</span>
+        </span>
+    </button>
+    <div class="room-create-separator"><span></span>{{t "OR BUILD IT MANUALLY" }}<span></span></div>
+{{/if}}
+<div class="sanji-modal-field">
+    <label for="room_create_name" class="sanji-modal-label">{{t "ROOM NAME" }}</label>
+    <input
+        type="text"
+        id="room_create_name"
+        class="sanji-modal-input"
+        autocomplete="off"
+        placeholder="{{t 'e.g. ramadan-campaign' }}"
+        maxlength="60"
+    />
+</div>
+<div class="sanji-modal-field">
+    <span class="sanji-modal-label" id="room_create_type_label">{{t "TYPE" }}</span>
+    <div class="sanji-modal-pills" role="radiogroup" aria-labelledby="room_create_type_label">
+        {{#each room_types}}
+            <button
+                type="button"
+                class="sanji-modal-pill room-create-type-pill"
+                data-room-type="{{this.key}}"
+                role="radio"
+                aria-checked="false"
+            >{{this.label}}</button>
+        {{/each}}
+    </div>
+</div>
+<div class="sanji-modal-field room-create-due-date">
+    <label for="room_create_due_date" class="sanji-modal-label">{{t "DUE DATE" }}</label>
+    <input type="date" id="room_create_due_date" class="sanji-modal-input" />
+</div>
