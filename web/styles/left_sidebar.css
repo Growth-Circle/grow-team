@@ -3035,7 +3035,8 @@ body:not(.spectator-view)
     }
 }
 
-#left-sidebar-workspace-switcher.workspace-switcher-open .workspace-switcher-chevron::before {
+#left-sidebar-workspace-switcher.workspace-switcher-open
+    .workspace-switcher-chevron::before {
     content: "▲";
 }
 
@@ -3062,7 +3063,8 @@ body:not(.spectator-view)
     animation: sj-pop var(--sj-duration-pop) ease-out;
 }
 
-#left-sidebar-workspace-switcher.workspace-switcher-open .workspace-switcher-dropdown {
+#left-sidebar-workspace-switcher.workspace-switcher-open
+    .workspace-switcher-dropdown {
     display: flex;
 }
 
@@ -3634,7 +3636,11 @@ body:not(.spectator-view)
     }
 }
 
-#left-sidebar #streams_list .narrow-filter.active-filter > .bottom_left_row > .subscription_block {
+#left-sidebar
+    #streams_list
+    .narrow-filter.active-filter
+    > .bottom_left_row
+    > .subscription_block {
     background: var(--sj-kertas);
     color: var(--sj-tinta);
     font-weight: 700;
