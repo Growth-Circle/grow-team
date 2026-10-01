@@ -54,7 +54,7 @@
             </header>
             <div class="task-board-column-cards" data-column-id="{{this.id}}">
                 {{#each this.cards}}
-                    {{> task_board_card}}
+                    {{> task_board_card . }}
                 {{/each}}
             </div>
             {{#if this.has_folded}}
