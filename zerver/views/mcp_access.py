@@ -193,15 +193,19 @@ def authorize(request: HttpRequest) -> HttpResponse:
             },
         )
         response["Cache-Control"] = "no-store"
-        response["Referrer-Policy"] = "no-referrer"
+        response["Referrer-Policy"] = "same-origin"
         return response
     decision = request.POST.get("decision")
     if decision not in {"approve", "deny"}:
+        return oauth_json({"error": "invalid_request"}, 400)
+    allow_write = request.POST.get("allow_write", "false")
+    if allow_write not in {"true", "false"}:
         return oauth_json({"error": "invalid_request"}, 400)
     query = {"state": params["state"]}
     if decision == "deny":
         query["error"] = "access_denied"
     else:
+        scopes = ["team:read", "team:write"] if allow_write == "true" else ["team:read"]
         code = secrets.token_urlsafe(48)
         with transaction.atomic():
             grant = MCPAccessGrant.objects.create(

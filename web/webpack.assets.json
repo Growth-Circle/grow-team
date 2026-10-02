@@ -133,5 +133,6 @@
     "app": ["./src/bundles/app.ts"],
     "digest": ["./src/bundles/legacy_portico_bundle.ts"],
     "device_page": ["./src/bundles/device_page.ts"],
-    "service_worker": ["./src/service_worker.ts"]
+    "service_worker": ["./src/service_worker.ts"],
+    "mcp-consent": ["./src/bundles/legacy_portico_bundle.ts", "./styles/portico/mcp_consent.css"]
 }

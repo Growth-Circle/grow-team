@@ -13,7 +13,7 @@ from zerver.lib.message import access_message
 from zerver.lib.request import RequestNotes
 from zerver.lib.tasks import access_task_by_id
 from zerver.models import UserProfile
-from zerver.views import streams, tasks
+from zerver.views import streams, tasks, users
 from zerver.views.message_fetch import get_messages_backend
 from zerver.views.message_send import send_message_backend
 
@@ -49,6 +49,22 @@ class Messages(Channel):
 class Send(Channel):
     topic: Annotated[str, StringConstraints(max_length=60)]
     content: Annotated[str, StringConstraints(min_length=1, max_length=10000)]
+    mention_user_ids: Annotated[list[PositiveId], Field(max_length=20)] = Field(
+        default_factory=list
+    )
+
+
+class DirectMessage(Arguments):
+    recipient_user_ids: Annotated[list[PositiveId], Field(min_length=1, max_length=10)]
+    content: Annotated[str, StringConstraints(min_length=1, max_length=10000)]
+    mention_user_ids: Annotated[list[PositiveId], Field(max_length=20)] = Field(
+        default_factory=list
+    )
+
+
+class Members(Arguments):
+    query: Annotated[str, StringConstraints(max_length=100)] = ""
+    limit: Annotated[int, Field(ge=1, le=100)] = 30
 
 
 class CreateTask(Arguments):
@@ -77,6 +93,11 @@ TOOLS: dict[str, tuple[type[Arguments], str, bool]] = {
     ),
     "fetch": (Fetch, "Read a message or task by its ID, such as message:123 or task:45.", False),
     "list_channels": (Arguments, "List channels that your workspace account can access.", False),
+    "list_users": (
+        Members,
+        "Find workspace members by name. Use their user_id for mentions or direct messages.",
+        False,
+    ),
     "list_topics": (Channel, "List topics in a channel that your account can read.", False),
     "get_messages": (
         Messages,
@@ -90,7 +111,12 @@ TOOLS: dict[str, tuple[type[Arguments], str, bool]] = {
     ),
     "send_message": (
         Send,
-        "Send a channel message as the account that approved this connection.",
+        "Send a channel message as the approved account. Use mention_user_ids to notify members. Content supports workspace Markdown.",
+        True,
+    ),
+    "send_direct_message": (
+        DirectMessage,
+        "Send a direct message as the approved account. Use list_users for recipient IDs. Mention IDs notify members.",
         True,
     ),
     "create_task": (
@@ -154,11 +180,46 @@ def _view(
 
 
 @sensitive_variables()
+def message_content(request: HttpRequest, user: UserProfile, args: dict[str, object]) -> str:
+    content = str(args["content"])
+    mentions = cast(list[int], args.get("mention_user_ids", []))
+    if mentions:
+        result = _view(request, user, users.get_members_backend, {"user_ids": mentions})
+        available = {
+            member["user_id"] for member in result["members"] if member.get("is_active", False)
+        }
+        if not set(mentions) <= available:
+            raise ValueError("A mention is not available to this account.")
+        content = (
+            " ".join(f"@**|{user_id}**" for user_id in dict.fromkeys(mentions)) + "\n" + content
+        )
+    if len(content) > 10000:
+        raise ValueError("The message exceeds its limit.")
+    return content
+
+
+@sensitive_variables()
 def execute_tool(
     request: HttpRequest, user: UserProfile, name: str, args: dict[str, object]
 ) -> dict[str, Any]:
     if name == "list_channels":
         return _view(request, user, streams.get_streams_backend, {"include_web_public": False})
+    if name == "list_users":
+        result = _view(request, user, users.get_members_backend, {})
+        query = str(args["query"]).casefold()
+        limit = cast(int, args["limit"])
+        members = [
+            {
+                "user_id": member["user_id"],
+                "full_name": member["full_name"],
+                "is_bot": member["is_bot"],
+            }
+            for member in result["members"]
+            if member.get("is_active", False)
+            and "full_name" in member
+            and query in member["full_name"].casefold()
+        ]
+        return {"users": members[:limit], "has_more": len(members) > limit}
     if name == "list_topics":
         return _view(request, user, streams.get_topics_backend, {}, stream_id=args["channel_id"])
     if name == "get_task_board":
@@ -238,7 +299,18 @@ def execute_tool(
                 "type": "stream",
                 "to": args["channel_id"],
                 "topic": args["topic"],
-                "content": args["content"],
+                "content": message_content(request, user, args),
+            },
+        )
+    if name == "send_direct_message":
+        return _view(
+            request,
+            user,
+            send_message_backend,
+            {
+                "type": "direct",
+                "to": args["recipient_user_ids"],
+                "content": message_content(request, user, args),
             },
         )
     if name == "create_task":

@@ -40,7 +40,9 @@ class MCPAccessTests(ZulipTestCase):
         self.assertEqual(response.status_code, 201)
         return response.json()
 
-    def authorize(self, *, scope: str = "team:read") -> tuple[dict[str, object], str]:
+    def authorize(
+        self, *, scope: str = "team:read", allow_write: bool = False
+    ) -> tuple[dict[str, object], str]:
         client = self.register()
         params = {
             "client_id": client["client_id"],
@@ -55,11 +57,122 @@ class MCPAccessTests(ZulipTestCase):
         response = self.client_get("/mcp/authorize", params)
         self.assertEqual(response.status_code, 200)
         self.assertIn("Claude Cowork", response.content.decode())
-        response = self.client_post("/mcp/authorize", {**params, "decision": "approve"})
+        self.assertEqual(response["Referrer-Policy"], "same-origin")
+        approval = {**params, "decision": "approve"}
+        if allow_write:
+            approval["allow_write"] = "true"
+        response = self.client_post("/mcp/authorize", approval)
         self.assertEqual(response.status_code, 302)
         query = parse_qs(urlsplit(response["Location"]).query)
         self.assertEqual(query["state"], ["opaque-state"])
         return client, query["code"][0]
+
+    def test_oauth_write_requires_the_consent_checkbox(self) -> None:
+        client, code = self.authorize(allow_write=True)
+        pair = self.exchange(client, code).json()
+        self.assertEqual(pair["scope"], "team:read team:write")
+        names = {
+            tool["name"]
+            for tool in self.rpc(pair["access_token"], "tools/list").json()["result"]["tools"]
+        }
+        self.assertIn("send_message", names)
+        self.assertIn("send_direct_message", names)
+        client, code = self.authorize(scope="team:read team:write", allow_write=False)
+        pair = self.exchange(client, code).json()
+        self.assertEqual(pair["scope"], "team:read")
+        names = {
+            tool["name"]
+            for tool in self.rpc(pair["access_token"], "tools/list").json()["result"]["tools"]
+        }
+        self.assertNotIn("send_direct_message", names)
+
+    def test_member_lookup_direct_messages_and_mentions(self) -> None:
+        from zerver.models import Message, UserMessage
+        from zerver.models.streams import get_stream
+
+        recipient = self.example_user("othello")
+        token = self.manual(write=True)
+        response = self.rpc(
+            token, "tools/call", {"name": "list_users", "arguments": {"query": "Othello"}}
+        ).json()["result"]
+        self.assertFalse(response["isError"])
+        members = json.loads(response["content"][0]["text"])["users"]
+        self.assertIn(recipient.id, {member["user_id"] for member in members})
+        self.assertNotIn("email", members[0])
+        self.subscribe(self.user, "Denmark")
+        self.subscribe(recipient, "Denmark")
+        response = self.rpc(
+            token,
+            "tools/call",
+            {
+                "name": "send_message",
+                "arguments": {
+                    "channel_id": get_stream("Denmark", self.user.realm).id,
+                    "topic": "MCP mention",
+                    "content": "Please check this task.",
+                    "mention_user_ids": [recipient.id],
+                },
+            },
+        ).json()["result"]
+        self.assertFalse(response["isError"])
+        message = Message.objects.get(id=json.loads(response["content"][0]["text"])["id"])
+        self.assertEqual(message.sender_id, self.user.id)
+        self.assertIn(f'data-user-id="{recipient.id}"', message.rendered_content)
+        user_message = UserMessage.objects.get(message=message, user_profile=recipient)
+        self.assertTrue(user_message.flags.mentioned)
+        response = self.rpc(
+            token,
+            "tools/call",
+            {
+                "name": "send_direct_message",
+                "arguments": {"recipient_user_ids": [recipient.id], "content": "MCP direct test"},
+            },
+        ).json()["result"]
+        self.assertFalse(response["isError"])
+        message = Message.objects.get(id=json.loads(response["content"][0]["text"])["id"])
+        self.assertEqual(message.sender_id, self.user.id)
+        self.assertTrue(
+            UserMessage.objects.filter(message=message, user_profile=recipient).exists()
+        )
+        denied = self.rpc(
+            self.manual(),
+            "tools/call",
+            {
+                "name": "send_direct_message",
+                "arguments": {"recipient_user_ids": [recipient.id], "content": "Denied"},
+            },
+        ).json()["result"]
+        self.assertTrue(denied["isError"])
+
+    def test_mentions_and_direct_recipients_cannot_cross_realms(self) -> None:
+        foreign = self.mit_user("sipbtest")
+        token = self.manual(write=True)
+        response = self.rpc(
+            token,
+            "tools/call",
+            {
+                "name": "send_direct_message",
+                "arguments": {"recipient_user_ids": [foreign.id], "content": "Denied"},
+            },
+        ).json()["result"]
+        self.assertTrue(response["isError"])
+        self.subscribe(self.user, "Denmark")
+        from zerver.models.streams import get_stream
+
+        response = self.rpc(
+            token,
+            "tools/call",
+            {
+                "name": "send_message",
+                "arguments": {
+                    "channel_id": get_stream("Denmark", self.user.realm).id,
+                    "topic": "Denied",
+                    "content": "Denied",
+                    "mention_user_ids": [foreign.id],
+                },
+            },
+        ).json()["result"]
+        self.assertTrue(response["isError"])
 
     def exchange(
         self, client: dict[str, object], code: str, verifier: str | None = None

@@ -7,7 +7,9 @@ Dashboard: `https://team.growc.id/#mcp`.
 
 Tambahkan endpoint sebagai konektor MCP jarak jauh dengan autentikasi OAuth.
 Masuk ke akun Grow Team, periksa nama aplikasi, alamat callback, dan izin yang diminta.
+Aktifkan **Izinkan menulis atas nama saya** agar agen dapat mengirim pesan, mention, pesan langsung, dan mengubah tugas.
 Pilih **Setujui koneksi** atau **Tolak** di dashboard Grow Team.
+Koneksi lama dengan izin baca perlu disambungkan ulang untuk mendapat persetujuan izin tulis.
 
 Claude Cowork menyediakan konektor di **Customize → Connectors**.
 ChatGPT menyediakan MCP kustom melalui **Plugins**. Aktifkan **Developer mode** di **Settings → Security and login** pada akun yang mendukungnya.
@@ -46,11 +48,13 @@ Akun atau workspace yang dinonaktifkan tidak dapat menggunakan token.
 | --- | --- | --- |
 | `search` | Cari pesan; hasil berisi ID dan tautan untuk `fetch` | Baca |
 | `fetch` | Baca `message:<id>` atau `task:<id>` | Baca |
+| `list_users` | Cari anggota berdasarkan nama; dapatkan ID untuk mention dan pesan langsung | Baca |
 | `list_channels` | Daftar channel yang dapat diakses | Baca |
 | `list_topics` | Daftar topik pada channel | Baca |
 | `get_messages` | Baca hingga 100 pesan, dengan filter topik atau anchor | Baca |
 | `get_task_board` | Baca board dan tugas yang terlihat | Baca |
-| `send_message` | Kirim pesan ke channel | Tulis |
+| `send_message` | Kirim pesan ke channel, dengan mention opsional | Tulis |
+| `send_direct_message` | Kirim pesan langsung ke satu atau beberapa anggota | Tulis |
 | `create_task` | Buat tugas | Tulis |
 | `update_task` | Ubah tugas yang dapat diakses | Tulis |
 
@@ -65,3 +69,7 @@ Sumber protokol: [otorisasi MCP](https://modelcontextprotocol.io/specification/2
 Panduan produk: [konektor Claude](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
 
 Panduan ChatGPT: [koneksi MCP](https://developers.openai.com/plugins/build/app-quickstart) dan [OAuth](https://developers.openai.com/plugins/build/auth).
+
+Gunakan `mention_user_ids` untuk mention anggota pada tool pengiriman pesan.
+Gunakan `recipient_user_ids` untuk penerima pesan langsung. Cari ID melalui `list_users`.
+Isi pesan mendukung Markdown workspace. Mention dikirim sebagai notifikasi anggota.
