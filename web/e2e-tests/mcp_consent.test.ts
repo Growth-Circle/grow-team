@@ -40,6 +40,14 @@ async function test_mcp_consent(page: Page): Promise<void> {
     await page.evaluate(async () => {
         await document.fonts.ready;
     });
+    await page.waitForFunction(() => {
+        const logo = document.querySelector(".mcp-consent__app-mark img");
+        return logo instanceof HTMLImageElement && logo.complete && logo.naturalWidth > 0;
+    });
+    assert.match(
+        await page.$eval(".mcp-consent__app-mark img", (img) => img.getAttribute("src") ?? ""),
+        /claude.*\.png/,
+    );
     const layout = await page.evaluate(() => {
         const card = document.querySelector(".mcp-consent");
         const approve = document.querySelector(".mcp-consent__approve");

@@ -73,3 +73,15 @@ Panduan ChatGPT: [koneksi MCP](https://developers.openai.com/plugins/build/app-q
 Gunakan `mention_user_ids` untuk mention anggota pada tool pengiriman pesan.
 Gunakan `recipient_user_ids` untuk penerima pesan langsung. Cari ID melalui `list_users`.
 Isi pesan mendukung Markdown workspace. Mention dikirim sebagai notifikasi anggota.
+
+## Identitas konektor
+
+Identitas server MCP memakai nama **sanji.space** dan ikon aplikasi sanji.space berukuran 512 × 512.
+Metadata `serverInfo` menyediakan `title`, `websiteUrl`, dan `icons` untuk klien yang mendukungnya.
+Ikon tersedia melalui HTTPS pada origin workspace tanpa token.
+
+Halaman persetujuan Claude memakai logo resmi Claude dari [situs Claude](https://claude.com).
+Aset lokal `static/images/mcp/claude.png` berasal dari favicon PNG situs tersebut.
+Logo ini ditampilkan untuk nama Claude, Claude Cowork, atau Claude Desktop dengan callback `claude.ai`.
+
+Sumber metadata ikon: [spesifikasi MCP](https://modelcontextprotocol.io/specification/2025-11-25/basic).

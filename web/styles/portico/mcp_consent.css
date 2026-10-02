@@ -62,7 +62,15 @@
     gap: 10px;
     color: var(--sj-kertas);
     font-size: 18px;
-    font-weight: 600;
+    font-weight: 400;
+
+    strong {
+        font-weight: 700;
+    }
+}
+
+.mcp-consent__brand-dot {
+    color: var(--sj-kaki);
 }
 
 .mcp-consent__workspace-mark,
@@ -83,8 +91,6 @@
 }
 
 .mcp-consent__workspace-mark {
-    background-color: var(--sj-ayame);
-    color: var(--sj-tinta);
     margin-bottom: 20px;
 }
 

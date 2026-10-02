@@ -1,17 +1,17 @@
 {% extends "zerver/portico.html" %}
 {% set entrypoint = "mcp-consent" %}
 {% set skip_footer = true %}
-{% block title %}<title>Hubungkan {{ client_name }} | {{ workspace_name }}</title>{% endblock %}
+{% block title %}<title>Hubungkan {{ client_name }} | sanji.space</title>{% endblock %}
 {% block portico_class_name %}mcp-consent-page{% endblock %}
 {% block portico_content %}
 <main class="mcp-consent" aria-labelledby="mcp-consent-title">
     <aside class="mcp-consent__workspace" aria-label="Workspace dan akun">
         <div class="mcp-consent__product">
             <img src="{{ static('images/logo/zulip-icon-circle.svg') }}" alt="" width="28" height="28" />
-            <span>sanji</span>
+            <span><strong>sanji<span class="mcp-consent__brand-dot">.</span></strong>space</span>
         </div>
         <div class="mcp-consent__workspace-details">
-            <div class="mcp-consent__workspace-mark" aria-hidden="true">{{ workspace_name[:1]|upper }}</div>
+            <img class="mcp-consent__workspace-mark" src="{{ static('images/logo/zulip-icon-512x512.png') }}" alt="sanji.space" width="56" height="56" />
             <h2>{{ workspace_name }}</h2>
             <p>Hubungkan agen ke percakapan dan pekerjaan tim Anda.</p>
         </div>
@@ -21,7 +21,9 @@
         </div>
     </aside>
     <section class="mcp-consent__body">
-        <div class="mcp-consent__app-mark" aria-hidden="true">{{ client_name[:1]|upper }}</div>
+        <div class="mcp-consent__app-mark" aria-hidden="true">
+            {% if client_icon %}<img src="{{ static(client_icon) }}" alt="" width="32" height="32" />{% else %}{{ client_name[:1]|upper }}{% endif %}
+        </div>
         <h1 id="mcp-consent-title">Hubungkan {{ client_name }}</h1>
         <p class="mcp-consent__intro">Pilih akses {{ client_name }} ke workspace <strong>{{ workspace_name }}</strong>.</p>
         <form method="post" action="/mcp/authorize" class="mcp-consent__form">

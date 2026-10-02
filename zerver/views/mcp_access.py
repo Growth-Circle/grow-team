@@ -5,7 +5,7 @@ import re
 import secrets
 from datetime import timedelta
 from typing import Annotated, Literal
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 from uuid import UUID
 
 from django.db import transaction
@@ -61,7 +61,7 @@ def protected_metadata(request: HttpRequest) -> HttpResponse:
             "authorization_servers": [resource.removesuffix("/mcp")],
             "scopes_supported": SCOPES,
             "bearer_methods_supported": ["header"],
-            "resource_name": "Grow Team",
+            "resource_name": "sanji.space",
         }
     )
 
@@ -185,6 +185,12 @@ def authorize(request: HttpRequest) -> HttpResponse:
             "zerver/mcp_consent.html",
             {
                 "client_name": client.name,
+                "client_icon": (
+                    "images/mcp/claude.png"
+                    if client.name.casefold() in {"claude", "claude cowork", "claude desktop"}
+                    and urlsplit(params["redirect_uri"]).hostname == "claude.ai"
+                    else None
+                ),
                 "callback_host": params["redirect_uri"].split("/")[2],
                 "params": params,
                 "can_write": "team:write" in scopes,

@@ -208,11 +208,24 @@ class MCPAccessTests(ZulipTestCase):
         metadata = self.client_get("/.well-known/oauth-protected-resource/mcp")
         self.assertEqual(metadata.status_code, 200)
         self.assertEqual(metadata.json()["resource"], self.resource)
+        self.assertEqual(metadata.json()["resource_name"], "sanji.space")
         auth = self.client_get("/.well-known/oauth-authorization-server").json()
         self.assertIn("S256", auth["code_challenge_methods_supported"])
         response = self.client_post("/mcp", "{}", content_type="application/json")
         self.assertEqual(response.status_code, 401)
         self.assertIn("resource_metadata", response["WWW-Authenticate"])
+
+    def test_server_brand_metadata(self) -> None:
+        response = self.rpc(self.manual(), "initialize", {"protocolVersion": "2025-11-25"})
+        info = response.json()["result"]["serverInfo"]
+        self.assertEqual(info["name"], "sanji.space")
+        self.assertEqual(info["title"], "sanji.space")
+        self.assertEqual(info["websiteUrl"], "https://sanji.space")
+        icon = info["icons"][0]
+        self.assertEqual(icon["mimeType"], "image/png")
+        self.assertEqual(icon["sizes"], ["512x512"])
+        self.assertEqual(urlsplit(icon["src"]).netloc, urlsplit(self.resource).netloc)
+        self.assertIn("zulip-icon-512x512", icon["src"])
 
     def test_oauth_pkce_code_replay_and_refresh_rotation(self) -> None:
         client, code = self.authorize()
