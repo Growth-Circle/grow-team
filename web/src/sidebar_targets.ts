@@ -29,7 +29,7 @@ const targets: Record<TargetId, Target> = {
     needs: {hash: "#needs", built: true, fallback_hash: null},
     tasks: {hash: "#tasks", built: true, fallback_hash: null},
     agents: {hash: "#agents", built: false, fallback_hash: null},
-    mcp: {hash: "#mcp", built: false, fallback_hash: null},
+    mcp: {hash: "#mcp", built: true, fallback_hash: null},
     runners: {hash: "#runners", built: false, fallback_hash: null},
     drive: {hash: "#drive", built: false, fallback_hash: null},
     settings: {hash: "#workspace-settings", built: false, fallback_hash: "#organization"},

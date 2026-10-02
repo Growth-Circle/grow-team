@@ -29,7 +29,7 @@ Gunakan topik untuk memisahkan pekerjaan di dalam setiap channel.
 Branch `grow-team` dimulai dari tag upstream `12.2`, commit `1e73e1d754761b73c18135a3f25d0673f31cd8b3`.
 Remote `upstream` menunjuk ke `zulip/zulip`; `origin` menunjuk ke `Growth-Circle/grow-team`.
 Image resmi `ghcr.io/zulip/zulip-server:12.2-0` menjadi base image runtime.
-Image fork `grow-team/server:12.2-grow-team.25.3` membawa identitas Grow Team.
+Image fork `grow-team/server:12.2-grow-team.27-mcp.1` membawa identitas Grow Team.
 Base image dan image pendukung dipatok dengan digest.
 Image fork dibangun lokal dan mencatat commit sumber pada label serta `build_id`.
 
@@ -345,3 +345,8 @@ Jangan menjalankan kedua aplikasi pada port `18300` secara bersamaan.
 Pertahankan lisensi dan atribusi upstream Zulip.
 `compose.yaml` berasal dari `zulip/docker-zulip` tag `12.2-0`.
 Lisensinya disertakan sebagai `LICENSE.docker-zulip`.
+
+## MCP untuk agen eksternal
+
+Lihat [panduan koneksi MCP](MCP.md) untuk Claude Cowork, ChatGPT, OpenClaw, dan Hermes.
+Kelola persetujuan serta token agen dari `https://team.growc.id/#mcp`.

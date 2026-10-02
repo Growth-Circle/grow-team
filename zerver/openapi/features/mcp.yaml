@@ -1,1 +1,137 @@
-paths: {}
+paths:
+  /mcp/access:
+    get:
+      operationId: list-mcp-access
+      tags: ["users"]
+      summary: List your external MCP connections
+      description: |
+        Return your active connections and up to 100 recent connections.
+        Each connection uses your account permissions. Tokens are never returned.
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - type: object
+                    additionalProperties: false
+                    required: [url, connections]
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      url:
+                        type: string
+                        description: The canonical MCP endpoint.
+                      connections:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: false
+                          required:
+                            [
+                              id,
+                              name,
+                              method,
+                              scopes,
+                              created_at,
+                              expires_at,
+                              last_used_at,
+                              revoked,
+                              expired,
+                            ]
+                          properties:
+                            id: {type: string}
+                            name: {type: string}
+                            method: {type: string, enum: [oauth, token]}
+                            scopes: {type: array, items: {type: string}}
+                            created_at: {type: string}
+                            expires_at: {type: string}
+                            last_used_at: {type: string, nullable: true}
+                            revoked: {type: boolean}
+                            expired: {type: boolean}
+              example:
+                result: success
+                msg: ""
+                url: https://team.growc.id/mcp
+                connections: []
+    post:
+      operationId: create-mcp-access
+      tags: ["users"]
+      summary: Create an external agent token
+      description: |
+        Create a personal token that expires after 90 days.
+        The response shows the token once. Store it in your agent's secret settings.
+        Only members can create tokens. Guests and bots cannot create them.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  description: The external agent's name.
+                  example: Hermes
+                write:
+                  type: string
+                  enum: ["true", "false"]
+                  default: "false"
+                  description: Allow channel messages and task changes as your account.
+                  example: "false"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - type: object
+                    additionalProperties: false
+                    required: [id, token, expires_at]
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      id: {type: string}
+                      token: {type: string}
+                      expires_at: {type: string}
+              example:
+                result: success
+                msg: ""
+                id: 00000000-0000-4000-8000-000000000001
+                token: example-token
+                expires_at: "2026-12-31T00:00:00+00:00"
+  /mcp/access/{grant_id}/revoke:
+    post:
+      operationId: revoke-mcp-access
+      tags: ["users"]
+      summary: Revoke an external MCP connection
+      description: |
+        Revoke your connection and all its tokens. You cannot revoke another account's connection.
+        An operation that already started can finish.
+      parameters:
+        - name: grant_id
+          in: path
+          required: true
+          description: The connection ID.
+          schema: {type: string, format: uuid}
+          example: 00000000-0000-4000-8000-000000000001
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonSuccess"
+              example:
+                result: success
+                msg: ""

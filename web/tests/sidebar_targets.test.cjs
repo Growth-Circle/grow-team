@@ -9,8 +9,8 @@ const sidebar_targets = zrequire("sidebar_targets");
 
 // The pages that ship. When a page ships, its entry moves from the
 // second list to the first, in sidebar_targets.ts and here.
-const BUILT = ["tasks", "needs"];
-const HIDDEN_OR_FALLBACK = ["search", "home", "agents", "mcp", "runners", "drive", "settings"];
+const BUILT = ["tasks", "needs", "mcp"];
+const HIDDEN_OR_FALLBACK = ["search", "home", "agents", "runners", "drive", "settings"];
 
 run_test("built_pages", () => {
     for (const id of BUILT) {
@@ -24,6 +24,7 @@ run_test("built_pages", () => {
 
 run_test("get_hash", () => {
     assert.equal(sidebar_targets.get_hash("tasks"), "#tasks");
+    assert.equal(sidebar_targets.get_hash("mcp"), "#mcp");
     // A built page opens the section that the caller names.
     assert.equal(sidebar_targets.get_hash("tasks", "mine"), "#tasks/mine");
     // A page that is not built opens its fallback, or is hidden.
@@ -37,7 +38,7 @@ run_test("is_shown", () => {
     assert.equal(sidebar_targets.is_shown("home"), true);
     assert.equal(sidebar_targets.is_shown("settings"), true);
     assert.equal(sidebar_targets.is_shown("needs"), true);
-    for (const id of ["search", "agents", "mcp", "runners", "drive"]) {
+    for (const id of ["search", "agents", "runners", "drive"]) {
         assert.equal(sidebar_targets.is_shown(id), false, id);
     }
 });

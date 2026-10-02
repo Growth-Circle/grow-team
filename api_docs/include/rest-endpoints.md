@@ -278,3 +278,9 @@
 * [Create Nextcloud Talk video call](/api/create-nextcloud-talk-video-call)
 * [Create Webex video call](/api/create-webex-video-call)
 * [Outgoing webhook payloads](/api/outgoing-webhook-payload)
+
+## MCP connections
+
+* [List your external MCP connections](/api/list-mcp-access)
+* [Create an external agent token](/api/create-mcp-access)
+* [Revoke an external MCP connection](/api/revoke-mcp-access)

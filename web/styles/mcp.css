@@ -1,1 +1,88 @@
-/* Styles for the MCP connections view. The full version replaces this file. */
+#mcp-view {
+    overflow-y: auto;
+    height: 100%;
+}
+
+.mcp-page {
+    max-width: 960px;
+    padding: 28px;
+    margin: 0 auto;
+    color: var(--color-text-default);
+}
+
+.mcp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.mcp-section {
+    padding: 24px 0;
+    border-bottom: 1px solid var(--color-border-default);
+
+    h2 {
+        font-size: 20px;
+    }
+
+    p {
+        line-height: 1.6;
+    }
+
+    code {
+        overflow-wrap: anywhere;
+        user-select: all;
+    }
+
+    details {
+        margin-top: 16px;
+    }
+
+    summary {
+        cursor: pointer;
+    }
+}
+
+#mcp-token-form {
+    display: grid;
+    gap: 12px;
+    justify-items: start;
+
+    #mcp-token-name {
+        width: min(100%, 380px);
+    }
+}
+
+.mcp-write-option {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+#mcp-token-result {
+    margin-top: 20px;
+}
+
+#mcp-created-token {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    margin-bottom: 12px;
+    font-family: monospace;
+}
+
+.mcp-connection {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--color-border-default);
+
+    h3 {
+        margin: 0;
+        font-size: 18px;
+    }
+}
+
+@media (width <= 600px) {
+    .mcp-page {
+        padding: 16px;
+    }
+}

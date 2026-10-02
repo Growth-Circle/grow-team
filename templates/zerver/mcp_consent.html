@@ -1,0 +1,21 @@
+{% extends "zerver/portico.html" %}
+{% block title %}<title>Setujui koneksi MCP | Grow Team</title>{% endblock %}
+{% block portico_content %}
+<div class="app-main-form">
+    <h1>Hubungkan {{ client_name }}</h1>
+    <p>{{ client_name }} meminta akses ke workspace <strong>{{ workspace_name }}</strong> melalui akun <strong>{{ account_name }}</strong>.</p>
+    <p>Nama aplikasi diberikan oleh peminta koneksi. Periksa alamat tujuan: <strong>{{ callback_host }}</strong>.</p>
+    <ul>
+        <li>Membaca channel, topik, pesan, dan tugas yang dapat diakses akun Anda.</li>
+        {% if can_write %}<li>Mengirim pesan serta membuat dan mengubah tugas atas nama Anda.</li>{% endif %}
+    </ul>
+    <p>Akses berlaku hingga 90 hari. Anda dapat mencabutnya kapan saja dari Koneksi MCP di dashboard.</p>
+    <form method="post" action="/mcp/authorize">
+        {{ csrf_input }}
+        {% for key, value in params.items() %}<input type="hidden" name="{{ key }}" value="{{ value }}" />{% endfor %}
+        <button type="submit" name="decision" value="approve" class="rounded btn btn-primary">Setujui koneksi</button>
+        <button type="submit" name="decision" value="deny" class="rounded btn">Tolak</button>
+    </form>
+    <p><a href="/#mcp">Lihat koneksi MCP saya</a></p>
+</div>
+{% endblock %}

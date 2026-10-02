@@ -10,7 +10,7 @@ from typing_extensions import override
 class ZulipExceptionReporterFilter(SafeExceptionReporterFilter):
     # Add _SALT to the standard list
     hidden_settings = re.compile(
-        r"API|TOKEN|KEY|SECRET|PASS|SIGNATURE|HTTP_COOKIE|_SALT", flags=re.IGNORECASE
+        r"API|TOKEN|KEY|SECRET|PASS|SIGNATURE|HTTP_COOKIE|AUTHORIZATION|_SALT", flags=re.IGNORECASE
     )
 
     @override
@@ -32,6 +32,11 @@ class ZulipExceptionReporterFilter(SafeExceptionReporterFilter):
             "api_key",
             "realm_counts",
             "installation_counts",
+            "code",
+            "code_verifier",
+            "refresh_token",
+            "access_token",
+            "token",
         ]
 
         for var in filtered_vars:
