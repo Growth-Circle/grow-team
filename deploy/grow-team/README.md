@@ -26,6 +26,10 @@ Gunakan topik untuk memisahkan pekerjaan di dalam setiap channel.
 
 ## Source dan runtime
 
+Sanji yang aktif di produksi dibangun dari repositori `Growth-Circle/grow-team`, branch `feature/team-mcp`.
+Repositori `grow-team` tetap dipakai. Repositori `sanji` menyimpan cabang pengembangan.
+Peta dan perintah pengambilan kode ada di [REPOSITORY.md](../../REPOSITORY.md).
+
 Branch `grow-team` dimulai dari tag upstream `12.2`, commit `1e73e1d754761b73c18135a3f25d0673f31cd8b3`.
 Remote `upstream` menunjuk ke `zulip/zulip`; `origin` menunjuk ke `Growth-Circle/grow-team`.
 Image resmi `ghcr.io/zulip/zulip-server:12.2-0` menjadi base image runtime.
