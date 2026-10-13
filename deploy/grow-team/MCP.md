@@ -53,8 +53,15 @@ Akun atau workspace yang dinonaktifkan tidak dapat menggunakan token.
 | `list_topics` | Daftar topik pada channel | Baca |
 | `get_messages` | Baca hingga 100 pesan, dengan filter topik atau anchor | Baca |
 | `get_task_board` | Baca board dan tugas yang terlihat | Baca |
+| `get_me` | Baca profil akun pemilik koneksi | Baca |
+| `get_direct_messages` | Baca pesan langsung dengan satu atau beberapa anggota | Baca |
 | `send_message` | Kirim pesan ke channel, dengan mention opsional | Tulis |
 | `send_direct_message` | Kirim pesan langsung ke satu atau beberapa anggota | Tulis |
+| `edit_message` | Ubah isi pesan yang dikirim akun pemilik koneksi | Tulis |
+| `add_reaction` | Tambah reaksi emoji ke pesan | Tulis |
+| `remove_reaction` | Hapus reaksi emoji milik akun pemilik koneksi | Tulis |
+| `upload_file` | Unggah file hingga 5 MiB; hasil berisi `url` dan `markdown` siap tempel | Tulis |
+| `delete_task` | Hapus tugas yang dapat diubah akun | Tulis |
 | `create_task` | Buat tugas | Tulis |
 | `update_task` | Ubah tugas yang dapat diakses | Tulis |
 
@@ -72,6 +79,7 @@ Panduan ChatGPT: [koneksi MCP](https://developers.openai.com/plugins/build/app-q
 
 Gunakan `mention_user_ids` untuk mention anggota pada tool pengiriman pesan.
 Gunakan `recipient_user_ids` untuk penerima pesan langsung. Cari ID melalui `list_users`.
+Gunakan `upload_file` untuk mengunggah gambar atau file, lalu tempel `markdown` hasilnya ke isi pesan. Gambar tampil langsung di pesan.
 Isi pesan mendukung Markdown workspace. Mention dikirim sebagai notifikasi anggota.
 
 ## Identitas konektor
