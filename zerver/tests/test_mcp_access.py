@@ -234,7 +234,7 @@ class MCPAccessTests(ZulipTestCase):
             ]
         )
 
-    def test_profile_reactions_edit_direct_messages_and_delete_task(self) -> None:
+    def test_profile_reactions_edit_and_direct_messages(self) -> None:
         from zerver.models import Message, Reaction
 
         token = self.manual(write=True)
