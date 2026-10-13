@@ -1,10 +1,14 @@
 """MCP tools use the workspace's existing permission checks."""
 
+import base64
+import binascii
 import json
 from copy import copy
 from typing import TYPE_CHECKING, Annotated, Any, cast
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpRequest, QueryDict
+from django.utils.datastructures import MultiValueDict
 from django.views.decorators.debug import sensitive_variables
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
@@ -13,7 +17,8 @@ from zerver.lib.message import access_message
 from zerver.lib.request import RequestNotes
 from zerver.lib.tasks import access_task_by_id
 from zerver.models import UserProfile
-from zerver.views import streams, tasks, users
+from zerver.views import reactions, streams, tasks, upload, users
+from zerver.views.message_edit import update_message_backend
 from zerver.views.message_fetch import get_messages_backend
 from zerver.views.message_send import send_message_backend
 
@@ -22,6 +27,8 @@ if TYPE_CHECKING:
 
 PositiveId = Annotated[int, Field(strict=True, gt=0)]
 ShortText = Annotated[str, StringConstraints(min_length=1, max_length=200)]
+# Base64 of a 5 MiB file. The realm's own upload limit still applies.
+MAX_BASE64_LENGTH = 7_000_000
 
 
 class Arguments(BaseModel):
@@ -61,6 +68,29 @@ class DirectMessage(Arguments):
         default_factory=list
     )
 
+
+class DirectMessages(Arguments):
+    user_ids: Annotated[list[PositiveId], Field(min_length=1, max_length=10)]
+    limit: Annotated[int, Field(ge=1, le=100)] = 30
+    before: PositiveId | None = None
+
+class EditMessage(Arguments):
+    message_id: PositiveId
+    content: Annotated[str, StringConstraints(min_length=1, max_length=10000)]
+
+class Reaction(Arguments):
+    message_id: PositiveId
+    emoji_name: Annotated[str, StringConstraints(min_length=1, max_length=100)]
+
+class UploadFile(Arguments):
+    filename: Annotated[str, StringConstraints(min_length=1, max_length=100)]
+    content_base64: Annotated[str, StringConstraints(min_length=1, max_length=MAX_BASE64_LENGTH)]
+    content_type: Annotated[str, StringConstraints(min_length=3, max_length=100)] = (
+        "application/octet-stream"
+    )
+
+class TaskId(Arguments):
+    task_id: PositiveId
 
 class Members(Arguments):
     query: Annotated[str, StringConstraints(max_length=100)] = ""
@@ -109,6 +139,12 @@ TOOLS: dict[str, tuple[type[Arguments], str, bool]] = {
         "Read the task board and the tasks that your account can access.",
         False,
     ),
+    "get_me": (Arguments, "Read the profile of the account that approved this connection.", False),
+    "get_direct_messages": (
+        DirectMessages,
+        "Read recent direct messages with the given members. Use list_users for member IDs.",
+        False,
+    ),
     "send_message": (
         Send,
         "Send a channel message as the approved account. Use mention_user_ids to notify members. Content supports workspace Markdown.",
@@ -119,6 +155,27 @@ TOOLS: dict[str, tuple[type[Arguments], str, bool]] = {
         "Send a direct message as the approved account. Use list_users for recipient IDs. Mention IDs notify members.",
         True,
     ),
+    "edit_message": (
+        EditMessage,
+        "Replace the content of a message that the approved account sent.",
+        True,
+    ),
+    "add_reaction": (
+        Reaction,
+        "Add an emoji reaction to a message, using an emoji name such as thumbs_up.",
+        True,
+    ),
+    "remove_reaction": (
+        Reaction,
+        "Remove the approved account's emoji reaction from a message.",
+        True,
+    ),
+    "upload_file": (
+        UploadFile,
+        "Upload a file (up to 5 MiB) as the approved account. Returns its url and a markdown link to paste into a message; images display inline.",
+        True,
+    ),
+    "delete_task": (TaskId, "Delete a task that the approved account can modify.", True),
     "create_task": (
         CreateTask,
         "Create a task as the account that approved this connection.",
@@ -158,7 +215,12 @@ def tool_list(scopes: list[str]) -> list[dict[str, object]]:
 
 @sensitive_variables()
 def _view(
-    request: HttpRequest, user: UserProfile, view: Any, data: dict[str, object], **path: object
+    request: HttpRequest,
+    user: UserProfile,
+    view: Any,
+    data: dict[str, object],
+    files: dict[str, SimpleUploadedFile] | None = None,
+    **path: object,
 ) -> dict[str, Any]:
     tool_request = copy(request)
     tool_request.user = user
@@ -172,6 +234,7 @@ def _view(
     form._mutable = False
     tool_request.POST = cast("_ImmutableQueryDict", form)
     tool_request.GET = cast("_ImmutableQueryDict", form)
+    tool_request._files = MultiValueDict({name: [file] for name, file in (files or {}).items()})  # type: ignore[attr-defined]  # Django caches parsed uploads here.
     response = view(tool_request, user, **path)
     payload = json.loads(response.content)
     if response.status_code != 200 or payload.get("result") == "error":
@@ -313,6 +376,58 @@ def execute_tool(
                 "content": message_content(request, user, args),
             },
         )
+    if name == "get_me":
+        result = _view(request, user, users.get_profile_backend, {})
+        return {
+            key: result[key]
+            for key in ("user_id", "full_name", "is_admin", "is_guest", "role")
+            if key in result
+        }
+    if name == "get_direct_messages":
+        return _view(
+            request,
+            user,
+            get_messages_backend,
+            {
+                "anchor": str(args.get("before") or "newest"),
+                "num_before": args["limit"],
+                "num_after": 0,
+                "include_anchor": args.get("before") is None,
+                "apply_markdown": False,
+                "narrow": [{"operator": "dm", "operand": args["user_ids"]}],
+            },
+        )
+    if name == "edit_message":
+        return _view(
+            request,
+            user,
+            update_message_backend,
+            {"content": args["content"]},
+            message_id=args["message_id"],
+        )
+    if name in {"add_reaction", "remove_reaction"}:
+        view = reactions.add_reaction if name == "add_reaction" else reactions.remove_reaction
+        return _view(
+            request,
+            user,
+            view,
+            {"emoji_name": args["emoji_name"]},
+            message_id=args["message_id"],
+        )
+    if name == "upload_file":
+        try:
+            raw = base64.b64decode(str(args["content_base64"]), validate=True)
+        except binascii.Error:
+            raise ValueError("The file content is not valid base64.") from None
+        file = SimpleUploadedFile(str(args["filename"]), raw, str(args["content_type"]))
+        result = _view(request, user, upload.upload_file_backend, {}, {"file": file})
+        return {
+            "url": result["url"],
+            "filename": result["filename"],
+            "markdown": f"[{result['filename']}]({result['url']})",
+        }
+    if name == "delete_task":
+        return _view(request, user, tasks.delete_task, {}, task_id=args["task_id"])
     if name == "create_task":
         return _view(request, user, tasks.create_task, args)
     if name == "update_task":

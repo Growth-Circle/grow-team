@@ -204,6 +204,62 @@ class MCPAccessTests(ZulipTestCase):
             HTTP_AUTHORIZATION="Bearer " + token,
         )
 
+    def call(self, token: str, name: str, arguments: dict[str, object]) -> dict[str, object]:
+        result = self.rpc(token, "tools/call", {"name": name, "arguments": arguments}).json()[
+            "result"
+        ]
+        if result["isError"]:
+            return {"isError": True}
+        return json.loads(result["content"][0]["text"])
+
+    def test_upload_file_returns_url_and_markdown(self) -> None:
+        token = self.manual(write=True)
+        png = base64.b64encode(b"\x89PNG\r\n\x1a\nchart").decode()
+        output = self.call(
+            token,
+            "upload_file",
+            {"filename": "chart.png", "content_base64": png, "content_type": "image/png"},
+        )
+        self.assertTrue(output["url"].startswith("/user_uploads/"))
+        self.assertEqual(output["filename"], "chart.png")
+        self.assertEqual(output["markdown"], f"[chart.png]({output['url']})")
+        from zerver.models import Attachment
+
+        attachment = Attachment.objects.get(path_id=output["url"].removeprefix("/user_uploads/"))
+        self.assertEqual(attachment.owner_id, self.user.id)
+        self.assertTrue(self.call(token, "upload_file", {"filename": "a", "content_base64": "!!"})["isError"])
+        self.assertTrue(
+            self.call(self.manual(), "upload_file", {"filename": "a.txt", "content_base64": png})[
+                "isError"
+            ]
+        )
+
+    def test_profile_reactions_edit_direct_messages_and_delete_task(self) -> None:
+        from zerver.models import Message, Reaction
+
+        token = self.manual(write=True)
+        me = self.call(token, "get_me", {})
+        self.assertEqual(me["user_id"], self.user.id)
+        self.assertNotIn("email", me)
+        other = self.example_user("othello")
+        sent = self.call(
+            token, "send_direct_message", {"recipient_user_ids": [other.id], "content": "one"}
+        )
+        message_id = sent["id"]
+        self.call(token, "add_reaction", {"message_id": message_id, "emoji_name": "smile"})
+        self.assertTrue(Reaction.objects.filter(message_id=message_id, user_profile=self.user).exists())
+        self.call(token, "remove_reaction", {"message_id": message_id, "emoji_name": "smile"})
+        self.assertFalse(Reaction.objects.filter(message_id=message_id).exists())
+        self.call(token, "edit_message", {"message_id": message_id, "content": "two"})
+        self.assertEqual(Message.objects.get(id=message_id).content, "two")
+        history = self.call(token, "get_direct_messages", {"user_ids": [other.id]})
+        self.assertEqual(history["messages"][-1]["content"], "two")
+        self.assertTrue(
+            self.call(
+                self.manual(), "edit_message", {"message_id": message_id, "content": "x"}
+            )["isError"]
+        )
+
     def test_discovery_and_bearer_challenge(self) -> None:
         metadata = self.client_get("/.well-known/oauth-protected-resource/mcp")
         self.assertEqual(metadata.status_code, 200)

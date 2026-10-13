@@ -20,6 +20,9 @@ from zerver.models.mcp_access import MCPAccessAudit, MCPAccessGrant, MCPAccessTo
 from zerver.views.mcp_access import oauth_json
 
 
+# Room for a 5 MiB file in base64 for upload_file.
+MAX_BODY_BYTES = 7_100_000
+
 def rpc_error(request_id: object, code: int, message: str, status: int = 200) -> HttpResponse:
     return oauth_json(
         {"jsonrpc": "2.0", "id": request_id, "error": {"code": code, "message": message}}, status
@@ -73,7 +76,7 @@ def mcp(request: HttpRequest) -> HttpResponse:
     version = request.headers.get("MCP-Protocol-Version")
     if version is not None and version not in VERSIONS:
         return rpc_error(None, -32600, "Unsupported protocol version.", 400)
-    if len(request.body) > 65536:
+    if len(request.body) > MAX_BODY_BYTES:
         return rpc_error(None, -32600, "Request exceeds its limit.", 413)
     try:
         data = json.loads(request.body)
