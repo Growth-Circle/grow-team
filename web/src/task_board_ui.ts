@@ -1,5 +1,6 @@
 import $ from "jquery";
 import assert from "minimalistic-assert";
+import type * as tippy from "tippy.js";
 import * as z from "zod/mini";
 
 import render_task_board from "../templates/task_board.hbs";
@@ -11,6 +12,7 @@ import * as channel from "./channel.ts";
 import * as compose_closed_ui from "./compose_closed_ui.ts";
 import * as confirm_dialog from "./confirm_dialog.ts";
 import * as dialog_widget from "./dialog_widget.ts";
+import * as dropdown_widget from "./dropdown_widget.ts";
 import * as hash_util from "./hash_util.ts";
 import {$t, $t_html} from "./i18n.ts";
 import * as left_sidebar_navigation_area from "./left_sidebar_navigation_area.ts";
@@ -19,6 +21,7 @@ import * as stream_data from "./stream_data.ts";
 import * as sub_store from "./sub_store.ts";
 import * as task_board_data from "./task_board_data.ts";
 import type {Task, TaskHistoryEntry} from "./task_board_data.ts";
+import {can_edit_task} from "./task_board_permissions.ts";
 import * as timerender from "./timerender.ts";
 import * as ui_report from "./ui_report.ts";
 import * as util from "./util.ts";
@@ -27,6 +30,10 @@ import * as views_util from "./views_util.ts";
 let hide_other_views_callback: (() => void) | undefined;
 let open_task_id: number | undefined;
 const history_by_task_id = new Map<number, TaskHistoryEntry[]>();
+
+const ASSIGNEE_BUTTON_ID = "task-board-assignee_widget";
+let assignee_picker: dropdown_widget.DropdownWidget | undefined;
+let assignee_picker_instance: tippy.Instance | undefined;
 
 export const is_visible = task_board_data.is_visible;
 const set_visible = task_board_data.set_visible;
@@ -248,6 +255,94 @@ function history_text(entry: TaskHistoryEntry): string {
     }
 }
 
+function assignee_context(task: Task): {full_name: string; avatar_url: string} | undefined {
+    if (task.assignee_id === null) {
+        return undefined;
+    }
+    const person = people.maybe_get_user_by_id(task.assignee_id, true);
+    if (person === undefined) {
+        return {full_name: $t({defaultMessage: "A former member"}), avatar_url: ""};
+    }
+    return {
+        full_name: person.full_name,
+        avatar_url: people.small_avatar_url_for_user_id(person.user_id),
+    };
+}
+
+function assignee_options(
+    current_assignee_id: string | number | undefined,
+): dropdown_widget.Option[] {
+    return people
+        .get_realm_active_human_users()
+        .toSorted(people.compare_by_name)
+        .map((person) => ({
+            unique_id: person.user_id,
+            name: person.full_name,
+            avatar_url: people.small_avatar_url_for_user_id(person.user_id),
+            bold_current_selection: person.user_id === current_assignee_id,
+        }));
+}
+
+function change_assignee(task_id: number, assignee_id: number | null): void {
+    const task = task_board_data.get_task(task_id);
+    if (task === undefined || task.assignee_id === assignee_id) {
+        return;
+    }
+    const previous_assignee_id = task.assignee_id;
+
+    // Show the choice at once; the card event that follows the save
+    // replaces it with what the server stored.
+    task_board_data.add_or_update_task({...task, assignee_id});
+    complete_rerender();
+
+    patch_task(task_id, assignee_id === null ? {clear_assignee: true} : {assignee_id}, {
+        success() {
+            if (open_task_id === task_id) {
+                fetch_history(task_id);
+            }
+        },
+        error() {
+            const current = task_board_data.get_task(task_id);
+            if (current !== undefined) {
+                task_board_data.add_or_update_task({...current, assignee_id: previous_assignee_id});
+                complete_rerender();
+            }
+        },
+    });
+}
+
+function setup_assignee_picker(): void {
+    assignee_picker = new dropdown_widget.DropdownWidget({
+        widget_name: "task-board-assignee",
+        get_options: assignee_options,
+        $events_container: $("#task-board-detail"),
+        unique_id_type: "number",
+        hide_search_box_focus_first_item_on_keyboard_open: true,
+        sticky_bottom_option: $t({defaultMessage: "Nobody"}),
+        search_placeholder_text: $t({defaultMessage: "Find a member"}),
+        on_show_callback(instance) {
+            assignee_picker_instance = instance;
+        },
+        on_hidden_callback() {
+            assignee_picker_instance = undefined;
+        },
+        item_click_callback(_event, instance, widget, is_nobody_clicked) {
+            assignee_picker_instance = undefined;
+            instance.destroy();
+            $(`#${ASSIGNEE_BUTTON_ID}`).trigger("focus");
+            if (open_task_id === undefined) {
+                return;
+            }
+            const picked_id = widget.value();
+            change_assignee(
+                open_task_id,
+                is_nobody_clicked || typeof picked_id !== "number" ? null : picked_id,
+            );
+        },
+    });
+    assignee_picker.setup();
+}
+
 function render_card_detail(task_id: number): void {
     const task = task_board_data.get_task(task_id);
     if (task === undefined) {
@@ -255,9 +350,14 @@ function render_card_detail(task_id: number): void {
         return;
     }
 
+    // The panel is drawn again on every card event. Close an open
+    // picker, whose button is about to be replaced, and keep the
+    // keyboard focus where the reader left it.
+    const keep_focus_on_assignee_button = document.activeElement?.id === ASSIGNEE_BUTTON_ID;
+    assignee_picker_instance?.destroy();
+    assignee_picker_instance = undefined;
+
     const column = task_board_data.get_column(task.column_id);
-    const assignee =
-        task.assignee_id === null ? undefined : people.maybe_get_user_by_id(task.assignee_id, true);
     const history = history_by_task_id.get(task_id) ?? [];
 
     $("#task-board-detail").html(
@@ -278,10 +378,8 @@ function render_card_detail(task_id: number): void {
             ),
             has_checklist: task.checklist.length > 0,
             checklist: task.checklist.map((item, index) => ({...item, index})),
-            assignee_label:
-                assignee === undefined
-                    ? $t({defaultMessage: "Nobody is responsible for this card"})
-                    : assignee.full_name,
+            can_edit: can_edit_task(task),
+            assignee: assignee_context(task),
             due_label: due_label(task),
             due_is_overdue: is_overdue(task),
             agent_job_url: task.agent_job_id === null ? "" : "#agent-jobs",
@@ -292,7 +390,25 @@ function render_card_detail(task_id: number): void {
         }),
     );
     $("#task-board-detail").removeClass("hidden");
-    $("#task-board-detail .task-board-detail-title").trigger("focus");
+
+    if (assignee_picker !== undefined) {
+        const picker = assignee_picker;
+        picker.current_value = task.assignee_id ?? undefined;
+        // setup() binds these on the button, which each render replaces.
+        $(`#${ASSIGNEE_BUTTON_ID}`)
+            .on("mousedown", () => {
+                picker.dropdown_triggered_via_keyboard = false;
+            })
+            .on("keydown", () => {
+                picker.dropdown_triggered_via_keyboard = true;
+            });
+    }
+
+    if (keep_focus_on_assignee_button && $(`#${ASSIGNEE_BUTTON_ID}`).length > 0) {
+        $(`#${ASSIGNEE_BUTTON_ID}`).trigger("focus");
+    } else {
+        $("#task-board-detail .task-board-detail-title").trigger("focus");
+    }
 }
 
 function fetch_history(task_id: number): void {
@@ -323,11 +439,19 @@ function report_error(xhr: JQuery.jqXHR): void {
     ui_report.error($t_html({defaultMessage: "Could not save the change"}), xhr, $("#home-error"));
 }
 
-function patch_task(task_id: number, data: Record<string, string | number | boolean>): void {
+function patch_task(
+    task_id: number,
+    data: Record<string, string | number | boolean>,
+    callbacks: {success?: () => void; error?: () => void} = {},
+): void {
     void channel.patch({
         url: `/json/tasks/${task_id}`,
         data,
-        error: report_error,
+        success: callbacks.success,
+        error(xhr) {
+            report_error(xhr);
+            callbacks.error?.();
+        },
     });
 }
 
@@ -593,6 +717,8 @@ export function initialize(opts: {hide_other_views: () => void}): void {
     fetch_work_counts();
 
     const $view = $("#task-board-view");
+
+    setup_assignee_picker();
 
     $view.on("click", ".task-board-card", function (this: HTMLElement, event) {
         event.preventDefault();

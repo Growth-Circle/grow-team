@@ -510,3 +510,63 @@
         column-gap: 1em;
     }
 }
+
+.task-board-assignee-row {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    width: 100%;
+    color: var(--sj-text);
+    font-size: 0.875em;
+    text-align: left;
+    gap: 10px;
+}
+
+/* A reader who cannot edit the card gets the row as plain text, so
+   nothing suggests it can be pressed. */
+.task-board-assignee-button {
+    padding: 8px 10px;
+    border: 1.5px solid var(--sj-divider);
+    border-radius: 12px;
+    background: none;
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--sj-outline);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--sj-outline);
+        outline-offset: 2px;
+    }
+}
+
+.task-board-assignee-avatar {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    /* 30px at 14px/1em */
+    width: 2.1429em;
+    height: 2.1429em;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.task-board-assignee-avatar-empty {
+    border: 1px dashed var(--sj-divider);
+    color: var(--sj-text-muted);
+}
+
+.task-board-assignee-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.task-board-assignee-change {
+    flex: none;
+    color: var(--sj-text-muted);
+}

@@ -51,7 +51,15 @@
 
 <section class="task-board-detail-section">
     <h3>{{t "Responsible"}}</h3>
-    <p class="task-board-detail-assignee">{{assignee_label}}</p>
+    {{#if can_edit}}
+        <button type="button" id="task-board-assignee_widget" class="task-board-assignee-row task-board-assignee-button">
+            {{> task_board_assignee_row . }}
+        </button>
+    {{else}}
+        <div class="task-board-assignee-row">
+            {{> task_board_assignee_row . }}
+        </div>
+    {{/if}}
     {{#if due_label}}
         <h3>{{t "Deadline"}}</h3>
         <p class="task-board-detail-due{{#if due_is_overdue}} task-board-card-detail-danger{{/if}}">{{due_label}}</p>

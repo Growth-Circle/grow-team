@@ -1,0 +1,17 @@
+{{! Who is responsible for the card. The button in the card detail panel
+wraps this row; a reader who cannot edit the card sees the row alone. }}
+{{#if assignee}}
+    {{#if assignee.avatar_url}}
+        <img class="task-board-assignee-avatar" src="{{assignee.avatar_url}}" alt="" />
+    {{else}}
+        <span class="task-board-assignee-avatar task-board-assignee-avatar-empty" aria-hidden="true">?</span>
+    {{/if}}
+    <span class="task-board-assignee-name">{{assignee.full_name}}</span>
+{{else}}
+    <span class="task-board-assignee-avatar task-board-assignee-avatar-empty" aria-hidden="true">—</span>
+    <span class="task-board-assignee-name">{{t "Nobody is responsible for this card"}}</span>
+{{/if}}
+{{#if can_edit}}
+    <span class="task-board-assignee-change">{{t "Change"}}</span>
+    <i class="zulip-icon zulip-icon-chevron-down" aria-hidden="true"></i>
+{{/if}}
