@@ -2623,6 +2623,46 @@ test("begins_typeahead", ({override, override_rewire}) => {
     }
 });
 
+test("the note box of a task card suggests only people", ({override, override_rewire}) => {
+    let note_typeahead_options;
+    override(bootstrap_typeahead, "Typeahead", (_input_element, options) => {
+        note_typeahead_options = options;
+    });
+    ct.initialize_task_note_typeahead($("textarea#task-board-note-input"));
+
+    let caret_position;
+    const input_element = {
+        $element: {
+            caret(position) {
+                caret_position = position;
+            },
+        },
+        type: "textarea",
+    };
+
+    function candidates(before_cursor, after_cursor = "") {
+        override_rewire(ct, "split_at_cursor", () => [before_cursor, after_cursor]);
+        return note_typeahead_options.source(before_cursor + after_cursor, input_element);
+    }
+
+    assert.deepEqual(candidates("no mention here"), []);
+    // No group, wildcard, channel, or emoji suggestions.
+    assert.deepEqual(candidates("ask @haml"), [hamlet_item]);
+    assert.deepEqual(candidates("ask @all"), []);
+    assert.deepEqual(candidates("ask @*haml"), [hamlet_item]);
+    assert.deepEqual(candidates("see #haml"), []);
+    assert.deepEqual(candidates("hi :tad"), []);
+    // The cursor is inside a word that is already written.
+    assert.deepEqual(candidates("ask @haml", "et"), []);
+    assert.deepEqual(candidates("ask @haml", " please"), [hamlet_item]);
+    assert.deepEqual(candidates("@ "), []);
+
+    override_rewire(ct, "split_at_cursor", () => ["ask @haml", " please"]);
+    const text = note_typeahead_options.updater(hamlet_item, "ask @haml please", input_element);
+    assert.equal(text, `ask @**King Hamlet|${hamlet.user_id}**  please`);
+    assert.equal(caret_position, `ask @**King Hamlet|${hamlet.user_id}** `.length);
+});
+
 test("tokenizing", () => {
     assert.equal(ct.tokenize_compose_str("/m"), "/m");
     assert.equal(ct.tokenize_compose_str("1/3"), "");

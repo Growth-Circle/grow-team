@@ -52,6 +52,9 @@ import * as util from "./util.ts";
 /* Maximum channel name length + link syntax (#**>**) + some topic characters */
 const MAX_LOOKBACK_FOR_TYPEAHEAD_COMPLETION = 60 + 6 + 20;
 
+// We will likely want to extend this list to be more i18n-friendly.
+const TERMINAL_SYMBOLS = ",.;?!()[]>  \"'\n\t";
+
 // **********************************
 // AN IMPORTANT NOTE ABOUT TYPEAHEADS
 // **********************************
@@ -989,10 +992,7 @@ export function get_candidates(
     // punctuation (or end of the message), don't try to typeahead; we
     // probably just have the cursor in the middle of an
     // already-completed object.
-
-    // We will likely want to extend this list to be more i18n-friendly.
-    const terminal_symbols = ",.;?!()[]> \u00A0\"'\n\t";
-    if (rest !== "" && !terminal_symbols.includes(rest[0]!)) {
+    if (rest !== "" && !TERMINAL_SYMBOLS.includes(rest[0]!)) {
         return [];
     }
 
@@ -1724,6 +1724,78 @@ export function initialize_compose_typeahead($element: JQuery<HTMLTextAreaElemen
                 tippyjs.typeahead_status_emoji_tooltip?.hide();
             },
         }),
+    );
+}
+
+// A note on a task card can mention members and nothing else, so its
+// box suggests only people: no groups, channels, emoji, or wildcards.
+function get_task_note_mention_candidates(
+    query: string,
+    input_element: TypeaheadInputElement,
+): UserPillData[] {
+    const [before_cursor, after_cursor] = split_at_cursor(query, input_element.$element);
+    const typed = tokenize_compose_str(before_cursor);
+    if (!typed.startsWith("@")) {
+        return [];
+    }
+    if (after_cursor !== "" && !TERMINAL_SYMBOLS.includes(after_cursor[0]!)) {
+        return [];
+    }
+    const mention_token = filter_mention_name(typed.slice(1));
+    if (mention_token === undefined) {
+        completing = null;
+        return [];
+    }
+    completing = "mention";
+    token = mention_token;
+    return get_person_suggestions(mention_token, {
+        want_broadcast: false,
+        filter_pills: false,
+        stream_id: undefined,
+        topic: undefined,
+    }).filter((item) => item.type === "user");
+}
+
+function task_note_mention_selected(
+    item: UserPillData,
+    query: string,
+    input_element: TypeaheadInputElement,
+): string {
+    const [before_cursor, after_cursor] = split_at_cursor(query, input_element.$element);
+    const typed = tokenize_compose_str(before_cursor);
+    // The id keeps the mention exact when two people share a name.
+    const mention = `@**${item.user.full_name}|${item.user.user_id}** `;
+    const beginning = before_cursor.slice(0, before_cursor.length - typed.length) + mention;
+    // The library writes the returned text into the box, which moves
+    // the caret to the end.
+    const $textbox = input_element.$element;
+    setTimeout(() => {
+        $textbox.caret(beginning.length);
+    }, 0);
+    return beginning + after_cursor;
+}
+
+export function initialize_task_note_typeahead(
+    $element: JQuery<HTMLTextAreaElement>,
+): Typeahead<UserPillData> {
+    return new Typeahead<UserPillData>(
+        {$element, type: "textarea"},
+        {
+            items: max_num_items,
+            // Performance note: as in the compose box, the matching
+            // and sorting happen in `source`.
+            source: get_task_note_mention_candidates,
+            item_html: content_item_html,
+            matcher() {
+                return () => true;
+            },
+            sorter(items) {
+                return items;
+            },
+            updater: task_note_mention_selected,
+            // Do not advance to the next field on a Tab or Enter.
+            stopAdvance: true,
+        },
     );
 }
 
