@@ -923,6 +923,115 @@ class TaskNoteMentionTest(TaskBoardTestCase):
         result = self.client_post(f"/json/tasks/{card.id}/notifications/resolve")
         self.assert_json_error(result, "Task does not exist.")
 
+    def assign(self, actor: UserProfile, card: Task, assignee: UserProfile) -> None:
+        self.login_user(actor)
+        result = self.client_patch(f"/json/tasks/{card.id}", {"assignee_id": assignee.id})
+        self.assert_json_success(result)
+
+    def test_new_responsible_member_gets_a_need_a_direct_message_and_an_event(self) -> None:
+        card = self.create_card(title="Lock the October feature list")
+
+        with mock.patch("zerver.actions.tasks.send_event_on_commit") as send_event:
+            self.assign(self.hamlet, card, self.cordelia)
+
+        notification = TaskNotification.objects.get()
+        self.assertEqual(notification.user_id, self.cordelia.id)
+        self.assertEqual(notification.actor_id, self.hamlet.id)
+        self.assertEqual(notification.kind, TaskNotification.ASSIGNED)
+        self.assertIsNone(notification.note)
+
+        [message] = self.notification_messages(self.cordelia)
+        self.assertIn(
+            f"@_**{self.hamlet.full_name}|{self.hamlet.id}** made you responsible", message.content
+        )
+        self.assertIn("`GT-1 Lock the October feature list`", message.content)
+        self.assertIn(f"[Open the card]({self.hamlet.realm.url}/#tasks/{card.id})", message.content)
+
+        [call] = [c for c in send_event.call_args_list if c.args[1]["type"] == "task_notification"]
+        check_task_notification_add("event", {**call.args[1], "id": 0})
+        self.assertEqual(call.args[1]["kind"], "assigned")
+        self.assertEqual(call.args[2], [self.cordelia.id])
+
+    def test_assigning_oneself_clearing_or_repeating_the_assignee_notifies_nobody(self) -> None:
+        card = self.create_card()
+        self.assign(self.hamlet, card, self.hamlet)
+
+        self.assign(self.hamlet, card, self.cordelia)
+        self.assertEqual(TaskNotification.objects.count(), 1)
+        self.assign(self.hamlet, card, self.cordelia)
+        self.assertEqual(TaskNotification.objects.count(), 1)
+        self.assert_length(self.notification_messages(self.cordelia), 1)
+
+        result = self.client_patch(f"/json/tasks/{card.id}", {"clear_assignee": "true"})
+        self.assert_json_success(result)
+        self.assertEqual(TaskNotification.objects.count(), 1)
+
+    def test_assigning_a_bot_notifies_nobody(self) -> None:
+        card = self.create_card()
+        bot_user = self.example_user("default_bot")
+        self.assign(self.hamlet, card, bot_user)
+
+        self.assertFalse(TaskNotification.objects.exists())
+        self.assertEqual(self.notification_messages(bot_user), [])
+
+    def test_assigning_a_member_who_cannot_read_the_card_notifies_nobody(self) -> None:
+        iago = self.example_user("iago")
+        private_stream = self.make_stream("secret-plan", invite_only=True)
+        self.subscribe(self.cordelia, "secret-plan")
+        self.subscribe(iago, "secret-plan")
+        card = do_create_task(
+            user_profile=self.cordelia,
+            board=self.board,
+            column=self.columns[0],
+            title="Card for the private channel",
+            stream_id=private_stream.id,
+        )
+
+        self.assign(iago, card, self.hamlet)
+
+        self.assertFalse(TaskNotification.objects.exists())
+        self.assertEqual(self.notification_messages(self.hamlet), [])
+
+    def create_assigned_card(self, creator: UserProfile, assignee: UserProfile) -> dict[str, Any]:
+        self.login_user(creator)
+        result = self.client_post(
+            "/json/tasks",
+            {
+                "title": "Lock the October feature list",
+                "column_id": self.columns[0].id,
+                "assignee_id": assignee.id,
+            },
+        )
+        return self.assert_json_success(result)
+
+    def test_card_created_for_another_member_notifies_them(self) -> None:
+        with mock.patch("zerver.actions.tasks.send_event_on_commit") as send_event:
+            response = self.create_assigned_card(self.hamlet, self.cordelia)
+
+        notification = TaskNotification.objects.get()
+        self.assertEqual(notification.task_id, response["task_id"])
+        self.assertEqual(notification.user_id, self.cordelia.id)
+        self.assertEqual(notification.actor_id, self.hamlet.id)
+        self.assertEqual(notification.kind, TaskNotification.ASSIGNED)
+
+        [message] = self.notification_messages(self.cordelia)
+        self.assertIn(
+            f"@_**{self.hamlet.full_name}|{self.hamlet.id}** made you responsible", message.content
+        )
+        self.assertIn("`GT-1 Lock the October feature list`", message.content)
+
+        [call] = [c for c in send_event.call_args_list if c.args[1]["type"] == "task_notification"]
+        check_task_notification_add("event", {**call.args[1], "id": 0})
+        self.assertEqual(call.args[1]["kind"], "assigned")
+        self.assertEqual(call.args[2], [self.cordelia.id])
+
+    def test_card_created_for_oneself_or_a_bot_notifies_nobody(self) -> None:
+        self.create_assigned_card(self.hamlet, self.hamlet)
+        self.create_assigned_card(self.hamlet, self.example_user("default_bot"))
+
+        self.assertFalse(TaskNotification.objects.exists())
+        self.assertEqual(self.notification_messages(self.hamlet), [])
+
     def test_deleting_a_note_or_a_card_deletes_its_notifications(self) -> None:
         card = self.create_card()
         self.post_note(self.hamlet, card, f"{self.mention(self.cordelia)} first")

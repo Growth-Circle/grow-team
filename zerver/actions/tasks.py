@@ -205,6 +205,7 @@ def do_create_task(
     )
 
     send_task_event(realm, task, "add")
+    notify_new_responsible(task=task, actor=user_profile)
     return task
 
 
@@ -359,6 +360,7 @@ def do_update_task(
             TaskHistory.ASSIGNED,
             {"assignee_id": task.assignee_id},
         )
+        notify_new_responsible(task=task, actor=user_profile)
     else:
         record_history(task, user_profile, TaskHistory.EDITED, {"fields": sorted(changes.keys())})
 
@@ -448,6 +450,20 @@ def notify_note_mentions(
             recipient=user, task=note.task, actor=author, kind=TaskNotification.MENTION, note=note
         )
     return ignored_user_ids
+
+
+def notify_new_responsible(*, task: Task, actor: UserProfile) -> None:
+    """Tell the member a card was just made theirs, unless they did it
+    themselves, the card was cleared, or they cannot read it."""
+    assignee = task.assignee
+    if (
+        assignee is None
+        or assignee.is_bot
+        or assignee.id == actor.id
+        or not user_can_access_task(assignee, task)
+    ):
+        return
+    notify_task_member(recipient=assignee, task=task, actor=actor, kind=TaskNotification.ASSIGNED)
 
 
 @transaction.atomic(durable=True)

@@ -82,7 +82,14 @@ paths:
 
         Creating a card never changes the conversation it came from.
 
+        When the card is created with another human member as its assignee and
+        that member can read the card, they are notified the same way as when
+        [updating a card](/api/update-task) changes its assignee.
+
         **Changes**: New in Zulip 12.0 (feature level ZF-4a7c21).
+
+        Before feature level ZF-d81c47, creating a card with an assignee
+        notified nobody.
       requestBody:
         required: true
         content:
@@ -290,12 +297,21 @@ paths:
         Bot posts a short message to the card's topic when the card moves to
         another column.
 
+        When the card's assignee changes to another human member who can read
+        the card, that member gets a `card_assigned` item in their
+        [Needs-you list](/api/list-needs) and a direct message from the
+        Notification Bot that links to the card as `#tasks/<task id>`. Nobody
+        is notified when the user assigns the card to themselves, clears the
+        assignee, or assigns a bot.
+
         **Changes**: New in Zulip 12.0 (feature level ZF-4a7c21).
 
         Before feature level ZF-4f1745, any user who could read a card could
         change it.
 
         Before feature level ZF-4f1745, a card move posted no status notice.
+
+        Before feature level ZF-d81c47, changing the assignee notified nobody.
       parameters:
         - name: task_id
           in: path

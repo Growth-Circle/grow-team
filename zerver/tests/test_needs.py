@@ -23,7 +23,7 @@ from zerver.actions.agents import (
     record_readiness,
     register_repository,
 )
-from zerver.actions.tasks import do_add_task_note, do_create_task
+from zerver.actions.tasks import do_add_task_note, do_create_task, do_update_task
 from zerver.actions.user_groups import check_add_user_group
 from zerver.actions.users import do_change_user_role
 from zerver.lib import agent_protocol as p
@@ -896,11 +896,26 @@ class CardNeedsTests(ZulipTestCase):
         author_result = needs.list_needs(self.hamlet, kind=None, status="open", since=None)
         self.assertEqual(author_result["items"], [])
 
-    def test_kind_filter_separates_mention_and_assigned(self) -> None:
+    def test_assigned_item_shows_the_card_title_and_filters_by_kind(self) -> None:
         self.note_mentioning_cordelia()
+        do_update_task(
+            user_profile=self.hamlet, task=self.card, changes={"assignee": self.cordelia}
+        )
+        notification = TaskNotification.objects.get(kind=TaskNotification.ASSIGNED)
+
         result = needs.list_needs(self.cordelia, kind="card_assigned", status="open", since=None)
-        self.assertEqual(result["items"], [])
+
+        self.assertEqual(result["counts"]["card_assigned"], 1)
         self.assertEqual(result["counts"]["card_mention"], 1)
+        self.assertEqual(result["counts"]["all"], 2)
+        [item] = result["items"]
+        self.assertEqual(item["id"], f"card_assigned:{notification.id}")
+        self.assertEqual(item["kind"], "card_assigned")
+        self.assertEqual(item["text"], "Lock the October feature list")
+        self.assertEqual(item["actor"]["id"], self.hamlet.id)
+        self.assertIsNotNone(item["task"])
+        assert item["task"] is not None
+        self.assertEqual(item["task"]["display_id"], "GT-1")
 
     def test_item_leaves_the_list_after_the_seven_day_window(self) -> None:
         self.note_mentioning_cordelia()
