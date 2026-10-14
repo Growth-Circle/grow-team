@@ -48,6 +48,7 @@ function make_item(overrides) {
         operation_hash: "hash-1",
         nonce: "nonce-1",
         job_version: null,
+        task: null,
         ...overrides,
     };
 }
@@ -103,7 +104,7 @@ run_test("the raw id of an item is what follows its kind", () => {
 run_test("the open list is fetched from the needs endpoint", async () => {
     next_response = {
         items: [make_item()],
-        counts: {approval: 1, mention: 0, decision: 0, all: 1},
+        counts: {approval: 1, mention: 0, decision: 0, card_mention: 0, card_assigned: 0, all: 1},
     };
     const result = await needs_data.fetch_open();
     assert.equal(last_call.method, "GET");
@@ -113,7 +114,10 @@ run_test("the open list is fetched from the needs endpoint", async () => {
 });
 
 run_test("today's done list asks for resolved items since today", async () => {
-    next_response = {items: [], counts: {approval: 0, mention: 0, decision: 0, all: 0}};
+    next_response = {
+        items: [],
+        counts: {approval: 0, mention: 0, decision: 0, card_mention: 0, card_assigned: 0, all: 0},
+    };
     await needs_data.fetch_done_today();
     assert.equal(last_call.url, "/json/needs?status=resolved&since=today");
 });
@@ -253,4 +257,70 @@ run_test("marking a mention done resolves that message", async () => {
     await needs_data.commit_mention_done(make_item({id: "mention:42", kind: "mention"}));
     assert.equal(last_call.method, "POST");
     assert.equal(last_call.url, "/json/needs/mentions/42/resolve");
+});
+
+const card = {id: 8, display_id: "GT-8", title: "Write the release notes"};
+
+run_test("a card notification is listed under all and nowhere else", () => {
+    const items = [
+        make_item({id: "mention:1", kind: "mention"}),
+        make_item({id: "card_mention:2", kind: "card_mention", task: card}),
+        make_item({id: "card_assigned:3", kind: "card_assigned", task: card}),
+    ];
+    assert.equal(needs_data.count_for_tab(items, "all"), 3);
+    assert.equal(needs_data.count_for_tab(items, "mention"), 1);
+    assert.ok(needs_data.is_card_kind("card_mention"));
+    assert.ok(needs_data.is_card_kind("card_assigned"));
+    assert.ok(!needs_data.is_card_kind("mention"));
+    assert.ok(!needs_data.is_card_kind("approval"));
+});
+
+run_test("a mention in a note shows the card title and the note", () => {
+    const mention = make_item({
+        id: "card_mention:2",
+        kind: "card_mention",
+        task: card,
+        text: "Can you check the dates, @Ari?",
+    });
+    assert.deepEqual(needs_data.card_text(mention), {
+        text: "Write the release notes",
+        excerpt: "Can you check the dates, @Ari?",
+    });
+});
+
+run_test("a new responsibility shows the card title alone", () => {
+    const assigned = make_item({
+        id: "card_assigned:3",
+        kind: "card_assigned",
+        task: card,
+        text: "Write the release notes",
+    });
+    assert.deepEqual(needs_data.card_text(assigned), {
+        text: "Write the release notes",
+        excerpt: "",
+    });
+});
+
+run_test("a notification about a card the person cannot see keeps its own text", () => {
+    const mention = make_item({id: "card_mention:2", kind: "card_mention", text: "Hello"});
+    assert.deepEqual(needs_data.card_text(mention), {text: "Hello", excerpt: ""});
+});
+
+run_test("the list parses card notifications and their card", async () => {
+    next_response = {
+        items: [make_item({id: "card_mention:2", kind: "card_mention", task: card})],
+        counts: {approval: 0, mention: 0, decision: 0, card_mention: 1, card_assigned: 0, all: 1},
+    };
+    const result = await needs_data.fetch_open();
+    assert.equal(result.items[0].task.display_id, "GT-8");
+    assert.equal(result.counts.card_mention, 1);
+});
+
+run_test("marking a card notification as seen resolves that notification", async () => {
+    next_response = {};
+    await needs_data.commit_card_seen(
+        make_item({id: "card_assigned:17", kind: "card_assigned", task: card}),
+    );
+    assert.equal(last_call.method, "POST");
+    assert.equal(last_call.url, "/json/needs/card_notifications/17/resolve");
 });

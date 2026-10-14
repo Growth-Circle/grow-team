@@ -26,9 +26,17 @@ export const need_attachment_schema = z.object({
     filename: z.string(),
 });
 
+// The card a notification is about. It is null when the person can no
+// longer see the card.
+export const need_task_schema = z.object({
+    id: z.number(),
+    display_id: z.string(),
+    title: z.string(),
+});
+
 export const need_item_schema = z.object({
     id: z.string(),
-    kind: z.enum(["approval", "mention", "decision"]),
+    kind: z.enum(["approval", "mention", "decision", "card_mention", "card_assigned"]),
     actor: need_actor_schema,
     stream_id: z.nullable(z.number()),
     topic: z.nullable(z.string()),
@@ -45,12 +53,15 @@ export const need_item_schema = z.object({
     operation_hash: z.nullable(z.string()),
     nonce: z.nullable(z.string()),
     job_version: z.nullable(z.number()),
+    task: z.nullable(need_task_schema),
 });
 
 export const need_counts_schema = z.object({
     approval: z.number(),
     mention: z.number(),
     decision: z.number(),
+    card_mention: z.number(),
+    card_assigned: z.number(),
     all: z.number(),
 });
 
@@ -89,6 +100,21 @@ export function count_for_tab(items: NeedItem[], tab: NeedTab): number {
     return items_for_tab(items, tab).length;
 }
 
+// A note that mentions the person, or a card they are now responsible
+// for. Neither waits on an agent, and both are answered on the card.
+export function is_card_kind(kind: NeedKind): boolean {
+    return kind === "card_mention" || kind === "card_assigned";
+}
+
+// A mention in a note shows the card title, then the note as far as it
+// fits. A new responsibility is only the title, which is its text.
+export function card_text(item: NeedItem): {text: string; excerpt: string} {
+    if (item.kind === "card_mention" && item.task !== null) {
+        return {text: item.task.title, excerpt: item.text};
+    }
+    return {text: item.text, excerpt: ""};
+}
+
 // The choices an agent offers with a decision. An agent can also ask
 // an open question with no choices.
 export function decision_options(item: NeedItem): string[] {
@@ -96,8 +122,8 @@ export function decision_options(item: NeedItem): string[] {
 }
 
 // Each item's id is "<kind>:<raw id>". A decision's raw id is also its
-// job_id, an approval's is the approval id, and a mention's is the
-// message id.
+// job_id, an approval's is the approval id, a mention's is the message
+// id, and a card notification's is the notification id.
 export function raw_id(need_id: string): string {
     return need_id.slice(need_id.indexOf(":") + 1);
 }
@@ -125,6 +151,10 @@ export async function commit_decision(item: NeedItem, choice: string): Promise<v
 
 export async function commit_mention_done(item: NeedItem): Promise<void> {
     await channel.post({url: `/json/needs/mentions/${raw_id(item.id)}/resolve`});
+}
+
+export async function commit_card_seen(item: NeedItem): Promise<void> {
+    await channel.post({url: `/json/needs/card_notifications/${raw_id(item.id)}/resolve`});
 }
 
 // A committed action cannot be undone, so "Undo" only ever cancels a

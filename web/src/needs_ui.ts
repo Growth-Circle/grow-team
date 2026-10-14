@@ -55,6 +55,8 @@ function tag_text(kind: NeedKind): string {
         approval: $t({defaultMessage: "APPROVAL"}),
         mention: $t({defaultMessage: "MENTION"}),
         decision: $t({defaultMessage: "DECISION"}),
+        card_mention: $t({defaultMessage: "Mentioned you"}),
+        card_assigned: $t({defaultMessage: "You're responsible"}),
     };
     return labels[kind];
 }
@@ -65,6 +67,8 @@ function tab_label(tab: NeedTab): string {
         approval: $t({defaultMessage: "Approval"}),
         mention: $t({defaultMessage: "Mention"}),
         decision: $t({defaultMessage: "Decision"}),
+        card_mention: $t({defaultMessage: "Mentioned you"}),
+        card_assigned: $t({defaultMessage: "You're responsible"}),
     };
     return labels[tab];
 }
@@ -80,6 +84,11 @@ function avatar_color(actor: NeedItem["actor"]): string {
 function meta_text(item: NeedItem): string {
     const who = item.actor.name;
     const time = timerender.relative_time_string_from_date(new Date(item.time));
+    if (needs_data.is_card_kind(item.kind)) {
+        return item.task === null
+            ? time
+            : $t({defaultMessage: "{card_id} · {time}"}, {card_id: item.task.display_id, time});
+    }
     const room = item.stream_id === null ? "" : stream_data.get_stream_name_from_id(item.stream_id);
     if (room === "") {
         return $t({defaultMessage: "{who} · {time}"}, {who, time});
@@ -110,6 +119,20 @@ function card_actions(item: NeedItem): CardAction[] {
     // A mention is never waiting on an agent, so it does not expire.
     const expired = item.expired && item.kind !== "mention";
     const actions: CardAction[] = [];
+    if (needs_data.is_card_kind(item.kind)) {
+        if (item.task !== null) {
+            actions.push({
+                label: $t({defaultMessage: "Open card"}),
+                href: `#tasks/${item.task.id}`,
+            });
+        }
+        actions.push({
+            label: $t({defaultMessage: "Mark as seen"}),
+            variant: "primary",
+            choice: "",
+        });
+        return actions;
+    }
     if (item.kind === "mention") {
         actions.push(link($t({defaultMessage: "Reply"})));
     } else if (item.kind === "approval" || expired) {
@@ -158,7 +181,7 @@ export function card_context(item: NeedItem): Record<string, unknown> {
         avatar_shape: actor.shape === "ring" || actor.shape === "box" ? actor.shape : "circle",
         avatar_color: avatar_color(actor),
         meta: meta_text(item),
-        text: item.text,
+        ...needs_data.card_text(item),
         attachment: item.attachment,
         actions: card_actions(item),
     };
@@ -378,6 +401,12 @@ function start_commit(item: NeedItem, choice: string): void {
             async () => needs_data.commit_mention_done(item),
             $t({defaultMessage: "Marked done."}),
         );
+    } else if (needs_data.is_card_kind(item.kind)) {
+        start_action(
+            item,
+            async () => needs_data.commit_card_seen(item),
+            $t({defaultMessage: "Marked as seen."}),
+        );
     } else if (choice !== "") {
         start_action(
             item,
@@ -491,6 +520,9 @@ export function initialize(): void {
         refresh(visible);
     }, 1000);
     live_updates.on("agent_job", refresh_soon);
+    // A note that mentions the person, a new responsibility, or opening
+    // the card on another device changes the list.
+    live_updates.on("task_notification", refresh_soon);
     // Only a mention or a direct message starts or ends a need, so a
     // message in a room that mentions no one does not load the list.
     let last_message_signal: string | undefined;

@@ -253,6 +253,14 @@
     background: var(--sj-tint-kuning);
 }
 
+.needs-tag-card_mention {
+    background: var(--sj-tint-ayame);
+}
+
+.needs-tag-card_assigned {
+    background: var(--sj-tint-kaki);
+}
+
 .needs-meta {
     color: var(--sj-text-muted);
     /* 13px at 16px/1em */
@@ -269,6 +277,17 @@
     font-size: 1em;
     font-weight: 700;
     line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.needs-excerpt {
+    /* The note, as far as two lines of it. The card has the rest. */
+    --line-clamp-value: 2;
+
+    margin: 0;
+    color: var(--sj-text-muted);
+    /* 14px at 16px/1em */
+    font-size: 0.875em;
     overflow-wrap: anywhere;
 }
 

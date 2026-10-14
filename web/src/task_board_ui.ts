@@ -540,12 +540,20 @@ function fetch_notes(task_id: number): void {
     });
 }
 
+// Opening a card is how a person sees the notes and the assignment that
+// notified them, so the server clears those notifications. A failure
+// leaves them in the Needs you list, which is harmless.
+function resolve_card_notifications(task_id: number): void {
+    void channel.post({url: `/json/tasks/${task_id}/notifications/resolve`});
+}
+
 function open_card_detail(task_id: number): void {
     open_task_id = task_id;
     card_unavailable = false;
     render_card_detail(task_id);
     fetch_history(task_id);
     fetch_notes(task_id);
+    resolve_card_notifications(task_id);
 }
 
 // A link can name a card that was deleted, or one this person cannot

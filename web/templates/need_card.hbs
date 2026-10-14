@@ -13,6 +13,9 @@ The Needs you page and the Today page both render it. }}
             <span class="needs-meta">{{meta}}</span>
         </div>
         <p class="needs-text line-clamp">{{text}}</p>
+        {{#if excerpt}}
+            <p class="needs-excerpt line-clamp">{{excerpt}}</p>
+        {{/if}}
         {{#if attachment}}
             <span class="needs-attachment"><span aria-hidden="true">📎</span> {{attachment.filename}}</span>
         {{/if}}
