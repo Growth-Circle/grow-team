@@ -12,7 +12,7 @@ every room, in tabs by kind, and what the person finished today. }}
                   type="button"
                   class="needs-tab{{#if this.active}} needs-tab-active{{/if}}"
                   data-tab="{{this.value}}"
-                  aria-pressed="{{this.active}}"
+                  aria-pressed="{{#if this.active}}true{{else}}false{{/if}}"
                   >{{this.label}}</button>
             {{/each}}
         </div>
