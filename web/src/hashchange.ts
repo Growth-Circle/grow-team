@@ -246,7 +246,8 @@ function do_hashchange_normal(from_reload: boolean, restore_selected_id: boolean
             break;
         case "#tasks":
             // #tasks/mine and #tasks/review open the board already filtered;
-            // the Work rows in the left sidebar link to them.
+            // the Work rows in the left sidebar link to them. #tasks/<id>
+            // opens one card, the link the bot sends in a direct message.
             center_views.show("tasks", hash.slice(1));
             break;
         case "#all_messages":

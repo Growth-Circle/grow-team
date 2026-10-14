@@ -32,6 +32,9 @@
         </button>
     </div>
     <p class="task-board-summary">{{summary}}</p>
+    {{#if card_unavailable}}
+        <p class="task-board-notice" role="status">{{t "This card isn't available."}}</p>
+    {{/if}}
     {{#if is_empty}}
         <p class="task-board-empty">{{t "No tasks yet. Use New task, or Add card in a column."}}</p>
     {{/if}}

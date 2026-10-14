@@ -621,7 +621,8 @@ export async function initialize_everything(state_data) {
         id: "tasks",
         hash: "tasks",
         show(args) {
-            task_board_ui.show(task_board_data.parse_filter(args[0]));
+            const {filter, task_id} = task_board_data.parse_hash_args(args);
+            task_board_ui.show(filter, task_id);
         },
         hide() {
             task_board_ui.hide();

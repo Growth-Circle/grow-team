@@ -38,6 +38,13 @@ import * as views_util from "./views_util.ts";
 
 let hide_other_views_callback: (() => void) | undefined;
 let open_task_id: number | undefined;
+// The card a `#tasks/<id>` link names, opened once the board has loaded.
+let linked_task_id: number | undefined;
+let card_unavailable = false;
+// The linked card's panel is scrolled to its notes once the notes and
+// the history are in place. Each of them draws the panel again, and a
+// panel drawn before that is too short to reach the notes.
+let scroll_to_notes_for_task_id: number | undefined;
 const history_by_task_id = new Map<number, TaskHistoryEntry[]>();
 // Notes are fetched when a card is opened, then kept current from
 // `task_note` events.
@@ -245,6 +252,7 @@ export function complete_rerender(): void {
             has_extra_members: member_ids.length > MAX_HEADER_MEMBERS,
             extra_member_count: member_ids.length - MAX_HEADER_MEMBERS,
             is_empty: task_board_data.total_task_count() === 0,
+            card_unavailable,
         }),
     );
 
@@ -487,6 +495,20 @@ function render_card_detail(task_id: number): void {
     }
 }
 
+function scroll_linked_card_to_notes(task_id: number): void {
+    if (
+        scroll_to_notes_for_task_id !== task_id ||
+        !notes_by_task_id.has(task_id) ||
+        !history_by_task_id.has(task_id)
+    ) {
+        return;
+    }
+    scroll_to_notes_for_task_id = undefined;
+    if (open_task_id === task_id) {
+        document.querySelector("#task-board-notes")?.scrollIntoView({block: "start"});
+    }
+}
+
 function fetch_history(task_id: number): void {
     void channel.get({
         url: `/json/tasks/${task_id}/history`,
@@ -496,6 +518,7 @@ function fetch_history(task_id: number): void {
             if (open_task_id === task_id) {
                 render_card_detail(task_id);
             }
+            scroll_linked_card_to_notes(task_id);
         },
     });
 }
@@ -509,15 +532,38 @@ function fetch_notes(task_id: number): void {
             if (open_task_id === task_id) {
                 render_card_detail(task_id);
             }
+            scroll_linked_card_to_notes(task_id);
+        },
+        error() {
+            scroll_to_notes_for_task_id = undefined;
         },
     });
 }
 
 function open_card_detail(task_id: number): void {
     open_task_id = task_id;
+    card_unavailable = false;
     render_card_detail(task_id);
     fetch_history(task_id);
     fetch_notes(task_id);
+}
+
+// A link can name a card that was deleted, or one this person cannot
+// see. The board is then shown with a short message.
+function open_linked_card(): void {
+    const task_id = linked_task_id;
+    linked_task_id = undefined;
+    if (task_id === undefined) {
+        return;
+    }
+    if (task_board_data.get_task(task_id) === undefined) {
+        card_unavailable = true;
+        close_card_detail();
+        complete_rerender();
+        return;
+    }
+    scroll_to_notes_for_task_id = task_id;
+    open_card_detail(task_id);
 }
 
 function close_card_detail(): void {
@@ -754,8 +800,10 @@ function fetch_board(): void {
         success(raw_data) {
             task_board_data.set_board(task_board_data.task_board_response_schema.parse(raw_data));
             complete_rerender();
+            open_linked_card();
         },
         error(xhr) {
+            linked_task_id = undefined;
             ui_report.error(
                 $t_html({defaultMessage: "Could not load the task board"}),
                 xhr,
@@ -765,10 +813,15 @@ function fetch_board(): void {
     });
 }
 
-export function show(filter: task_board_data.TaskFilter = task_board_data.FILTERS.ALL): void {
+export function show(
+    filter: task_board_data.TaskFilter = task_board_data.FILTERS.ALL,
+    task_id?: number,
+): void {
     assert(hide_other_views_callback !== undefined);
     hide_other_views_callback();
     task_board_data.set_filter(filter);
+    linked_task_id = task_id;
+    card_unavailable = false;
 
     const was_already_visible = is_visible();
     if (was_already_visible) {

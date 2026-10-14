@@ -178,6 +178,19 @@ export function parse_filter(value: string | undefined): TaskFilter {
     return FILTERS.ALL;
 }
 
+// The board opens on `#tasks[/<filter>]`, or on one card with
+// `#tasks/<task_id>`, the link the bot sends in a direct message.
+export function parse_hash_args(args: string[]): {
+    filter: TaskFilter;
+    task_id: number | undefined;
+} {
+    const [first] = args;
+    if (first !== undefined && /^\d+$/.test(first)) {
+        return {filter: FILTERS.ALL, task_id: Number(first)};
+    }
+    return {filter: parse_filter(first), task_id: undefined};
+}
+
 export function get_filter(): TaskFilter {
     return current_filter;
 }

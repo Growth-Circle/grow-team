@@ -167,3 +167,25 @@ run_test("clearing drops everything", () => {
     assert.deepEqual(task_board_data.get_columns(), []);
     assert.equal(task_board_data.total_task_count(), 0);
 });
+
+run_test("the board hash names a filter or one card", () => {
+    assert.deepEqual(task_board_data.parse_hash_args([]), {filter: "all", task_id: undefined});
+    assert.deepEqual(task_board_data.parse_hash_args(["mine"]), {
+        filter: "mine",
+        task_id: undefined,
+    });
+    assert.deepEqual(task_board_data.parse_hash_args(["review"]), {
+        filter: "review",
+        task_id: undefined,
+    });
+    assert.deepEqual(task_board_data.parse_hash_args(["42"]), {filter: "all", task_id: 42});
+    // Anything else is not a card, so the board opens as it always did.
+    assert.deepEqual(task_board_data.parse_hash_args(["42abc"]), {
+        filter: "all",
+        task_id: undefined,
+    });
+    assert.deepEqual(task_board_data.parse_hash_args(["-1"]), {
+        filter: "all",
+        task_id: undefined,
+    });
+});

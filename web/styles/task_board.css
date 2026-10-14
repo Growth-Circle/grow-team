@@ -81,6 +81,7 @@
 }
 
 .task-board-summary,
+.task-board-notice,
 .task-board-empty {
     flex: 1 0 100%;
     margin: 0;

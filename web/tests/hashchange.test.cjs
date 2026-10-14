@@ -619,6 +619,7 @@ run_test("center_view_routes", ({override}) => {
     go("#inbox");
     go("#tasks");
     go("#tasks/mine");
+    go("#tasks/42");
 
     assert.deepEqual(shown, [
         ["today", []],
@@ -637,5 +638,6 @@ run_test("center_view_routes", ({override}) => {
         ["inbox", []],
         ["tasks", []],
         ["tasks", ["mine"]],
+        ["tasks", ["42"]],
     ]);
 });
