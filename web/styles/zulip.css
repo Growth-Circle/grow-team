@@ -2351,6 +2351,32 @@ body:not(.spectator-view) {
             top: 0.1467em; /* 2.2px at 15px/1em */
         }
 
+        .dropdown-list-item-with-avatar {
+            grid-area: item-label;
+            display: flex;
+            align-items: center;
+            gap: 0.5em;
+
+            .dropdown-list-item-avatar {
+                flex: none;
+                width: 1.5em;
+                height: 1.5em;
+                border-radius: 50%;
+                object-fit: cover;
+            }
+
+            .dropdown-list-text-neutral,
+            .dropdown-list-text-selected {
+                min-width: 0;
+                overflow-wrap: anywhere;
+            }
+
+            .dropdown-list-item-current-check {
+                flex: none;
+                margin-left: auto;
+            }
+        }
+
         .dropdown-list-item-description {
             grid-area: item-description;
         }

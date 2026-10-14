@@ -42,6 +42,8 @@ export type Option = {
     has_delete_icon?: boolean;
     has_edit_icon?: boolean;
     has_manage_folder_icon?: boolean;
+    // Shown before the name, for options that stand for a person.
+    avatar_url?: string;
     delete_icon_label?: string;
     edit_icon_label?: string;
     manage_folder_icon_label?: string;

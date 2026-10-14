@@ -44,6 +44,18 @@
                         <span class="setting-disabled-option-text dropdown-list-text-neutral">{{t "Disable" }}</span>
                     {{/if}}
                 </div>
+            {{else if avatar_url}}
+                <div class="dropdown-list-item-with-avatar">
+                    <img class="dropdown-list-item-avatar" src="{{avatar_url}}" alt="" />
+                    {{#if bold_current_selection}}
+                        <span class="dropdown-list-text-selected">{{name}}</span>
+                    {{else}}
+                        <span class="dropdown-list-text-neutral">{{name}}</span>
+                    {{/if}}
+                    {{#if highlight_value}}
+                        <i class="zulip-icon zulip-icon-check dropdown-list-item-icon dropdown-list-item-current-check" aria-hidden="true"></i>
+                    {{/if}}
+                </div>
             {{else if (eq unique_id -2)}}
                 {{!-- This is the option for PresetUrlOption.CHANNEL_MAPPING --}}
                 <div class="dropdown-list-item-channel-mapping">
