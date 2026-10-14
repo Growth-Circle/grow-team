@@ -21,6 +21,7 @@ import * as stream_data from "./stream_data.ts";
 import * as sub_store from "./sub_store.ts";
 import * as task_board_data from "./task_board_data.ts";
 import type {Task, TaskHistoryEntry} from "./task_board_data.ts";
+import {history_text} from "./task_board_history.ts";
 import {can_edit_task} from "./task_board_permissions.ts";
 import * as timerender from "./timerender.ts";
 import * as ui_report from "./ui_report.ts";
@@ -225,33 +226,6 @@ export function complete_rerender(): void {
 
     if (open_task_id !== undefined) {
         render_card_detail(open_task_id);
-    }
-}
-
-function history_string(entry: TaskHistoryEntry, key: string): string {
-    const value = entry.extra_data[key];
-    return typeof value === "string" ? value : "";
-}
-
-function history_text(entry: TaskHistoryEntry): string {
-    const actor =
-        entry.acting_user_id === null
-            ? $t({defaultMessage: "Someone"})
-            : (people.maybe_get_user_by_id(entry.acting_user_id, true)?.full_name ??
-              $t({defaultMessage: "Someone"}));
-
-    switch (entry.kind) {
-        case "created":
-            return $t({defaultMessage: "{actor} created the card"}, {actor});
-        case "moved":
-            return $t(
-                {defaultMessage: "{actor} moved the card to {column}"},
-                {actor, column: history_string(entry, "to_column_name")},
-            );
-        case "assigned":
-            return $t({defaultMessage: "{actor} changed who is responsible"}, {actor});
-        default:
-            return $t({defaultMessage: "{actor} edited the card"}, {actor});
     }
 }
 
