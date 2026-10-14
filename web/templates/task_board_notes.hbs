@@ -1,0 +1,42 @@
+{{! The notes on a card and the box to add one. The card detail panel
+    includes this section. The box keeps the draft and the focus when
+    the panel is drawn again, so its markup must stay in one piece. }}
+<section id="task-board-notes" class="task-board-detail-section task-board-notes" aria-labelledby="task-board-notes-heading">
+    <h3 id="task-board-notes-heading">{{t "Notes"}} <span class="task-board-notes-count">({{note_count}})</span></h3>
+    {{#if has_notes}}
+        <ul class="task-board-notes-list">
+            {{#each notes}}
+                <li class="task-board-note" data-note-id="{{this.id}}">
+                    {{#if this.avatar_url}}
+                        <img class="task-board-note-avatar" src="{{this.avatar_url}}" alt="" />
+                    {{else}}
+                        <span class="task-board-note-avatar task-board-note-avatar-empty" aria-hidden="true">?</span>
+                    {{/if}}
+                    <div class="task-board-note-main">
+                        <div class="task-board-note-header">
+                            <span class="task-board-note-author">{{this.author_name}}</span>
+                            <span class="task-board-note-time">{{this.time_label}}</span>
+                            {{#if this.can_delete}}
+                                <button type="button" class="task-board-note-delete" data-note-id="{{this.id}}" aria-label="{{t 'Delete note'}}">
+                                    <i class="zulip-icon zulip-icon-trash" aria-hidden="true"></i>
+                                </button>
+                            {{/if}}
+                        </div>
+                        <div class="task-board-note-content rendered_markdown">{{{this.rendered_content}}}</div>
+                    </div>
+                </li>
+            {{/each}}
+        </ul>
+    {{else}}
+        <p class="task-board-notes-empty">{{#if notes_loaded}}{{t "No notes yet."}}{{else}}{{t "Loading…"}}{{/if}}</p>
+    {{/if}}
+    <div class="task-board-note-composer" data-task-id="{{task_id}}">
+        <textarea id="task-board-note-input" class="task-board-note-input" rows="3" placeholder="{{t 'Add a note… type @ to mention someone'}}" aria-label="{{t 'Add a note'}}" aria-describedby="task-board-note-help"></textarea>
+        <p id="task-board-note-help" class="task-board-note-help">{{t "Mentioned members get a notification."}}</p>
+        <p class="task-board-note-notice" role="status"></p>
+        <p class="task-board-note-error" role="alert"></p>
+        <button type="button" class="task-board-note-submit action-button action-button-solid-brand action-button-small" disabled>
+            <span class="action-button-label">{{t "Add note"}}</span>
+        </button>
+    </div>
+</section>

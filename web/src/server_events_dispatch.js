@@ -813,6 +813,9 @@ export function dispatch_normal_event(event) {
         case "task":
             task_board_ui.handle_task_event(event);
             break;
+        case "task_note":
+            task_board_ui.handle_task_note_event(event);
+            break;
         case "task_board":
             task_board_ui.handle_task_board_event(event);
             break;

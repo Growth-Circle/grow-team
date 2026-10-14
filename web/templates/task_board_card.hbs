@@ -45,6 +45,12 @@
             {{/each}}
         </span>
         <span class="task-board-card-identity">
+            {{#if has_notes}}
+                <span class="task-board-card-notes" role="img" aria-label="{{note_count_label}}" title="{{note_count_label}}">
+                    <i class="zulip-icon zulip-icon-message-square" aria-hidden="true"></i>
+                    <span aria-hidden="true">{{note_count}}</span>
+                </span>
+            {{/if}}
             <span class="task-board-card-id">{{display_id}}</span>
             {{#if assignee}}
                 <span class="task-board-card-avatar" title="{{assignee.full_name}}">

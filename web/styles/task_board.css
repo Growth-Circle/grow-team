@@ -358,6 +358,10 @@
     flex-direction: column;
     box-sizing: border-box;
     padding: 20px;
+    /* The compose bar is fixed over the bottom of the page, and it is
+       about 41px tall. Room beyond it lets the last section scroll
+       clear of the bar. */
+    padding-bottom: 3.75em;
     overflow-y: auto;
     border-left: 1px solid var(--color-border-sidebar);
     background: var(--color-background-sidebar);
@@ -569,4 +573,220 @@
 .task-board-assignee-change {
     flex: none;
     color: var(--sj-text-muted);
+}
+
+.task-board-card-notes {
+    display: inline-flex;
+    align-items: center;
+    color: var(--color-text-item);
+    font-size: 0.75em;
+    font-variant-numeric: tabular-nums;
+    gap: 3px;
+}
+
+.task-board-notes-count {
+    color: var(--sj-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.task-board-notes-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    gap: 14px;
+}
+
+.task-board-note {
+    display: flex;
+    align-items: flex-start;
+    min-width: 0;
+    gap: 10px;
+}
+
+.task-board-note-avatar {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    /* 28px at 16px/1em */
+    width: 1.75em;
+    height: 1.75em;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.task-board-note-avatar-empty {
+    border: 1px dashed var(--sj-divider);
+    color: var(--sj-text-muted);
+    font-size: 0.75em;
+}
+
+.task-board-note-main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.task-board-note-header {
+    display: flex;
+    align-items: baseline;
+    min-width: 0;
+    font-size: 0.875em;
+    gap: 8px;
+}
+
+.task-board-note-author {
+    min-width: 0;
+    color: var(--sj-text);
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.task-board-note-time {
+    flex: none;
+    color: var(--sj-text-muted);
+    font-size: 0.857em;
+    font-variant-numeric: tabular-nums;
+}
+
+.task-board-note-delete {
+    align-self: center;
+    flex: none;
+    margin-left: auto;
+    padding: 4px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--sj-text-muted);
+    cursor: pointer;
+    opacity: 0;
+
+    &:hover {
+        color: var(--sj-text-bahaya);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--sj-outline);
+        outline-offset: 1px;
+    }
+}
+
+.task-board-note:hover .task-board-note-delete,
+.task-board-note:focus-within .task-board-note-delete {
+    opacity: 1;
+}
+
+/* There is no hover on a touch screen, so the button stays in view. */
+@media (hover: none) {
+    .task-board-note-delete {
+        opacity: 1;
+    }
+}
+
+.task-board-note-content {
+    min-width: 0;
+    margin-top: 2px;
+    color: var(--sj-text);
+    font-size: 0.875em;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+
+    pre {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    img,
+    video {
+        max-width: 100%;
+        height: auto;
+    }
+
+    a {
+        overflow-wrap: anywhere;
+    }
+}
+
+.task-board-notes-empty {
+    color: var(--sj-text-muted);
+}
+
+.task-board-note-composer {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 6px;
+}
+
+.task-board-note-input {
+    box-sizing: border-box;
+    width: 100%;
+    /* 70px at 14px/1em */
+    min-height: 5em;
+    padding: 8px 10px;
+    border: 1.5px solid var(--sj-divider);
+    border-radius: 12px;
+    background: var(--sj-surface);
+    color: var(--sj-text);
+    font: inherit;
+    font-size: 0.875em;
+    line-height: 1.45;
+    resize: vertical;
+
+    &::placeholder {
+        color: var(--sj-text-muted);
+    }
+
+    &:hover {
+        border-color: var(--sj-outline);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--sj-outline);
+        outline-offset: 2px;
+    }
+}
+
+.task-board-notes {
+    /* The shared section rule sets the size and margin of every
+       paragraph, which would also reach the paragraphs of a note. */
+    .task-board-note-content p {
+        margin: 0;
+        font-size: inherit;
+    }
+
+    .task-board-note-content p + p {
+        margin-top: 0.5em;
+    }
+
+    .task-board-note-help,
+    .task-board-note-notice,
+    .task-board-note-error {
+        font-size: 0.8125em;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+    }
+
+    .task-board-note-help {
+        color: var(--sj-text-muted);
+    }
+
+    .task-board-note-notice {
+        color: var(--sj-text-ayame);
+    }
+
+    .task-board-note-error {
+        color: var(--sj-text-bahaya);
+    }
+
+    .task-board-note-notice:empty,
+    .task-board-note-error:empty {
+        display: none;
+    }
+}
+
+.task-board-note-submit {
+    align-self: flex-start;
 }

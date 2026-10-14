@@ -43,6 +43,7 @@ export const task_schema = z.object({
     labels: z.array(z.string()),
     checklist: z.array(task_checklist_item_schema),
     due_at: z.nullable(z.number()),
+    note_count: z.number(),
     blocked: z.boolean(),
     completed_at: z.nullable(z.number()),
     date_created: z.number(),

@@ -34,6 +34,7 @@ function make_task(overrides) {
         labels: [],
         checklist: [],
         due_at: null,
+        note_count: 0,
         blocked: false,
         completed_at: null,
         date_created: 100,

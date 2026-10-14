@@ -1,4 +1,5 @@
 import $ from "jquery";
+import _ from "lodash";
 import assert from "minimalistic-assert";
 import type * as tippy from "tippy.js";
 import * as z from "zod/mini";
@@ -8,8 +9,10 @@ import render_task_board_card_detail from "../templates/task_board_card_detail.h
 import render_task_board_new_card_form from "../templates/task_board_new_card_form.hbs";
 import render_task_board_rename_form from "../templates/task_board_rename_form.hbs";
 
+import type {Typeahead} from "./bootstrap_typeahead.ts";
 import * as channel from "./channel.ts";
 import * as compose_closed_ui from "./compose_closed_ui.ts";
+import * as composebox_typeahead from "./composebox_typeahead.ts";
 import * as confirm_dialog from "./confirm_dialog.ts";
 import * as dialog_widget from "./dialog_widget.ts";
 import * as dropdown_widget from "./dropdown_widget.ts";
@@ -17,20 +20,35 @@ import * as hash_util from "./hash_util.ts";
 import {$t, $t_html} from "./i18n.ts";
 import * as left_sidebar_navigation_area from "./left_sidebar_navigation_area.ts";
 import * as people from "./people.ts";
+import * as rendered_markdown from "./rendered_markdown.ts";
+import {current_user} from "./state_data.ts";
 import * as stream_data from "./stream_data.ts";
 import * as sub_store from "./sub_store.ts";
 import * as task_board_data from "./task_board_data.ts";
 import type {Task, TaskHistoryEntry} from "./task_board_data.ts";
 import {history_text} from "./task_board_history.ts";
+import * as task_board_notes from "./task_board_notes.ts";
+import type {TaskNote} from "./task_board_notes.ts";
 import {can_edit_task} from "./task_board_permissions.ts";
 import * as timerender from "./timerender.ts";
 import * as ui_report from "./ui_report.ts";
+import type {UserPillData} from "./user_pill.ts";
 import * as util from "./util.ts";
 import * as views_util from "./views_util.ts";
 
 let hide_other_views_callback: (() => void) | undefined;
 let open_task_id: number | undefined;
 const history_by_task_id = new Map<number, TaskHistoryEntry[]>();
+// Notes are fetched when a card is opened, then kept current from
+// `task_note` events.
+const notes_by_task_id = new Map<number, TaskNote[]>();
+let note_is_sending = false;
+
+const NOTE_INPUT_ID = "task-board-note-input";
+// The typeahead belongs to one note box. A panel drawn again keeps the
+// same box, so the typeahead is made only when the box is a new one.
+let note_typeahead: Typeahead<UserPillData> | undefined;
+let note_typeahead_element: HTMLElement | undefined;
 
 const ASSIGNEE_BUTTON_ID = "task-board-assignee_widget";
 let assignee_picker: dropdown_widget.DropdownWidget | undefined;
@@ -115,6 +133,12 @@ function card_context(task: Task): Record<string, unknown> {
                   ),
         due_label: due_label(task),
         due_is_overdue: is_overdue(task),
+        has_notes: task.note_count > 0,
+        note_count: task.note_count,
+        note_count_label: $t(
+            {defaultMessage: "{count, plural, one {# note} other {# notes}}"},
+            {count: task.note_count},
+        ),
         completed_label: task.completed_at === null ? "" : day_label(task.completed_at),
         assignee:
             assignee === undefined
@@ -317,6 +341,56 @@ function setup_assignee_picker(): void {
     assignee_picker.setup();
 }
 
+function note_contexts(task_id: number): Record<string, unknown>[] {
+    return (notes_by_task_id.get(task_id) ?? []).map((note) => {
+        const author = people.maybe_get_user_by_id(note.author_id, true);
+        return {
+            id: note.id,
+            author_name: author?.full_name ?? $t({defaultMessage: "A former member"}),
+            avatar_url:
+                author === undefined ? "" : people.small_avatar_url_for_user_id(author.user_id),
+            time_label: `${day_label(note.date_created)} · ${time_label(note.date_created)}`,
+            rendered_content: note.rendered_content,
+            can_delete: task_board_notes.can_delete_note(note, current_user),
+        };
+    });
+}
+
+// The server renders a note with the Markdown processor of messages;
+// this gives its mentions and links the same behavior. A message row
+// is what marks a mention of the reader in a message, and a note has
+// none, so the mark is added here.
+function process_rendered_notes(): void {
+    $("#task-board-detail .task-board-note-content").each(function () {
+        const $content = $(this);
+        rendered_markdown.update_elements($content);
+        $content.find(".user-mention[data-user-id]").each(function () {
+            if (people.is_my_user_id(Number($(this).attr("data-user-id")))) {
+                $(this).addClass("user-mention-me");
+            }
+        });
+    });
+}
+
+function setup_note_typeahead(): void {
+    const $input = $<HTMLTextAreaElement>(`#${NOTE_INPUT_ID}`);
+    const input = $input[0];
+    if (input === undefined || input === note_typeahead_element) {
+        return;
+    }
+    note_typeahead?.unlisten();
+    note_typeahead = composebox_typeahead.initialize_task_note_typeahead($input);
+    note_typeahead_element = input;
+}
+
+function update_note_submit_button(): void {
+    const content = $<HTMLTextAreaElement>(`#${NOTE_INPUT_ID}`).val() ?? "";
+    $("#task-board-detail .task-board-note-submit").prop(
+        "disabled",
+        note_is_sending || content.trim() === "",
+    );
+}
+
 function render_card_detail(task_id: number): void {
     const task = task_board_data.get_task(task_id);
     if (task === undefined) {
@@ -328,6 +402,17 @@ function render_card_detail(task_id: number): void {
     // picker, whose button is about to be replaced, and keep the
     // keyboard focus where the reader left it.
     const keep_focus_on_assignee_button = document.activeElement?.id === ASSIGNEE_BUTTON_ID;
+    const composer_focus =
+        document.activeElement instanceof HTMLElement &&
+        $("#task-board-detail .task-board-note-composer").has(document.activeElement).length > 0
+            ? document.activeElement
+            : undefined;
+    const panel_scroll_top = $("#task-board-detail").scrollTop() ?? 0;
+    // The note box carries a draft, a message, and a caret, so the same
+    // element goes back into the new panel.
+    const $kept_composer = $(
+        `#task-board-detail .task-board-note-composer[data-task-id="${task_id}"]`,
+    ).detach();
     assignee_picker_instance?.destroy();
     assignee_picker_instance = undefined;
 
@@ -353,6 +438,11 @@ function render_card_detail(task_id: number): void {
             has_checklist: task.checklist.length > 0,
             checklist: task.checklist.map((item, index) => ({...item, index})),
             can_edit: can_edit_task(task),
+            task_id,
+            note_count: notes_by_task_id.get(task_id)?.length ?? task.note_count,
+            notes_loaded: notes_by_task_id.has(task_id),
+            has_notes: (notes_by_task_id.get(task_id)?.length ?? 0) > 0,
+            notes: note_contexts(task_id),
             assignee: assignee_context(task),
             due_label: due_label(task),
             due_is_overdue: is_overdue(task),
@@ -364,6 +454,13 @@ function render_card_detail(task_id: number): void {
         }),
     );
     $("#task-board-detail").removeClass("hidden");
+    if ($kept_composer.length > 0) {
+        $("#task-board-detail .task-board-note-composer").replaceWith($kept_composer);
+    }
+    process_rendered_notes();
+    setup_note_typeahead();
+    update_note_submit_button();
+    $("#task-board-detail").scrollTop(panel_scroll_top);
 
     if (assignee_picker !== undefined) {
         const picker = assignee_picker;
@@ -380,6 +477,11 @@ function render_card_detail(task_id: number): void {
 
     if (keep_focus_on_assignee_button && $(`#${ASSIGNEE_BUTTON_ID}`).length > 0) {
         $(`#${ASSIGNEE_BUTTON_ID}`).trigger("focus");
+    } else if (composer_focus !== undefined) {
+        // A button that just turned off, such as Add note after a post,
+        // hands the focus back to the box.
+        const $target = $(composer_focus);
+        ($target.is(":disabled") ? $(`#${NOTE_INPUT_ID}`) : $target).trigger("focus");
     } else {
         $("#task-board-detail .task-board-detail-title").trigger("focus");
     }
@@ -398,14 +500,32 @@ function fetch_history(task_id: number): void {
     });
 }
 
+function fetch_notes(task_id: number): void {
+    void channel.get({
+        url: `/json/tasks/${task_id}/notes`,
+        success(raw_data) {
+            const data = task_board_notes.task_notes_response_schema.parse(raw_data);
+            notes_by_task_id.set(task_id, data.notes);
+            if (open_task_id === task_id) {
+                render_card_detail(task_id);
+            }
+        },
+    });
+}
+
 function open_card_detail(task_id: number): void {
     open_task_id = task_id;
     render_card_detail(task_id);
     fetch_history(task_id);
+    fetch_notes(task_id);
 }
 
 function close_card_detail(): void {
     open_task_id = undefined;
+    note_is_sending = false;
+    note_typeahead?.unlisten();
+    note_typeahead = undefined;
+    note_typeahead_element = undefined;
     $("#task-board-detail").addClass("hidden").empty();
 }
 
@@ -571,6 +691,63 @@ function launch_rename_dialog(): void {
     });
 }
 
+function ignored_mentions_notice(user_ids: number[]): string {
+    if (user_ids.length === 0) {
+        return "";
+    }
+    const names = user_ids.map(
+        (user_id) =>
+            people.maybe_get_user_by_id(user_id, true)?.full_name ??
+            $t({defaultMessage: "A former member"}),
+    );
+    return $t(
+        {defaultMessage: "{names} can't see this card, so they weren't notified."},
+        {names: util.format_array_as_list_with_conjunction(names, "long")},
+    );
+}
+
+function post_note(task_id: number): void {
+    const $input = $<HTMLTextAreaElement>(`#${NOTE_INPUT_ID}`);
+    const content = $input.val()?.trim() ?? "";
+    if (content === "" || note_is_sending) {
+        return;
+    }
+    const $composer = $input.closest(".task-board-note-composer");
+    const $notice = $composer.find(".task-board-note-notice");
+    const $error = $composer.find(".task-board-note-error");
+    note_is_sending = true;
+    $notice.text("");
+    $error.text("");
+    update_note_submit_button();
+
+    void channel.post({
+        url: `/json/tasks/${task_id}/notes`,
+        data: {content},
+        success(raw_data) {
+            note_is_sending = false;
+            const data = task_board_notes.add_note_response_schema.parse(raw_data);
+            notes_by_task_id.set(
+                task_id,
+                task_board_notes.add_note(notes_by_task_id.get(task_id) ?? [], data.note),
+            );
+            $input.val("");
+            $notice.text(ignored_mentions_notice(data.ignored_mentions));
+            if (open_task_id === task_id) {
+                render_card_detail(task_id);
+            }
+        },
+        error(xhr) {
+            note_is_sending = false;
+            // The draft stays so the person can fix it or try again.
+            $error.html(
+                channel.xhr_error_message("", xhr) ||
+                    _.escape($t({defaultMessage: "Could not add the note. Try again."})),
+            );
+            update_note_submit_button();
+        },
+    });
+}
+
 function fetch_board(): void {
     void channel.get({
         url: "/json/tasks",
@@ -628,6 +805,7 @@ export function handle_task_event(event: {op: string; task?: unknown; task_id?: 
     if (event.op === "remove") {
         assert(event.task_id !== undefined);
         task_board_data.remove_task(event.task_id);
+        notes_by_task_id.delete(event.task_id);
         if (open_task_id === event.task_id) {
             close_card_detail();
         }
@@ -637,6 +815,33 @@ export function handle_task_event(event: {op: string; task?: unknown; task_id?: 
     }
     complete_rerender();
     schedule_work_counts_fetch();
+}
+
+export function handle_task_note_event(event: {
+    op: string;
+    task_id: number;
+    note?: unknown;
+    note_id?: number;
+}): void {
+    const notes = notes_by_task_id.get(event.task_id);
+    if (notes === undefined) {
+        // Nobody has opened this card yet. If the panel is loading its
+        // notes now, the list may have been read before this change.
+        if (open_task_id === event.task_id) {
+            fetch_notes(event.task_id);
+        }
+        return;
+    }
+    if (event.op === "add") {
+        const note = task_board_notes.task_note_schema.parse(event.note);
+        notes_by_task_id.set(event.task_id, task_board_notes.add_note(notes, note));
+    } else {
+        assert(event.note_id !== undefined);
+        notes_by_task_id.set(event.task_id, task_board_notes.remove_note(notes, event.note_id));
+    }
+    if (open_task_id === event.task_id) {
+        render_card_detail(event.task_id);
+    }
 }
 
 export function handle_task_board_event(event: {board: unknown}): void {
@@ -757,6 +962,48 @@ export function initialize(opts: {hide_other_views: () => void}): void {
             item_index === index ? {...item, done} : item,
         );
         patch_task(task.id, {checklist: JSON.stringify(checklist)});
+    });
+
+    $view.on("input", `#${NOTE_INPUT_ID}`, update_note_submit_button);
+
+    $view.on("keydown", `#${NOTE_INPUT_ID}`, (event) => {
+        if (
+            event.key === "Enter" &&
+            (event.ctrlKey || event.metaKey) &&
+            open_task_id !== undefined
+        ) {
+            event.preventDefault();
+            post_note(open_task_id);
+        }
+    });
+
+    $view.on("click", ".task-board-note-submit", (event) => {
+        event.preventDefault();
+        if (open_task_id !== undefined) {
+            post_note(open_task_id);
+        }
+    });
+
+    $view.on("click", ".task-board-note-delete", function (this: HTMLElement, event) {
+        event.preventDefault();
+        if (open_task_id === undefined) {
+            return;
+        }
+        const task_id = open_task_id;
+        const note_id = Number($(this).attr("data-note-id"));
+        void channel.del({
+            url: `/json/tasks/${task_id}/notes/${note_id}`,
+            success() {
+                const notes = notes_by_task_id.get(task_id);
+                if (notes !== undefined) {
+                    notes_by_task_id.set(task_id, task_board_notes.remove_note(notes, note_id));
+                }
+                if (open_task_id === task_id) {
+                    render_card_detail(task_id);
+                }
+            },
+            error: report_error,
+        });
     });
 
     $view.on("click", ".task-board-detail-delete", (event) => {
