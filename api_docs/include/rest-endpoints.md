@@ -64,6 +64,7 @@
 * [Get a task card's notes](/api/get-task-notes)
 * [Add a note to a task card](/api/add-task-note)
 * [Delete a note from a task card](/api/delete-task-note)
+* [Mark a task card's notifications for you as handled](/api/resolve-task-notifications)
 * [Rename a task board](/api/update-task-board)
 
 ## Agents
@@ -125,6 +126,7 @@
 * [List approvals, decisions, and mentions waiting for you](/api/list-needs)
 * [Mark a mention in the Perlu kamu inbox done](/api/resolve-need-mention)
 * [Undo marking a mention in the Perlu kamu inbox done](/api/unresolve-need-mention)
+* [Mark a task card item in the Perlu kamu inbox done](/api/resolve-need-card-notification)
 
 ## Channels
 

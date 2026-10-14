@@ -267,6 +267,7 @@ from zerver.views.tasks import (
     get_task_counts,
     get_task_history,
     get_task_notes,
+    resolve_task_notifications,
     update_task,
     update_task_board,
 )
@@ -520,6 +521,7 @@ v1_api_and_json_patterns = [
     rest_path("tasks/<int:task_id>/history", GET=get_task_history),
     rest_path("tasks/<int:task_id>/notes", GET=get_task_notes, POST=add_task_note),
     rest_path("tasks/<int:task_id>/notes/<int:note_id>", DELETE=delete_task_note),
+    rest_path("tasks/<int:task_id>/notifications/resolve", POST=resolve_task_notifications),
     rest_path("task_boards/<int:board_id>", PATCH=update_task_board),
     rest_path("reminders", GET=fetch_reminders, POST=create_reminders_message_backend),
     rest_path(

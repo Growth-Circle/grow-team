@@ -10,5 +10,9 @@ api_patterns: list[URLPattern] = [
         POST=needs_views.resolve_mention,
         DELETE=needs_views.resolve_mention,
     ),
+    rest_path(
+        "needs/card_notifications/<int:notification_id>/resolve",
+        POST=needs_views.resolve_card_notification,
+    ),
 ]
 page_patterns: list[URLPattern] = []

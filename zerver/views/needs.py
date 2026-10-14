@@ -17,12 +17,20 @@ def list_needs(
     request: HttpRequest,
     user_profile: UserProfile,
     *,
-    kind: Literal["approval", "mention", "decision"] | None = None,
+    kind: Literal["approval", "mention", "decision", "card_mention", "card_assigned"] | None = None,
     status: Literal["open", "resolved"] = "open",
     since: Literal["today"] | None = None,
 ) -> HttpResponse:
     result = needs.list_needs(user_profile, kind=kind, status=status, since=since)
     return _success(request, dict(result))
+
+
+@safe_agent_endpoint
+def resolve_card_notification(
+    request: HttpRequest, user_profile: UserProfile, notification_id: int
+) -> HttpResponse:
+    needs.resolve_card_notification(user_profile, notification_id)
+    return _success(request)
 
 
 @safe_agent_endpoint

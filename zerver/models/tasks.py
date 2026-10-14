@@ -234,6 +234,14 @@ class TaskHistory(models.Model):
         }
 
 
+TASK_NOTIFICATION_MENTION = "mention"
+TASK_NOTIFICATION_ASSIGNED = "assigned"
+
+TASK_NOTIFICATION_KINDS = [TASK_NOTIFICATION_MENTION, TASK_NOTIFICATION_ASSIGNED]
+
+TASK_NOTIFICATION_KIND_CHOICES = [(kind, kind) for kind in TASK_NOTIFICATION_KINDS]
+
+
 class TaskNote(models.Model):
     """A comment on a card. Unlike the card body, a note belongs to the person
     who wrote it, so only that person or an admin may remove it."""
@@ -258,3 +266,32 @@ class TaskNote(models.Model):
             "rendered_content": self.rendered_content,
             "date_created": int(self.date_created.timestamp()),
         }
+
+
+class TaskNotification(models.Model):
+    """Something on a card that a member should look at: a note that
+    mentions them, or the card being handed to them. It stays open, and
+    shows in their Needs-you list, until they open the card."""
+
+    MENTION = TASK_NOTIFICATION_MENTION
+    ASSIGNED = TASK_NOTIFICATION_ASSIGNED
+
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name="+")
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="notifications")
+    # Set for a mention, so the Needs-you item can quote the note.
+    note = models.ForeignKey(
+        TaskNote, on_delete=models.CASCADE, null=True, related_name="notifications"
+    )
+    actor = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name="+")
+    kind = models.CharField(max_length=20, choices=TASK_NOTIFICATION_KIND_CHOICES)
+    date_created = models.DateTimeField(default=timezone_now)
+    resolved_at = models.DateTimeField(null=True, default=None)
+
+    class Meta:
+        ordering = ["-date_created", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(kind__in=TASK_NOTIFICATION_KINDS),
+                name="task_notification_kind_valid",
+            )
+        ]

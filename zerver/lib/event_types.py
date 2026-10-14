@@ -1001,6 +1001,19 @@ class EventTaskNoteRemove(BaseEvent):
     note_id: int
 
 
+class EventTaskNotificationAdd(BaseEvent):
+    type: Literal["task_notification"]
+    op: Literal["add"]
+    task_id: int
+    kind: Literal["mention", "assigned"]
+
+
+class EventTaskNotificationResolve(BaseEvent):
+    type: Literal["task_notification"]
+    op: Literal["resolve"]
+    task_id: int
+
+
 class EventTaskAdd(BaseEvent):
     type: Literal["task"]
     op: Literal["add"]

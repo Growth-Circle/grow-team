@@ -29,11 +29,13 @@ from django.db.models import Q, QuerySet
 from django.utils.timezone import now as timezone_now
 
 from zerver.actions.agent_jobs import check_attempt_access
+from zerver.actions.tasks import do_resolve_task_notifications
 from zerver.lib.agent_context import agent_transaction, require_job_access
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.message import access_message
 from zerver.lib.push_notifications import get_mobile_push_content
 from zerver.lib.role_permissions import has_role_permission
+from zerver.lib.tasks import realm_task_id_prefix, user_can_access_task
 from zerver.lib.topic import messages_for_topic
 from zerver.models import (
     Attachment,
@@ -41,6 +43,7 @@ from zerver.models import (
     MutedUser,
     Realm,
     Subscription,
+    TaskNotification,
     UserMessage,
     UserProfile,
     agents,
@@ -58,7 +61,7 @@ MENTION_REPLY_GRACE = timedelta(hours=2)
 
 _ROW_LIMIT = 200
 
-KINDS = ("approval", "mention", "decision")
+KINDS = ("approval", "mention", "decision", "card_mention", "card_assigned")
 
 
 class NeedActor(TypedDict):
@@ -75,6 +78,12 @@ class NeedAttachment(TypedDict):
     kind: str
     id: str
     filename: str
+
+
+class NeedTask(TypedDict):
+    id: int
+    display_id: str
+    title: str
 
 
 class NeedItem(TypedDict):
@@ -99,12 +108,16 @@ class NeedItem(TypedDict):
     operation_hash: str | None
     nonce: str | None
     job_version: int | None
+    # The card a card_mention or card_assigned item is about; null otherwise.
+    task: NeedTask | None
 
 
 class NeedCounts(TypedDict):
     approval: int
     mention: int
     decision: int
+    card_mention: int
+    card_assigned: int
     all: int
 
 
@@ -203,6 +216,7 @@ def _approval_item(
         # Like operation_data(), give out the nonce only while it can be used.
         "nonce": str(approval.nonce) if pending else None,
         "job_version": None,
+        "task": None,
     }
 
 
@@ -234,6 +248,7 @@ def _decision_item(
         "operation_hash": None,
         "nonce": None,
         "job_version": job.version,
+        "task": None,
     }
 
 
@@ -263,6 +278,43 @@ def _mention_item(
         "operation_hash": None,
         "nonce": None,
         "job_version": None,
+        "task": None,
+    }
+
+
+def _card_item(notification: TaskNotification, *, task_id_prefix: str) -> NeedItem:
+    task = notification.task
+    expires_at = notification.date_created + MENTION_TTL
+    resolved_at = notification.resolved_at
+    if notification.note is not None:
+        # Plain text, the same way a push notification shows the message.
+        text = get_mobile_push_content(notification.note.rendered_content)[:400]
+    else:
+        text = task.title[:400]
+    return {
+        "id": f"card_{notification.kind}:{notification.id}",
+        "kind": f"card_{notification.kind}",
+        "actor": _human_actor(notification.actor),
+        "stream_id": task.stream_id,
+        "topic": task.topic or None,
+        "time": notification.date_created.isoformat(),
+        "text": text,
+        "attachment": None,
+        "actions": [],
+        "expires_at": expires_at.isoformat(),
+        "expired": resolved_at is None and expires_at <= timezone_now(),
+        "resolved_at": resolved_at.isoformat() if resolved_at else None,
+        "resolved_action": "done" if resolved_at else None,
+        "job_id": None,
+        "approval_version": None,
+        "operation_hash": None,
+        "nonce": None,
+        "job_version": None,
+        "task": {
+            "id": task.id,
+            "display_id": f"{task_id_prefix}-{task.counter}",
+            "title": task.title,
+        },
     }
 
 
@@ -403,6 +455,30 @@ def _open_mentions(actor: UserProfile) -> list[NeedItem]:
     ]
 
 
+def _card_items(
+    actor: UserProfile, *, resolved_since: datetime | None
+) -> dict[str, list[NeedItem]]:
+    """Notes that mention the actor and cards handed to them, one bucket per
+    kind. A card the actor can no longer read drops out, so a title never
+    outlives the access to it."""
+    notifications = TaskNotification.objects.filter(
+        user=actor, task__realm=actor.realm
+    ).select_related("task", "note", "actor")
+    if resolved_since is None:
+        notifications = notifications.filter(
+            resolved_at__isnull=True, date_created__gt=timezone_now() - MENTION_TTL
+        )
+    else:
+        notifications = notifications.filter(resolved_at__gte=resolved_since)
+    task_id_prefix = realm_task_id_prefix(actor.realm)
+    buckets: dict[str, list[NeedItem]] = {"card_mention": [], "card_assigned": []}
+    for notification in notifications[:_ROW_LIMIT]:
+        if user_can_access_task(actor, notification.task):
+            item = _card_item(notification, task_id_prefix=task_id_prefix)
+            buckets[item["kind"]].append(item)
+    return buckets
+
+
 def _resolved_approvals(actor: UserProfile, since: datetime) -> list[NeedItem]:
     # Only decide_approval() sets approver and decided_at. Only an approved
     # approval moves on afterwards (to consumed, expired, or cancelled), so
@@ -526,6 +602,7 @@ def list_needs(
                 "approval": _open_approvals(actor),
                 "decision": _open_decisions(actor),
                 "mention": _open_mentions(actor),
+                **_card_items(actor, resolved_since=None),
             }
         else:
             start = _start_of_today(actor.realm)
@@ -533,11 +610,14 @@ def list_needs(
                 "approval": _resolved_approvals(actor, start),
                 "decision": _resolved_decisions(actor, start),
                 "mention": _resolved_mentions(actor, start),
+                **_card_items(actor, resolved_since=start),
             }
     counts: NeedCounts = {
         "approval": len(buckets["approval"]),
         "mention": len(buckets["mention"]),
         "decision": len(buckets["decision"]),
+        "card_mention": len(buckets["card_mention"]),
+        "card_assigned": len(buckets["card_assigned"]),
         "all": sum(len(values) for values in buckets.values()),
     }
     items = (
@@ -572,6 +652,15 @@ def resolve_mention(actor: UserProfile, message_id: int) -> None:
             message_id=message_id,
             defaults={"action": "done", "resolved_at": timezone_now()},
         )
+
+
+def resolve_card_notification(actor: UserProfile, notification_id: int) -> None:
+    """Marking one card item done closes every open item on that card: the
+    person has seen the card, whichever item brought them to it."""
+    notification = TaskNotification.objects.select_related("task__realm").get(
+        id=notification_id, user=actor
+    )
+    do_resolve_task_notifications(user_profile=actor, task=notification.task)
 
 
 def unresolve_mention(actor: UserProfile, message_id: int) -> None:

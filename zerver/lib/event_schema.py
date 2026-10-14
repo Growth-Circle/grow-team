@@ -100,6 +100,8 @@ from zerver.lib.event_types import (
     EventTaskBoardUpdate,
     EventTaskNoteAdd,
     EventTaskNoteRemove,
+    EventTaskNotificationAdd,
+    EventTaskNotificationResolve,
     EventTaskRemove,
     EventTaskUpdate,
     EventTypingEditMessageStart,
@@ -238,6 +240,8 @@ check_task_add = make_checker(EventTaskAdd)
 check_task_board_update = make_checker(EventTaskBoardUpdate)
 check_task_note_add = make_checker(EventTaskNoteAdd)
 check_task_note_remove = make_checker(EventTaskNoteRemove)
+check_task_notification_add = make_checker(EventTaskNotificationAdd)
+check_task_notification_resolve = make_checker(EventTaskNotificationResolve)
 check_task_remove = make_checker(EventTaskRemove)
 check_task_update = make_checker(EventTaskUpdate)
 check_agent_job_update = make_checker(EventAgentJobUpdate)

@@ -23,15 +23,29 @@ from zerver.actions.agents import (
     record_readiness,
     register_repository,
 )
+from zerver.actions.tasks import do_add_task_note, do_create_task
 from zerver.actions.user_groups import check_add_user_group
 from zerver.actions.users import do_change_user_role
 from zerver.lib import agent_protocol as p
 from zerver.lib import needs
 from zerver.lib.agent_policy import AgentAccessDenied
 from zerver.lib.agent_results import store_artifact
+from zerver.lib.tasks import get_or_create_default_board
 from zerver.lib.test_classes import ZulipTestCase
-from zerver.models import Attachment, Message, RolePermission, UserMessage, UserProfile, agents
+from zerver.models import (
+    Attachment,
+    Message,
+    RolePermission,
+    Task,
+    TaskNotification,
+    UserMessage,
+    UserProfile,
+    agents,
+)
 from zerver.models.needs import NeedResolution
+
+# The counts of the task card kinds, for a test that creates no card item.
+NO_CARDS = {"card_mention": 0, "card_assigned": 0}
 
 
 class NeedsTestCase(ZulipTestCase):
@@ -419,7 +433,9 @@ class NeedsApprovalTests(NeedsTestCase):
     def test_approval_item_lists_for_the_requester(self) -> None:
         job, attempt, approval = self._pending_approval()
         result = needs.list_needs(self.owner, kind=None, status="open", since=None)
-        self.assertEqual(result["counts"], {"approval": 1, "mention": 0, "decision": 0, "all": 1})
+        self.assertEqual(
+            result["counts"], {**NO_CARDS, "approval": 1, "mention": 0, "decision": 0, "all": 1}
+        )
         [item] = result["items"]
         self.assertEqual(item["id"], f"approval:{approval.id}")
         self.assertEqual(item["kind"], "approval")
@@ -460,7 +476,9 @@ class NeedsApprovalTests(NeedsTestCase):
         self.owner.role = UserProfile.ROLE_GUEST
         self.owner.save(update_fields=["role"])
         result = needs.list_needs(self.owner, kind=None, status="open", since=None)
-        self.assertEqual(result["counts"], {"approval": 0, "mention": 0, "decision": 0, "all": 0})
+        self.assertEqual(
+            result["counts"], {**NO_CARDS, "approval": 0, "mention": 0, "decision": 0, "all": 0}
+        )
 
     def test_user_without_agent_access_sees_no_approval_or_decision(self) -> None:
         self._pending_approval()
@@ -469,7 +487,9 @@ class NeedsApprovalTests(NeedsTestCase):
         cordelia = self.example_user("cordelia")
         self.subscribe(cordelia, "Denmark")
         result = needs.list_needs(cordelia, kind=None, status="open", since=None)
-        self.assertEqual(result["counts"], {"approval": 0, "mention": 0, "decision": 0, "all": 0})
+        self.assertEqual(
+            result["counts"], {**NO_CARDS, "approval": 0, "mention": 0, "decision": 0, "all": 0}
+        )
 
     def test_only_the_requester_sees_a_team_change_approval(self) -> None:
         do_change_user_role(
@@ -787,7 +807,9 @@ class NeedsViewTests(NeedsTestCase):
         )
         self.login_user(self.owner)
         payload = self.assert_json_success(self.client_get("/json/needs"))
-        self.assertEqual(payload["counts"], {"approval": 0, "mention": 1, "decision": 1, "all": 2})
+        self.assertEqual(
+            payload["counts"], {**NO_CARDS, "approval": 0, "mention": 1, "decision": 1, "all": 2}
+        )
         self.assertEqual({item["kind"] for item in payload["items"]}, {"decision", "mention"})
 
         self.assert_json_success(self.client_post(f"/json/needs/mentions/{message_id}/resolve"))
@@ -823,3 +845,117 @@ class NeedsViewTests(NeedsTestCase):
         result = self.client_post(f"/json/needs/mentions/{message_id}/resolve")
         self.assert_json_error(result, "Agent request rejected.")
         self.assertFalse(NeedResolution.objects.filter(user=cordelia).exists())
+
+
+class CardNeedsTests(ZulipTestCase):
+    @override
+    def setUp(self) -> None:
+        super().setUp()
+        self.hamlet = self.example_user("hamlet")
+        self.cordelia = self.example_user("cordelia")
+        agents.AgentRealmSettings.objects.update_or_create(
+            realm=self.hamlet.realm, defaults={"enabled": True}
+        )
+        board = get_or_create_default_board(self.hamlet.realm)
+        self.card = do_create_task(
+            user_profile=self.hamlet,
+            board=board,
+            column=board.columns.all()[0],
+            title="Lock the October feature list",
+        )
+
+    def note_mentioning_cordelia(self, card: Task | None = None) -> None:
+        do_add_task_note(
+            user_profile=self.hamlet,
+            task=card or self.card,
+            content=f"@**{self.cordelia.full_name}|{self.cordelia.id}** please **check** this",
+        )
+
+    def test_mention_item_carries_what_the_ui_needs(self) -> None:
+        self.note_mentioning_cordelia()
+        notification = TaskNotification.objects.get()
+
+        result = needs.list_needs(self.cordelia, kind=None, status="open", since=None)
+
+        self.assertEqual(result["counts"]["card_mention"], 1)
+        self.assertEqual(result["counts"]["all"], 1)
+        [item] = result["items"]
+        self.assertEqual(item["id"], f"card_mention:{notification.id}")
+        self.assertEqual(item["kind"], "card_mention")
+        self.assertEqual(item["actor"]["id"], self.hamlet.id)
+        self.assertEqual(item["actor"]["type"], "human")
+        self.assertEqual(item["text"], f"@{self.cordelia.full_name} please check this")
+        self.assertEqual(item["time"], notification.date_created.isoformat())
+        self.assertEqual(
+            item["task"],
+            {"id": self.card.id, "display_id": "GT-1", "title": "Lock the October feature list"},
+        )
+        self.assertIsNone(item["resolved_at"])
+
+        # The author is not notified of their own note.
+        author_result = needs.list_needs(self.hamlet, kind=None, status="open", since=None)
+        self.assertEqual(author_result["items"], [])
+
+    def test_kind_filter_separates_mention_and_assigned(self) -> None:
+        self.note_mentioning_cordelia()
+        result = needs.list_needs(self.cordelia, kind="card_assigned", status="open", since=None)
+        self.assertEqual(result["items"], [])
+        self.assertEqual(result["counts"]["card_mention"], 1)
+
+    def test_item_leaves_the_list_after_the_seven_day_window(self) -> None:
+        self.note_mentioning_cordelia()
+        with time_machine.travel(now() + timedelta(days=8), tick=False):
+            result = needs.list_needs(self.cordelia, kind=None, status="open", since=None)
+        self.assertEqual(result["items"], [])
+
+    def test_item_is_hidden_when_the_user_cannot_read_the_card(self) -> None:
+        self.note_mentioning_cordelia()
+        private_stream = self.make_stream("secret-plan", invite_only=True)
+        self.subscribe(self.hamlet, "secret-plan")
+        Task.objects.filter(id=self.card.id).update(stream=private_stream)
+
+        result = needs.list_needs(self.cordelia, kind=None, status="open", since=None)
+        self.assertEqual(result["items"], [])
+        self.assertEqual(result["counts"]["all"], 0)
+
+    def test_opening_the_card_moves_the_item_to_resolved(self) -> None:
+        self.note_mentioning_cordelia()
+        self.login_user(self.cordelia)
+        self.assert_json_success(
+            self.client_post(f"/json/tasks/{self.card.id}/notifications/resolve")
+        )
+
+        open_items = self.assert_json_success(self.client_get("/json/needs"))
+        self.assertEqual(open_items["items"], [])
+        resolved = self.assert_json_success(
+            self.client_get("/json/needs", {"status": "resolved", "since": "today"})
+        )
+        [item] = resolved["items"]
+        self.assertEqual(item["kind"], "card_mention")
+        self.assertEqual(item["resolved_action"], "done")
+        self.assertIsNotNone(item["resolved_at"])
+
+    def test_resolving_one_item_closes_every_item_on_the_card(self) -> None:
+        self.note_mentioning_cordelia()
+        self.note_mentioning_cordelia()
+        first = TaskNotification.objects.order_by("id").first()
+        assert first is not None
+        self.login_user(self.cordelia)
+
+        result = self.client_post(f"/json/needs/card_notifications/{first.id}/resolve")
+        self.assert_json_success(result)
+
+        self.assertEqual(TaskNotification.objects.filter(resolved_at__isnull=True).count(), 0)
+        self.assertEqual(
+            needs.list_needs(self.cordelia, kind=None, status="open", since=None)["items"], []
+        )
+
+    def test_resolving_someone_elses_item_is_rejected(self) -> None:
+        self.note_mentioning_cordelia()
+        notification = TaskNotification.objects.get()
+        self.login_user(self.hamlet)
+
+        result = self.client_post(f"/json/needs/card_notifications/{notification.id}/resolve")
+
+        self.assert_json_error(result, "Agent request rejected.")
+        self.assertIsNone(TaskNotification.objects.get().resolved_at)

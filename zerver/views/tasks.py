@@ -13,6 +13,7 @@ from zerver.actions.tasks import (
     do_delete_task_note,
     do_move_task,
     do_rename_task_board,
+    do_resolve_task_notifications,
     do_update_task,
 )
 from zerver.lib.exceptions import JsonableError
@@ -277,8 +278,25 @@ def add_task_note(
     task_id: PathOnly[int],
 ) -> HttpResponse:
     task = access_task_by_id(user_profile, task_id)
-    note = do_add_task_note(user_profile=user_profile, task=task, content=content)
-    return json_success(request, data={"note": note.to_api_dict()})
+    added = do_add_task_note(user_profile=user_profile, task=task, content=content)
+    return json_success(
+        request,
+        data={
+            "note": added.note.to_api_dict(),
+            "ignored_mentions": added.ignored_mention_user_ids,
+        },
+    )
+
+
+def resolve_task_notifications(
+    request: HttpRequest,
+    user_profile: UserProfile,
+    *,
+    task_id: int,
+) -> HttpResponse:
+    task = access_task_by_id(user_profile, task_id)
+    do_resolve_task_notifications(user_profile=user_profile, task=task)
+    return json_success(request)
 
 
 def delete_task_note(

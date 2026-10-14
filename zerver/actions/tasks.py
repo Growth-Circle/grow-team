@@ -4,6 +4,7 @@ Moving a card never edits the conversation it came from. Every change a
 person can read back is written to the card history instead.
 """
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
@@ -14,15 +15,16 @@ from django.utils.timezone import now as timezone_now
 from django.utils.translation import gettext as _
 from django.utils.translation import override as override_language
 
-from zerver.actions.message_send import internal_send_stream_message
+from zerver.actions.message_send import internal_send_private_message, internal_send_stream_message
 from zerver.lib.exceptions import JsonableError
-from zerver.lib.markdown import markdown_convert
+from zerver.lib.markdown import MessageRenderingResult, markdown_convert
 from zerver.lib.mention import MentionBackend, MentionData, silent_mention_syntax_for_user
 from zerver.lib.tasks import (
     realm_task_id_prefix,
     task_api_dict,
     task_event_audience,
     task_note_counts,
+    user_can_access_task,
 )
 from zerver.models import (
     Realm,
@@ -33,6 +35,7 @@ from zerver.models import (
     TaskBoardColumn,
     TaskHistory,
     TaskNote,
+    TaskNotification,
     UserProfile,
     agents,
 )
@@ -380,30 +383,110 @@ def do_delete_task(*, user_profile: UserProfile, task: Task) -> None:
     send_event_on_commit(realm, event, audience)
 
 
-def render_task_note(*, content: str, realm: Realm, author: UserProfile) -> str:
+def render_task_note(*, content: str, realm: Realm, author: UserProfile) -> MessageRenderingResult:
     return markdown_convert(
         content,
         message_realm=realm,
         mention_data=MentionData(MentionBackend(realm.id), content, author),
         no_previews=True,
         acting_user=author,
-    ).rendered_content
+    )
+
+
+def task_card_link(task: Task) -> str:
+    # The board opens from `#tasks`; this is the same `#tasks/<task id>`
+    # form that the agent job card links to.
+    return f"{task.realm.url}/#tasks/{task.id}"
+
+
+def notify_task_member(
+    *,
+    recipient: UserProfile,
+    task: Task,
+    actor: UserProfile,
+    kind: str,
+    note: TaskNote | None = None,
+) -> None:
+    """Open a Needs-you item for `recipient` and send them a direct message
+    from the Notification Bot, so a phone push or an email reaches them
+    when they are away from the board."""
+    TaskNotification.objects.create(user=recipient, task=task, note=note, actor=actor, kind=kind)
+
+    sender = get_system_bot(django_settings.NOTIFICATION_BOT, task.realm_id)
+    card = _code_span(f"{realm_task_id_prefix(task.realm)}-{task.counter} {task.title}")
+    with override_language(recipient.default_language):
+        if kind == TaskNotification.MENTION:
+            intro = _("{user} mentioned you in a note on {card}.")
+        else:
+            intro = _("{user} made you responsible for {card}.")
+        link_text = _("Open the card")
+    content = intro.format(user=silent_mention_syntax_for_user(actor), card=card)
+    internal_send_private_message(
+        sender, recipient, f"{content}\n\n[{link_text}]({task_card_link(task)})"
+    )
+
+    event = {"type": "task_notification", "op": "add", "task_id": task.id, "kind": kind}
+    send_event_on_commit(task.realm, event, [recipient.id])
+
+
+def notify_note_mentions(
+    *, note: TaskNote, mentioned_user_ids: set[int], author: UserProfile
+) -> list[int]:
+    """Notify each member that the note mentions once. Returns the ids of
+    mentioned members who were skipped because they cannot read the card, so
+    the author can be told. Bots, the author, and wildcard mentions never
+    notify and are not reported."""
+    mentioned_users = UserProfile.objects.filter(
+        id__in=mentioned_user_ids, realm=author.realm, is_active=True, is_bot=False
+    ).exclude(id=author.id)
+    ignored_user_ids = []
+    for user in mentioned_users.order_by("id"):
+        if not user_can_access_task(user, note.task):
+            ignored_user_ids.append(user.id)
+            continue
+        notify_task_member(
+            recipient=user, task=note.task, actor=author, kind=TaskNotification.MENTION, note=note
+        )
+    return ignored_user_ids
 
 
 @transaction.atomic(durable=True)
-def do_add_task_note(*, user_profile: UserProfile, task: Task, content: str) -> TaskNote:
+def do_resolve_task_notifications(*, user_profile: UserProfile, task: Task) -> None:
+    resolved_count = TaskNotification.objects.filter(
+        user=user_profile, task=task, resolved_at__isnull=True
+    ).update(resolved_at=timezone_now())
+    if resolved_count:
+        event = {"type": "task_notification", "op": "resolve", "task_id": task.id}
+        send_event_on_commit(task.realm, event, [user_profile.id])
+
+
+@dataclass
+class AddedTaskNote:
+    note: TaskNote
+    ignored_mention_user_ids: list[int]
+
+
+@transaction.atomic(durable=True)
+def do_add_task_note(*, user_profile: UserProfile, task: Task, content: str) -> AddedTaskNote:
+    rendering_result = render_task_note(content=content, realm=task.realm, author=user_profile)
     note = TaskNote.objects.create(
         task=task,
         author=user_profile,
         content=content,
-        rendered_content=render_task_note(content=content, realm=task.realm, author=user_profile),
+        rendered_content=rendering_result.rendered_content,
     )
     record_history(task, user_profile, TaskHistory.NOTE_ADDED, {"note_id": note.id})
 
     event = {"type": "task_note", "op": "add", "task_id": task.id, "note": note.to_api_dict()}
     send_event_on_commit(task.realm, event, task_event_audience(task.realm, task))
     send_task_event(task.realm, task, "update")
-    return note
+
+    ignored_user_ids = notify_note_mentions(
+        note=note,
+        mentioned_user_ids=rendering_result.personal_mention_user_ids,
+        author=user_profile,
+    )
+    return AddedTaskNote(note=note, ignored_mention_user_ids=ignored_user_ids)
 
 
 @transaction.atomic(durable=True)

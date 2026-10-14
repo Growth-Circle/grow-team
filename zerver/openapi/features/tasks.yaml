@@ -621,7 +621,15 @@ paths:
         card's audience a `task_note` event and a `task` event with the new
         `note_count`.
 
-        **Changes**: New in Zulip 12.0 (feature level ZF-5b2e90).
+        A note can mention a member with the usual `@**Full Name|id**`
+        syntax. Each mentioned member who can read the card gets a
+        `card_mention` item in their [Needs-you list](/api/list-needs) and
+        a direct message from the Notification Bot that links to the card
+        as `#tasks/<task id>`.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-5b2e90). In
+        feature level ZF-d81c47, mentions started to notify, and the
+        response gained `ignored_mentions`.
       parameters:
         - name: task_id
           in: path
@@ -662,6 +670,19 @@ paths:
                       ignored_parameters_unsupported: {}
                       note:
                         $ref: "#/components/schemas/TaskNote"
+                      ignored_mentions:
+                        type: array
+                        description: |
+                          The IDs of users the note mentions but who were not
+                          notified because they cannot read the card. A client
+                          can warn the author that these people will not see
+                          the note. Mentions of bots, of the author, and of
+                          `@all`-style wildcards never notify and are not
+                          listed.
+
+                          **Changes**: New in Zulip 12.0 (feature level ZF-d81c47).
+                        items:
+                          type: integer
                     example:
                       {
                         "result": "success",
@@ -675,6 +696,7 @@ paths:
                             "rendered_content": "<p>Waiting on the design review.</p>",
                             "date_created": 1760000000,
                           },
+                        "ignored_mentions": [],
                       }
         "400":
           description: Bad request.
@@ -764,6 +786,47 @@ paths:
                         description: |
                           A typical failed JSON response for when the user did not
                           write the note and is not an organization administrator:
+  /tasks/{task_id}/notifications/resolve:
+    post:
+      operationId: resolve-task-notifications
+      tags: ["task_board"]
+      summary: Mark a task card's notifications for you as handled
+      description: |
+        Close every open notification the card holds for the current user
+        (a note that mentioned them, or the card being made theirs). A client
+        calls this when the user opens the card. The items leave the
+        user's [Needs-you list](/api/list-needs). The call succeeds, and does
+        nothing, when there is nothing open.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-d81c47).
+      parameters:
+        - name: task_id
+          in: path
+          schema:
+            type: integer
+          description: |
+            The ID of the card.
+          required: true
+          example: 3
+      responses:
+        "200":
+          $ref: "#/components/responses/SimpleSuccess"
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Task does not exist.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the card does not
+                      exist, or the user cannot read the channel it came from:
   /task_boards/{board_id}:
     patch:
       operationId: update-task-board
