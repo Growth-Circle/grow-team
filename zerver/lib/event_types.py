@@ -975,6 +975,30 @@ class TaskFields(BaseModel):
     completed_at: int | None
     date_created: int
     last_updated: int
+    note_count: int
+
+
+class TaskNoteFields(BaseModel):
+    id: int
+    task_id: int
+    author_id: int
+    content: str
+    rendered_content: str
+    date_created: int
+
+
+class EventTaskNoteAdd(BaseEvent):
+    type: Literal["task_note"]
+    op: Literal["add"]
+    task_id: int
+    note: TaskNoteFields
+
+
+class EventTaskNoteRemove(BaseEvent):
+    type: Literal["task_note"]
+    op: Literal["remove"]
+    task_id: int
+    note_id: int
 
 
 class EventTaskAdd(BaseEvent):

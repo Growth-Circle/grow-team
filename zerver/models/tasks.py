@@ -186,12 +186,14 @@ TASK_HISTORY_CREATED = "created"
 TASK_HISTORY_MOVED = "moved"
 TASK_HISTORY_EDITED = "edited"
 TASK_HISTORY_ASSIGNED = "assigned"
+TASK_HISTORY_NOTE_ADDED = "note_added"
 
 TASK_HISTORY_KINDS = [
     TASK_HISTORY_CREATED,
     TASK_HISTORY_MOVED,
     TASK_HISTORY_EDITED,
     TASK_HISTORY_ASSIGNED,
+    TASK_HISTORY_NOTE_ADDED,
 ]
 
 TASK_HISTORY_KIND_CHOICES = [(kind, kind) for kind in TASK_HISTORY_KINDS]
@@ -204,6 +206,7 @@ class TaskHistory(models.Model):
     MOVED = TASK_HISTORY_MOVED
     EDITED = TASK_HISTORY_EDITED
     ASSIGNED = TASK_HISTORY_ASSIGNED
+    NOTE_ADDED = TASK_HISTORY_NOTE_ADDED
 
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="history")
     acting_user = models.ForeignKey(UserProfile, on_delete=models.SET_NULL, null=True)
@@ -228,4 +231,30 @@ class TaskHistory(models.Model):
             "kind": self.kind,
             "event_time": int(self.event_time.timestamp()),
             "extra_data": self.extra_data,
+        }
+
+
+class TaskNote(models.Model):
+    """A comment on a card. Unlike the card body, a note belongs to the person
+    who wrote it, so only that person or an admin may remove it."""
+
+    MAX_CONTENT_LENGTH = 10000
+
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="notes")
+    author = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name="+")
+    content = models.TextField(max_length=MAX_CONTENT_LENGTH)
+    rendered_content = models.TextField()
+    date_created = models.DateTimeField(default=timezone_now)
+
+    class Meta:
+        ordering = ["date_created", "id"]
+
+    def to_api_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "task_id": self.task_id,
+            "author_id": self.author_id,
+            "content": self.content,
+            "rendered_content": self.rendered_content,
+            "date_created": int(self.date_created.timestamp()),
         }

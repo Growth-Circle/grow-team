@@ -61,6 +61,9 @@
 * [Update a task card](/api/update-task)
 * [Delete a task card](/api/delete-task)
 * [Get a task card's history](/api/get-task-history)
+* [Get a task card's notes](/api/get-task-notes)
+* [Add a note to a task card](/api/add-task-note)
+* [Delete a note from a task card](/api/delete-task-note)
 * [Rename a task board](/api/update-task-board)
 
 ## Agents

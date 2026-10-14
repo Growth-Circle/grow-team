@@ -7,8 +7,10 @@ from pydantic import Json, StringConstraints
 
 from zerver.actions.tasks import (
     access_column,
+    do_add_task_note,
     do_create_task,
     do_delete_task,
+    do_delete_task_note,
     do_move_task,
     do_rename_task_board,
     do_update_task,
@@ -20,18 +22,25 @@ from zerver.lib.streams import access_stream_by_id
 from zerver.lib.tasks import (
     access_board_by_id,
     access_task_by_id,
+    access_task_note,
+    check_can_delete_task_note,
     check_can_modify_task,
     get_or_create_default_board,
     hidden_done_task_ids,
     realm_task_id_prefix,
     task_api_dict,
+    task_note_counts,
     visible_tasks,
     work_counts,
 )
 from zerver.lib.typed_endpoint import PathOnly, typed_endpoint
 from zerver.lib.users import access_user_by_id
-from zerver.models import Task, TaskBoard, TaskHistory, UserProfile
+from zerver.models import Task, TaskBoard, TaskHistory, TaskNote, UserProfile
 
+TaskNoteContent = Annotated[
+    str,
+    StringConstraints(min_length=1, max_length=TaskNote.MAX_CONTENT_LENGTH, strip_whitespace=True),
+]
 TaskTitle = Annotated[
     str, StringConstraints(min_length=1, max_length=Task.MAX_TITLE_LENGTH, strip_whitespace=True)
 ]
@@ -88,13 +97,19 @@ def get_task_board(
     tasks = visible_tasks(user_profile, board)
     hidden_ids = hidden_done_task_ids(columns, tasks)
     task_id_prefix = realm_task_id_prefix(user_profile.realm)
+    note_counts = task_note_counts([task.id for task in tasks])
 
     return json_success(
         request,
         data={
             "board": board.to_api_dict(),
             "columns": [column.to_api_dict() for column in columns],
-            "tasks": [task_api_dict(task, task_id_prefix=task_id_prefix) for task in tasks],
+            "tasks": [
+                task_api_dict(
+                    task, task_id_prefix=task_id_prefix, note_count=note_counts.get(task.id, 0)
+                )
+                for task in tasks
+            ],
             "folded_task_ids": sorted(hidden_ids),
         },
     )
@@ -241,6 +256,43 @@ def get_task_history(
     task = access_task_by_id(user_profile, task_id)
     history = TaskHistory.objects.filter(task=task)
     return json_success(request, data={"history": [entry.to_api_dict() for entry in history]})
+
+
+def get_task_notes(
+    request: HttpRequest,
+    user_profile: UserProfile,
+    *,
+    task_id: int,
+) -> HttpResponse:
+    task = access_task_by_id(user_profile, task_id)
+    return json_success(request, data={"notes": [note.to_api_dict() for note in task.notes.all()]})
+
+
+@typed_endpoint
+def add_task_note(
+    request: HttpRequest,
+    user_profile: UserProfile,
+    *,
+    content: TaskNoteContent,
+    task_id: PathOnly[int],
+) -> HttpResponse:
+    task = access_task_by_id(user_profile, task_id)
+    note = do_add_task_note(user_profile=user_profile, task=task, content=content)
+    return json_success(request, data={"note": note.to_api_dict()})
+
+
+def delete_task_note(
+    request: HttpRequest,
+    user_profile: UserProfile,
+    *,
+    task_id: int,
+    note_id: int,
+) -> HttpResponse:
+    task = access_task_by_id(user_profile, task_id)
+    note = access_task_note(task, note_id)
+    check_can_delete_task_note(user_profile, note)
+    do_delete_task_note(task=task, note=note)
+    return json_success(request)
 
 
 @typed_endpoint

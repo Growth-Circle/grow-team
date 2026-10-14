@@ -17,7 +17,7 @@ from zerver.lib.exceptions import JsonableError
 from zerver.lib.stream_subscription import get_active_subscriptions_for_stream_id
 from zerver.lib.streams import get_content_access_streams, is_user_in_can_administer_channel_group
 from zerver.lib.user_groups import UserGroupMembershipDetails, get_recursive_membership_groups
-from zerver.models import Realm, Stream, Task, TaskBoard, TaskBoardColumn, UserProfile
+from zerver.models import Realm, Stream, Task, TaskBoard, TaskBoardColumn, TaskNote, UserProfile
 from zerver.models.agents import AgentJob, AgentRealmSettings
 from zerver.models.tasks import TASK_ID_PREFIX
 from zerver.models.users import active_non_guest_user_ids, active_user_ids
@@ -80,14 +80,24 @@ def realm_task_id_prefix(realm: Realm) -> str:
     return prefix or TASK_ID_PREFIX
 
 
-def task_api_dict(task: Task, *, task_id_prefix: str) -> dict[str, Any]:
+def task_note_counts(task_ids: list[int]) -> dict[int, int]:
+    """Notes per card, for a caller that sends many cards in one response."""
+    return dict(
+        TaskNote.objects.filter(task_id__in=task_ids)
+        .values_list("task_id")
+        .annotate(count=Count("id"))
+    )
+
+
+def task_api_dict(task: Task, *, task_id_prefix: str, note_count: int) -> dict[str, Any]:
     """`Task.to_api_dict()`, with the organization's task ID prefix in
     `display_id` (T-26). A caller that sends many cards reads the prefix
-    once and passes it in."""
+    and the note counts once and passes them in."""
     data = task.to_api_dict()
     data["display_id"] = f"{task_id_prefix}-{task.counter}"
     # 05-D6: Task.to_api_dict() does not send the card's source.
     data["source"] = task.source
+    data["note_count"] = note_count
     return data
 
 
@@ -111,6 +121,18 @@ def user_can_modify_task(user_profile: UserProfile, task: Task) -> bool:
 def check_can_modify_task(user_profile: UserProfile, task: Task) -> None:
     if not user_can_modify_task(user_profile, task):
         raise JsonableError(_("You do not have permission to change this task."))
+
+
+def access_task_note(task: Task, note_id: int) -> TaskNote:
+    try:
+        return TaskNote.objects.get(id=note_id, task=task)
+    except TaskNote.DoesNotExist:
+        raise JsonableError(_("Note does not exist."))
+
+
+def check_can_delete_task_note(user_profile: UserProfile, note: TaskNote) -> None:
+    if not user_profile.is_realm_admin and user_profile.id != note.author_id:
+        raise JsonableError(_("Only the author or an administrator can delete a note."))
 
 
 def access_board_by_id(realm: Realm, board_id: int) -> TaskBoard:

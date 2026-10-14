@@ -98,6 +98,8 @@ from zerver.lib.event_types import (
     EventSubscriptionUpdate,
     EventTaskAdd,
     EventTaskBoardUpdate,
+    EventTaskNoteAdd,
+    EventTaskNoteRemove,
     EventTaskRemove,
     EventTaskUpdate,
     EventTypingEditMessageStart,
@@ -234,6 +236,8 @@ check_stream_delete = make_checker(EventStreamDelete)
 check_submessage = make_checker(EventSubmessage)
 check_task_add = make_checker(EventTaskAdd)
 check_task_board_update = make_checker(EventTaskBoardUpdate)
+check_task_note_add = make_checker(EventTaskNoteAdd)
+check_task_note_remove = make_checker(EventTaskNoteRemove)
 check_task_remove = make_checker(EventTaskRemove)
 check_task_update = make_checker(EventTaskUpdate)
 check_agent_job_update = make_checker(EventAgentJobUpdate)

@@ -538,6 +538,232 @@ paths:
                       }
                     description: |
                       A typical failed JSON response for when the card does not exist:
+  /tasks/{task_id}/notes:
+    get:
+      operationId: get-task-notes
+      tags: ["task_board"]
+      summary: Get a task card's notes
+      description: |
+        Fetch the notes written on one card, oldest first.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-5b2e90).
+      parameters:
+        - name: task_id
+          in: path
+          schema:
+            type: integer
+          description: |
+            The ID of the card.
+          required: true
+          example: 3
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      notes:
+                        type: array
+                        description: |
+                          The notes on this card, oldest first.
+                        items:
+                          $ref: "#/components/schemas/TaskNote"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "notes":
+                          [
+                            {
+                              "id": 1,
+                              "task_id": 3,
+                              "author_id": 10,
+                              "content": "Waiting on the design review.",
+                              "rendered_content": "<p>Waiting on the design review.</p>",
+                              "date_created": 1760000000,
+                            },
+                          ],
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Task does not exist.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the card does not
+                      exist, or the user cannot read the channel it came from:
+    post:
+      operationId: add-task-note
+      tags: ["task_board"]
+      summary: Add a note to a task card
+      description: |
+        Write a note on a card. Any user who can read the card can add a
+        note, whether or not they can change the card.
+
+        The note is rendered with [Zulip-flavored
+        Markdown](/help/format-your-message-using-markdown). Adding a note
+        records a `note_added` entry in the card's history and sends the
+        card's audience a `task_note` event and a `task` event with the new
+        `note_count`.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-5b2e90).
+      parameters:
+        - name: task_id
+          in: path
+          schema:
+            type: integer
+          description: |
+            The ID of the card.
+          required: true
+          example: 3
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  description: |
+                    The note, in Zulip-flavored Markdown. Surrounding
+                    whitespace is removed, and the result must be between 1
+                    and 10,000 characters long.
+                  example: Waiting on the design review.
+              required:
+                - content
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      note:
+                        $ref: "#/components/schemas/TaskNote"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "note":
+                          {
+                            "id": 1,
+                            "task_id": 3,
+                            "author_id": 10,
+                            "content": "Waiting on the design review.",
+                            "rendered_content": "<p>Waiting on the design review.</p>",
+                            "date_created": 1760000000,
+                          },
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - allOf:
+                      - $ref: "#/components/schemas/CodedError"
+                      - example:
+                          {
+                            "code": "BAD_REQUEST",
+                            "msg": "Task does not exist.",
+                            "result": "error",
+                          }
+                        description: |
+                          A typical failed JSON response for when the card does not
+                          exist, or the user cannot read the channel it came from:
+                  - allOf:
+                      - $ref: "#/components/schemas/CodedError"
+                      - example:
+                          {
+                            "code": "BAD_REQUEST",
+                            "msg": "content cannot be blank",
+                            "result": "error",
+                          }
+                        description: |
+                          A typical failed JSON response for when the note is empty
+                          or longer than 10,000 characters:
+  /tasks/{task_id}/notes/{note_id}:
+    delete:
+      operationId: delete-task-note
+      tags: ["task_board"]
+      summary: Delete a note from a task card
+      description: |
+        Delete a note. Only the note's author or an organization
+        administrator can delete it. The card's audience receives a
+        `task_note` event with `op` set to `remove`, and a `task` event with
+        the new `note_count`.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-5b2e90).
+      parameters:
+        - name: task_id
+          in: path
+          schema:
+            type: integer
+          description: |
+            The ID of the card.
+          required: true
+          example: 3
+        - name: note_id
+          in: path
+          schema:
+            type: integer
+          description: |
+            The ID of the note to delete.
+          required: true
+          example: 1
+      responses:
+        "200":
+          $ref: "#/components/responses/SimpleSuccess"
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - allOf:
+                      - $ref: "#/components/schemas/CodedError"
+                      - example:
+                          {
+                            "code": "BAD_REQUEST",
+                            "msg": "Note does not exist.",
+                            "result": "error",
+                          }
+                        description: |
+                          A typical failed JSON response for when the note does not
+                          exist on this card:
+                  - allOf:
+                      - $ref: "#/components/schemas/CodedError"
+                      - example:
+                          {
+                            "code": "BAD_REQUEST",
+                            "msg": "Only the author or an administrator can delete a note.",
+                            "result": "error",
+                          }
+                        description: |
+                          A typical failed JSON response for when the user did not
+                          write the note and is not an organization administrator:
   /task_boards/{board_id}:
     patch:
       operationId: update-task-board
@@ -774,6 +1000,44 @@ components:
             Where the card came from.
 
             **Changes**: New in Zulip 12.0 (feature level ZF-4f1745).
+        note_count:
+          type: integer
+          description: |
+            The number of notes on the card.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-5b2e90).
+    TaskNote:
+      type: object
+      description: |
+        Object containing one note on a card.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-5b2e90).
+      additionalProperties: false
+      properties:
+        id:
+          type: integer
+          description: |
+            The unique ID of the note.
+        task_id:
+          type: integer
+          description: |
+            The ID of the card the note is on.
+        author_id:
+          type: integer
+          description: |
+            The ID of the user who wrote the note.
+        content:
+          type: string
+          description: |
+            The note in [Zulip-flavored Markdown](/help/format-your-message-using-markdown) format.
+        rendered_content:
+          type: string
+          description: |
+            The note rendered as HTML, the same way as a message.
+        date_created:
+          type: integer
+          description: |
+            The UNIX timestamp for when the note was written, in UTC seconds.
     TaskHistoryEntry:
       type: object
       description: |
@@ -796,7 +1060,11 @@ components:
         kind:
           type: string
           description: |
-            What changed. One of `created`, `moved`, `edited`, or `assigned`.
+            What changed. One of `created`, `moved`, `edited`, `assigned`, or
+            `note_added`.
+
+            **Changes**: In Zulip 12.0 (feature level ZF-5b2e90), added the
+            `note_added` kind, whose `extra_data` holds the `note_id`.
         event_time:
           type: integer
           description: |

@@ -16,8 +16,14 @@ from django.utils.translation import override as override_language
 
 from zerver.actions.message_send import internal_send_stream_message
 from zerver.lib.exceptions import JsonableError
-from zerver.lib.mention import silent_mention_syntax_for_user
-from zerver.lib.tasks import realm_task_id_prefix, task_api_dict, task_event_audience
+from zerver.lib.markdown import markdown_convert
+from zerver.lib.mention import MentionBackend, MentionData, silent_mention_syntax_for_user
+from zerver.lib.tasks import (
+    realm_task_id_prefix,
+    task_api_dict,
+    task_event_audience,
+    task_note_counts,
+)
 from zerver.models import (
     Realm,
     RealmAuditLog,
@@ -26,6 +32,7 @@ from zerver.models import (
     TaskBoard,
     TaskBoardColumn,
     TaskHistory,
+    TaskNote,
     UserProfile,
     agents,
 )
@@ -70,7 +77,9 @@ def send_task_event(
         event["board_id"] = task.board_id
     else:
         prefix = task_id_prefix if task_id_prefix is not None else realm_task_id_prefix(realm)
-        event["task"] = task_api_dict(task, task_id_prefix=prefix)
+        event["task"] = task_api_dict(
+            task, task_id_prefix=prefix, note_count=task_note_counts([task.id]).get(task.id, 0)
+        )
     send_event_on_commit(realm, event, task_event_audience(realm, task))
 
 
@@ -369,6 +378,42 @@ def do_delete_task(*, user_profile: UserProfile, task: Task) -> None:
     )
     task.delete()
     send_event_on_commit(realm, event, audience)
+
+
+def render_task_note(*, content: str, realm: Realm, author: UserProfile) -> str:
+    return markdown_convert(
+        content,
+        message_realm=realm,
+        mention_data=MentionData(MentionBackend(realm.id), content, author),
+        no_previews=True,
+        acting_user=author,
+    ).rendered_content
+
+
+@transaction.atomic(durable=True)
+def do_add_task_note(*, user_profile: UserProfile, task: Task, content: str) -> TaskNote:
+    note = TaskNote.objects.create(
+        task=task,
+        author=user_profile,
+        content=content,
+        rendered_content=render_task_note(content=content, realm=task.realm, author=user_profile),
+    )
+    record_history(task, user_profile, TaskHistory.NOTE_ADDED, {"note_id": note.id})
+
+    event = {"type": "task_note", "op": "add", "task_id": task.id, "note": note.to_api_dict()}
+    send_event_on_commit(task.realm, event, task_event_audience(task.realm, task))
+    send_task_event(task.realm, task, "update")
+    return note
+
+
+@transaction.atomic(durable=True)
+def do_delete_task_note(*, task: Task, note: TaskNote) -> None:
+    note_id = note.id
+    note.delete()
+
+    event = {"type": "task_note", "op": "remove", "task_id": task.id, "note_id": note_id}
+    send_event_on_commit(task.realm, event, task_event_audience(task.realm, task))
+    send_task_event(task.realm, task, "update")
 
 
 @transaction.atomic(durable=True)

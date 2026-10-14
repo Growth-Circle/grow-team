@@ -1836,7 +1836,7 @@ def apply_event(
         # Attachment events are just for updating the "uploads" UI;
         # they are not sent directly.
         pass
-    elif event["type"] in ("task", "task_board"):
+    elif event["type"] in ("task", "task_board", "task_note"):
         # The task board fetches its own cards when it opens, so these
         # events only refresh an open board and carry no register state.
         pass

@@ -3,6 +3,7 @@ from django.utils.timezone import now as timezone_now
 from typing_extensions import override
 
 from zerver.actions.tasks import do_create_task, do_move_task
+from zerver.lib.event_schema import check_task_note_add, check_task_note_remove, check_task_update
 from zerver.lib.tasks import (
     get_or_create_default_board,
     hidden_done_task_ids,
@@ -11,7 +12,7 @@ from zerver.lib.tasks import (
     visible_tasks,
 )
 from zerver.lib.test_classes import ZulipTestCase
-from zerver.models import Task, TaskBoard, TaskBoardColumn, TaskHistory
+from zerver.models import Task, TaskBoard, TaskBoardColumn, TaskHistory, TaskNote
 from zerver.models.agents import AgentRealmSettings
 
 
@@ -608,3 +609,147 @@ class TaskStatusNoticeTest(TaskBoardTestCase):
         self.assertIn("`Ping @**all** 'now'`", message.content)
         assert message.rendered_content is not None
         self.assertNotIn('data-user-id="*"', message.rendered_content)
+
+
+class TaskNoteTest(TaskBoardTestCase):
+    def add_note(self, card: Task, content: str = "Waiting on the design review.") -> int:
+        result = self.client_post(f"/json/tasks/{card.id}/notes", {"content": content})
+        return self.assert_json_success(result)["note"]["id"]
+
+    def test_add_note_renders_records_history_and_notifies_the_audience(self) -> None:
+        self.login_user(self.hamlet)
+        card = self.create_card()
+
+        with self.capture_send_event_calls(expected_num_events=2) as events:
+            result = self.client_post(
+                f"/json/tasks/{card.id}/notes", {"content": "  Check **the numbers**  "}
+            )
+        note = self.assert_json_success(result)["note"]
+
+        self.assertEqual(note["task_id"], card.id)
+        self.assertEqual(note["author_id"], self.hamlet.id)
+        self.assertEqual(note["content"], "Check **the numbers**")
+        self.assertEqual(note["rendered_content"], "<p>Check <strong>the numbers</strong></p>")
+        self.assertEqual(TaskNote.objects.get(id=note["id"]).task_id, card.id)
+
+        history = TaskHistory.objects.get(task=card, kind=TaskHistory.NOTE_ADDED)
+        self.assertEqual(history.acting_user_id, self.hamlet.id)
+        self.assertEqual(history.extra_data, {"note_id": note["id"]})
+
+        audience = task_event_audience(self.hamlet.realm, card)
+        note_event = events[0]["event"]
+        self.assertEqual(sorted(events[0]["users"]), sorted(audience))
+        check_task_note_add("events[0]", {**note_event, "id": 0})
+        self.assertEqual(note_event["note"], note)
+
+        update_event = events[1]["event"]
+        self.assertEqual(sorted(events[1]["users"]), sorted(audience))
+        check_task_update("events[1]", {**update_event, "id": 0})
+        self.assertEqual(update_event["task"]["note_count"], 1)
+
+    def test_blank_or_oversized_note_is_rejected(self) -> None:
+        self.login_user(self.hamlet)
+        card = self.create_card()
+
+        for content in ["", "   \n  "]:
+            result = self.client_post(f"/json/tasks/{card.id}/notes", {"content": content})
+            self.assert_json_error(result, "content cannot be blank")
+
+        result = self.client_post(
+            f"/json/tasks/{card.id}/notes", {"content": "x" * (TaskNote.MAX_CONTENT_LENGTH + 1)}
+        )
+        self.assert_json_error(result, "content is too long (limit: 10000 characters)")
+        self.assertFalse(TaskNote.objects.filter(task=card).exists())
+
+        self.add_note(card, "x" * TaskNote.MAX_CONTENT_LENGTH)
+        self.assertEqual(TaskNote.objects.filter(task=card).count(), 1)
+
+    def test_note_on_a_card_the_user_cannot_read_is_rejected(self) -> None:
+        cordelia = self.example_user("cordelia")
+        private_stream = self.make_stream("secret-plan", invite_only=True)
+        self.subscribe(cordelia, "secret-plan")
+        card = do_create_task(
+            user_profile=cordelia,
+            board=self.board,
+            column=self.columns[0],
+            title="Card only Cordelia may read",
+            stream_id=private_stream.id,
+        )
+        self.login_user(cordelia)
+        note_id = self.add_note(card)
+
+        self.login_user(self.hamlet)
+        result = self.client_post(f"/json/tasks/{card.id}/notes", {"content": "Let me in"})
+        self.assert_json_error(result, "Task does not exist.")
+        result = self.client_get(f"/json/tasks/{card.id}/notes")
+        self.assert_json_error(result, "Task does not exist.")
+        result = self.client_delete(f"/json/tasks/{card.id}/notes/{note_id}")
+        self.assert_json_error(result, "Task does not exist.")
+        self.assertEqual(TaskNote.objects.filter(task=card).count(), 1)
+
+    def test_notes_are_listed_oldest_first_and_counted_on_the_board(self) -> None:
+        self.login_user(self.hamlet)
+        card = self.create_card()
+        other_card = self.create_card(title="A card without notes")
+        first_id = self.add_note(card, "First")
+        second_id = self.add_note(card, "Second")
+
+        result = self.client_get(f"/json/tasks/{card.id}/notes")
+        notes = self.assert_json_success(result)["notes"]
+        self.assertEqual([note["id"] for note in notes], [first_id, second_id])
+        self.assertEqual(
+            set(notes[0]),
+            {"id", "task_id", "author_id", "content", "rendered_content", "date_created"},
+        )
+
+        result = self.client_get("/json/tasks")
+        counts = {
+            task["id"]: task["note_count"] for task in self.assert_json_success(result)["tasks"]
+        }
+        self.assertEqual(counts, {card.id: 2, other_card.id: 0})
+
+    def test_author_and_admin_may_delete_a_note_but_nobody_else(self) -> None:
+        card = self.create_card()
+        cordelia = self.example_user("cordelia")
+        self.login_user(cordelia)
+        note_id = self.add_note(card)
+
+        self.login_user(self.example_user("othello"))
+        result = self.client_delete(f"/json/tasks/{card.id}/notes/{note_id}")
+        self.assert_json_error(result, "Only the author or an administrator can delete a note.")
+        self.assertTrue(TaskNote.objects.filter(id=note_id).exists())
+
+        self.login_user(cordelia)
+        with self.capture_send_event_calls(expected_num_events=2) as events:
+            result = self.client_delete(f"/json/tasks/{card.id}/notes/{note_id}")
+        self.assert_json_success(result)
+        self.assertFalse(TaskNote.objects.filter(id=note_id).exists())
+        remove_event = events[0]["event"]
+        check_task_note_remove("events[0]", {**remove_event, "id": 0})
+        self.assertEqual(remove_event["note_id"], note_id)
+        self.assertEqual(events[1]["event"]["task"]["note_count"], 0)
+
+        later_note_id = self.add_note(card)
+        self.login_user(self.example_user("iago"))
+        result = self.client_delete(f"/json/tasks/{card.id}/notes/{later_note_id}")
+        self.assert_json_success(result)
+        self.assertFalse(TaskNote.objects.filter(id=later_note_id).exists())
+
+    def test_note_of_another_card_cannot_be_deleted_through_this_one(self) -> None:
+        self.login_user(self.hamlet)
+        card = self.create_card()
+        other_card = self.create_card(title="Another card")
+        note_id = self.add_note(other_card)
+
+        result = self.client_delete(f"/json/tasks/{card.id}/notes/{note_id}")
+        self.assert_json_error(result, "Note does not exist.")
+        self.assertTrue(TaskNote.objects.filter(id=note_id).exists())
+
+    def test_deleting_a_card_deletes_its_notes(self) -> None:
+        self.login_user(self.hamlet)
+        card = self.create_card()
+        self.add_note(card)
+
+        result = self.client_delete(f"/json/tasks/{card.id}")
+        self.assert_json_success(result)
+        self.assertFalse(TaskNote.objects.filter(task_id=card.id).exists())
