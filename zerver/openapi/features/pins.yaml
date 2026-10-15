@@ -1,0 +1,217 @@
+paths:
+  /streams/{stream_id}/pins:
+    get:
+      operationId: get-channel-pins
+      tags: ["channels"]
+      summary: Get the pinned messages of a channel
+      description: |
+        Fetch the messages pinned in a channel, newest pin first. Messages
+        the user is not allowed to read, such as older history of a private
+        channel with protected history, are left out.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-4a102f).
+      parameters:
+        - name: stream_id
+          in: path
+          schema:
+            type: integer
+          description: |
+            The ID of the channel to fetch pins for.
+          required: true
+          example: 1
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      pins:
+                        type: array
+                        description: |
+                          The pinned messages, newest pin first.
+                        items:
+                          $ref: "#/components/schemas/ChannelPin"
+              example:
+                result: success
+                msg: ""
+                pins:
+                  - message_id: 42
+                    stream_id: 1
+                    pinned_by_id: 10
+                    date_pinned: 1700000000
+                    sender_id: 12
+                    sender_full_name: Rhiinov
+                    topic: Deploys
+                    date_sent: 1699990000
+                    rendered_content: <p>Deploy checklist</p>
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Invalid channel ID",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the user cannot
+                      read the channel:
+  /messages/{message_id}/pin:
+    post:
+      operationId: pin-message
+      tags: ["messages"]
+      summary: Pin a message to its channel
+      description: |
+        Pin a channel message so everyone who can read the channel finds it
+        under the channel's pins. The user needs permission to post in the
+        channel. Readers of the channel receive a `channel_pin` event with
+        `op` set to `add`.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-4a102f).
+      parameters:
+        - name: message_id
+          in: path
+          schema:
+            type: integer
+          description: |
+            The ID of the message to pin.
+          required: true
+          example: 42
+      responses:
+        "200":
+          $ref: "#/components/responses/SimpleSuccess"
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - allOf:
+                      - $ref: "#/components/schemas/CodedError"
+                      - example:
+                          {
+                            "code": "BAD_REQUEST",
+                            "msg": "Message is already pinned.",
+                            "result": "error",
+                          }
+                        description: |
+                          A typical failed JSON response for when the message is
+                          already pinned:
+                  - allOf:
+                      - $ref: "#/components/schemas/CodedError"
+                      - example:
+                          {
+                            "code": "BAD_REQUEST",
+                            "msg": "Only channel messages can be pinned.",
+                            "result": "error",
+                          }
+                        description: |
+                          A typical failed JSON response for when the message is
+                          a direct message:
+                  - allOf:
+                      - $ref: "#/components/schemas/CodedError"
+                      - example:
+                          {
+                            "code": "BAD_REQUEST",
+                            "msg": "You do not have permission to post in this channel.",
+                            "result": "error",
+                          }
+                        description: |
+                          A typical failed JSON response for when the user may
+                          read but not post in the channel:
+    delete:
+      operationId: unpin-message
+      tags: ["messages"]
+      summary: Unpin a message from its channel
+      description: |
+        Remove a message from the pins of its channel. The user needs
+        permission to post in the channel. Readers of the channel receive a
+        `channel_pin` event with `op` set to `remove`.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-4a102f).
+      parameters:
+        - name: message_id
+          in: path
+          schema:
+            type: integer
+          description: |
+            The ID of the message to unpin.
+          required: true
+          example: 42
+      responses:
+        "200":
+          $ref: "#/components/responses/SimpleSuccess"
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Message is not pinned.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the message is not
+                      pinned:
+components:
+  schemas:
+    ChannelPin:
+      type: object
+      description: |
+        A message pinned to a channel, with what a client needs to list it.
+      additionalProperties: false
+      properties:
+        message_id:
+          type: integer
+          description: |
+            The ID of the pinned message.
+        stream_id:
+          type: integer
+          description: |
+            The ID of the channel the message is pinned in.
+        pinned_by_id:
+          type: integer
+          nullable: true
+          description: |
+            The user ID of the person who pinned the message, or `null` if
+            that user no longer exists.
+        date_pinned:
+          type: integer
+          description: |
+            The UNIX timestamp for when the message was pinned, in UTC seconds.
+        sender_id:
+          type: integer
+          description: |
+            The user ID of the message's sender.
+        sender_full_name:
+          type: string
+          description: |
+            The full name of the message's sender.
+        topic:
+          type: string
+          description: |
+            The topic of the message. An empty string is the general chat
+            topic.
+        date_sent:
+          type: integer
+          description: |
+            The UNIX timestamp for when the message was sent, in UTC seconds.
+        rendered_content:
+          type: string
+          description: |
+            The message content rendered as HTML.

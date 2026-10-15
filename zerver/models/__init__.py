@@ -77,6 +77,7 @@ from zerver.models.muted_users import MutedUser as MutedUser
 from zerver.models.navigation_views import NavigationView as NavigationView
 from zerver.models.needs import NeedResolution as NeedResolution
 from zerver.models.onboarding_steps import OnboardingStep as OnboardingStep
+from zerver.models.pins import ChannelPin as ChannelPin
 from zerver.models.prereg_users import EmailChangeStatus as EmailChangeStatus
 from zerver.models.prereg_users import MultiuseInvite as MultiuseInvite
 from zerver.models.prereg_users import PreregistrationRealm as PreregistrationRealm

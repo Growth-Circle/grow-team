@@ -30,6 +30,8 @@ from zerver.lib.event_types import (
     EventChannelFolderAdd,
     EventChannelFolderReorder,
     EventChannelFolderUpdate,
+    EventChannelPinAdd,
+    EventChannelPinRemove,
     EventCustomProfileFields,
     EventDefaultStreamGroups,
     EventDefaultStreams,
@@ -192,6 +194,8 @@ check_attachment_remove = make_checker(EventAttachmentRemove)
 check_attachment_update = make_checker(EventAttachmentUpdate)
 check_channel_folder_add = make_checker(EventChannelFolderAdd)
 check_channel_folder_reorder = make_checker(EventChannelFolderReorder)
+check_channel_pin_add = make_checker(EventChannelPinAdd)
+check_channel_pin_remove = make_checker(EventChannelPinRemove)
 check_custom_profile_fields = make_checker(EventCustomProfileFields)
 check_default_stream_groups = make_checker(EventDefaultStreamGroups)
 check_default_streams = make_checker(EventDefaultStreams)

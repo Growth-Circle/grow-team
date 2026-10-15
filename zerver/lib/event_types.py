@@ -99,6 +99,22 @@ class EventChannelFolderUpdate(BaseEvent):
     data: ChannelFolderDataForUpdate
 
 
+class EventChannelPinAdd(BaseEvent):
+    type: Literal["channel_pin"]
+    op: Literal["add"]
+    stream_id: int
+    message_id: int
+    pinned_by_id: int | None
+    date_pinned: int
+
+
+class EventChannelPinRemove(BaseEvent):
+    type: Literal["channel_pin"]
+    op: Literal["remove"]
+    stream_id: int
+    message_id: int
+
+
 class DetailedCustomProfileCore(BaseModel):
     id: int
     type: int

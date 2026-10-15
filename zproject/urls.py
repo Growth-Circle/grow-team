@@ -146,6 +146,7 @@ from zerver.views.navigation_views import (
     update_navigation_view,
 )
 from zerver.views.onboarding_steps import mark_onboarding_step_as_read
+from zerver.views.pins import get_channel_pins, pin_message, unpin_message
 from zerver.views.presence import (
     get_presence_backend,
     get_status_backend,
@@ -572,6 +573,7 @@ v1_api_and_json_patterns = [
     rest_path("messages/<int:message_id>/reactions", POST=add_reaction, DELETE=remove_reaction),
     # read_receipts -> zerver.views.read_receipts
     rest_path("messages/<int:message_id>/read_receipts", GET=read_receipts),
+    rest_path("messages/<int:message_id>/pin", POST=pin_message, DELETE=unpin_message),
     # report_message_backend -> zerver.views.message_report
     rest_path("messages/<int:message_id>/report", POST=report_message_backend),
     # attachments -> zerver.views.attachments
@@ -685,6 +687,7 @@ v1_api_and_json_patterns = [
         DELETE=deactivate_stream_backend,
     ),
     rest_path("streams/<int:stream_id>/email_address", GET=get_stream_email_address),
+    rest_path("streams/<int:stream_id>/pins", GET=get_channel_pins),
     # Delete topic in stream
     rest_path("streams/<int:stream_id>/delete_topic", POST=delete_in_topic),
     rest_path("default_streams", POST=add_default_stream, DELETE=remove_default_stream),
