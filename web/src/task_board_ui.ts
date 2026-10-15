@@ -26,6 +26,7 @@ import * as stream_data from "./stream_data.ts";
 import * as sub_store from "./sub_store.ts";
 import * as task_board_data from "./task_board_data.ts";
 import type {MoveEdge, Task, TaskHistoryEntry} from "./task_board_data.ts";
+import * as task_board_drag from "./task_board_drag.ts";
 import {history_text} from "./task_board_history.ts";
 import * as task_board_notes from "./task_board_notes.ts";
 import type {TaskNote} from "./task_board_notes.ts";
@@ -784,17 +785,123 @@ function save_status(task_id: number): void {
     });
 }
 
-function drop_index($column_cards: JQuery, drop_y: number): number {
-    const $cards = $column_cards.children(".task-board-card");
-    let index = 0;
-    for (const card of $cards) {
-        const box = card.getBoundingClientRect();
-        if (drop_y < box.top + box.height / 2) {
-            return index;
-        }
-        index += 1;
+// The card being dragged and the spot the last dragover chose for it.
+// The drop reads that spot back, so the card lands where the line was.
+type DropTarget = {column_id: number; slot: number; visible_task_ids: number[]};
+let dragged_task_id: number | undefined;
+let drop_target: DropTarget | undefined;
+
+// Edge zone and top speed of the scroll while a card is held near the
+// border of something that scrolls.
+const AUTO_SCROLL_ZONE_EM = 3;
+const AUTO_SCROLL_MAX_STEP = 24;
+
+function root_font_size(): number {
+    return Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+}
+
+function cards_other_than_dragged($column_cards: JQuery): HTMLElement[] {
+    return [...$column_cards.children(".task-board-card:not(.task-board-card-dragging)")].filter(
+        (card): card is HTMLElement => card instanceof HTMLElement,
+    );
+}
+
+function clear_drop_feedback(): void {
+    $("#task-board-view .task-board-column-drop-target").removeClass(
+        "task-board-column-drop-target",
+    );
+    $("#task-board-view .task-board-drop-indicator").remove();
+    drop_target = undefined;
+}
+
+function show_drop_target($column: JQuery, pointer_y: number): void {
+    const column_id = Number($column.attr("data-column-id"));
+    const $column_cards = $column.find(".task-board-column-cards");
+    const cards = cards_other_than_dragged($column_cards);
+    const boxes = cards.map((card) => card.getBoundingClientRect());
+    const slot = task_board_drag.drop_slot(boxes, pointer_y);
+    drop_target = {
+        column_id,
+        slot,
+        visible_task_ids: cards.map((card) => Number(card.dataset["taskId"])),
+    };
+
+    $("#task-board-view .task-board-column-drop-target")
+        .not($column)
+        .removeClass("task-board-column-drop-target");
+    $column.addClass("task-board-column-drop-target");
+
+    const container = $column_cards[0];
+    assert(container !== undefined);
+    let $indicator = $column_cards.children(".task-board-drop-indicator");
+    if ($indicator.length === 0) {
+        $("#task-board-view .task-board-drop-indicator").remove();
+        $indicator = $("<div>").addClass("task-board-drop-indicator").attr("aria-hidden", "true");
+        $column_cards.append($indicator);
     }
-    return index;
+    const gap = Number.parseFloat(getComputedStyle(container).rowGap) || 0;
+    const container_top = container.getBoundingClientRect().top + container.clientTop;
+    $indicator.css("top", task_board_drag.indicator_offset(boxes, slot, container_top, gap));
+}
+
+// The nearest ancestor that scrolls vertically. The page itself is not
+// one: it scrolls through the window.
+function vertical_scroll_parent(element: HTMLElement): HTMLElement | undefined {
+    for (
+        let node = element.parentElement;
+        node !== null && node !== document.body && node !== document.documentElement;
+        node = node.parentElement
+    ) {
+        const overflow_y = getComputedStyle(node).overflowY;
+        if (
+            (overflow_y === "auto" || overflow_y === "scroll") &&
+            node.scrollHeight > node.clientHeight
+        ) {
+            return node;
+        }
+    }
+    return undefined;
+}
+
+function auto_scroll_while_dragging(column: HTMLElement, x: number, y: number): void {
+    const zone = AUTO_SCROLL_ZONE_EM * root_font_size();
+    // The page smooths its own scrolling, which would lag behind a
+    // pointer that keeps moving.
+    const instant = "instant";
+
+    const board_columns = column.closest(".task-board-columns");
+    if (board_columns instanceof HTMLElement) {
+        const rect = board_columns.getBoundingClientRect();
+        board_columns.scrollBy({
+            left: task_board_drag.scroll_step(x, rect.left, rect.right, zone, AUTO_SCROLL_MAX_STEP),
+            behavior: instant,
+        });
+    }
+
+    const scroll_parent = vertical_scroll_parent(column);
+    if (scroll_parent === undefined) {
+        // The fixed navbar covers the top of the page, and the board
+        // container is padded down by exactly its height.
+        const container = column.closest(".task-board-container");
+        const navbar_height =
+            container === null ? 0 : Number.parseFloat(getComputedStyle(container).paddingTop);
+        window.scrollBy({
+            top: task_board_drag.scroll_step(
+                y,
+                navbar_height,
+                window.innerHeight,
+                zone,
+                AUTO_SCROLL_MAX_STEP,
+            ),
+            behavior: instant,
+        });
+        return;
+    }
+    const rect = scroll_parent.getBoundingClientRect();
+    scroll_parent.scrollBy({
+        top: task_board_drag.scroll_step(y, rect.top, rect.bottom, zone, AUTO_SCROLL_MAX_STEP),
+        behavior: instant,
+    });
 }
 
 function selected_id(selector: string): number | undefined {
@@ -1258,39 +1365,77 @@ export function initialize(opts: {hide_other_views: () => void}): void {
         if (data_transfer === null || data_transfer === undefined) {
             return;
         }
-        data_transfer.setData("text/plain", $(this).attr("data-task-id") ?? "");
+        dragged_task_id = Number($(this).attr("data-task-id"));
+        data_transfer.setData("text/plain", String(dragged_task_id));
         data_transfer.effectAllowed = "move";
         $(this).addClass("task-board-card-dragging");
     });
 
     $view.on("dragend", ".task-board-card", function (this: HTMLElement) {
         $(this).removeClass("task-board-card-dragging");
-        $view.find(".task-board-column-cards").removeClass("task-board-column-cards-drop-target");
+        dragged_task_id = undefined;
+        clear_drop_feedback();
     });
 
-    $view.on("dragover", ".task-board-column-cards", function (this: HTMLElement, event) {
-        event.preventDefault();
-        $(this).addClass("task-board-column-cards-drop-target");
-    });
-
-    $view.on("dragleave", ".task-board-column-cards", function (this: HTMLElement) {
-        $(this).removeClass("task-board-column-cards-drop-target");
-    });
-
-    $view.on("drop", ".task-board-column-cards", function (this: HTMLElement, event) {
-        event.preventDefault();
-        $(this).removeClass("task-board-column-cards-drop-target");
-
+    $view.on("dragover", ".task-board-column", function (this: HTMLElement, event) {
         const original = event.originalEvent;
-        const task_id = Number(original?.dataTransfer?.getData("text/plain"));
-        if (original === undefined || !task_id) {
+        if (dragged_task_id === undefined || original === undefined) {
             return;
         }
+        event.preventDefault();
+        if (original.dataTransfer !== null) {
+            original.dataTransfer.dropEffect = "move";
+        }
+        show_drop_target($(this), original.clientY);
+        auto_scroll_while_dragging(this, original.clientX, original.clientY);
+    });
+
+    // Leaving for a card inside the same column also fires dragleave.
+    // The pointer is still in the column then, and the line stays.
+    $view.on("dragleave", ".task-board-column", function (this: HTMLElement, event) {
+        const original = event.originalEvent;
+        if (
+            original !== undefined &&
+            task_board_drag.is_inside(
+                this.getBoundingClientRect(),
+                original.clientX,
+                original.clientY,
+            )
+        ) {
+            return;
+        }
+        $(this).removeClass("task-board-column-drop-target");
+        $(this).find(".task-board-drop-indicator").remove();
+        drop_target = undefined;
+    });
+
+    $view.on("drop", ".task-board-column", function (this: HTMLElement, event) {
+        event.preventDefault();
+        const original = event.originalEvent;
+        const task_id = Number(original?.dataTransfer?.getData("text/plain")) || dragged_task_id;
         const column_id = Number($(this).attr("data-column-id"));
+        if (original === undefined || !task_id) {
+            clear_drop_feedback();
+            return;
+        }
+        if (drop_target?.column_id !== column_id) {
+            show_drop_target($(this), original.clientY);
+        }
+        const target = drop_target;
+        clear_drop_feedback();
+        dragged_task_id = undefined;
+        if (target === undefined) {
+            return;
+        }
         move_task(
             task_id,
             column_id,
-            task_board_data.position_for_drop(column_id, drop_index($(this), original.clientY)),
+            task_board_data.position_for_slot(
+                column_id,
+                target.visible_task_ids,
+                target.slot,
+                task_id,
+            ),
         );
     });
 }

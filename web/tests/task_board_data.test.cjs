@@ -79,12 +79,43 @@ run_test("cards sort by position inside a column", () => {
 
 run_test("a drop lands between the two cards it was dropped between", () => {
     load([make_task({id: 1, position: 1000}), make_task({id: 2, position: 2000})]);
+    const visible = [1, 2];
 
-    assert.equal(task_board_data.position_for_drop(10, 0), 0);
-    assert.equal(task_board_data.position_for_drop(10, 1), 1500);
-    assert.equal(task_board_data.position_for_drop(10, 2), 3000);
+    assert.equal(task_board_data.position_for_slot(10, visible, 0, 99), 0);
+    assert.equal(task_board_data.position_for_slot(10, visible, 1, 99), 1500);
+    assert.equal(task_board_data.position_for_slot(10, visible, 2, 99), 3000);
     // An empty column gives the first card a position of its own.
-    assert.equal(task_board_data.position_for_drop(12, 0), 1000);
+    assert.equal(task_board_data.position_for_slot(12, [], 0, 99), 1000);
+});
+
+run_test("a drop within a column leaves out the card that moves", () => {
+    load([
+        make_task({id: 1, position: 1000}),
+        make_task({id: 2, position: 2000}),
+        make_task({id: 3, position: 3000}),
+    ]);
+    // Card 1 is dragged; the others on screen are 2 and 3.
+    const visible = [2, 3];
+
+    assert.equal(task_board_data.position_for_slot(10, visible, 0, 1), 1000);
+    assert.equal(task_board_data.position_for_slot(10, visible, 1, 1), 2500);
+    assert.equal(task_board_data.position_for_slot(10, visible, 2, 1), 4000);
+});
+
+run_test("a drop lands next to the visible card even when others are hidden", () => {
+    // Card 2 is hidden by a filter, so the screen shows 1 and 3.
+    load([
+        make_task({id: 1, position: 1000}),
+        make_task({id: 2, position: 2000}),
+        make_task({id: 3, position: 3000}),
+    ]);
+
+    // Above card 3, the card goes between hidden card 2 and card 3.
+    assert.equal(task_board_data.position_for_slot(10, [1, 3], 1, 99), 2500);
+    // Below card 1, it goes between card 1 and hidden card 2.
+    assert.equal(task_board_data.position_for_slot(10, [1], 1, 99), 1500);
+    // With nothing on screen it goes after every hidden card.
+    assert.equal(task_board_data.position_for_slot(10, [], 0, 99), 4000);
 });
 
 run_test("a move to the top or bottom lands past the card at that end", () => {

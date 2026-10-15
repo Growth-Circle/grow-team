@@ -281,9 +281,28 @@ function position_between(before: Task | undefined, after: Task | undefined): nu
     return (before.position + after.position) / 2;
 }
 
-export function position_for_drop(column_id: number, index: number): number {
-    const column_tasks = tasks_in_column(column_id);
-    return position_between(column_tasks[index - 1], column_tasks[index]);
+// `visible_task_ids` are the cards on screen in the target column, in
+// order and without the card that is moving. Hidden cards, such as the
+// ones a filter leaves out, keep their place: the card lands right next
+// to the visible neighbor the person pointed at.
+export function position_for_slot(
+    column_id: number,
+    visible_task_ids: number[],
+    slot: number,
+    moving_task_id: number,
+): number {
+    const others = tasks_in_column(column_id).filter((task) => task.id !== moving_task_id);
+    const after_id = visible_task_ids[slot];
+    if (after_id !== undefined) {
+        const after_index = others.findIndex((task) => task.id === after_id);
+        return position_between(others[after_index - 1], others[after_index]);
+    }
+    const before_id = visible_task_ids[slot - 1];
+    if (before_id !== undefined) {
+        const before_index = others.findIndex((task) => task.id === before_id);
+        return position_between(others[before_index], others[before_index + 1]);
+    }
+    return position_between(others.at(-1), undefined);
 }
 
 export type MoveEdge = "top" | "bottom";

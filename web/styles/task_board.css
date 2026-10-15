@@ -162,11 +162,27 @@
     border: 1px dashed transparent;
     border-radius: 8px;
     gap: 10px;
+    /* Anchors the insertion line shown while a card is dragged. */
+    position: relative;
 }
 
-.task-board-column-cards-drop-target {
+/* The column under a dragged card gets a faint tint; the line says
+   where in it the card will land. */
+.task-board-column-drop-target {
     border-color: var(--color-background-brand-solid-action-button);
     background: var(--color-background-brand-subtle-action-button);
+}
+
+.task-board-drop-indicator {
+    position: absolute;
+    right: 0;
+    left: 0;
+    height: 0.1875em;
+    border-radius: 999px;
+    background: var(--sj-kaki);
+    /* The line is centered on the offset it is given. */
+    transform: translateY(-50%);
+    pointer-events: none;
 }
 
 .task-board-card {
