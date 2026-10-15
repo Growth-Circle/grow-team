@@ -1728,7 +1728,7 @@ export function initialize_compose_typeahead($element: JQuery<HTMLTextAreaElemen
 }
 
 // A note on a task card can mention members and nothing else, so its
-// box suggests only people: no groups, channels, emoji, or wildcards.
+// box suggests only active people: no bots, groups, channels, emoji, or wildcards.
 function get_task_note_mention_candidates(
     query: string,
     input_element: TypeaheadInputElement,
@@ -1753,7 +1753,10 @@ function get_task_note_mention_candidates(
         filter_pills: false,
         stream_id: undefined,
         topic: undefined,
-    }).filter((item) => item.type === "user");
+    }).filter(
+        (item): item is UserPillData =>
+            item.type === "user" && !item.user.is_bot && people.is_active_user(item.user.user_id),
+    );
 }
 
 function task_note_mention_selected(

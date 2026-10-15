@@ -2623,7 +2623,7 @@ test("begins_typeahead", ({override, override_rewire}) => {
     }
 });
 
-test("the note box of a task card suggests only people", ({override, override_rewire}) => {
+test("the note box of a task card suggests only active people", ({override, override_rewire}) => {
     let note_typeahead_options;
     override(bootstrap_typeahead, "Typeahead", (_input_element, options) => {
         note_typeahead_options = options;
@@ -2656,6 +2656,18 @@ test("the note box of a task card suggests only people", ({override, override_re
     assert.deepEqual(candidates("ask @haml", "et"), []);
     assert.deepEqual(candidates("ask @haml", " please"), [hamlet_item]);
     assert.deepEqual(candidates("@ "), []);
+
+    // Bots and deactivated users are not suggested, though they match.
+    const ask_bot = make_user({
+        email: "ask-bot@zulip.com",
+        user_id: 120,
+        full_name: "Ask Bot",
+        is_bot: true,
+    });
+    people.add_active_user(ask_bot);
+    assert.deepEqual(candidates("ask @Ask Bot"), []);
+    assert.deepEqual(candidates("ask @Welcome"), []);
+    assert.deepEqual(candidates("ask @Deactivated"), []);
 
     override_rewire(ct, "split_at_cursor", () => ["ask @haml", " please"]);
     const text = note_typeahead_options.updater(hamlet_item, "ask @haml please", input_element);
