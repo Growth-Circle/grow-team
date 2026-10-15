@@ -142,6 +142,8 @@ function card_context(task: Task): Record<string, unknown> {
         display_id: task.display_id,
         title: task.title,
         blocked: task.blocked,
+        can_edit: can_edit_task(task),
+        move_hint: move_hint(),
         labels: task.labels,
         origin_label: origin_label(task),
         agent_label: agent_label(task),
@@ -270,6 +272,7 @@ export function complete_rerender(): void {
             has_extra_members: member_ids.length > MAX_HEADER_MEMBERS,
             extra_member_count: member_ids.length - MAX_HEADER_MEMBERS,
             is_empty: task_board_data.total_task_count() === 0,
+            move_hint: move_hint(),
             card_unavailable,
         }),
     );
@@ -1365,7 +1368,12 @@ export function initialize(opts: {hide_other_views: () => void}): void {
         if (data_transfer === null || data_transfer === undefined) {
             return;
         }
-        dragged_task_id = Number($(this).attr("data-task-id"));
+        const task = task_board_data.get_task(Number($(this).attr("data-task-id")));
+        if (task === undefined || !can_edit_task(task)) {
+            event.preventDefault();
+            return;
+        }
+        dragged_task_id = task.id;
         data_transfer.setData("text/plain", String(dragged_task_id));
         data_transfer.effectAllowed = "move";
         $(this).addClass("task-board-card-dragging");

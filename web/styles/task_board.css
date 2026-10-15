@@ -201,6 +201,12 @@
     }
 }
 
+/* A card that can be dragged says so; a locked one keeps the pointer
+   that says it opens. */
+.task-board-card[draggable="true"] {
+    cursor: grab;
+}
+
 .task-board-card-dragging {
     opacity: 0.5;
 }

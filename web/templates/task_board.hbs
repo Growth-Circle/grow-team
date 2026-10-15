@@ -39,6 +39,8 @@
         <p class="task-board-empty">{{t "No tasks yet. Use New task, or Add card in a column."}}</p>
     {{/if}}
 </div>
+{{! Read out for a card its reader cannot drag. }}
+<p id="task-board-move-hint" hidden>{{move_hint}}</p>
 <div class="task-board-columns" role="list">
     {{#each columns}}
         <section class="task-board-column" role="listitem" data-column-id="{{this.id}}" aria-labelledby="task-board-column-heading-{{this.id}}">
