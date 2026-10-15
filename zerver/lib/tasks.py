@@ -229,7 +229,11 @@ def task_event_audience(realm: Realm, task: Task) -> list[int]:
     stream = Stream.objects.filter(id=task.stream_id).first()
     if stream is None:
         return active_user_ids(realm.id)
+    return channel_reader_user_ids(realm, stream)
 
+
+def channel_reader_user_ids(realm: Realm, stream: Stream) -> list[int]:
+    """User ids who can read this channel's content, for sending events."""
     subscriber_ids = set(
         get_active_subscriptions_for_stream_id(
             stream.id, include_deactivated_users=False
