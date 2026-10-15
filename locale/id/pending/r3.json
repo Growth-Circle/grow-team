@@ -1,0 +1,33 @@
+{
+  "frontend": {
+    "Today plan": "Rencana hari ini",
+    "Carry over from yesterday?": "Lanjutkan dari kemarin?",
+    "These cards were in yesterday's plan and are not done.": "Card ini ada di rencana kemarin dan belum selesai.",
+    "Add to today": "Tambah ke hari ini",
+    "Add all": "Tambah semua",
+    "Not now": "Nanti saja",
+    "Planned for today": "Direncanakan untuk hari ini",
+    "Move {title} up": "Naikkan {title}",
+    "Move {title} down": "Turunkan {title}",
+    "Move up": "Naikkan",
+    "Move down": "Turunkan",
+    "Remove {title} from today": "Hapus {title} dari hari ini",
+    "Remove from today": "Hapus dari hari ini",
+    "Add {title} to today": "Tambah {title} ke hari ini",
+    "Overdue and due today": "Terlambat dan jatuh tempo hari ini",
+    "In today's plan": "Ada di rencana hari ini",
+    "Auto": "Otomatis",
+    "Added automatically because it is overdue or due today": "Ditambahkan otomatis karena terlambat atau jatuh tempo hari ini",
+    "Nothing planned for today. Use Add to today on a card to plan it.": "Belum ada rencana hari ini. Pakai Tambah ke hari ini pada sebuah card untuk merencanakannya.",
+    "Could not load your plan": "Rencana kamu tidak bisa dimuat"
+  },
+  "backend": {
+    "Good morning. These cards are due today or overdue:": "Selamat pagi. Card ini jatuh tempo hari ini atau sudah terlambat:",
+    "Days overdue: {days}": "Terlambat {days} hari",
+    "Due today": "Hari ini",
+    "And {count} more.": "Dan {count} lainnya.",
+    "Open the card": "Buka card",
+    "Open My tasks": "Buka Tugas saya",
+    "Task is not in this plan.": "Card ini tidak ada di rencana."
+  }
+}
