@@ -286,9 +286,16 @@ paths:
       description: |
         Edit a card, move it to another column, or reorder it inside its column.
 
-        Only the card's assignee (its PIC), its creator, its reviewer, an
-        administrator of its channel, or an organization administrator can
-        change a card.
+        Any user who can read a card, other than a guest, can move it to another
+        column or reorder it inside its column. Every other change requires the
+        card's assignee (its PIC), its creator, its reviewer, an administrator of
+        its channel, or an organization administrator. When a request changes
+        anything besides `column_id` and `position`, and the user is not one of
+        those people, the whole request fails and nothing changes. A guest can
+        move a card only when they are one of those people.
+
+        A move to another column is written to the card history with the user
+        who made it. A reorder inside the same column is not.
 
         Moving a card never changes the conversation it came from. The change is
         written to the card history instead.
@@ -305,6 +312,10 @@ paths:
         assignee, or assigns a bot.
 
         **Changes**: New in Zulip 12.0 (feature level ZF-4a7c21).
+
+        Before feature level ZF-63e6db, only the card's assignee, creator,
+        reviewer, a channel administrator, or an organization administrator
+        could move a card.
 
         Before feature level ZF-4f1745, any user who could read a card could
         change it.

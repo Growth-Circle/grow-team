@@ -567,6 +567,39 @@ class MCPAccessTests(ZulipTestCase):
         )
         self.assertIn("MCP task updated", fetched.content.decode())
 
+    def test_update_task_lets_a_member_move_but_not_edit_a_card_they_see(self) -> None:
+        from zerver.actions.tasks import do_create_task
+        from zerver.lib.tasks import get_or_create_default_board
+        from zerver.models import Task, TaskHistory
+
+        board = get_or_create_default_board(self.user.realm)
+        columns = list(board.columns.order_by("order"))
+        card = do_create_task(
+            user_profile=self.example_user("iago"),
+            board=board,
+            column=columns[0],
+            title="Iago card",
+        )
+        token = self.manual(write=True)
+
+        moved = self.call(token, "update_task", {"task_id": card.id, "column_id": columns[1].id})
+        self.assertNotIn("isError", moved)
+        card.refresh_from_db()
+        self.assertEqual(card.column_id, columns[1].id)
+        self.assertEqual(
+            TaskHistory.objects.get(task=card, kind=TaskHistory.MOVED).acting_user_id, self.user.id
+        )
+
+        edited = self.call(
+            token,
+            "update_task",
+            {"task_id": card.id, "title": "Taken over", "column_id": columns[2].id},
+        )
+        self.assertEqual(edited, {"isError": True})
+        card.refresh_from_db()
+        self.assertEqual(card.title, "Iago card")
+        self.assertEqual(card.column_id, columns[1].id)
+
     def test_secrets_are_hashed_and_audit_has_no_content(self) -> None:
         from zerver.models.mcp_access import MCPAccessAudit, MCPAccessToken
 

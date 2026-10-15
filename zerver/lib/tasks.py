@@ -118,8 +118,20 @@ def user_can_modify_task(user_profile: UserProfile, task: Task) -> bool:
     return is_user_in_can_administer_channel_group(stream, group_ids)
 
 
+def user_can_move_task(user_profile: UserProfile, task: Task) -> bool:
+    """Any member who can see a card may change its column and position;
+    a guest only can when a card role already lets them modify it. Callers
+    reach this after access_task_by_id has proven the card is visible."""
+    return not user_profile.is_guest or user_can_modify_task(user_profile, task)
+
+
 def check_can_modify_task(user_profile: UserProfile, task: Task) -> None:
     if not user_can_modify_task(user_profile, task):
+        raise JsonableError(_("You do not have permission to change this task."))
+
+
+def check_can_move_task(user_profile: UserProfile, task: Task) -> None:
+    if not user_can_move_task(user_profile, task):
         raise JsonableError(_("You do not have permission to change this task."))
 
 

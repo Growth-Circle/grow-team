@@ -26,6 +26,7 @@ from zerver.lib.tasks import (
     access_task_note,
     check_can_delete_task_note,
     check_can_modify_task,
+    check_can_move_task,
     get_or_create_default_board,
     hidden_done_task_ids,
     realm_task_id_prefix,
@@ -194,7 +195,24 @@ def update_task(
     title: TaskTitle | None = None,
 ) -> HttpResponse:
     task = access_task_by_id(user_profile, task_id)
-    check_can_modify_task(user_profile, task)
+    # Column and position are open to every member who can see the card.
+    # Any other field keeps the stricter rule, and the whole request is
+    # refused before anything is written.
+    only_moves = (
+        title is None
+        and body is None
+        and blocked is None
+        and labels is None
+        and checklist is None
+        and due_at is None
+        and assignee_id is None
+        and reviewer_id is None
+        and not (clear_assignee or clear_reviewer or clear_due_at)
+    )
+    if only_moves:
+        check_can_move_task(user_profile, task)
+    else:
+        check_can_modify_task(user_profile, task)
 
     changes: dict[str, Any] = {}
     if title is not None:

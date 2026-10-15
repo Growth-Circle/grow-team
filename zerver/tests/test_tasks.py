@@ -538,14 +538,97 @@ class TaskReassignmentPermissionTest(TaskBoardTestCase):
             topic="general",
         )
 
-    def test_bystander_cannot_move_or_delete(self) -> None:
+    def test_bystander_cannot_edit_or_delete(self) -> None:
         card = self.card_in_room()
         self.login_user(self.cordelia)
-        result = self.client_patch(f"/json/tasks/{card.id}", {"column_id": self.columns[1].id})
+        result = self.client_patch(f"/json/tasks/{card.id}", {"title": "Hijacked"})
         self.assert_json_error(result, "You do not have permission to change this task.")
         result = self.client_delete(f"/json/tasks/{card.id}")
         self.assert_json_error(result, "You do not have permission to change this task.")
-        self.assertTrue(Task.objects.filter(id=card.id).exists())
+        card.refresh_from_db()
+        self.assertEqual(card.title, "Room card")
+
+    def test_bystander_moves_card_and_history_names_actor(self) -> None:
+        card = self.card_in_room()
+        self.login_user(self.cordelia)
+        result = self.client_patch(
+            f"/json/tasks/{card.id}", {"column_id": self.columns[1].id, "position": "250.0"}
+        )
+        self.assert_json_success(result)
+        card.refresh_from_db()
+        self.assertEqual(card.column_id, self.columns[1].id)
+        self.assertEqual(card.position, 250.0)
+        entry = TaskHistory.objects.get(task=card, kind=TaskHistory.MOVED)
+        self.assertEqual(entry.acting_user_id, self.cordelia.id)
+        self.assertEqual(entry.extra_data["to_column_name"], self.columns[1].name)
+
+    def test_bystander_reorders_inside_a_column(self) -> None:
+        card = self.card_in_room()
+        self.login_user(self.cordelia)
+        result = self.client_patch(f"/json/tasks/{card.id}", {"position": "42.0"})
+        self.assert_json_success(result)
+        card.refresh_from_db()
+        self.assertEqual(card.position, 42.0)
+
+    def test_bystander_cannot_mix_a_move_with_an_edit(self) -> None:
+        card = self.card_in_room()
+        self.login_user(self.cordelia)
+        edits: list[dict[str, str]] = [
+            {"title": "Hijacked"},
+            {"body": "New body"},
+            {"blocked": "true"},
+            {"labels": orjson.dumps(["x"]).decode()},
+            {"checklist": orjson.dumps([{"text": "a", "done": False}]).decode()},
+            {"due_at": "1893456000"},
+            {"clear_due_at": "true"},
+            {"assignee_id": str(self.cordelia.id)},
+            {"clear_assignee": "true"},
+            {"reviewer_id": str(self.cordelia.id)},
+            {"clear_reviewer": "true"},
+        ]
+        for edit in edits:
+            result = self.client_patch(
+                f"/json/tasks/{card.id}", {"column_id": self.columns[1].id, **edit}
+            )
+            self.assert_json_error(result, "You do not have permission to change this task.")
+        card.refresh_from_db()
+        self.assertEqual(card.column_id, self.columns[0].id)
+        self.assertEqual(card.title, "Room card")
+        self.assertIsNone(card.assignee_id)
+        self.assert_length(TaskHistory.objects.filter(task=card, kind=TaskHistory.MOVED), 0)
+
+    def test_guest_cannot_move_a_card(self) -> None:
+        guest = self.example_user("polonius")
+        card = self.create_card()
+        self.login_user(guest)
+        result = self.client_patch(f"/json/tasks/{card.id}", {"column_id": self.columns[1].id})
+        self.assert_json_error(result, "You do not have permission to change this task.")
+        card.refresh_from_db()
+        self.assertEqual(card.column_id, self.columns[0].id)
+
+    def test_guest_with_a_card_role_may_still_move(self) -> None:
+        guest = self.example_user("polonius")
+        card = self.create_card()
+        card.assignee = guest
+        card.save(update_fields=["assignee"])
+        self.login_user(guest)
+        result = self.client_patch(f"/json/tasks/{card.id}", {"column_id": self.columns[1].id})
+        self.assert_json_success(result)
+
+    def test_member_cannot_move_a_card_they_cannot_see(self) -> None:
+        private = self.make_stream("task-private", invite_only=True)
+        self.subscribe(self.hamlet, "task-private")
+        card = do_create_task(
+            user_profile=self.hamlet,
+            board=self.board,
+            column=self.columns[0],
+            title="Hidden card",
+            stream_id=private.id,
+            topic="general",
+        )
+        self.login_user(self.cordelia)
+        result = self.client_patch(f"/json/tasks/{card.id}", {"column_id": self.columns[1].id})
+        self.assert_json_error(result, "Task does not exist.")
 
     def test_creator_pic_and_admin_may_move(self) -> None:
         card = self.card_in_room()
