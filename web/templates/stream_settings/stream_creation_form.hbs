@@ -22,6 +22,15 @@
                         <input type="text" name="stream_description" id="create_stream_description" class="settings_text_input"
                           placeholder="{{t 'Channel description' }}" value="" autocomplete="off" maxlength="{{ max_stream_description_length }}" />
                     </section>
+                    <section id="create_stream_no_topics_container" class="create-stream-no-topics">
+                        <label class="create-stream-no-topics-option" for="create_stream_no_topics">
+                            <input type="checkbox" id="create_stream_no_topics" class="create-stream-no-topics-checkbox" />
+                            <span class="create-stream-no-topics-text">
+                                <span class="create-stream-no-topics-title">{{t "Chat without topics" }}</span>
+                                <span class="create-stream-no-topics-help">{{t "One running conversation, like a messaging app. Nobody has to name a topic." }}</span>
+                            </span>
+                        </label>
+                    </section>
                     <section id="make-invite-only">
                         <div class="new-stream-configuration">
                             {{> new_stream_configuration .

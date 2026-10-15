@@ -22,6 +22,7 @@ import * as stream_data from "./stream_data.ts";
 import * as stream_edit from "./stream_edit.ts";
 import * as stream_settings_components from "./stream_settings_components.ts";
 import * as stream_settings_data from "./stream_settings_data.ts";
+import * as stream_topics_policy from "./stream_topics_policy.ts";
 import {stream_permission_group_settings_schema} from "./stream_types.ts";
 import * as stream_ui_updates from "./stream_ui_updates.ts";
 import type {GroupSettingPillContainer} from "./typeahead_helper.ts";
@@ -519,8 +520,10 @@ export function show_new_stream_modal(): void {
     );
 
     $("#id_new_topics_policy").val(settings_config.get_stream_topics_policy_values().inherit.code);
+    $("#create_stream_no_topics").prop("checked", false);
     if (!stream_data.user_can_set_topics_policy()) {
         $("#id_new_topics_policy").prop("disabled", true);
+        $("#create_stream_no_topics").prop("disabled", true);
     }
 
     if (!stream_data.user_can_set_delete_message_policy()) {
@@ -650,6 +653,21 @@ export function set_up_handlers(): void {
         if (keydown_util.is_enter_event(e)) {
             e.preventDefault();
         }
+    });
+
+    $container.on("change", "#create_stream_no_topics", () => {
+        const is_checked = $("#create_stream_no_topics").is(":checked");
+        $("#id_new_topics_policy").val(
+            stream_topics_policy.policy_for_no_topics_option(is_checked),
+        );
+    });
+
+    $container.on("change", "#id_new_topics_policy", () => {
+        const policy = String($("#id_new_topics_policy").val());
+        $("#create_stream_no_topics").prop(
+            "checked",
+            stream_topics_policy.is_no_topics_policy(policy),
+        );
     });
 
     $container.on("input", "#id_new_history_public_to_subscribers", () => {
