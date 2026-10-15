@@ -90,6 +90,43 @@
             {{> task_board_assignee_row . }}
         </div>
     {{/if}}
+</section>
+
+<section class="task-board-detail-section task-board-planning" aria-labelledby="task-board-planning-heading">
+    <h3 id="task-board-planning-heading">{{t "Priority and labels"}}</h3>
+    {{#if can_edit}}
+        <label class="task-board-status-field" for="task-board-priority">
+            <span>{{t "Priority"}}</span>
+            <select id="task-board-priority" class="task-board-status-select">
+                {{#each priorities}}
+                    <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+                {{/each}}
+            </select>
+        </label>
+    {{else}}
+        <p class="task-board-detail-priority">{{priority_current_label}}</p>
+    {{/if}}
+    <ul class="task-board-detail-labels" aria-label="{{t 'Labels'}}">
+        {{#each labels}}
+            <li class="task-board-chip task-board-label">
+                <span>{{this}}</span>
+                {{#if ../can_edit}}
+                    <button type="button" class="task-board-label-remove" data-label="{{this}}" aria-label="{{t 'Remove label {label}' label=this}}">
+                        <i class="zulip-icon zulip-icon-close" aria-hidden="true"></i>
+                    </button>
+                {{/if}}
+            </li>
+        {{else}}
+            {{#unless can_edit}}
+                <li class="task-board-detail-labels-empty">{{t "No labels"}}</li>
+            {{/unless}}
+        {{/each}}
+    </ul>
+    {{#if can_edit}}
+        <input type="text" id="task-board-label-input" class="task-board-label-input" maxlength="40" autocomplete="off" placeholder="{{t 'Add a label and press Enter'}}" aria-label="{{t 'Add a label'}}" />
+        <p class="task-board-label-error" role="alert">{{label_error}}</p>
+    {{/if}}
+
     {{#if due_label}}
         <h3>{{t "Deadline"}}</h3>
         <p class="task-board-detail-due{{#if due_is_overdue}} task-board-card-detail-danger{{/if}}">{{due_label}}</p>

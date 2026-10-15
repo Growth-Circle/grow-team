@@ -62,6 +62,10 @@ const ASSIGNEE_BUTTON_ID = "task-board-assignee_widget";
 let assignee_picker: dropdown_widget.DropdownWidget | undefined;
 let assignee_picker_instance: tippy.Instance | undefined;
 
+const PRIORITY_SELECT_ID = "task-board-priority";
+const LABEL_INPUT_ID = "task-board-label-input";
+let label_error: {task_id: number; message: string} | undefined;
+
 const STATUS_COLUMN_ID = "task-board-status-column";
 const STATUS_POSITION_ID = "task-board-status-position";
 const STATUS_SAVE_ID = "task-board-status-save";
@@ -125,6 +129,43 @@ function due_label(task: Task): string {
     return day_label(task.due_at);
 }
 
+function priority_name(priority: number): string {
+    switch (priority) {
+        case task_board_data.PRIORITIES.LOW:
+            return "low";
+        case task_board_data.PRIORITIES.MEDIUM:
+            return "medium";
+        case task_board_data.PRIORITIES.HIGH:
+            return "high";
+        default:
+            return "";
+    }
+}
+
+// The chip on a card says what the number means; a card without a
+// priority shows no chip.
+function priority_chip_label(priority: number): string {
+    switch (priority) {
+        case task_board_data.PRIORITIES.LOW:
+            return $t({defaultMessage: "Low priority"});
+        case task_board_data.PRIORITIES.MEDIUM:
+            return $t({defaultMessage: "Medium priority"});
+        case task_board_data.PRIORITIES.HIGH:
+            return $t({defaultMessage: "High priority"});
+        default:
+            return "";
+    }
+}
+
+function priority_options(selected: number): {value: number; label: string; selected: boolean}[] {
+    return [
+        {value: task_board_data.PRIORITIES.NONE, label: $t({defaultMessage: "No priority"})},
+        {value: task_board_data.PRIORITIES.LOW, label: $t({defaultMessage: "Low"})},
+        {value: task_board_data.PRIORITIES.MEDIUM, label: $t({defaultMessage: "Medium"})},
+        {value: task_board_data.PRIORITIES.HIGH, label: $t({defaultMessage: "High"})},
+    ].map((option) => ({...option, selected: option.value === selected}));
+}
+
 function agent_label(task: Task): string {
     // The board shows only that an agent runs this card. Whether that agent
     // is ready to run is checked elsewhere and is not repeated here.
@@ -145,6 +186,8 @@ function card_context(task: Task): Record<string, unknown> {
         can_move: can_move_task(task),
         move_hint: move_hint(),
         labels: task.labels,
+        priority_name: priority_name(task.priority),
+        priority_label: priority_chip_label(task.priority),
         origin_label: origin_label(task),
         agent_label: agent_label(task),
         checklist_total,
@@ -204,6 +247,10 @@ function filter_options(): {value: string; label: string; selected: boolean}[] {
             label: $t({defaultMessage: "Awaiting my review"}),
         },
         {value: task_board_data.FILTERS.BLOCKED, label: $t({defaultMessage: "Blocked cards"})},
+        {
+            value: task_board_data.FILTERS.HIGH_PRIORITY,
+            label: $t({defaultMessage: "High priority"}),
+        },
     ].map((option) => ({...option, selected: option.value === current}));
 }
 
@@ -338,6 +385,82 @@ function change_assignee(task_id: number, assignee_id: number | null): void {
     });
 }
 
+// Shows the choice at once; the card event that follows the save
+// replaces it with what the server stored, and a refused save puts the
+// old values back.
+function update_card_fields(
+    task_id: number,
+    changes: Partial<Task>,
+    request: Record<string, string | number | boolean>,
+): void {
+    const task = task_board_data.get_task(task_id);
+    if (task === undefined) {
+        return;
+    }
+    const previous = _.pick(task, Object.keys(changes));
+    task_board_data.add_or_update_task({...task, ...changes});
+    complete_rerender();
+
+    patch_task(task_id, request, {
+        success() {
+            if (open_task_id === task_id) {
+                fetch_history(task_id);
+            }
+        },
+        error() {
+            const current = task_board_data.get_task(task_id);
+            if (current !== undefined) {
+                task_board_data.add_or_update_task({...current, ...previous});
+                complete_rerender();
+            }
+        },
+    });
+}
+
+function change_priority(task_id: number, priority: number): void {
+    const task = task_board_data.get_task(task_id);
+    if (task === undefined || task.priority === priority) {
+        return;
+    }
+    update_card_fields(task_id, {priority}, {priority});
+}
+
+function change_labels(task_id: number, labels: string[]): void {
+    update_card_fields(task_id, {labels}, {labels: JSON.stringify(labels)});
+}
+
+function add_label_from_input(task_id: number): void {
+    const task = task_board_data.get_task(task_id);
+    if (task === undefined) {
+        return;
+    }
+    const $input = $<HTMLInputElement>(`#${LABEL_INPUT_ID}`);
+    const edit = task_board_data.add_label(task.labels, $input.val() ?? "");
+    if (edit.error !== undefined) {
+        label_error = {
+            task_id,
+            message:
+                edit.error === "too_long"
+                    ? $t(
+                          {defaultMessage: "A label can have up to {count} characters."},
+                          {count: task_board_data.MAX_LABEL_LENGTH},
+                      )
+                    : $t(
+                          {defaultMessage: "A card can have up to {count} labels."},
+                          {count: task_board_data.MAX_LABELS},
+                      ),
+        };
+        $("#task-board-detail .task-board-label-error").text(label_error.message);
+        return;
+    }
+    label_error = undefined;
+    $("#task-board-detail .task-board-label-error").text("");
+    $input.val("");
+    if (edit.labels !== task.labels) {
+        change_labels(task_id, edit.labels);
+    }
+}
+
 function setup_assignee_picker(): void {
     assignee_picker = new dropdown_widget.DropdownWidget({
         widget_name: "task-board-assignee",
@@ -464,6 +587,8 @@ function render_card_detail(task_id: number): void {
     // keyboard focus where the reader left it.
     const focused_id = document.activeElement?.id;
     const keep_focus_on_assignee_button = focused_id === ASSIGNEE_BUTTON_ID;
+    const planning_focus_id = [PRIORITY_SELECT_ID, LABEL_INPUT_ID].find((id) => id === focused_id);
+    const label_draft = $<HTMLInputElement>(`#${LABEL_INPUT_ID}`).val() ?? "";
     const status_focus_id = [STATUS_COLUMN_ID, STATUS_POSITION_ID, STATUS_SAVE_ID].find(
         (id) => id === focused_id,
     );
@@ -520,6 +645,11 @@ function render_card_detail(task_id: number): void {
             has_notes: (notes_by_task_id.get(task_id)?.length ?? 0) > 0,
             notes: note_contexts(task_id),
             assignee: assignee_context(task),
+            priorities: priority_options(task.priority),
+            priority_current_label:
+                priority_chip_label(task.priority) || $t({defaultMessage: "No priority"}),
+            labels: task.labels,
+            label_error: label_error?.task_id === task_id ? label_error.message : "",
             due_label: due_label(task),
             due_is_overdue: is_overdue(task),
             agent_job_url: task.agent_job_id === null ? "" : "#agent-jobs",
@@ -533,6 +663,7 @@ function render_card_detail(task_id: number): void {
     if ($kept_composer.length > 0) {
         $("#task-board-detail .task-board-note-composer").replaceWith($kept_composer);
     }
+    $(`#${LABEL_INPUT_ID}`).val(label_draft);
     process_rendered_notes();
     setup_note_typeahead();
     update_note_submit_button();
@@ -553,6 +684,8 @@ function render_card_detail(task_id: number): void {
 
     if (keep_focus_on_assignee_button && $(`#${ASSIGNEE_BUTTON_ID}`).length > 0) {
         $(`#${ASSIGNEE_BUTTON_ID}`).trigger("focus");
+    } else if (planning_focus_id !== undefined && $(`#${planning_focus_id}`).length > 0) {
+        $(`#${planning_focus_id}`).trigger("focus");
     } else if (status_focus_id !== undefined && $(`#${status_focus_id}:enabled`).length > 0) {
         $(`#${status_focus_id}`).trigger("focus");
     } else if (composer_focus !== undefined) {
@@ -926,6 +1059,7 @@ function launch_new_card_dialog(column_id: number): void {
                 .get_realm_active_human_users()
                 .toSorted(people.compare_by_name)
                 .map((person) => ({user_id: person.user_id, full_name: person.full_name})),
+            priorities: priority_options(task_board_data.PRIORITIES.NONE),
             channels: stream_data
                 .subscribed_subs()
                 .toSorted((a, b) => util.strcmp(a.name, b.name))
@@ -959,6 +1093,10 @@ function launch_new_card_dialog(column_id: number): void {
             const stream_id = selected_id("#task-board-new-channel");
             if (stream_id !== undefined) {
                 data["stream_id"] = stream_id;
+            }
+            const priority = Number($<HTMLSelectElement>("#task-board-new-priority").val());
+            if (priority !== task_board_data.PRIORITIES.NONE) {
+                data["priority"] = priority;
             }
             const due = $<HTMLInputElement>("#task-board-new-due").val() ?? "";
             if (due !== "") {
@@ -1335,6 +1473,30 @@ export function initialize(opts: {hide_other_views: () => void}): void {
         status_draft = read_status_draft(task);
         status_error = undefined;
         update_status_controls(task);
+    });
+
+    $view.on("change", `#${PRIORITY_SELECT_ID}`, () => {
+        if (open_task_id !== undefined) {
+            change_priority(open_task_id, Number($(`#${PRIORITY_SELECT_ID}`).val()));
+        }
+    });
+
+    $view.on("keydown", `#${LABEL_INPUT_ID}`, (event) => {
+        if (event.key === "Enter" && open_task_id !== undefined) {
+            event.preventDefault();
+            add_label_from_input(open_task_id);
+        }
+    });
+
+    $view.on("click", ".task-board-label-remove", function (this: HTMLElement, event) {
+        event.preventDefault();
+        const task =
+            open_task_id === undefined ? undefined : task_board_data.get_task(open_task_id);
+        const label = $(this).attr("data-label");
+        if (task !== undefined && label !== undefined) {
+            label_error = undefined;
+            change_labels(task.id, task_board_data.remove_label(task.labels, label));
+        }
     });
 
     $view.on("click", `#${STATUS_SAVE_ID}`, (event) => {

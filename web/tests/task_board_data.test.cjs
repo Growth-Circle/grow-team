@@ -31,6 +31,7 @@ function make_task(overrides) {
         assignee_id: null,
         agent_profile_id: null,
         agent_job_id: null,
+        priority: 0,
         labels: [],
         checklist: [],
         due_at: null,
@@ -263,4 +264,53 @@ run_test("the board hash names a filter or one card", () => {
         filter: "all",
         task_id: undefined,
     });
+});
+
+run_test("the high priority filter keeps only high priority cards", () => {
+    load([
+        make_task({id: 1, priority: 3}),
+        make_task({id: 2, priority: 2}),
+        make_task({id: 3, priority: 0}),
+        make_task({id: 4, priority: 3, column_id: 11}),
+    ]);
+    task_board_data.set_filter("high_priority");
+    const ids = (column_id) =>
+        task_board_data.visible_tasks_in_column(column_id, 5).map((task) => task.id);
+    assert.deepEqual(ids(10), [1]);
+    assert.deepEqual(ids(11), [4]);
+    assert.equal(task_board_data.parse_filter("high_priority"), "high_priority");
+
+    task_board_data.set_filter("all");
+    assert.deepEqual(ids(10), [1, 2, 3]);
+});
+
+run_test("adding a label trims it and ignores blanks and repeats", () => {
+    const labels = ["ops"];
+    assert.deepEqual(task_board_data.add_label(labels, "  q4  "), {
+        labels: ["ops", "q4"],
+        error: undefined,
+    });
+    assert.equal(task_board_data.add_label(labels, "   ").labels, labels);
+    assert.equal(task_board_data.add_label(labels, "ops").labels, labels);
+    assert.equal(task_board_data.add_label(labels, "ops").error, undefined);
+});
+
+run_test("a label past the limits is refused with the reason", () => {
+    const labels = ["ops"];
+    assert.deepEqual(task_board_data.add_label(labels, "x".repeat(41)), {
+        labels,
+        error: "too_long",
+    });
+    assert.equal(task_board_data.add_label(labels, "x".repeat(40)).error, undefined);
+
+    const full = Array.from({length: 10}, (_unused, index) => `label ${index}`);
+    assert.deepEqual(task_board_data.add_label(full, "one more"), {
+        labels: full,
+        error: "too_many",
+    });
+});
+
+run_test("removing a label keeps the others in order", () => {
+    assert.deepEqual(task_board_data.remove_label(["a", "b", "c"], "b"), ["a", "c"]);
+    assert.deepEqual(task_board_data.remove_label(["a"], "z"), ["a"]);
 });

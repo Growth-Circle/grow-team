@@ -31,6 +31,9 @@
     {{/if}}
     <footer class="task-board-card-footer">
         <span class="task-board-card-tags">
+            {{#if priority_name}}
+                <span class="task-board-chip task-board-chip-priority task-board-chip-priority-{{priority_name}}">{{priority_label}}</span>
+            {{/if}}
             {{#if blocked}}
                 <span class="task-board-chip task-board-chip-blocked">{{t "Blocked"}}</span>
             {{/if}}

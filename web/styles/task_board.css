@@ -307,6 +307,22 @@
     color: var(--color-text-danger-card);
 }
 
+.task-board-chip-priority-high {
+    background: var(--sj-tint-kaki);
+    color: var(--sj-text-bahaya);
+    font-weight: 600;
+}
+
+.task-board-chip-priority-medium {
+    background: var(--sj-tint-kuning);
+    color: var(--sj-text);
+}
+
+.task-board-chip-priority-low {
+    background: var(--sj-tint-matcha);
+    color: var(--sj-text-matcha);
+}
+
 .task-board-card-identity {
     display: flex;
     flex: none;
@@ -506,6 +522,82 @@
 
 .task-board-status-save {
     align-self: flex-start;
+}
+
+.task-board-detail-labels {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    gap: 0.375em;
+}
+
+.task-board-label {
+    padding-right: 0.25em;
+    padding-left: 0.5em;
+    font-size: 0.8125em;
+}
+
+.task-board-label-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5em;
+    min-height: 1.5em;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--sj-surface-muted);
+    }
+
+    &:focus-visible {
+        outline: 0.125em solid var(--sj-outline);
+    }
+}
+
+.task-board-detail-labels-empty {
+    color: var(--sj-text-muted);
+    font-size: 0.875em;
+}
+
+/* The attribute selector lets this beat the global rule for text
+   inputs, which sets a smaller height and font size. */
+.task-board-planning .task-board-label-input[type="text"] {
+    box-sizing: border-box;
+    width: 100%;
+    height: 2.25em;
+    margin: 0;
+    padding: 0 0.625em;
+    border: 0.125em solid var(--sj-divider);
+    border-radius: 0.5em;
+    background: var(--sj-surface);
+    color: var(--sj-text);
+    font-size: 0.875em;
+
+    &:hover {
+        border-color: var(--sj-outline);
+    }
+
+    &:focus-visible {
+        outline: 0.125em solid var(--sj-outline);
+        outline-offset: 0.125em;
+    }
+}
+
+/* Nested so this beats the detail section's paragraph rule. */
+.task-board-planning .task-board-label-error {
+    color: var(--sj-text-bahaya);
+    font-weight: 600;
+
+    &:empty {
+        display: none;
+    }
 }
 
 /* Nested so these beat the detail section's paragraph rule. */

@@ -40,6 +40,7 @@ export const task_schema = z.object({
     reviewer_id: z.nullable(z.number()),
     agent_profile_id: z.nullable(z.string()),
     agent_job_id: z.nullable(z.string()),
+    priority: z.number(),
     labels: z.array(z.string()),
     checklist: z.array(task_checklist_item_schema),
     due_at: z.nullable(z.number()),
@@ -158,11 +159,23 @@ export function tasks_in_column(column_id: number): Task[] {
         .toSorted((a, b) => a.position - b.position || a.id - b.id);
 }
 
+export const PRIORITIES = {
+    NONE: 0,
+    LOW: 1,
+    MEDIUM: 2,
+    HIGH: 3,
+} as const;
+
+// Mirrors Task.MAX_LABELS and Task.MAX_LABEL_LENGTH in zerver/models/tasks.py.
+export const MAX_LABELS = 10;
+export const MAX_LABEL_LENGTH = 40;
+
 export const FILTERS = {
     ALL: "all",
     MINE: "mine",
     REVIEW: "review",
     BLOCKED: "blocked",
+    HIGH_PRIORITY: "high_priority",
 } as const;
 
 export type TaskFilter = (typeof FILTERS)[keyof typeof FILTERS];
@@ -223,6 +236,8 @@ function passes_filter(task: Task, my_user_id: number | undefined): boolean {
             );
         case FILTERS.BLOCKED:
             return task.blocked;
+        case FILTERS.HIGH_PRIORITY:
+            return task.priority === PRIORITIES.HIGH;
         default:
             return true;
     }
@@ -335,4 +350,26 @@ export function column_is_over_work_limit(column_id: number): boolean {
         return false;
     }
     return tasks_in_column(column_id).length >= work_limit;
+}
+
+export type LabelEdit = {labels: string[]; error: "too_many" | "too_long" | undefined};
+
+// A blank label, or one the card already has, changes nothing. The
+// server enforces the same limits and stays the authority.
+export function add_label(labels: string[], raw_label: string): LabelEdit {
+    const label = raw_label.trim();
+    if (label === "" || labels.includes(label)) {
+        return {labels, error: undefined};
+    }
+    if (label.length > MAX_LABEL_LENGTH) {
+        return {labels, error: "too_long"};
+    }
+    if (labels.length >= MAX_LABELS) {
+        return {labels, error: "too_many"};
+    }
+    return {labels: [...labels, label], error: undefined};
+}
+
+export function remove_label(labels: string[], label: string): string[] {
+    return labels.filter((existing) => existing !== label);
 }

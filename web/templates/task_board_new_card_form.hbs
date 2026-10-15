@@ -17,6 +17,14 @@
             </select>
         </div>
         <div class="input-group">
+            <label for="task-board-new-priority" class="modal-field-label">{{t "Priority"}}</label>
+            <select id="task-board-new-priority" class="modal_select bootstrap-focus-style">
+                {{#each priorities}}
+                <option value="{{this.value}}">{{this.label}}</option>
+                {{/each}}
+            </select>
+        </div>
+        <div class="input-group">
             <label for="task-board-new-due" class="modal-field-label">{{t "Due date"}}</label>
             <input type="date" id="task-board-new-due" class="modal_text_input" />
         </div>
