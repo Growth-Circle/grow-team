@@ -30,7 +30,7 @@ import * as task_board_drag from "./task_board_drag.ts";
 import {history_text} from "./task_board_history.ts";
 import * as task_board_notes from "./task_board_notes.ts";
 import type {TaskNote} from "./task_board_notes.ts";
-import {can_edit_task} from "./task_board_permissions.ts";
+import {can_edit_task, can_move_task} from "./task_board_permissions.ts";
 import * as timerender from "./timerender.ts";
 import * as ui_report from "./ui_report.ts";
 import type {UserPillData} from "./user_pill.ts";
@@ -142,7 +142,7 @@ function card_context(task: Task): Record<string, unknown> {
         display_id: task.display_id,
         title: task.title,
         blocked: task.blocked,
-        can_edit: can_edit_task(task),
+        can_move: can_move_task(task),
         move_hint: move_hint(),
         labels: task.labels,
         origin_label: origin_label(task),
@@ -448,8 +448,7 @@ function status_error_message(task: Task): string {
 
 function move_hint(): string {
     return $t({
-        defaultMessage:
-            "Only the person responsible, the creator, the reviewer, an admin, or an admin of the card's channel can move this card.",
+        defaultMessage: "Guests can only move cards they created, are responsible for, or review.",
     });
 }
 
@@ -505,6 +504,7 @@ function render_card_detail(task_id: number): void {
             has_checklist: task.checklist.length > 0,
             checklist: task.checklist.map((item, index) => ({...item, index})),
             can_edit: can_edit_task(task),
+            can_move: can_move_task(task),
             status_columns: task_board_data.get_columns().map((status_column) => ({
                 id: status_column.id,
                 name: status_column.name,
@@ -1369,7 +1369,7 @@ export function initialize(opts: {hide_other_views: () => void}): void {
             return;
         }
         const task = task_board_data.get_task(Number($(this).attr("data-task-id")));
-        if (task === undefined || !can_edit_task(task)) {
+        if (task === undefined || !can_move_task(task)) {
             event.preventDefault();
             return;
         }

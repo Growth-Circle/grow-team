@@ -1,6 +1,6 @@
 {{! One card. Reads, from top to bottom: where the conversation came from,
     the title, optional supporting rows, then labels, id and assignee. }}
-<article class="task-board-card{{#if blocked}} task-board-card-blocked{{/if}}{{#unless can_edit}} task-board-card-locked{{/unless}}" data-task-id="{{id}}" draggable="{{#if can_edit}}true{{else}}false{{/if}}" {{#unless can_edit}}title="{{move_hint}}" aria-describedby="task-board-move-hint"{{/unless}} tabindex="0" role="button">
+<article class="task-board-card{{#if blocked}} task-board-card-blocked{{/if}}{{#unless can_move}} task-board-card-locked{{/unless}}" data-task-id="{{id}}" draggable="{{#if can_move}}true{{else}}false{{/if}}" {{#unless can_move}}title="{{move_hint}}" aria-describedby="task-board-move-hint"{{/unless}} tabindex="0" role="button">
     {{#if origin_label}}
         <p class="task-board-card-origin" title="{{origin_label}}">
             <i class="zulip-icon zulip-icon-hash" aria-hidden="true"></i>

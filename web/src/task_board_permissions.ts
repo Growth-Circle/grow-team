@@ -21,3 +21,9 @@ export function can_edit_task(task: Task): boolean {
     const sub = sub_store.get(task.stream_id);
     return sub !== undefined && stream_data.can_administer_channel(sub);
 }
+
+// Mirrors user_can_move_task in zerver/lib/tasks.py. Every card on the
+// board is one the user can read, so only the guest rule is left.
+export function can_move_task(task: Task): boolean {
+    return !current_user.is_guest || can_edit_task(task);
+}

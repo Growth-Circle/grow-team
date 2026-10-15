@@ -9,7 +9,7 @@ const stream_data = mock_esm("../src/stream_data");
 const sub_store = mock_esm("../src/sub_store");
 
 const {set_current_user} = zrequire("state_data");
-const {can_edit_task} = zrequire("task_board_permissions");
+const {can_edit_task, can_move_task} = zrequire("task_board_permissions");
 
 const current_user = {user_id: 10, is_admin: false, is_guest: false};
 set_current_user(current_user);
@@ -84,4 +84,37 @@ run_test("a guest gets no channel rights but keeps card roles", () => {
 run_test("an unassigned card has no assignee to match", () => {
     reset();
     assert.equal(can_edit_task(make_task({assignee_id: null, reviewer_id: null})), false);
+});
+
+run_test("any member can move a card they cannot edit", () => {
+    reset();
+    const task = make_task();
+    assert.equal(can_edit_task(task), false);
+    assert.equal(can_move_task(task), true);
+    assert.equal(can_move_task(make_task({stream_id: null})), true);
+});
+
+run_test("a guest can move only a card they hold a role on", () => {
+    reset();
+    current_user.is_guest = true;
+    administered_stream_ids.add(origin_sub.stream_id);
+    assert.equal(can_move_task(make_task()), false);
+    for (const role of ["creator_id", "assignee_id", "reviewer_id"]) {
+        assert.equal(can_move_task(make_task({[role]: 10})), true, role);
+    }
+});
+
+run_test("moving is allowed exactly where the server allows it", () => {
+    reset();
+    for (const is_guest of [false, true]) {
+        for (const is_admin of [false, true]) {
+            for (const role of [undefined, "creator_id", "assignee_id", "reviewer_id"]) {
+                current_user.is_guest = is_guest;
+                current_user.is_admin = is_admin;
+                const task = make_task(role === undefined ? {} : {[role]: 10});
+                const server_allows = !is_guest || can_edit_task(task);
+                assert.equal(can_move_task(task), server_allows);
+            }
+        }
+    }
 });
