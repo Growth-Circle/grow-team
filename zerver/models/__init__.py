@@ -120,6 +120,7 @@ from zerver.models.tasks import TaskBoardColumn as TaskBoardColumn
 from zerver.models.tasks import TaskHistory as TaskHistory
 from zerver.models.tasks import TaskNote as TaskNote
 from zerver.models.tasks import TaskNotification as TaskNotification
+from zerver.models.tasks import TaskReminderLog as TaskReminderLog
 from zerver.models.user_activity import UserActivity as UserActivity
 from zerver.models.user_activity import UserActivityInterval as UserActivityInterval
 from zerver.models.user_topics import UserTopic as UserTopic

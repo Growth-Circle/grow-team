@@ -106,13 +106,13 @@ def notify_task_status_change(
     with override_language(stream.realm.default_language):
         content = _("{user} moved {task} to {column}.").format(
             user=silent_mention_syntax_for_user(actor),
-            task=_code_span(task.title),
-            column=_code_span(column.name),
+            task=code_span(task.title),
+            column=code_span(column.name),
         )
     internal_send_stream_message(sender, stream, task.topic, content, acting_user=actor)
 
 
-def _code_span(text: str) -> str:
+def code_span(text: str) -> str:
     """Show user text as a Markdown code span, so it cannot mention anyone."""
     return "`" + text.replace("`", "'") + "`"
 
@@ -417,7 +417,7 @@ def notify_task_member(
     TaskNotification.objects.create(user=recipient, task=task, note=note, actor=actor, kind=kind)
 
     sender = get_system_bot(django_settings.NOTIFICATION_BOT, task.realm_id)
-    card = _code_span(f"{realm_task_id_prefix(task.realm)}-{task.counter} {task.title}")
+    card = code_span(f"{realm_task_id_prefix(task.realm)}-{task.counter} {task.title}")
     with override_language(recipient.default_language):
         if kind == TaskNotification.MENTION:
             intro = _("{user} mentioned you in a note on {card}.")

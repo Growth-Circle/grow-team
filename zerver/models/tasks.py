@@ -324,3 +324,18 @@ class TaskNotification(models.Model):
                 name="task_notification_kind_valid",
             )
         ]
+
+
+class TaskReminderLog(models.Model):
+    """The morning reminder a member got on one day. The row is the
+    marker: a member with a row for the workspace's date gets no second
+    reminder that day, however often the job runs."""
+
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name="+")
+    # The date on the workspace's clock, not UTC.
+    date = models.DateField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "date"], name="task_reminder_log_unique"),
+        ]
