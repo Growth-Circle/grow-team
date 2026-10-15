@@ -1189,8 +1189,11 @@ export function get_sidebar_stream_topic_info(filter: Filter): {
 
     result.stream_id = stream_id;
 
+    // A channel without topics is one conversation: its row is the
+    // conversation, not a general chat topic under it.
     const topic_terms = filter.terms_with_operator("topic");
-    result.topic_selected = topic_terms.length === 1;
+    result.topic_selected =
+        topic_terms.length === 1 && !stream_data.is_empty_topic_only_channel(stream_id);
 
     return result;
 }
@@ -1222,6 +1225,13 @@ export function update_stream_sidebar_for_narrow(filter: Filter): JQuery | undef
 
     if (!info.topic_selected && !zoomed_in) {
         $stream_li.addClass("active-filter");
+    }
+
+    if (stream_data.is_empty_topic_only_channel(stream_id)) {
+        // There are no topics to list under this channel, not even
+        // general chat.
+        clear_topics();
+        return $stream_li;
     }
 
     // Always add 'stream-expanded' class irrespective of whether

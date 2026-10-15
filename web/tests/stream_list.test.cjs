@@ -432,6 +432,46 @@ test_ui("narrowing", ({override_rewire}) => {
     assert.ok(topics_closed);
 });
 
+test_ui("narrowing a channel without topics", ({override_rewire}) => {
+    let rebuilt_stream_id;
+    let topics_cleared = false;
+    topic_list.close = () => {
+        topics_cleared = true;
+    };
+    topic_list.rebuild_left_sidebar = (_$stream_li, stream_id) => {
+        rebuilt_stream_id = stream_id;
+    };
+    topic_list.active_stream_id = noop;
+    topic_list.get_stream_li = noop;
+    override_rewire(stream_list, "get_section_id_for_stream_li", () => "normal");
+    override_rewire(stream_list, "maybe_hide_topic_bracket", noop);
+
+    initialize_stream_data();
+    carSub.topics_policy = "empty_topic_only";
+
+    // The conversation of a channel without topics is the channel row
+    // itself, and no general chat row is listed under it.
+    const filter = new Filter([
+        {operator: "stream", operand: carSub.stream_id.toString()},
+        {operator: "topic", operand: ""},
+    ]);
+    stream_list.handle_narrow_activated(filter);
+    assert.ok($("<cars-sidebar-row-stub>").hasClass("active-filter"));
+    assert.ok(!$("<cars-sidebar-row-stub>").hasClass("stream-expanded"));
+    assert.equal(rebuilt_stream_id, undefined);
+    assert.ok(topics_cleared);
+
+    // A channel with topics keeps its topic list.
+    carSub.topics_policy = "inherit";
+    stream_list.handle_narrow_activated(
+        new Filter([
+            {operator: "stream", operand: carSub.stream_id.toString()},
+            {operator: "topic", operand: "sedans"},
+        ]),
+    );
+    assert.equal(rebuilt_stream_id, carSub.stream_id);
+});
+
 test_ui("sort_streams", ({override_rewire, mock_template}) => {
     override_rewire(stream_list, "update_dom_with_unread_counts", noop);
     override_rewire(stream_list, "update_stream_section_mention_indicators", noop);
