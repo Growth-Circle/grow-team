@@ -1129,4 +1129,167 @@
 
 .task-board-detail-chat-row {
     display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+}
+
+.task-board-plan {
+    display: flex;
+    flex-direction: column;
+    max-width: 52em;
+    margin-bottom: 1.25em;
+    gap: 0.5em;
+}
+
+.task-board-list-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+
+    & > .task-board-list-row {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    @media (width < 40em) {
+        flex-wrap: wrap;
+
+        & > .task-board-list-row {
+            flex-basis: 100%;
+        }
+    }
+}
+
+.task-board-plan-actions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    margin-left: auto;
+    gap: 0.25em;
+}
+
+.task-board-plan-state {
+    color: var(--sj-text-muted);
+    font-size: 0.75em;
+}
+
+.task-board-list-row-auto {
+    border-style: dashed;
+}
+
+.task-board-chip-auto {
+    background: var(--sj-surface-muted);
+    color: var(--sj-text-muted);
+}
+
+.task-board-plan-move,
+.task-board-plan-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25em;
+    height: 2.25em;
+    padding: 0;
+    border: 0.0625em solid var(--sj-divider);
+    border-radius: 0.5em;
+    background: var(--sj-surface);
+    color: var(--sj-text);
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        border-color: var(--sj-outline);
+    }
+
+    &:focus-visible {
+        outline: 0.125em solid var(--sj-outline);
+        outline-offset: 0.125em;
+    }
+
+    &:disabled {
+        cursor: default;
+        opacity: 0.4;
+    }
+}
+
+.task-board-plan-move-up .zulip-icon {
+    transform: rotate(180deg);
+}
+
+.task-board-plan-item {
+    cursor: grab;
+}
+
+.task-board-plan-item-dragging {
+    opacity: 0.5;
+}
+
+.task-board-plan-drop-before {
+    box-shadow: 0 -0.3em 0 0 var(--sj-kaki);
+}
+
+.task-board-plan-drop-after {
+    box-shadow: 0 0.3em 0 0 var(--sj-kaki);
+}
+
+.task-board-plan-carry {
+    display: flex;
+    flex-direction: column;
+    padding: 0.75em;
+    border: 0.0625em dashed var(--sj-outline);
+    border-radius: 0.5em;
+    background: var(--sj-surface-muted);
+    gap: 0.5em;
+}
+
+.task-board-plan-carry-heading {
+    margin: 0;
+    color: var(--sj-text);
+    font-size: 0.9375em;
+    font-weight: 600;
+}
+
+.task-board-plan-carry-hint,
+.task-board-plan-empty {
+    margin: 0;
+    color: var(--sj-text-muted);
+    font-size: 0.8125em;
+}
+
+.task-board-plan-carry-rows {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    gap: 0.375em;
+}
+
+.task-board-plan-carry-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+
+    .task-board-card-id {
+        flex: none;
+    }
+
+    .action-button {
+        flex: none;
+        margin-left: auto;
+    }
+}
+
+.task-board-plan-carry-title {
+    overflow: hidden;
+    min-width: 0;
+    color: var(--sj-text);
+    font-size: 0.875em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.task-board-plan-carry-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
 }

@@ -22,6 +22,12 @@
         <i class="zulip-icon {{#if has_channel}}zulip-icon-message-square{{else}}zulip-icon-file-text{{/if}}" aria-hidden="true"></i>
         <span class="action-button-label">{{#if has_channel}}{{t "Chat"}}{{else}}{{t "Open notes"}}{{/if}}</span>
     </button>
+    {{#if plan_is_ready}}
+        <button type="button" class="task-board-detail-plan action-button action-button-subtle-neutral action-button-small" aria-pressed="{{#if is_planned_today}}true{{else}}false{{/if}}">
+            <i class="zulip-icon zulip-icon-calendar" aria-hidden="true"></i>
+            <span class="action-button-label">{{#if is_planned_today}}{{t "Remove from today"}}{{else}}{{t "Add to today"}}{{/if}}</span>
+        </button>
+    {{/if}}
 </div>
 
 <section class="task-board-detail-section task-board-status"aria-labelledby="task-board-status-heading">

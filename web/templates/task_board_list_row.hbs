@@ -1,0 +1,29 @@
+{{! One card in a list: the title and where it came from, its chips, and its deadline. }}
+<div class="task-board-list-row{{#if this.is_auto}} task-board-list-row-auto{{/if}}" data-task-id="{{this.id}}" tabindex="0" role="button">
+    <span class="task-board-list-row-main">
+        <span class="task-board-list-row-title">{{this.title}}</span>
+        {{#if this.origin_label}}
+            <span class="task-board-list-row-origin">{{this.origin_label}}</span>
+        {{/if}}
+    </span>
+    <span class="task-board-list-row-tags">
+        {{#if this.is_auto}}
+            <span class="task-board-chip task-board-chip-auto" title="{{t 'Added automatically because it is overdue or due today'}}">{{t "Auto"}}</span>
+        {{/if}}
+        {{#if this.priority_name}}
+            <span class="task-board-chip task-board-chip-priority task-board-chip-priority-{{this.priority_name}}">{{this.priority_label}}</span>
+        {{/if}}
+        {{#if this.blocked}}
+            <span class="task-board-chip task-board-chip-blocked">{{t "Blocked"}}</span>
+        {{/if}}
+        {{#each this.labels}}
+            <span class="task-board-chip">{{this}}</span>
+        {{/each}}
+    </span>
+    <span class="task-board-list-row-meta">
+        {{#if this.due_label}}
+            <span class="task-board-list-row-due{{#if this.due_is_overdue}} task-board-card-detail-danger{{/if}}">{{this.due_label}}</span>
+        {{/if}}
+        <span class="task-board-card-id">{{this.display_id}}</span>
+    </span>
+</div>

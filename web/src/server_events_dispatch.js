@@ -824,6 +824,9 @@ export function dispatch_normal_event(event) {
         case "task_board":
             task_board_ui.handle_task_board_event(event);
             break;
+        case "task_plan":
+            task_board_ui.handle_task_plan_event(event);
+            break;
         // The six Sanji event types. live_updates.ts passes each
         // event to every module that called live_updates.on() for
         // its type.

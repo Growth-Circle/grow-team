@@ -1,0 +1,72 @@
+{{! Today plan, above the list of My tasks: the cards the member chose for
+    today in their own order, then the ones that are overdue or due today
+    anyway. Yesterday's unfinished cards wait in a prompt until the member
+    adds them. }}
+<section class="task-board-plan" aria-labelledby="task-board-plan-heading">
+    <h2 class="task-board-list-heading" id="task-board-plan-heading">
+        <span>{{t "Today plan"}}</span>
+        <span class="task-board-column-count">{{plan_count}}</span>
+    </h2>
+    {{#if has_carry_over}}
+        <div class="task-board-plan-carry" role="group" aria-labelledby="task-board-plan-carry-heading">
+            <p class="task-board-plan-carry-heading" id="task-board-plan-carry-heading">{{t "Carry over from yesterday?"}}</p>
+            <p class="task-board-plan-carry-hint">{{t "These cards were in yesterday's plan and are not done."}}</p>
+            <ul class="task-board-plan-carry-rows">
+                {{#each carry_over}}
+                    <li class="task-board-plan-carry-row">
+                        <span class="task-board-plan-carry-title">{{this.title}}</span>
+                        <span class="task-board-card-id">{{this.display_id}}</span>
+                        <button type="button" class="task-board-plan-add action-button action-button-subtle-neutral action-button-small" data-task-id="{{this.id}}">
+                            <span class="action-button-label">{{t "Add to today"}}</span>
+                        </button>
+                    </li>
+                {{/each}}
+            </ul>
+            <div class="task-board-plan-carry-actions">
+                <button type="button" class="task-board-plan-carry-all action-button action-button-solid-brand action-button-small">
+                    <span class="action-button-label">{{t "Add all"}}</span>
+                </button>
+                <button type="button" class="task-board-plan-carry-dismiss action-button action-button-subtle-neutral action-button-small">
+                    <span class="action-button-label">{{t "Not now"}}</span>
+                </button>
+            </div>
+        </div>
+    {{/if}}
+    {{#if has_planned}}
+        <ol class="task-board-list-rows task-board-plan-rows task-board-plan-sortable" aria-label="{{t 'Planned for today'}}">
+            {{#each planned}}
+                <li class="task-board-list-item task-board-plan-item" data-task-id="{{this.id}}" draggable="true">
+                    {{> task_board_list_row . }}
+                    <span class="task-board-plan-actions">
+                        <button type="button" class="task-board-plan-move task-board-plan-move-up" data-direction="up" data-task-id="{{this.id}}" aria-label="{{t 'Move {title} up' title=this.title}}" title="{{t 'Move up'}}" {{#if this.is_first}}disabled{{/if}}>
+                            <i class="zulip-icon zulip-icon-chevron-down" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="task-board-plan-move task-board-plan-move-down" data-direction="down" data-task-id="{{this.id}}" aria-label="{{t 'Move {title} down' title=this.title}}" title="{{t 'Move down'}}" {{#if this.is_last}}disabled{{/if}}>
+                            <i class="zulip-icon zulip-icon-chevron-down" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="task-board-plan-remove" data-task-id="{{this.id}}" aria-label="{{t 'Remove {title} from today' title=this.title}}" title="{{t 'Remove from today'}}">
+                            <i class="zulip-icon zulip-icon-close" aria-hidden="true"></i>
+                        </button>
+                    </span>
+                </li>
+            {{/each}}
+        </ol>
+    {{/if}}
+    {{#if has_auto}}
+        <ul class="task-board-list-rows task-board-plan-rows task-board-plan-auto" aria-label="{{t 'Overdue and due today'}}">
+            {{#each auto}}
+                <li class="task-board-list-item">
+                    {{> task_board_list_row . }}
+                    <span class="task-board-plan-actions">
+                        <button type="button" class="task-board-plan-add action-button action-button-subtle-neutral action-button-small" data-task-id="{{this.id}}" aria-label="{{t 'Add {title} to today' title=this.title}}">
+                            <span class="action-button-label">{{t "Add to today"}}</span>
+                        </button>
+                    </span>
+                </li>
+            {{/each}}
+        </ul>
+    {{/if}}
+    {{#if is_empty_plan}}
+        <p class="task-board-plan-empty">{{t "Nothing planned for today. Use Add to today on a card to plan it."}}</p>
+    {{/if}}
+</section>

@@ -48,6 +48,14 @@ let card_unavailable = false;
 // the history are in place. Each of them draws the panel again, and a
 // panel drawn before that is too short to reach the notes.
 let scroll_to_notes_for_task_id: number | undefined;
+// The day the plan was last requested for. A new day asks again, and a
+// failed request is not repeated on every redraw.
+let plan_requested_for: string | undefined;
+// Where the keyboard focus goes after the plan redraws for a change that
+// the person made with the keyboard.
+let pending_plan_focus: {task_id: number; direction: "up" | "down" | undefined} | undefined;
+let carry_over_dismissed_for: string | undefined;
+let plan_dragged_task_id: number | undefined;
 const history_by_task_id = new Map<number, TaskHistoryEntry[]>();
 // Notes are fetched when a card is opened, then kept current from
 // `task_note` events.
@@ -276,19 +284,67 @@ function due_section_title(section: task_board_data.DueSection): string {
     }
 }
 
+function plan_date(now_ms: number): string {
+    return task_board_data.local_date(now_ms, timerender.display_time_zone);
+}
+
+function fetch_plan(): void {
+    const today = plan_date(Date.now());
+    plan_requested_for = today;
+    for (const date of [today, task_board_data.shift_date(today, -1)]) {
+        void channel.get({
+            url: "/json/tasks/plan",
+            data: {date},
+            success(raw_data) {
+                task_board_data.set_plan(
+                    date,
+                    task_board_data.task_plan_response_schema.parse(raw_data).plan,
+                );
+                complete_rerender();
+            },
+            error(xhr) {
+                ui_report.error(
+                    $t_html({defaultMessage: "Could not load your plan"}),
+                    xhr,
+                    $("#home-error"),
+                );
+            },
+        });
+    }
+}
+
+// The page can stay open past midnight, and then today has no plan yet.
+function ensure_plan_for(today: string): void {
+    if (plan_requested_for !== today) {
+        fetch_plan();
+    }
+}
+
 // The list is redrawn from the card data on every card event, so a
 // card whose deadline, owner or column changed lands in its new section.
 function render_my_tasks(): void {
+    const now_ms = Date.now();
+    const today = plan_date(now_ms);
+    ensure_plan_for(today);
     const open_tasks = task_board_data.open_tasks_assigned_to(people.my_current_user_id());
+    const today_plan = task_board_data.todays_plan(
+        people.my_current_user_id(),
+        now_ms,
+        timerender.display_time_zone,
+    );
+    const carry_over = carry_over_dismissed_for === today ? [] : today_plan.carry_over;
     const sections = task_board_data
-        .group_by_due(open_tasks, Date.now(), timerender.display_time_zone)
+        .group_by_due(open_tasks, now_ms, timerender.display_time_zone)
         .filter((group) => group.tasks.length > 0)
         .map((group) => ({
             section: group.section,
             title: due_section_title(group.section),
             is_overdue: group.section === "overdue",
             card_count: group.tasks.length,
-            cards: group.tasks.map((task) => card_context(task)),
+            cards: group.tasks.map((task) => ({
+                ...card_context(task),
+                is_planned_today: task_board_data.is_planned(task.id, today),
+            })),
         }));
     $("#task-board-pane").html(
         render_task_board_my_tasks({
@@ -297,6 +353,22 @@ function render_my_tasks(): void {
             is_empty: open_tasks.length === 0,
             sections,
             card_unavailable,
+            has_plan: task_board_data.has_plan_for(today),
+            plan_count: today_plan.planned.length + today_plan.auto.length,
+            planned: today_plan.planned.map((task, index) => ({
+                ...card_context(task),
+                is_first: index === 0,
+                is_last: index === today_plan.planned.length - 1,
+            })),
+            auto: today_plan.auto.map((task) => ({...card_context(task), is_auto: true})),
+            carry_over: carry_over.map((task) => card_context(task)),
+            has_carry_over: carry_over.length > 0,
+            has_planned: today_plan.planned.length > 0,
+            has_auto: today_plan.auto.length > 0,
+            is_empty_plan:
+                today_plan.planned.length === 0 &&
+                today_plan.auto.length === 0 &&
+                carry_over.length === 0,
         }),
     );
     if (open_task_id !== undefined) {
@@ -731,6 +803,8 @@ function render_card_detail(task_id: number): void {
                 timerender.display_time_zone,
             ),
             due_is_overdue: is_overdue(task),
+            plan_is_ready: task_board_data.has_plan_for(plan_date(Date.now())),
+            is_planned_today: task_board_data.is_planned(task.id, plan_date(Date.now())),
             agent_job_url: task.agent_job_id === null ? "" : "#agent-jobs",
             history: history.map((entry) => ({
                 time_label: time_label(entry.event_time),
@@ -1134,6 +1208,36 @@ function auto_scroll_while_dragging(column: HTMLElement, x: number, y: number): 
     });
 }
 
+// The slot among the planned cards other than the one being dragged.
+function plan_drop_slot($list: JQuery, pointer_y: number): number {
+    const boxes = $list
+        .children(".task-board-plan-item")
+        .not(".task-board-plan-item-dragging")
+        .toArray()
+        .map((item) => {
+            const rect = item.getBoundingClientRect();
+            return {top: rect.top, height: rect.height};
+        });
+    return task_board_drag.drop_slot(boxes, pointer_y);
+}
+
+function clear_plan_drop_feedback(): void {
+    $(".task-board-plan-item").removeClass(
+        "task-board-plan-item-dragging task-board-plan-drop-before task-board-plan-drop-after",
+    );
+}
+
+function show_plan_drop_target($list: JQuery, pointer_y: number): void {
+    const slot = plan_drop_slot($list, pointer_y);
+    const $others = $list.children(".task-board-plan-item").not(".task-board-plan-item-dragging");
+    $others.removeClass("task-board-plan-drop-before task-board-plan-drop-after");
+    if (slot < $others.length) {
+        $others.eq(slot).addClass("task-board-plan-drop-before");
+    } else {
+        $others.last().addClass("task-board-plan-drop-after");
+    }
+}
+
 function selected_id(selector: string): number | undefined {
     const value = $<HTMLSelectElement>(selector).val();
     return value ? Number(value) : undefined;
@@ -1352,6 +1456,7 @@ export function show(
     });
 
     fetch_board();
+    fetch_plan();
 }
 
 export function hide(): void {
@@ -1408,6 +1513,110 @@ export function handle_task_note_event(event: {
 export function handle_task_board_event(event: {board: unknown}): void {
     task_board_data.set_board_name(task_board_data.task_board_schema.parse(event.board));
     complete_rerender();
+}
+
+function add_to_plan(task_id: number): void {
+    void channel.post({
+        url: `/json/tasks/${task_id}/plan`,
+        data: {date: plan_date(Date.now())},
+        error: report_error,
+    });
+}
+
+// The cards go in one after another, so they keep the order of the prompt.
+function add_all_to_plan(task_ids: number[]): void {
+    const [first, ...rest] = task_ids;
+    if (first === undefined) {
+        return;
+    }
+    void channel.post({
+        url: `/json/tasks/${first}/plan`,
+        data: {date: plan_date(Date.now())},
+        success() {
+            add_all_to_plan(rest);
+        },
+        error: report_error,
+    });
+}
+
+function remove_from_plan(task_id: number): void {
+    void channel.del({
+        url: `/json/tasks/${task_id}/plan`,
+        data: {date: plan_date(Date.now())},
+        error: report_error,
+    });
+}
+
+function planned_task_ids(now_ms: number): number[] {
+    return task_board_data
+        .todays_plan(people.my_current_user_id(), now_ms, timerender.display_time_zone)
+        .planned.map((task) => task.id);
+}
+
+// `slot_of` turns the card's index in today's plan into the slot it moves
+// to, counted among the other planned cards.
+function move_planned_card(
+    task_id: number,
+    slot_of: (index: number) => number,
+    direction: "up" | "down" | undefined,
+): void {
+    const now_ms = Date.now();
+    const today = plan_date(now_ms);
+    const ids = planned_task_ids(now_ms);
+    const index = ids.indexOf(task_id);
+    const slot = slot_of(index);
+    if (index === -1 || slot < 0 || slot > ids.length - 1) {
+        return;
+    }
+    pending_plan_focus = {task_id, direction};
+    void channel.patch({
+        url: `/json/tasks/${task_id}/plan`,
+        data: {
+            date: today,
+            position: task_board_data.plan_position_for_slot(
+                today,
+                ids.filter((id) => id !== task_id),
+                slot,
+                task_id,
+            ),
+        },
+        error: report_error,
+    });
+}
+
+function restore_plan_focus(): void {
+    if (pending_plan_focus === undefined) {
+        return;
+    }
+    const {task_id, direction} = pending_plan_focus;
+    pending_plan_focus = undefined;
+    const $item = $(`.task-board-plan-item[data-task-id="${task_id}"]`);
+    const $button =
+        direction === undefined
+            ? $()
+            : $item.find(`.task-board-plan-move[data-direction="${direction}"]:enabled`);
+    ($button.length > 0 ? $button : $item.find(".task-board-list-row")).trigger("focus");
+}
+
+export function handle_task_plan_event(event: {
+    op: string;
+    task_id: number;
+    date: string;
+    position?: number;
+}): void {
+    switch (event.op) {
+        case "add":
+            task_board_data.add_plan_entry(task_board_data.task_plan_entry_schema.parse(event));
+            break;
+        case "reorder":
+            task_board_data.reorder_plan_entry(event.task_id, event.date, event.position ?? 0);
+            break;
+        default:
+            task_board_data.remove_plan_entry(event.task_id, event.date);
+            break;
+    }
+    complete_rerender();
+    restore_plan_focus();
 }
 
 function render_count($count: JQuery, count: number, text: string): void {
@@ -1480,6 +1689,113 @@ export function initialize(opts: {hide_other_views: () => void}): void {
             open_card_detail(Number($(this).attr("data-task-id")));
         },
     );
+
+    $view.on("click", ".task-board-plan-add", function (this: HTMLElement, event) {
+        event.preventDefault();
+        add_to_plan(Number($(this).attr("data-task-id")));
+    });
+
+    $view.on("click", ".task-board-plan-remove", function (this: HTMLElement, event) {
+        event.preventDefault();
+        remove_from_plan(Number($(this).attr("data-task-id")));
+    });
+
+    $view.on("click", ".task-board-plan-move", function (this: HTMLElement, event) {
+        event.preventDefault();
+        const direction = $(this).attr("data-direction") === "up" ? "up" : "down";
+        move_planned_card(
+            Number($(this).attr("data-task-id")),
+            (index) => (direction === "up" ? index - 1 : index + 1),
+            direction,
+        );
+    });
+
+    // Alt+Up and Alt+Down move the focused planned card, so the list can
+    // be put in order without the buttons or the mouse.
+    $view.on(
+        "keydown",
+        ".task-board-plan-item .task-board-list-row",
+        function (this: HTMLElement, event) {
+            if (!event.altKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) {
+                return;
+            }
+            event.preventDefault();
+            const up = event.key === "ArrowUp";
+            move_planned_card(
+                Number($(this).attr("data-task-id")),
+                (index) => (up ? index - 1 : index + 1),
+                undefined,
+            );
+        },
+    );
+
+    $view.on("click", ".task-board-plan-carry-all", (event) => {
+        event.preventDefault();
+        add_all_to_plan(
+            task_board_data
+                .todays_plan(people.my_current_user_id(), Date.now(), timerender.display_time_zone)
+                .carry_over.map((task) => task.id),
+        );
+    });
+
+    $view.on("click", ".task-board-plan-carry-dismiss", (event) => {
+        event.preventDefault();
+        carry_over_dismissed_for = plan_date(Date.now());
+        complete_rerender();
+    });
+
+    $view.on("click", ".task-board-detail-plan", (event) => {
+        event.preventDefault();
+        if (open_task_id === undefined) {
+            return;
+        }
+        if (task_board_data.is_planned(open_task_id, plan_date(Date.now()))) {
+            remove_from_plan(open_task_id);
+        } else {
+            add_to_plan(open_task_id);
+        }
+    });
+
+    $view.on("dragstart", ".task-board-plan-item", function (this: HTMLElement, event) {
+        const data_transfer = event.originalEvent?.dataTransfer;
+        if (data_transfer === null || data_transfer === undefined) {
+            return;
+        }
+        plan_dragged_task_id = Number($(this).attr("data-task-id"));
+        data_transfer.setData("text/plain", String(plan_dragged_task_id));
+        data_transfer.effectAllowed = "move";
+        $(this).addClass("task-board-plan-item-dragging");
+    });
+
+    $view.on("dragend", ".task-board-plan-item", () => {
+        plan_dragged_task_id = undefined;
+        clear_plan_drop_feedback();
+    });
+
+    $view.on("dragover", ".task-board-plan-sortable", function (this: HTMLElement, event) {
+        const original = event.originalEvent;
+        if (plan_dragged_task_id === undefined || original === undefined) {
+            return;
+        }
+        event.preventDefault();
+        if (original.dataTransfer !== null) {
+            original.dataTransfer.dropEffect = "move";
+        }
+        show_plan_drop_target($(this), original.clientY);
+    });
+
+    $view.on("drop", ".task-board-plan-sortable", function (this: HTMLElement, event) {
+        event.preventDefault();
+        const task_id = plan_dragged_task_id;
+        const original = event.originalEvent;
+        if (task_id === undefined || original === undefined) {
+            return;
+        }
+        const slot = plan_drop_slot($(this), original.clientY);
+        clear_plan_drop_feedback();
+        plan_dragged_task_id = undefined;
+        move_planned_card(task_id, () => slot, undefined);
+    });
 
     $view.on("click", ".task-board-detail-close", (event) => {
         event.preventDefault();

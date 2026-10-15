@@ -1,5 +1,5 @@
 {{! My tasks: the reader's open cards, grouped by deadline. The card
-    detail panel is shared with the board. }}
+detail panel is shared with the board. }}
 <div class="task-board-header">
     <div class="task-board-identity">
         <h1 class="task-board-name" tabindex="-1">{{t "My tasks"}}</h1>
@@ -10,6 +10,9 @@
         <p class="task-board-notice" role="status">{{t "This card isn't available."}}</p>
     {{/if}}
 </div>
+{{#if has_plan}}
+    {{> task_board_today_plan . }}
+{{/if}}
 {{#if is_empty}}
     <p class="task-board-empty task-board-list-empty">{{t "You have no open tasks. Cards assigned to you show up here."}}</p>
 {{else}}
@@ -22,32 +25,17 @@
                 </h2>
                 <ul class="task-board-list-rows">
                     {{#each this.cards}}
-                        <li>
-                            <div class="task-board-list-row" data-task-id="{{this.id}}" tabindex="0" role="button">
-                                <span class="task-board-list-row-main">
-                                    <span class="task-board-list-row-title">{{this.title}}</span>
-                                    {{#if this.origin_label}}
-                                        <span class="task-board-list-row-origin">{{this.origin_label}}</span>
-                                    {{/if}}
-                                </span>
-                                <span class="task-board-list-row-tags">
-                                    {{#if this.priority_name}}
-                                        <span class="task-board-chip task-board-chip-priority task-board-chip-priority-{{this.priority_name}}">{{this.priority_label}}</span>
-                                    {{/if}}
-                                    {{#if this.blocked}}
-                                        <span class="task-board-chip task-board-chip-blocked">{{t "Blocked"}}</span>
-                                    {{/if}}
-                                    {{#each this.labels}}
-                                        <span class="task-board-chip">{{this}}</span>
-                                    {{/each}}
-                                </span>
-                                <span class="task-board-list-row-meta">
-                                    {{#if this.due_label}}
-                                        <span class="task-board-list-row-due{{#if this.due_is_overdue}} task-board-card-detail-danger{{/if}}">{{this.due_label}}</span>
-                                    {{/if}}
-                                    <span class="task-board-card-id">{{this.display_id}}</span>
-                                </span>
-                            </div>
+                        <li class="task-board-list-item">
+                            {{> task_board_list_row . }}
+                            <span class="task-board-plan-actions">
+                                {{#if this.is_planned_today}}
+                                    <span class="task-board-plan-state">{{t "In today's plan"}}</span>
+                                {{else}}
+                                    <button type="button" class="task-board-plan-add action-button action-button-subtle-neutral action-button-small" data-task-id="{{this.id}}" aria-label="{{t 'Add {title} to today' title=this.title}}">
+                                        <span class="action-button-label">{{t "Add to today"}}</span>
+                                    </button>
+                                {{/if}}
+                            </span>
                         </li>
                     {{/each}}
                 </ul>
