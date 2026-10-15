@@ -1,3 +1,4 @@
+import {TZDate} from "@date-fns/tz";
 import * as z from "zod/mini";
 
 // The board is not part of the register payload; the view fetches it when it
@@ -191,17 +192,32 @@ export function parse_filter(value: string | undefined): TaskFilter {
     return FILTERS.ALL;
 }
 
+export type BoardView = "board" | "list";
+
 // The board opens on `#tasks[/<filter>]`, or on one card with
 // `#tasks/<task_id>`, the link the bot sends in a direct message.
+// `#tasks/mine/list` is the person's own open cards, listed by deadline.
 export function parse_hash_args(args: string[]): {
     filter: TaskFilter;
     task_id: number | undefined;
+    view: BoardView;
 } {
-    const [first] = args;
+    const [first, second] = args;
     if (first !== undefined && /^\d+$/.test(first)) {
-        return {filter: FILTERS.ALL, task_id: Number(first)};
+        return {filter: FILTERS.ALL, task_id: Number(first), view: "board"};
     }
-    return {filter: parse_filter(first), task_id: undefined};
+    const view = first === FILTERS.MINE && second === "list" ? "list" : "board";
+    return {filter: parse_filter(first), task_id: undefined, view};
+}
+
+let current_view: BoardView = "board";
+
+export function get_view(): BoardView {
+    return current_view;
+}
+
+export function set_view(view: BoardView): void {
+    current_view = view;
 }
 
 export function get_filter(): TaskFilter {
@@ -372,4 +388,104 @@ export function add_label(labels: string[], raw_label: string): LabelEdit {
 
 export function remove_label(labels: string[], label: string): string[] {
     return labels.filter((existing) => existing !== label);
+}
+
+export const DUE_SECTIONS = [
+    "overdue",
+    "today",
+    "tomorrow",
+    "next_7_days",
+    "later",
+    "no_due_date",
+] as const;
+
+export type DueSection = (typeof DUE_SECTIONS)[number];
+
+export type DueGroup = {section: DueSection; tasks: Task[]};
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// The calendar day that a moment falls on in `time_zone`, as a count of
+// days. Two moments are on the same day exactly when the counts match, and
+// the difference is the number of calendar days between them, whatever
+// the offset or a daylight saving change in between.
+function day_number(timestamp_ms: number, time_zone: string): number {
+    const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: time_zone,
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+    }).formatToParts(timestamp_ms);
+    const part = (type: string): number =>
+        Number(parts.find((candidate) => candidate.type === type)?.value);
+    return Date.UTC(part("year"), part("month") - 1, part("day")) / MS_PER_DAY;
+}
+
+export function due_section(due_at: number | null, now_ms: number, time_zone: string): DueSection {
+    if (due_at === null) {
+        return "no_due_date";
+    }
+    const days_away = day_number(due_at * 1000, time_zone) - day_number(now_ms, time_zone);
+    if (days_away < 0) {
+        return "overdue";
+    }
+    if (days_away === 0) {
+        return "today";
+    }
+    if (days_away === 1) {
+        return "tomorrow";
+    }
+    return days_away <= 7 ? "next_7_days" : "later";
+}
+
+// Buckets cards by how soon they are due, in the reader's time zone. Every
+// section is returned, empty ones included, in the order they are shown.
+// Inside a section the earliest deadline comes first, then the higher
+// priority.
+export function group_by_due(tasks: Task[], now_ms: number, time_zone: string): DueGroup[] {
+    const groups = new Map<DueSection, Task[]>(DUE_SECTIONS.map((section) => [section, []]));
+    for (const task of tasks) {
+        groups.get(due_section(task.due_at, now_ms, time_zone))!.push(task);
+    }
+    return DUE_SECTIONS.map((section) => ({
+        section,
+        tasks: groups
+            .get(section)!
+            .toSorted(
+                (a, b) =>
+                    (a.due_at ?? 0) - (b.due_at ?? 0) ||
+                    b.priority - a.priority ||
+                    a.position - b.position ||
+                    a.id - b.id,
+            ),
+    }));
+}
+
+// A card is open until it reaches a done column.
+export function open_tasks_assigned_to(user_id: number): Task[] {
+    return [...tasks.values()].filter(
+        (task) => task.assignee_id === user_id && task.completed_at === null,
+    );
+}
+
+// A card is due at the end of the chosen day, so it counts as due
+// today until that day is over.
+export function end_of_day_timestamp(date: string, time_zone: string): number {
+    const [year, month, day] = date.split("-").map(Number);
+    const end_of_day = new TZDate(year!, month! - 1, day!, 23, 59, 59, 0, time_zone);
+    return Math.floor(end_of_day.getTime() / 1000);
+}
+
+// The value for a date input: the day the deadline falls on, or "".
+export function due_date_input_value(due_at: number | null, time_zone: string): string {
+    if (due_at === null) {
+        return "";
+    }
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: time_zone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(due_at * 1000);
+    return parts;
 }

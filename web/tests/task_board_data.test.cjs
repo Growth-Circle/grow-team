@@ -244,25 +244,44 @@ run_test("clearing drops everything", () => {
     assert.equal(task_board_data.total_task_count(), 0);
 });
 
-run_test("the board hash names a filter or one card", () => {
-    assert.deepEqual(task_board_data.parse_hash_args([]), {filter: "all", task_id: undefined});
+run_test("the board hash names a filter, one card, or the personal list", () => {
+    assert.deepEqual(task_board_data.parse_hash_args([]), {
+        filter: "all",
+        task_id: undefined,
+        view: "board",
+    });
     assert.deepEqual(task_board_data.parse_hash_args(["mine"]), {
         filter: "mine",
         task_id: undefined,
+        view: "board",
     });
     assert.deepEqual(task_board_data.parse_hash_args(["review"]), {
         filter: "review",
         task_id: undefined,
+        view: "board",
     });
-    assert.deepEqual(task_board_data.parse_hash_args(["42"]), {filter: "all", task_id: 42});
+    assert.deepEqual(task_board_data.parse_hash_args(["mine", "list"]), {
+        filter: "mine",
+        task_id: undefined,
+        view: "list",
+    });
+    // The list belongs to My tasks; other filters stay on the board.
+    assert.equal(task_board_data.parse_hash_args(["review", "list"]).view, "board");
+    assert.deepEqual(task_board_data.parse_hash_args(["42"]), {
+        filter: "all",
+        task_id: 42,
+        view: "board",
+    });
     // Anything else is not a card, so the board opens as it always did.
     assert.deepEqual(task_board_data.parse_hash_args(["42abc"]), {
         filter: "all",
         task_id: undefined,
+        view: "board",
     });
     assert.deepEqual(task_board_data.parse_hash_args(["-1"]), {
         filter: "all",
         task_id: undefined,
+        view: "board",
     });
 });
 
@@ -313,4 +332,154 @@ run_test("a label past the limits is refused with the reason", () => {
 run_test("removing a label keeps the others in order", () => {
     assert.deepEqual(task_board_data.remove_label(["a", "b", "c"], "b"), ["a", "c"]);
     assert.deepEqual(task_board_data.remove_label(["a"], "z"), ["a"]);
+});
+
+const JAKARTA = "Asia/Jakarta";
+const LOS_ANGELES = "America/Los_Angeles";
+
+function seconds(iso) {
+    return Date.parse(iso) / 1000;
+}
+
+function sections_of(tasks, now_iso, time_zone) {
+    const result = {};
+    for (const group of task_board_data.group_by_due(tasks, Date.parse(now_iso), time_zone)) {
+        result[group.section] = group.tasks.map((task) => task.id);
+    }
+    return result;
+}
+
+run_test("cards are grouped by how soon they are due", () => {
+    // Friday 16 Oct 2026, 10:00 in Jakarta.
+    const now = "2026-10-16T03:00:00Z";
+    // The end of that day in Jakarta.
+    const day = (date) => seconds(`${date}T16:59:59Z`);
+    const tasks = [
+        make_task({id: 1, due_at: day("2026-10-14")}),
+        make_task({id: 2, due_at: day("2026-10-16")}),
+        make_task({id: 3, due_at: day("2026-10-17")}),
+        make_task({id: 4, due_at: day("2026-10-18")}),
+        make_task({id: 5, due_at: day("2026-10-23")}),
+        make_task({id: 6, due_at: day("2026-10-24")}),
+        make_task({id: 7, due_at: null}),
+    ];
+    assert.deepEqual(sections_of(tasks, now, JAKARTA), {
+        overdue: [1],
+        today: [2],
+        tomorrow: [3],
+        next_7_days: [4, 5],
+        later: [6],
+        no_due_date: [7],
+    });
+    assert.deepEqual(
+        task_board_data.group_by_due(tasks, Date.parse(now), JAKARTA).map((group) => group.section),
+        ["overdue", "today", "tomorrow", "next_7_days", "later", "no_due_date"],
+    );
+});
+
+run_test("the day boundary follows the reader's time zone", () => {
+    // 00:30 on Saturday 17 Oct in Jakarta is still Friday 16 Oct in UTC
+    // and Los Angeles.
+    const now = "2026-10-16T17:30:00Z";
+    const due_end_of_friday_jakarta = seconds("2026-10-16T16:59:59Z");
+    const tasks = [make_task({id: 1, due_at: due_end_of_friday_jakarta})];
+
+    assert.equal(sections_of(tasks, now, JAKARTA).overdue.length, 1);
+    assert.equal(sections_of(tasks, now, "UTC").today.length, 1);
+    assert.equal(sections_of(tasks, now, LOS_ANGELES).today.length, 1);
+
+    // One second before and after midnight in Jakarta.
+    const just_before = "2026-10-16T16:59:59Z";
+    const just_after = "2026-10-16T17:00:00Z";
+    const due_saturday = [make_task({id: 2, due_at: seconds("2026-10-17T16:59:59Z")})];
+    assert.equal(sections_of(due_saturday, just_before, JAKARTA).tomorrow.length, 1);
+    assert.equal(sections_of(due_saturday, just_after, JAKARTA).today.length, 1);
+});
+
+run_test("grouping counts calendar days across a daylight saving change", () => {
+    // Los Angeles ends daylight saving on 1 Nov 2026, so that day has
+    // 25 hours. Saturday 31 Oct 22:00 PDT is Sunday 1 Nov 05:00 UTC.
+    const now = "2026-11-01T05:00:00Z";
+    const due = (date) => task_board_data.end_of_day_timestamp(date, LOS_ANGELES);
+    const tasks = [
+        make_task({id: 1, due_at: due("2026-10-31")}),
+        make_task({id: 2, due_at: due("2026-11-01")}),
+        make_task({id: 3, due_at: due("2026-11-02")}),
+        make_task({id: 4, due_at: due("2026-11-07")}),
+        make_task({id: 5, due_at: due("2026-11-08")}),
+    ];
+    assert.deepEqual(sections_of(tasks, now, LOS_ANGELES), {
+        overdue: [],
+        today: [1],
+        tomorrow: [2],
+        next_7_days: [3, 4],
+        later: [5],
+        no_due_date: [],
+    });
+});
+
+run_test("inside a section the earliest deadline comes first, then the higher priority", () => {
+    const now = "2026-10-16T03:00:00Z";
+    const tasks = [
+        make_task({id: 1, due_at: seconds("2026-10-20T16:59:59Z"), priority: 3}),
+        make_task({id: 2, due_at: seconds("2026-10-19T16:59:59Z"), priority: 0}),
+        make_task({id: 3, due_at: seconds("2026-10-19T16:59:59Z"), priority: 2}),
+        make_task({id: 4, due_at: null, priority: 1, position: 2000}),
+        make_task({id: 5, due_at: null, priority: 3, position: 3000}),
+        make_task({id: 6, due_at: null, priority: 1, position: 1000}),
+    ];
+    const sections = sections_of(tasks, now, JAKARTA);
+    assert.deepEqual(sections.next_7_days, [3, 2, 1]);
+    assert.deepEqual(sections.no_due_date, [5, 6, 4]);
+});
+
+run_test("a due date is stored as the end of the chosen day and read back as that day", () => {
+    assert.equal(
+        task_board_data.end_of_day_timestamp("2026-10-17", JAKARTA),
+        seconds("2026-10-17T16:59:59Z"),
+    );
+    assert.equal(
+        task_board_data.end_of_day_timestamp("2026-10-17", LOS_ANGELES),
+        seconds("2026-10-18T06:59:59Z"),
+    );
+    for (const time_zone of [JAKARTA, LOS_ANGELES, "UTC"]) {
+        for (const date of ["2026-01-01", "2026-03-08", "2026-10-17", "2026-11-01", "2026-12-31"]) {
+            const due_at = task_board_data.end_of_day_timestamp(date, time_zone);
+            assert.equal(task_board_data.due_date_input_value(due_at, time_zone), date);
+        }
+    }
+    assert.equal(task_board_data.due_date_input_value(null, JAKARTA), "");
+});
+
+run_test("the personal list holds only the reader's open cards", () => {
+    load([
+        make_task({id: 1, assignee_id: 5}),
+        make_task({id: 2, assignee_id: 6}),
+        make_task({id: 3, assignee_id: null}),
+        make_task({id: 4, assignee_id: 5, column_id: 12, completed_at: 200}),
+        make_task({id: 5, assignee_id: 5, column_id: 11}),
+    ]);
+    assert.deepEqual(
+        task_board_data
+            .open_tasks_assigned_to(5)
+            .map((task) => task.id)
+            .toSorted(),
+        [1, 5],
+    );
+    assert.deepEqual(task_board_data.open_tasks_assigned_to(9), []);
+
+    // A card handed to someone else, or finished, leaves the list.
+    task_board_data.add_or_update_task(make_task({id: 1, assignee_id: 6}));
+    task_board_data.add_or_update_task(
+        make_task({id: 5, assignee_id: 5, column_id: 12, completed_at: 300}),
+    );
+    assert.deepEqual(task_board_data.open_tasks_assigned_to(5), []);
+});
+
+run_test("the board remembers whether it shows the board or the personal list", () => {
+    assert.equal(task_board_data.get_view(), "board");
+    task_board_data.set_view("list");
+    assert.equal(task_board_data.get_view(), "list");
+    task_board_data.set_view("board");
+    assert.equal(task_board_data.get_view(), "board");
 });
