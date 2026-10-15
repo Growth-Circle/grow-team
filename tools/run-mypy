@@ -15,6 +15,7 @@ from tools.lib.test_script import add_provision_check_override_param, assert_pro
 
 exclude = [
     "stubs/",
+    "deploy/grow-team/",
 ]
 
 parser = argparse.ArgumentParser(description="Run mypy on files tracked by git.")
