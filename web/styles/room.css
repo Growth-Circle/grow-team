@@ -50,6 +50,19 @@
     }
 }
 
+/* A channel with no topics has no topic column to make room for. */
+.column-middle-inner.sj-room-active.sj-room-flat {
+    grid-template:
+        "header" auto
+        "banner" auto
+        "feed" 1fr
+        / minmax(0, 1fr);
+
+    &::before {
+        display: none;
+    }
+}
+
 #room-header {
     grid-area: header;
     /* Clear the top bar on a narrow window. It is zero on a wide one. */

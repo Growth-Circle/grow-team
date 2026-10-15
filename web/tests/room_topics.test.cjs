@@ -27,6 +27,11 @@ mock_esm("../src/hash_util", {
     by_stream_topic_url: (stream_id, topic) => `#narrow/channel/${stream_id}/topic/${topic}`,
 });
 
+const flat_stream_ids = new Set([40]);
+mock_esm("../src/stream_data", {
+    is_empty_topic_only_channel: (stream_id) => flat_stream_ids.has(stream_id),
+});
+
 mock_esm("../src/util", {
     get_final_topic_display_name: (name) => (name === "" ? "general chat" : name),
 });
@@ -141,4 +146,40 @@ run_test("a list that arrives after the user left the room is not drawn", async 
     room_topics_column.hide();
     await flush();
     assert.equal($("#room-topics-column").html(), "");
+});
+
+run_test("a channel with no topics shows no topic column and never redirects", async () => {
+    replaced_with = undefined;
+    requested_urls = [];
+    next_response = topics_response();
+    $("#room-topics-column").html("stale topics");
+    room_topics_column.show(40, undefined, true);
+    await flush();
+
+    assert.equal(replaced_with, undefined);
+    assert.deepEqual(requested_urls, [], "there is no topic list to fetch");
+    assert.equal($("#room-topics-column").html(), "");
+    assert.ok($("#room-topics-column").visible() === false);
+    assert.ok($(".column-middle-inner").hasClass("sj-room-flat"));
+    assert.equal(room_topics_column.is_flat_conversation(40), true);
+    assert.equal(room_topics_column.is_flat_conversation(2), false);
+});
+
+run_test("moving from a flat channel to a topic channel brings the column back", async () => {
+    replaced_with = undefined;
+    next_response = topics_response();
+    room_topics_column.show(40, undefined, true);
+    room_topics_column.show(8, "alpha", false);
+    await flush();
+
+    assert.ok(!$(".column-middle-inner").hasClass("sj-room-flat"));
+    assert.ok($("#room-topics-column").visible());
+    assert.ok($("#room-topics-column").html().includes("alpha"));
+});
+
+run_test("leaving the room clears the flat layout", () => {
+    room_topics_column.show(40, undefined, true);
+    assert.ok($(".column-middle-inner").hasClass("sj-room-flat"));
+    room_topics_column.hide();
+    assert.ok(!$(".column-middle-inner").hasClass("sj-room-flat"));
 });

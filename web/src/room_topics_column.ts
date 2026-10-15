@@ -15,6 +15,7 @@ import * as browser_history from "./browser_history.ts";
 import * as channel from "./channel.ts";
 import * as hash_util from "./hash_util.ts";
 import {$t} from "./i18n.ts";
+import * as stream_data from "./stream_data.ts";
 import * as util from "./util.ts";
 
 const topics_schema = z.object({
@@ -59,12 +60,25 @@ function open_top_topic(stream_id: number, topics: Topic[]): void {
     );
 }
 
+// A channel that allows only the empty topic is one flat conversation:
+// there are no topics to list or to choose between, so the room shows
+// the conversation alone.
+export function is_flat_conversation(stream_id: number): boolean {
+    return stream_data.is_empty_topic_only_channel(stream_id);
+}
+
 // `open_top` is true when the narrow is the bare room: no topic and no
 // other term, such as a message id to jump to.
 export function show(stream_id: number, topic: string | undefined, open_top: boolean): void {
     current_stream_id = stream_id;
     current_topic = topic;
     const $column = $("#room-topics-column");
+    const is_flat = is_flat_conversation(stream_id);
+    $(".column-middle-inner").toggleClass("sj-room-flat", is_flat);
+    if (is_flat) {
+        $column.empty().hide();
+        return;
+    }
     $column
         .attr("role", "navigation")
         .attr("aria-label", $t({defaultMessage: "Topics"}))
@@ -109,5 +123,6 @@ export function show(stream_id: number, topic: string | undefined, open_top: boo
 export function hide(): void {
     current_stream_id = undefined;
     current_topic = undefined;
+    $(".column-middle-inner").removeClass("sj-room-flat");
     $("#room-topics-column").empty();
 }

@@ -112,6 +112,7 @@ export type MessageGroup = {
           topic: string;
           topic_display_name: string;
           is_empty_string_topic: boolean;
+          is_flat_conversation: boolean;
           topic_is_resolved: boolean;
           topic_links: TopicLink[] | undefined;
           topic_url: string | undefined;
@@ -414,6 +415,8 @@ export function populate_group_from_message(
         const topic = message.topic;
         const topic_display_name = util.get_final_topic_display_name(topic);
         const is_empty_string_topic = topic === "";
+        // A channel with no topics has no topic to show in the bar.
+        const is_flat_conversation = stream_data.is_empty_topic_only_channel(message.stream_id);
         const match_topic_html = util.get_match_topic(message);
         const stream_url = hash_util.channel_url_by_user_setting(message.stream_id);
         const is_archived = stream_data.is_stream_archived_by_id(message.stream_id);
@@ -460,6 +463,7 @@ export function populate_group_from_message(
             topic,
             topic_display_name,
             is_empty_string_topic,
+            is_flat_conversation,
             recipient_bar_color,
             stream_privacy_icon_color,
             invite_only,
