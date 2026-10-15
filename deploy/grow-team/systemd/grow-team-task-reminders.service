@@ -1,0 +1,16 @@
+[Unit]
+Description=Send Grow Team members their morning reminder of due cards
+Requisite=grow-team.service
+After=grow-team.service
+ConditionPathExists=/run/grow-team-docker/docker.sock
+
+[Service]
+Type=oneshot
+Slice=grow-team.slice
+Nice=15
+CPUWeight=10
+IOSchedulingClass=idle
+UMask=0077
+ExecStart=/opt/grow-team/deploy/send-task-reminders.sh
+SuccessExitStatus=75
+TimeoutStartSec=150

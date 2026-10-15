@@ -263,6 +263,33 @@ Tanpa `/data/agent-artifacts`, server menolak hasil job dan job berakhir `interr
 Pasang `reconcile-agents.sh` di `/opt/grow-team/deploy` dan kedua unit dari `systemd/` di `/etc/systemd/system`.
 Tanpa timer ini, job selesai tetapi jawabannya tertahan pada status `verifying`.
 
+### Pengingat tugas pagi
+
+`grow-team-task-reminders.timer` berjalan tiap 15 menit dan menjalankan `send_task_reminders`.
+Begitu jam workspace mencapai 07:00, setiap anggota yang punya card terbuka terlambat atau jatuh tempo hari ini menerima satu DM dari Notification Bot.
+Penanda per anggota per tanggal disimpan di tabel `TaskReminderLog`, jadi run berikutnya pada hari yang sama tidak mengirim lagi.
+Skrip memakai `flock` dan `timeout` di dalam container seperti rekonsiliasi; kegagalannya tidak memengaruhi aplikasi.
+
+Pasang setelah rilis dengan migrasi `0841` berjalan:
+
+```bash
+sudo install -m 0755 deploy/grow-team/send-task-reminders.sh /opt/grow-team/deploy/
+sudo install -m 0644 deploy/grow-team/systemd/grow-team-task-reminders.service   deploy/grow-team/systemd/grow-team-task-reminders.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+# Lihat dulu siapa yang akan menerima apa; perintah ini tidak mengirim apa pun.
+sudo /opt/grow-team/deploy/compose.sh exec -T --user zulip zulip   /home/zulip/deployments/current/manage.py send_task_reminders --dry-run
+sudo systemctl enable --now grow-team-task-reminders.timer
+systemctl list-timers grow-team-task-reminders.timer
+```
+
+Rollback: matikan timer dan hapus berkasnya. Tabel `TaskReminderLog` boleh tetap ada.
+
+```bash
+sudo systemctl disable --now grow-team-task-reminders.timer
+sudo rm /etc/systemd/system/grow-team-task-reminders.service   /etc/systemd/system/grow-team-task-reminders.timer   /opt/grow-team/deploy/send-task-reminders.sh
+sudo systemctl daemon-reload
+```
+
 ## Email Cloudflare
 
 Worker: `grow-team-email`, akun Prazze.
