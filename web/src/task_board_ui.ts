@@ -64,6 +64,7 @@ let assignee_picker: dropdown_widget.DropdownWidget | undefined;
 let assignee_picker_instance: tippy.Instance | undefined;
 
 const PRIORITY_SELECT_ID = "task-board-priority";
+const DUE_INPUT_ID = "task-board-due-input";
 const LABEL_INPUT_ID = "task-board-label-input";
 let label_error: {task_id: number; message: string} | undefined;
 
@@ -482,6 +483,23 @@ function change_labels(task_id: number, labels: string[]): void {
     update_card_fields(task_id, {labels}, {labels: JSON.stringify(labels)});
 }
 
+function change_due_date(task_id: number, date: string): void {
+    const task = task_board_data.get_task(task_id);
+    if (task === undefined) {
+        return;
+    }
+    if (date === "") {
+        if (task.due_at !== null) {
+            update_card_fields(task_id, {due_at: null}, {clear_due_at: true});
+        }
+        return;
+    }
+    const due_at = task_board_data.end_of_day_timestamp(date, timerender.display_time_zone);
+    if (due_at !== task.due_at) {
+        update_card_fields(task_id, {due_at}, {due_at});
+    }
+}
+
 function add_label_from_input(task_id: number): void {
     const task = task_board_data.get_task(task_id);
     if (task === undefined) {
@@ -640,7 +658,9 @@ function render_card_detail(task_id: number): void {
     // keyboard focus where the reader left it.
     const focused_id = document.activeElement?.id;
     const keep_focus_on_assignee_button = focused_id === ASSIGNEE_BUTTON_ID;
-    const planning_focus_id = [PRIORITY_SELECT_ID, LABEL_INPUT_ID].find((id) => id === focused_id);
+    const planning_focus_id = [PRIORITY_SELECT_ID, LABEL_INPUT_ID, DUE_INPUT_ID].find(
+        (id) => id === focused_id,
+    );
     const label_draft = $<HTMLInputElement>(`#${LABEL_INPUT_ID}`).val() ?? "";
     const status_focus_id = [STATUS_COLUMN_ID, STATUS_POSITION_ID, STATUS_SAVE_ID].find(
         (id) => id === focused_id,
@@ -704,6 +724,10 @@ function render_card_detail(task_id: number): void {
             labels: task.labels,
             label_error: label_error?.task_id === task_id ? label_error.message : "",
             due_label: due_label(task),
+            due_input_value: task_board_data.due_date_input_value(
+                task.due_at,
+                timerender.display_time_zone,
+            ),
             due_is_overdue: is_overdue(task),
             agent_job_url: task.agent_job_id === null ? "" : "#agent-jobs",
             history: history.map((entry) => ({
@@ -1155,7 +1179,10 @@ function launch_new_card_dialog(column_id: number): void {
             if (due !== "") {
                 // A card is due at the end of the chosen day in the
                 // reader's own time zone.
-                data["due_at"] = Math.floor(new Date(`${due}T23:59:59`).getTime() / 1000);
+                data["due_at"] = task_board_data.end_of_day_timestamp(
+                    due,
+                    timerender.display_time_zone,
+                );
             }
             void channel.post({
                 url: "/json/tasks",
@@ -1545,6 +1572,19 @@ export function initialize(opts: {hide_other_views: () => void}): void {
     $view.on("change", `#${PRIORITY_SELECT_ID}`, () => {
         if (open_task_id !== undefined) {
             change_priority(open_task_id, Number($(`#${PRIORITY_SELECT_ID}`).val()));
+        }
+    });
+
+    $view.on("change", `#${DUE_INPUT_ID}`, () => {
+        if (open_task_id !== undefined) {
+            change_due_date(open_task_id, $<HTMLInputElement>(`#${DUE_INPUT_ID}`).val() ?? "");
+        }
+    });
+
+    $view.on("click", ".task-board-due-clear", (event) => {
+        event.preventDefault();
+        if (open_task_id !== undefined) {
+            change_due_date(open_task_id, "");
         }
     });
 

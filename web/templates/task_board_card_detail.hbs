@@ -127,9 +127,20 @@
         <p class="task-board-label-error" role="alert">{{label_error}}</p>
     {{/if}}
 
-    {{#if due_label}}
-        <h3>{{t "Deadline"}}</h3>
+    <h3>{{t "Deadline"}}</h3>
+    {{#if can_edit}}
+        <div class="task-board-due-controls">
+            <input type="date" id="task-board-due-input" class="task-board-status-select task-board-due-input" value="{{due_input_value}}" aria-label="{{t 'Deadline'}}" />
+            {{#if due_label}}
+                <button type="button" class="task-board-due-clear action-button action-button-subtle-neutral action-button-small">
+                    <span class="action-button-label">{{t "Clear"}}</span>
+                </button>
+            {{/if}}
+        </div>
+    {{else if due_label}}
         <p class="task-board-detail-due{{#if due_is_overdue}} task-board-card-detail-danger{{/if}}">{{due_label}}</p>
+    {{else}}
+        <p class="task-board-detail-due">{{t "No deadline"}}</p>
     {{/if}}
 </section>
 

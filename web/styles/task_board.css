@@ -999,6 +999,18 @@
     color: var(--sj-text);
 }
 
+.task-board-due-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+}
+
+.task-board-due-input {
+    width: auto;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
 .task-board-list {
     display: flex;
     flex-direction: column;
