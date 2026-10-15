@@ -1623,3 +1623,185 @@ input.invalid-input {
     background: var(--sj-kaki);
     color: var(--sj-on-accent);
 }
+
+/* The chat drawer (chat_drawer.ts). It adds a message box to the
+   footer of the drawer, and it keeps the drawer body for the messages. */
+.sj-chat-drawer {
+    .sj-drawer__label {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .sj-drawer__footer {
+        flex-flow: column nowrap;
+        align-items: stretch;
+    }
+}
+
+.sj-chat {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.75em; /* 12px at 16px/1em */
+}
+
+.sj-chat__full-view {
+    align-self: flex-start;
+    font-size: 0.8125em; /* 13px at 16px/1em */
+    color: var(--sj-text-muted);
+    text-decoration: underline;
+}
+
+.sj-chat__log {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.sj-chat__status {
+    margin: 0;
+    font-size: 0.875em; /* 14px at 16px/1em */
+    color: var(--sj-text-muted);
+}
+
+.sj-chat__groups {
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sj-chat__group {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625em; /* 10px at 16px/1em */
+}
+
+.sj-chat__avatar {
+    flex: none;
+    width: 2em;
+    height: 2em;
+    border-radius: var(--sj-radius-circle);
+    object-fit: cover;
+}
+
+.sj-chat__avatar--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--sj-surface-muted);
+    color: var(--sj-text-muted);
+    font-size: 0.75em; /* 12px at 16px/1em */
+}
+
+.sj-chat__group-main {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.25em;
+    min-width: 0;
+}
+
+.sj-chat__group-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5em;
+}
+
+.sj-chat__sender {
+    font-size: 0.875em; /* 14px at 16px/1em */
+    font-weight: 700;
+    color: var(--sj-text);
+}
+
+.sj-chat__time {
+    font-size: 0.75em; /* 12px at 16px/1em */
+    color: var(--sj-text-muted);
+}
+
+.sj-chat__message {
+    min-width: 0;
+    font-size: 0.875em; /* 14px at 16px/1em */
+    line-height: 1.45;
+    color: var(--sj-text);
+    overflow-wrap: anywhere;
+
+    > :first-child {
+        margin-top: 0;
+    }
+
+    > :last-child {
+        margin-bottom: 0;
+    }
+
+    img,
+    video {
+        max-width: 100%;
+        height: auto;
+    }
+
+    pre {
+        overflow-x: auto;
+    }
+}
+
+.sj-chat__composer {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 0.5em; /* 8px at 16px/1em */
+    width: 100%;
+}
+
+.sj-chat__input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 2.75em;
+    max-height: 10em;
+    padding: 0.5em 0.625em; /* 8px 10px at 16px/1em */
+    border: var(--sj-border);
+    border-radius: 0.5em;
+    background: var(--sj-bg);
+    color: var(--sj-text);
+    font: inherit;
+    font-size: 0.875em; /* 14px at 16px/1em */
+    field-sizing: content;
+    resize: none;
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+}
+
+.sj-chat__send:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    filter: none;
+}
+
+.sj-chat__reason,
+.sj-chat__error {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 0.8125em; /* 13px at 16px/1em */
+}
+
+.sj-chat__reason {
+    color: var(--sj-text-muted);
+}
+
+.sj-chat__error {
+    display: none;
+    color: var(--sj-text-bahaya);
+
+    &.show {
+        display: block;
+    }
+}

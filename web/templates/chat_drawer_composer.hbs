@@ -1,0 +1,9 @@
+{{! The message box in the footer of the chat drawer. }}
+<form class="sj-chat__composer">
+    <textarea class="sj-chat__input" rows="2" aria-label="{{t 'Message'}}" placeholder="{{placeholder}}" {{#if disabled_reason}}disabled aria-describedby="sj-chat-reason"{{/if}}></textarea>
+    <button type="submit" class="sj-drawer__action sj-drawer__action--primary sj-chat__send" disabled>{{t "Send"}}</button>
+    {{#if disabled_reason}}
+        <p id="sj-chat-reason" class="sj-chat__reason">{{disabled_reason}}</p>
+    {{/if}}
+    <p class="sj-chat__error" role="alert"></p>
+</form>

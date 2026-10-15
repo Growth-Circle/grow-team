@@ -1,0 +1,28 @@
+{{#if error}}
+    <p class="sj-chat__status" role="alert">{{error}}</p>
+{{else if loading}}
+    <p class="sj-chat__status">{{t "Loading…"}}</p>
+{{else if has_groups}}
+    <ol class="sj-chat__groups">
+        {{#each groups}}
+            <li class="sj-chat__group">
+                {{#if this.avatar_url}}
+                    <img class="sj-chat__avatar" src="{{this.avatar_url}}" alt="" />
+                {{else}}
+                    <span class="sj-chat__avatar sj-chat__avatar--empty" aria-hidden="true">?</span>
+                {{/if}}
+                <div class="sj-chat__group-main">
+                    <div class="sj-chat__group-header">
+                        <span class="sj-chat__sender">{{this.sender_name}}</span>
+                        <span class="sj-chat__time">{{this.time_label}}</span>
+                    </div>
+                    {{#each this.messages}}
+                        <div class="sj-chat__message rendered_markdown" data-message-id="{{this.id}}" title="{{this.time_title}}">{{{this.content}}}</div>
+                    {{/each}}
+                </div>
+            </li>
+        {{/each}}
+    </ol>
+{{else}}
+    <p class="sj-chat__status">{{t "No messages yet."}}</p>
+{{/if}}

@@ -12,6 +12,7 @@ import render_task_board_rename_form from "../templates/task_board_rename_form.h
 
 import type {Typeahead} from "./bootstrap_typeahead.ts";
 import * as channel from "./channel.ts";
+import * as chat_drawer from "./chat_drawer.ts";
 import * as compose_closed_ui from "./compose_closed_ui.ts";
 import * as composebox_typeahead from "./composebox_typeahead.ts";
 import * as confirm_dialog from "./confirm_dialog.ts";
@@ -695,6 +696,7 @@ function render_card_detail(task_id: number): void {
                 task.stream_id === null
                     ? ""
                     : hash_util.by_stream_topic_url(task.stream_id, task.topic),
+            has_channel: task.stream_id !== null,
             created_label: $t(
                 {defaultMessage: "Created {date}"},
                 {date: day_label(task.date_created)},
@@ -856,6 +858,21 @@ function open_linked_card(): void {
     }
     scroll_to_notes_for_task_id = task_id;
     open_card_detail(task_id);
+}
+
+// A card from a channel opens that conversation in the chat drawer. A
+// card without a channel has none, so its notes are the place to talk.
+function open_card_conversation(task_id: number): void {
+    const task = task_board_data.get_task(task_id);
+    if (task === undefined) {
+        return;
+    }
+    if (task.stream_id === null) {
+        document.querySelector("#task-board-notes")?.scrollIntoView({block: "start"});
+        $(`#${NOTE_INPUT_ID}`).trigger("focus");
+        return;
+    }
+    chat_drawer.open({stream_id: task.stream_id, topic: task.topic});
 }
 
 function close_card_detail(): void {
@@ -1467,6 +1484,14 @@ export function initialize(opts: {hide_other_views: () => void}): void {
     $view.on("click", ".task-board-detail-close", (event) => {
         event.preventDefault();
         close_card_detail();
+    });
+
+    $view.on("click", ".task-board-detail-chat", (event) => {
+        event.preventDefault();
+        if (open_task_id === undefined) {
+            return;
+        }
+        open_card_conversation(open_task_id);
     });
 
     $view.on("click", ".task-board-rename", (event) => {

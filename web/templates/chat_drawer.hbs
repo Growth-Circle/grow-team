@@ -1,0 +1,6 @@
+{{! The body of the chat drawer. chat_drawer.ts fills the log with
+    chat_drawer_log.hbs and puts chat_drawer_composer.hbs in the footer. }}
+<div class="sj-chat">
+    <a class="sj-chat__full-view" href="{{full_view_url}}">{{t "Open in full view"}}</a>
+    <div class="sj-chat__log" role="log" aria-live="polite" aria-label="{{t 'Conversation'}}"></div>
+</div>

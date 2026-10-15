@@ -6,6 +6,7 @@ import * as z from "zod/mini";
 import * as activity from "./activity.ts";
 import * as alert_words from "./alert_words.ts";
 import * as channel from "./channel.ts";
+import * as chat_drawer from "./chat_drawer.ts";
 import * as compose_fade from "./compose_fade.ts";
 import * as compose_notifications from "./compose_notifications.ts";
 import * as compose_recipient from "./compose_recipient.ts";
@@ -398,6 +399,10 @@ export function insert_new_messages(opts: InsertNewMessagesOpts): Message[] {
         }
     }
 
+    if (!deliver_locally) {
+        chat_drawer.handle_new_messages(messages);
+    }
+
     activity.set_received_new_messages(true);
     message_notifications.received_messages(messages);
     stream_list.update_streams_sidebar_for_messages(messages);
@@ -457,6 +462,10 @@ export function update_messages(events: UpdateMessageEvent[]): void {
     message_list_data_cache.clear();
 
     for (const event of events) {
+        if (event.rendered_content !== undefined) {
+            chat_drawer.handle_edited_message(event.message_id, event.rendered_content);
+        }
+
         const anchor_message = message_store.get(event.message_id);
         if (anchor_message !== undefined) {
             // Logic for updating the specific edited message only
@@ -1005,6 +1014,8 @@ export function update_messages(events: UpdateMessageEvent[]): void {
 }
 
 export function remove_messages(message_ids: number[]): void {
+    chat_drawer.handle_deleted_messages(message_ids);
+
     // Update the rendered data first since it is most user visible.
     for (const list of message_lists.all_rendered_message_lists()) {
         list.remove_and_rerender(message_ids);

@@ -17,7 +17,14 @@
     <p class="task-board-detail-body">{{body}}</p>
 {{/if}}
 
-<section class="task-board-detail-section task-board-status" aria-labelledby="task-board-status-heading">
+<div class="task-board-detail-chat-row">
+    <button type="button" class="task-board-detail-chat action-button action-button-subtle-neutral action-button-small">
+        <i class="zulip-icon {{#if has_channel}}zulip-icon-message-square{{else}}zulip-icon-file-text{{/if}}" aria-hidden="true"></i>
+        <span class="action-button-label">{{#if has_channel}}{{t "Chat"}}{{else}}{{t "Open notes"}}{{/if}}</span>
+    </button>
+</div>
+
+<section class="task-board-detail-section task-board-status"aria-labelledby="task-board-status-heading">
     <h3 id="task-board-status-heading">{{t "Status"}}</h3>
     {{#if can_move}}
         <div class="task-board-status-controls">
