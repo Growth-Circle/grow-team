@@ -259,6 +259,12 @@ from zerver.views.streams import (
     update_subscriptions_property,
 )
 from zerver.views.submessage import process_submessage
+from zerver.views.task_plans import (
+    add_to_task_plan,
+    get_task_plan,
+    remove_from_task_plan,
+    reorder_task_plan,
+)
 from zerver.views.tasks import (
     add_task_note,
     create_task,
@@ -518,6 +524,14 @@ v1_api_and_json_patterns = [
     # tasks -> zerver.views.tasks
     rest_path("tasks", GET=get_task_board, POST=create_task),
     rest_path("tasks/counts", GET=get_task_counts),
+    # task_plans -> zerver.views.task_plans
+    rest_path("tasks/plan", GET=get_task_plan),
+    rest_path(
+        "tasks/<int:task_id>/plan",
+        POST=add_to_task_plan,
+        PATCH=reorder_task_plan,
+        DELETE=remove_from_task_plan,
+    ),
     rest_path("tasks/<int:task_id>", PATCH=update_task, DELETE=delete_task),
     rest_path("tasks/<int:task_id>/history", GET=get_task_history),
     rest_path("tasks/<int:task_id>/notes", GET=get_task_notes, POST=add_task_note),

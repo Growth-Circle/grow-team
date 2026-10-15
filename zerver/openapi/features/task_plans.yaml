@@ -1,0 +1,261 @@
+paths:
+  /tasks/plan:
+    get:
+      operationId: get-task-plan
+      tags: ["task_board"]
+      summary: Get your plan for a day
+      description: |
+        Fetch the cards the current user planned for one day, in the order
+        they chose. A plan is private: no other user can read it. A card that
+        was deleted, or that the user can no longer read, is left out.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-6d2b13).
+      parameters:
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: |
+            The calendar day, as `YYYY-MM-DD`. The client chooses the day in
+            the user's own timezone.
+          required: true
+          example: "2026-10-16"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      plan:
+                        type: array
+                        description: |
+                          The planned cards, in the user's order.
+                        items:
+                          $ref: "#/components/schemas/TaskPlanEntry"
+              example:
+                result: success
+                msg: ""
+                plan:
+                  - task_id: 3
+                    date: "2026-10-16"
+                    position: 1000
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Enter the date as YYYY-MM-DD.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the date is not
+                      a valid `YYYY-MM-DD` date:
+  /tasks/{task_id}/plan:
+    post:
+      operationId: add-task-to-plan
+      tags: ["task_board"]
+      summary: Add a card to your plan for a day
+      description: |
+        Add a card that the current user can read to their plan for one day.
+        Any card the user can see may be planned, whoever owns it. Adding a
+        card that is already planned for that day changes nothing. The user
+        receives a `task_plan` event with `op` set to `add`; nobody else does.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-6d2b13).
+      parameters:
+        - name: task_id
+          in: path
+          schema:
+            type: integer
+          description: |
+            The ID of the card.
+          required: true
+          example: 3
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                date:
+                  type: string
+                  format: date
+                  description: |
+                    The calendar day, as `YYYY-MM-DD`.
+                  example: "2026-10-16"
+                position:
+                  type: number
+                  description: |
+                    Where the card sits in the day; a lower number comes
+                    first. Omit it to put the card at the end.
+                  example: 1500
+              required:
+                - date
+            encoding:
+              position:
+                contentType: application/json
+      responses:
+        "200":
+          $ref: "#/components/responses/SimpleSuccess"
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Task does not exist.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the card does not
+                      exist, or the user cannot read the channel it came from:
+    patch:
+      operationId: reorder-task-plan
+      tags: ["task_board"]
+      summary: Move a card within your plan
+      description: |
+        Change the position of a card in the current user's plan for one day.
+        The user receives a `task_plan` event with `op` set to `reorder`.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-6d2b13).
+      parameters:
+        - name: task_id
+          in: path
+          schema:
+            type: integer
+          description: |
+            The ID of the card.
+          required: true
+          example: 3
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                date:
+                  type: string
+                  format: date
+                  description: |
+                    The calendar day, as `YYYY-MM-DD`.
+                  example: "2026-10-16"
+                position:
+                  type: number
+                  description: |
+                    The new position; a lower number comes first.
+                  example: 500
+              required:
+                - date
+                - position
+            encoding:
+              position:
+                contentType: application/json
+      responses:
+        "200":
+          $ref: "#/components/responses/SimpleSuccess"
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Task is not in this plan.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the card is not in
+                      the user's plan for that day:
+    delete:
+      operationId: remove-task-from-plan
+      tags: ["task_board"]
+      summary: Remove a card from your plan
+      description: |
+        Remove a card from the current user's plan for one day. The card
+        itself is unchanged. The user receives a `task_plan` event with `op`
+        set to `remove`.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-6d2b13).
+      parameters:
+        - name: task_id
+          in: path
+          schema:
+            type: integer
+          description: |
+            The ID of the card.
+          required: true
+          example: 3
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                date:
+                  type: string
+                  format: date
+                  description: |
+                    The calendar day, as `YYYY-MM-DD`.
+                  example: "2026-10-16"
+              required:
+                - date
+      responses:
+        "200":
+          $ref: "#/components/responses/SimpleSuccess"
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Task is not in this plan.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the card is not in
+                      the user's plan for that day:
+components:
+  schemas:
+    TaskPlanEntry:
+      type: object
+      description: |
+        A card in a user's plan for one day.
+      additionalProperties: false
+      properties:
+        task_id:
+          type: integer
+          description: |
+            The ID of the planned card.
+        date:
+          type: string
+          format: date
+          description: |
+            The calendar day of the plan, as `YYYY-MM-DD`.
+        position:
+          type: number
+          description: |
+            Where the card sits in the day; a lower number comes first.

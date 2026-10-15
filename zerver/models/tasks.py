@@ -339,3 +339,29 @@ class TaskReminderLog(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["user", "date"], name="task_reminder_log_unique"),
         ]
+
+
+class TaskPlan(models.Model):
+    """A card a member chose to work on for one day. The plan is private:
+    only its owner reads or hears about it. It keeps no copy of the card,
+    so deleting the card or the member removes the row."""
+
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name="+")
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="+")
+    # A calendar day the client chose in the member's own timezone.
+    date = models.DateField()
+    # Sort key inside the day. Floats let a reorder write one row.
+    position = models.FloatField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "task", "date"], name="task_plan_unique"),
+        ]
+        indexes = [models.Index(fields=["user", "date", "position"])]
+
+    def to_api_dict(self) -> dict[str, Any]:
+        return {
+            "task_id": self.task_id,
+            "date": self.date.isoformat(),
+            "position": self.position,
+        }

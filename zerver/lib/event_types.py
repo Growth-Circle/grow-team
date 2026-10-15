@@ -1050,6 +1050,29 @@ class EventTaskRemove(BaseEvent):
     board_id: int
 
 
+class EventTaskPlanAdd(BaseEvent):
+    type: Literal["task_plan"]
+    op: Literal["add"]
+    task_id: int
+    date: str
+    position: float
+
+
+class EventTaskPlanReorder(BaseEvent):
+    type: Literal["task_plan"]
+    op: Literal["reorder"]
+    task_id: int
+    date: str
+    position: float
+
+
+class EventTaskPlanRemove(BaseEvent):
+    type: Literal["task_plan"]
+    op: Literal["remove"]
+    task_id: int
+    date: str
+
+
 class TaskBoardFields(BaseModel):
     id: int
     name: str

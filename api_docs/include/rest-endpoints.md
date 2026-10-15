@@ -67,6 +67,10 @@
 * [Add a note to a task card](/api/add-task-note)
 * [Delete a note from a task card](/api/delete-task-note)
 * [Mark a task card's notifications for you as handled](/api/resolve-task-notifications)
+* [Get your plan for a day](/api/get-task-plan)
+* [Add a card to your plan for a day](/api/add-task-to-plan)
+* [Move a card within your plan](/api/reorder-task-plan)
+* [Remove a card from your plan](/api/remove-task-from-plan)
 * [Rename a task board](/api/update-task-board)
 
 ## Agents
