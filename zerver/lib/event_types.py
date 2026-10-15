@@ -968,6 +968,7 @@ class TaskFields(BaseModel):
     reviewer_id: int | None
     agent_profile_id: str | None
     agent_job_id: str | None
+    priority: int
     labels: list[str]
     checklist: list[dict[str, Any]]
     due_at: int | None

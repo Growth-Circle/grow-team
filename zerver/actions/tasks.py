@@ -41,7 +41,7 @@ from zerver.models import (
 )
 from zerver.models.agents import AgentRealmSettings
 from zerver.models.realm_audit_logs import AuditLogEventType
-from zerver.models.tasks import TASK_SOURCE_MANUAL
+from zerver.models.tasks import TASK_PRIORITY_NONE, TASK_SOURCE_MANUAL
 from zerver.models.users import active_user_ids, get_system_bot
 from zerver.tornado.django_api import send_event_on_commit
 
@@ -166,6 +166,7 @@ def do_create_task(
     labels: list[str] | None = None,
     checklist: list[dict[str, Any]] | None = None,
     due_at: datetime | None = None,
+    priority: int = TASK_PRIORITY_NONE,
     source: str = TASK_SOURCE_MANUAL,
 ) -> Task:
     realm = user_profile.realm
@@ -187,6 +188,7 @@ def do_create_task(
         labels=labels or [],
         checklist=checklist or [],
         due_at=due_at,
+        priority=priority,
         source=source,
     )
 

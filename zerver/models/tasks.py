@@ -38,6 +38,26 @@ TASK_SOURCES = [
 
 TASK_SOURCE_CHOICES = [(source, source) for source in TASK_SOURCES]
 
+# Ordered so a larger number is more urgent; 0 means nobody set one.
+TASK_PRIORITY_NONE = 0
+TASK_PRIORITY_LOW = 1
+TASK_PRIORITY_MEDIUM = 2
+TASK_PRIORITY_HIGH = 3
+
+TASK_PRIORITIES = [
+    TASK_PRIORITY_NONE,
+    TASK_PRIORITY_LOW,
+    TASK_PRIORITY_MEDIUM,
+    TASK_PRIORITY_HIGH,
+]
+
+TASK_PRIORITY_CHOICES = [
+    (TASK_PRIORITY_NONE, "none"),
+    (TASK_PRIORITY_LOW, "low"),
+    (TASK_PRIORITY_MEDIUM, "medium"),
+    (TASK_PRIORITY_HIGH, "high"),
+]
+
 
 class TaskBoard(models.Model):
     MAX_NAME_LENGTH = 60
@@ -131,6 +151,11 @@ class Task(models.Model):
         db_default=TASK_SOURCE_MANUAL,
     )
 
+    priority = models.PositiveSmallIntegerField(
+        choices=TASK_PRIORITY_CHOICES,
+        default=TASK_PRIORITY_NONE,
+        db_default=TASK_PRIORITY_NONE,
+    )
     labels = models.JSONField(default=list)
     checklist = models.JSONField(default=list)
     due_at = models.DateTimeField(null=True, default=None)
@@ -144,6 +169,9 @@ class Task(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["realm", "counter"], name="task_counter_unique"),
             models.CheckConstraint(condition=Q(source__in=TASK_SOURCES), name="task_source_valid"),
+            models.CheckConstraint(
+                condition=Q(priority__in=TASK_PRIORITIES), name="task_priority_valid"
+            ),
         ]
         indexes = [models.Index(fields=["board", "column", "position"])]
 
@@ -170,6 +198,7 @@ class Task(models.Model):
             if self.agent_profile_id is None
             else str(self.agent_profile_id),
             "agent_job_id": None if self.agent_job_id is None else str(self.agent_job_id),
+            "priority": self.priority,
             "labels": self.labels,
             "checklist": self.checklist,
             "due_at": None if self.due_at is None else int(self.due_at.timestamp()),

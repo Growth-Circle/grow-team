@@ -503,6 +503,64 @@ class TaskSourceTest(TaskBoardTestCase):
         self.assert_json_error(result, "Invalid source")
 
 
+class TaskPriorityTest(TaskBoardTestCase):
+    def test_priority_defaults_to_none_and_is_set_on_create_and_update(self) -> None:
+        self.login_user(self.hamlet)
+        card = self.create_card()
+        self.assertEqual(card.priority, 0)
+
+        result = self.client_post(
+            "/json/tasks",
+            {"title": "Urgent", "column_id": self.columns[0].id, "priority": "3"},
+        )
+        urgent = Task.objects.get(id=self.assert_json_success(result)["task_id"])
+        self.assertEqual(urgent.priority, 3)
+
+        board = self.assert_json_success(self.client_get("/json/tasks"))
+        listed = {item["id"]: item for item in board["tasks"]}
+        self.assertEqual(listed[urgent.id]["priority"], 3)
+        self.assertEqual(listed[card.id]["priority"], 0)
+
+        result = self.client_patch(f"/json/tasks/{card.id}", {"priority": "1"})
+        self.assert_json_success(result)
+        card.refresh_from_db()
+        self.assertEqual(card.priority, 1)
+        self.assertEqual(
+            TaskHistory.objects.get(task=card, kind=TaskHistory.EDITED).extra_data,
+            {"fields": ["priority"]},
+        )
+
+        result = self.client_patch(f"/json/tasks/{card.id}", {"priority": "0"})
+        self.assert_json_success(result)
+        card.refresh_from_db()
+        self.assertEqual(card.priority, 0)
+
+    def test_invalid_priority_is_rejected_and_changes_nothing(self) -> None:
+        self.login_user(self.hamlet)
+        card = self.create_card()
+        for bad in ["4", "-1", "high", "1.5", ""]:
+            result = self.client_patch(f"/json/tasks/{card.id}", {"priority": bad})
+            self.assert_json_error_contains(result, "priority")
+            result = self.client_post(
+                "/json/tasks",
+                {"title": "Bad priority", "column_id": self.columns[0].id, "priority": bad},
+            )
+            self.assert_json_error_contains(result, "priority")
+        card.refresh_from_db()
+        self.assertEqual(card.priority, 0)
+        self.assertFalse(Task.objects.filter(title="Bad priority").exists())
+        self.assert_length(TaskHistory.objects.filter(task=card, kind=TaskHistory.EDITED), 0)
+
+    def test_priority_change_is_sent_in_the_task_event(self) -> None:
+        self.login_user(self.hamlet)
+        card = self.create_card()
+        with self.capture_send_event_calls(expected_num_events=1) as events:
+            self.assert_json_success(self.client_patch(f"/json/tasks/{card.id}", {"priority": "2"}))
+        event = events[0]["event"]
+        self.assertEqual(event["op"], "update")
+        self.assertEqual(event["task"]["priority"], 2)
+
+
 class TaskLocalizedColumnsTest(ZulipTestCase):
     def test_new_board_uses_indonesian_columns_for_id_workspaces(self) -> None:
         hamlet = self.example_user("hamlet")
@@ -581,6 +639,7 @@ class TaskReassignmentPermissionTest(TaskBoardTestCase):
             {"checklist": orjson.dumps([{"text": "a", "done": False}]).decode()},
             {"due_at": "1893456000"},
             {"clear_due_at": "true"},
+            {"priority": "3"},
             {"assignee_id": str(self.cordelia.id)},
             {"clear_assignee": "true"},
             {"reviewer_id": str(self.cordelia.id)},

@@ -47,6 +47,7 @@ TaskTitle = Annotated[
     str, StringConstraints(min_length=1, max_length=Task.MAX_TITLE_LENGTH, strip_whitespace=True)
 ]
 TaskBody = Annotated[str, StringConstraints(max_length=Task.MAX_BODY_LENGTH)]
+TaskPriority = Literal[0, 1, 2, 3]
 BoardName = Annotated[
     str,
     StringConstraints(min_length=1, max_length=TaskBoard.MAX_NAME_LENGTH, strip_whitespace=True),
@@ -129,6 +130,7 @@ def create_task(
     due_at: Json[int] | None = None,
     labels: Json[list[str]] | None = None,
     origin_message_id: Json[int] | None = None,
+    priority: Json[TaskPriority] = 0,
     reviewer_id: Json[int] | None = None,
     source: Literal["manual", "brief", "meeting", "whatsapp", "agent"] = "manual",
     stream_id: Json[int] | None = None,
@@ -168,6 +170,7 @@ def create_task(
         labels=clean_labels(labels or []),
         checklist=clean_checklist(checklist or []),
         due_at=None if due_at is None else timestamp_to_datetime(due_at),
+        priority=priority,
         source=source,
     )
     display_id = f"{realm_task_id_prefix(user_profile.realm)}-{task.counter}"
@@ -190,6 +193,7 @@ def update_task(
     due_at: Json[int] | None = None,
     labels: Json[list[str]] | None = None,
     position: Json[float] | None = None,
+    priority: Json[TaskPriority] | None = None,
     reviewer_id: Json[int] | None = None,
     task_id: PathOnly[int],
     title: TaskTitle | None = None,
@@ -205,6 +209,7 @@ def update_task(
         and labels is None
         and checklist is None
         and due_at is None
+        and priority is None
         and assignee_id is None
         and reviewer_id is None
         and not (clear_assignee or clear_reviewer or clear_due_at)
@@ -221,6 +226,8 @@ def update_task(
         changes["body"] = body
     if blocked is not None:
         changes["blocked"] = blocked
+    if priority is not None:
+        changes["priority"] = priority
     if labels is not None:
         changes["labels"] = clean_labels(labels)
     if checklist is not None:
