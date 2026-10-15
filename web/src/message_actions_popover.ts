@@ -6,6 +6,8 @@ import render_message_actions_popover from "../templates/popovers/message_action
 
 import * as agent_message_send from "./agent_message_send.ts";
 import * as agent_task_composer from "./agent_task_composer.ts";
+import * as channel_pins from "./channel_pins.ts";
+import * as channel_pins_data from "./channel_pins_data.ts";
 import * as clipboard_handler from "./clipboard_handler.ts";
 import * as compose_reply from "./compose_reply.ts";
 import * as condense from "./condense.ts";
@@ -167,6 +169,21 @@ export function initialize({
                 assert(message_lists.current !== undefined);
                 const $row = message_lists.current.get_row(message_id);
                 message_edit.start($row);
+                e.preventDefault();
+                e.stopPropagation();
+                popover_menus.hide_current_popover_if_visible(instance);
+            });
+
+            $popper.one("click", ".popover_toggle_pin", (e) => {
+                const message_id = Number($(e.currentTarget).attr("data-message-id"));
+                assert(message_lists.current !== undefined);
+                const message = message_lists.current.get(message_id);
+                assert(message?.type === "stream");
+                if (channel_pins_data.is_pinned(message.stream_id, message_id)) {
+                    channel_pins.unpin_message(message_id);
+                } else {
+                    channel_pins.pin_message(message_id);
+                }
                 e.preventDefault();
                 e.stopPropagation();
                 popover_menus.hide_current_popover_if_visible(instance);

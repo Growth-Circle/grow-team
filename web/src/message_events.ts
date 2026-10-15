@@ -6,6 +6,7 @@ import * as z from "zod/mini";
 import * as activity from "./activity.ts";
 import * as alert_words from "./alert_words.ts";
 import * as channel from "./channel.ts";
+import * as channel_pins from "./channel_pins.ts";
 import * as chat_drawer from "./chat_drawer.ts";
 import * as compose_fade from "./compose_fade.ts";
 import * as compose_notifications from "./compose_notifications.ts";
@@ -1015,6 +1016,7 @@ export function update_messages(events: UpdateMessageEvent[]): void {
 
 export function remove_messages(message_ids: number[]): void {
     chat_drawer.handle_deleted_messages(message_ids);
+    channel_pins.handle_deleted_messages(message_ids);
 
     // Update the rendered data first since it is most user visible.
     for (const list of message_lists.all_rendered_message_lists()) {

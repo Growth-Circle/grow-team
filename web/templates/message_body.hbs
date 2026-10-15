@@ -52,6 +52,9 @@
     <span class="copy-paste-text">&nbsp;</span>
     {{/unless}}
     {{timestr}}
+    {{#if is_pinned}}
+        <i class="zulip-icon zulip-icon-pin message-pin-indicator" role="img" aria-label="{{t 'Pinned to channel'}}" title="{{t 'Pinned to channel'}}"></i>
+    {{/if}}
 </a>
 
 {{#if (and (not msg/failed_request) msg/locally_echoed)}}

@@ -15,6 +15,7 @@ import render_single_message from "../templates/single_message.hbs";
 import * as activity from "./activity.ts";
 import * as agent_avatars from "./agent_avatars.ts";
 import * as blueslip from "./blueslip.ts";
+import * as channel_pins_data from "./channel_pins_data.ts";
 import * as compose_fade from "./compose_fade.ts";
 import * as condense from "./condense.ts";
 import {ConversationParticipants} from "./conversation_participants.ts";
@@ -1141,6 +1142,12 @@ export class MessageListView {
             invite_only,
             is_web_public,
             is_archived,
+            is_pinned:
+                message_container.msg.is_stream &&
+                channel_pins_data.is_pinned(
+                    message_container.msg.stream_id,
+                    message_container.msg.id,
+                ),
             message_list_id: this.list.id,
         };
         return render_single_message(msg_to_render);

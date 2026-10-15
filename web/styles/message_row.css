@@ -1706,3 +1706,14 @@
     color: var(--sj-text);
     font-size: 0.75em; /* 12px at 16px/1em */
 }
+
+/* The icon after the time of a message that is pinned to its channel. */
+.message-pin-indicator {
+    margin-inline-start: 0.25em;
+    color: var(--sj-text-muted);
+    font-size: 0.85em;
+}
+
+.message-time:has(.message-pin-indicator) {
+    white-space: nowrap;
+}

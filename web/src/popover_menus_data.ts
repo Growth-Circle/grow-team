@@ -4,6 +4,8 @@
 import assert from "minimalistic-assert";
 
 import * as buddy_data from "./buddy_data.ts";
+import * as channel_pins from "./channel_pins.ts";
+import * as channel_pins_data from "./channel_pins_data.ts";
 import * as gear_menu_util from "./gear_menu_util.ts";
 import * as hash_util from "./hash_util.ts";
 import {$t} from "./i18n.ts";
@@ -49,6 +51,8 @@ type ActionPopoverContext = {
     should_display_agent_task_receipt: boolean;
     should_display_add_reaction_option: boolean;
     should_display_message_report_option: boolean;
+    should_display_pin_option: boolean;
+    is_pinned: boolean;
 };
 
 type TopicPopoverContext = {
@@ -249,6 +253,16 @@ export function get_actions_popover_content_context(message_id: number): ActionP
         not_spectator &&
         !(stream_id && stream_data.is_stream_archived_by_id(stream_id));
 
+    // Anyone who can post in the channel can pin and unpin there. The
+    // pins load when a room opens or when this menu opens, so a message
+    // pinned before then shows "Pin" until they are in.
+    const should_display_pin_option =
+        stream_id !== undefined && not_spectator && channel_pins.can_change_pins(stream_id);
+    if (stream_id !== undefined && not_spectator) {
+        channel_pins.ensure_loaded(stream_id);
+    }
+    const is_pinned = stream_id !== undefined && channel_pins_data.is_pinned(stream_id, message.id);
+
     return {
         message_id: message.id,
         stream_id,
@@ -267,6 +281,8 @@ export function get_actions_popover_content_context(message_id: number): ActionP
         should_display_agent_task_receipt,
         should_display_quote_message,
         should_display_message_report_option: should_display_message_report_option(),
+        should_display_pin_option,
+        is_pinned,
     };
 }
 

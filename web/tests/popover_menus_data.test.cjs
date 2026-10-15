@@ -14,6 +14,7 @@ const {Filter} = zrequire("filter");
 const {MessageList} = zrequire("message_list");
 const message_lists = zrequire("message_lists");
 
+const channel_pins_data = zrequire("channel_pins_data");
 const popover_menus_data = zrequire("popover_menus_data");
 const people = zrequire("people");
 const user_groups = zrequire("user_groups");
@@ -54,7 +55,16 @@ mock_esm("../src/ui_util", {
 mock_esm("../src/hash_util", {
     by_conversation_and_time_url: () => "conversation_and_time_url",
 });
+// The pins of a channel are fetched when its message menu opens.
+const channel_requests = [];
+mock_esm("../src/channel", {
+    get(opts) {
+        channel_requests.push(opts.url);
+    },
+});
+let can_post = true;
 mock_esm("../src/stream_data", {
+    can_post_messages_in_stream: () => can_post,
     is_subscribed: () => true,
     is_stream_archived_by_id: () => false,
     get_sub_by_id: () => noop,
@@ -245,6 +255,8 @@ test("my_message_all_actions", ({override}) => {
     assert.equal(response.should_display_delete_option, true);
     assert.equal(response.should_display_read_receipts_option, true);
     assert.equal(response.should_display_quote_message, true);
+    assert.equal(response.should_display_pin_option, true);
+    assert.equal(response.is_pinned, false);
 });
 
 test("not_my_message_view_actions", ({override}) => {
@@ -519,4 +531,60 @@ run_test("get_scroll_to_date_suggestions - single date in the past", () => {
     ];
     const result = popover_menus_data.get_scroll_to_date_suggestions(messages);
     assert.equal(result.length, 1);
+});
+
+test("the pin item follows the permission to post and the pin state", ({override}) => {
+    set_page_params_no_edit_restrictions({override});
+    override(realm, "realm_can_delete_any_message_group", everyone.id);
+    override(realm, "realm_can_delete_own_message_group", everyone.id);
+    override(realm, "realm_can_move_messages_between_topics_group", everyone.id);
+    override(current_user, "user_id", me.user_id);
+    const list = init_message_list();
+    message_lists.set_current(list);
+    add_message_with_view(list, [
+        {
+            id: 1,
+            type: "stream",
+            sender_id: mike.user_id,
+            is_hidden: false,
+            sent_by_me: false,
+            locally_echoed: false,
+            is_stream: true,
+            stream_id: 1,
+            collapsed: false,
+            unread: false,
+            edit_history: [],
+        },
+    ]);
+    channel_pins_data.clear();
+
+    // A member who can post may pin. The pins of the channel load once.
+    let response = popover_menus_data.get_actions_popover_content_context(1);
+    assert.equal(response.should_display_pin_option, true);
+    assert.equal(response.is_pinned, false);
+    assert.deepEqual(channel_requests, ["/json/streams/1/pins"]);
+
+    // A message that is pinned offers Unpin.
+    channel_pins_data.set_pins(1, [
+        {
+            message_id: 1,
+            stream_id: 1,
+            pinned_by_id: null,
+            date_pinned: 100,
+            sender_id: mike.user_id,
+            sender_full_name: "Mike",
+            topic: "",
+            date_sent: 90,
+            rendered_content: "<p>x</p>",
+        },
+    ]);
+    response = popover_menus_data.get_actions_popover_content_context(1);
+    assert.equal(response.is_pinned, true);
+
+    // A user who cannot post in the channel gets no pin item.
+    can_post = false;
+    response = popover_menus_data.get_actions_popover_content_context(1);
+    assert.equal(response.should_display_pin_option, false);
+    can_post = true;
+    channel_pins_data.clear();
 });

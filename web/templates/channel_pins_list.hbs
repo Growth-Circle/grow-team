@@ -1,0 +1,32 @@
+{{! The list inside the pins drawer. pins_drawer.ts draws it. }}
+{{#if error}}
+    <p class="sj-pins__status" role="alert">{{error}}</p>
+{{else if loading}}
+    <p class="sj-pins__status">{{t "Loading…"}}</p>
+{{else if has_pins}}
+    <ul class="sj-pins__list">
+        {{#each pins}}
+            <li class="sj-pins__item" data-message-id="{{this.message_id}}">
+                <div class="sj-pins__meta">
+                    <span class="sj-pins__sender">{{this.sender_name}}</span>
+                    <span class="sj-pins__time">{{this.time_label}}</span>
+                    {{#if this.topic_label}}
+                        <span class="sj-pins__topic">{{this.topic_label}}</span>
+                    {{/if}}
+                </div>
+                <div class="sj-pins__content rendered_markdown">{{{this.rendered_content}}}</div>
+                <div class="sj-pins__actions">
+                    <a class="sj-pins__jump" href="{{this.jump_url}}">{{t "Jump to message"}}</a>
+                    {{#if ../can_change}}
+                        <button type="button" class="sj-pins__unpin" data-message-id="{{this.message_id}}">{{t "Unpin"}}</button>
+                    {{/if}}
+                </div>
+            </li>
+        {{/each}}
+    </ul>
+{{else}}
+    <p class="sj-pins__status">{{t "No pinned messages yet."}}</p>
+    {{#if can_change}}
+        <p class="sj-pins__hint">{{t "Open the menu of a message and choose Pin to channel."}}</p>
+    {{/if}}
+{{/if}}
