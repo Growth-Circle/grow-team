@@ -87,9 +87,24 @@ export type Task = z.infer<typeof task_schema>;
 export type TaskHistoryEntry = z.infer<typeof task_history_entry_schema>;
 export type TaskBoardResponse = z.infer<typeof task_board_response_schema>;
 
+export const task_plan_entry_schema = z.object({
+    task_id: z.number(),
+    date: z.string(),
+    position: z.number(),
+});
+
+export const task_plan_response_schema = z.object({
+    plan: z.array(task_plan_entry_schema),
+});
+
+export type TaskPlanEntry = z.infer<typeof task_plan_entry_schema>;
+
 let board: TaskBoard | undefined;
 let columns: TaskBoardColumn[] = [];
 const tasks = new Map<number, Task>();
+// The member's private plan, by `YYYY-MM-DD`. Only the days the view
+// fetched are here; an event for any other day is ignored.
+const plan_by_date = new Map<string, TaskPlanEntry[]>();
 let folded_task_ids = new Set<number>();
 
 export function set_board(response: TaskBoardResponse): void {
@@ -107,6 +122,7 @@ export function clear(): void {
     columns = [];
     tasks.clear();
     folded_task_ids = new Set();
+    plan_by_date.clear();
 }
 
 export function get_board(): TaskBoard | undefined {
@@ -488,4 +504,143 @@ export function due_date_input_value(due_at: number | null, time_zone: string): 
         day: "2-digit",
     }).format(due_at * 1000);
     return parts;
+}
+
+// The day as `YYYY-MM-DD` in `time_zone`. The plan keys its days the way
+// a date input does, so a day always means the reader's own day.
+export function local_date(now_ms: number, time_zone: string): string {
+    return new Intl.DateTimeFormat("en-CA", {
+        timeZone: time_zone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(now_ms);
+}
+
+export function shift_date(date: string, days: number): string {
+    const [year, month, day] = date.split("-").map(Number);
+    return new Date(Date.UTC(year!, month! - 1, day! + days)).toISOString().slice(0, 10);
+}
+
+export function set_plan(date: string, entries: TaskPlanEntry[]): void {
+    plan_by_date.set(date, entries);
+}
+
+export function has_plan_for(date: string): boolean {
+    return plan_by_date.has(date);
+}
+
+export function plan_entries(date: string): TaskPlanEntry[] {
+    return (plan_by_date.get(date) ?? []).toSorted(
+        (a, b) => a.position - b.position || a.task_id - b.task_id,
+    );
+}
+
+export function is_planned(task_id: number, date: string): boolean {
+    return (plan_by_date.get(date) ?? []).some((entry) => entry.task_id === task_id);
+}
+
+export function add_plan_entry(entry: TaskPlanEntry): void {
+    const entries = plan_by_date.get(entry.date);
+    if (entries === undefined) {
+        return;
+    }
+    plan_by_date.set(entry.date, [
+        ...entries.filter((existing) => existing.task_id !== entry.task_id),
+        entry,
+    ]);
+}
+
+export function remove_plan_entry(task_id: number, date: string): void {
+    const entries = plan_by_date.get(date);
+    if (entries !== undefined) {
+        plan_by_date.set(
+            date,
+            entries.filter((entry) => entry.task_id !== task_id),
+        );
+    }
+}
+
+export function reorder_plan_entry(task_id: number, date: string, position: number): void {
+    const entries = plan_by_date.get(date);
+    if (entries !== undefined) {
+        plan_by_date.set(
+            date,
+            entries.map((entry) => (entry.task_id === task_id ? {...entry, position} : entry)),
+        );
+    }
+}
+
+export type TodayPlan = {
+    // The cards the person chose, in their order. A card that is done, or
+    // that the board no longer holds, is not shown.
+    planned: Task[];
+    // The person's own overdue and due-today cards that they did not plan.
+    auto: Task[];
+    // Yesterday's unfinished plan that today's plan does not have yet.
+    carry_over: Task[];
+};
+
+export function todays_plan(user_id: number, now_ms: number, time_zone: string): TodayPlan {
+    const today = local_date(now_ms, time_zone);
+    const open_planned = (date: string): Task[] =>
+        plan_entries(date).flatMap((entry) => {
+            const task = tasks.get(entry.task_id);
+            return task?.completed_at === null ? [task] : [];
+        });
+
+    const planned = open_planned(today);
+    const planned_ids = new Set(planned.map((task) => task.id));
+    const auto = open_tasks_assigned_to(user_id)
+        .filter((task) => {
+            const section = due_section(task.due_at, now_ms, time_zone);
+            return (section === "overdue" || section === "today") && !planned_ids.has(task.id);
+        })
+        .toSorted((a, b) => a.due_at! - b.due_at! || b.priority - a.priority || a.id - b.id);
+    const carry_over = open_planned(shift_date(today, -1)).filter(
+        (task) => !is_planned(task.id, today),
+    );
+    return {planned, auto, carry_over};
+}
+
+function plan_position_between(before: number | undefined, after: number | undefined): number {
+    if (before === undefined && after === undefined) {
+        return POSITION_STEP;
+    }
+    if (before === undefined) {
+        return after! - POSITION_STEP;
+    }
+    if (after === undefined) {
+        return before + POSITION_STEP;
+    }
+    return (before + after) / 2;
+}
+
+// `visible_task_ids` are the planned cards on screen in order, without the
+// one that moves. Planned cards the screen does not show keep their place:
+// the card lands right next to the visible neighbor it was moved against.
+export function plan_position_for_slot(
+    date: string,
+    visible_task_ids: number[],
+    slot: number,
+    moving_task_id: number,
+): number {
+    const others = plan_entries(date).filter((entry) => entry.task_id !== moving_task_id);
+    const after_id = visible_task_ids[slot];
+    if (after_id !== undefined) {
+        const after_index = others.findIndex((entry) => entry.task_id === after_id);
+        return plan_position_between(
+            others[after_index - 1]?.position,
+            others[after_index]?.position,
+        );
+    }
+    const before_id = visible_task_ids[slot - 1];
+    if (before_id !== undefined) {
+        const before_index = others.findIndex((entry) => entry.task_id === before_id);
+        return plan_position_between(
+            others[before_index]?.position,
+            others[before_index + 1]?.position,
+        );
+    }
+    return plan_position_between(others.at(-1)?.position, undefined);
 }

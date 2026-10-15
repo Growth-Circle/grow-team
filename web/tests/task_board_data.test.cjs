@@ -483,3 +483,169 @@ run_test("the board remembers whether it shows the board or the personal list", 
     task_board_data.set_view("board");
     assert.equal(task_board_data.get_view(), "board");
 });
+
+// 09:00 on 16 Oct 2026 in Jakarta.
+const NOW_MS = Date.UTC(2026, 9, 16, 2, 0);
+const TODAY = "2026-10-16";
+const YESTERDAY = "2026-10-15";
+
+function due_in_jakarta(day_offset, hour = 18) {
+    return Math.floor(Date.UTC(2026, 9, 16 + day_offset, hour - 7) / 1000);
+}
+
+function plan(date, ...task_ids) {
+    task_board_data.set_plan(
+        date,
+        task_ids.map((task_id, index) => ({task_id, date, position: (index + 1) * 1000})),
+    );
+}
+
+run_test("a plan day is the reader's own calendar day", () => {
+    // 20:00 UTC on 15 Oct is already 16 Oct in Jakarta, and still 15 Oct in New York.
+    const moment = Date.UTC(2026, 9, 15, 20, 0);
+    assert.equal(task_board_data.local_date(moment, JAKARTA), "2026-10-16");
+    assert.equal(task_board_data.local_date(moment, "America/New_York"), "2026-10-15");
+    assert.equal(task_board_data.shift_date("2026-10-01", -1), "2026-09-30");
+    assert.equal(task_board_data.shift_date("2026-12-31", 1), "2027-01-01");
+});
+
+run_test("today's plan keeps the person's order and drops cards that are gone or done", () => {
+    load([
+        make_task({id: 1}),
+        make_task({id: 2}),
+        make_task({id: 3, column_id: 12, completed_at: 300}),
+    ]);
+    // Card 9 was deleted or became unreadable, so the board never sent it.
+    task_board_data.set_plan(TODAY, [
+        {task_id: 2, date: TODAY, position: 1000},
+        {task_id: 9, date: TODAY, position: 1500},
+        {task_id: 3, date: TODAY, position: 1800},
+        {task_id: 1, date: TODAY, position: 2000},
+    ]);
+
+    const today = task_board_data.todays_plan(5, NOW_MS, JAKARTA);
+
+    assert.deepEqual(
+        today.planned.map((task) => task.id),
+        [2, 1],
+    );
+});
+
+run_test("overdue and due-today cards of the reader show up on their own", () => {
+    load([
+        make_task({id: 1, assignee_id: 5, due_at: due_in_jakarta(-2)}),
+        make_task({id: 2, assignee_id: 5, due_at: due_in_jakarta(0)}),
+        make_task({id: 3, assignee_id: 5, due_at: due_in_jakarta(1)}),
+        make_task({id: 4, assignee_id: 5, due_at: null}),
+        make_task({id: 5, assignee_id: 6, due_at: due_in_jakarta(0)}),
+        make_task({id: 6, assignee_id: 5, due_at: due_in_jakarta(-1), completed_at: 300}),
+        make_task({id: 7, assignee_id: 5, due_at: due_in_jakarta(0), priority: 3}),
+    ]);
+    plan(TODAY);
+
+    const today = task_board_data.todays_plan(5, NOW_MS, JAKARTA);
+
+    assert.deepEqual(
+        today.auto.map((task) => task.id),
+        [1, 7, 2],
+    );
+    assert.deepEqual(today.planned, []);
+});
+
+run_test("a planned card is not repeated in the automatic part", () => {
+    load([
+        make_task({id: 1, assignee_id: 5, due_at: due_in_jakarta(0)}),
+        make_task({id: 2, assignee_id: 5, due_at: due_in_jakarta(-1)}),
+    ]);
+    plan(TODAY, 1);
+
+    const today = task_board_data.todays_plan(5, NOW_MS, JAKARTA);
+
+    assert.deepEqual(
+        today.planned.map((task) => task.id),
+        [1],
+    );
+    assert.deepEqual(
+        today.auto.map((task) => task.id),
+        [2],
+    );
+});
+
+run_test("yesterday's unfinished cards are offered, not moved", () => {
+    load([
+        make_task({id: 1}),
+        make_task({id: 2}),
+        make_task({id: 3, column_id: 12, completed_at: 300}),
+        make_task({id: 4}),
+    ]);
+    plan(YESTERDAY, 1, 2, 3, 4);
+    plan(TODAY, 2);
+
+    const today = task_board_data.todays_plan(5, NOW_MS, JAKARTA);
+
+    assert.deepEqual(
+        today.carry_over.map((task) => task.id),
+        [1, 4],
+    );
+    // Offering does not touch either plan.
+    assert.deepEqual(
+        task_board_data.plan_entries(TODAY).map((entry) => entry.task_id),
+        [2],
+    );
+    assert.equal(task_board_data.plan_entries(YESTERDAY).length, 4);
+
+    // Once a card is added for today it is no longer offered.
+    task_board_data.add_plan_entry({task_id: 1, date: TODAY, position: 3000});
+    assert.deepEqual(
+        task_board_data.todays_plan(5, NOW_MS, JAKARTA).carry_over.map((task) => task.id),
+        [4],
+    );
+});
+
+run_test("plan events add, reorder and remove entries of a loaded day only", () => {
+    plan(TODAY, 1, 2);
+
+    task_board_data.add_plan_entry({task_id: 3, date: TODAY, position: 3000});
+    task_board_data.add_plan_entry({task_id: 3, date: TODAY, position: 3500});
+    assert.deepEqual(
+        task_board_data.plan_entries(TODAY).map((entry) => [entry.task_id, entry.position]),
+        [
+            [1, 1000],
+            [2, 2000],
+            [3, 3500],
+        ],
+    );
+
+    task_board_data.reorder_plan_entry(3, TODAY, 500);
+    task_board_data.remove_plan_entry(1, TODAY);
+    assert.deepEqual(
+        task_board_data.plan_entries(TODAY).map((entry) => entry.task_id),
+        [3, 2],
+    );
+    assert.ok(task_board_data.is_planned(3, TODAY));
+    assert.ok(!task_board_data.is_planned(1, TODAY));
+
+    // A day that was never fetched stays unknown.
+    task_board_data.add_plan_entry({task_id: 1, date: "2026-11-01", position: 1000});
+    assert.ok(!task_board_data.has_plan_for("2026-11-01"));
+    assert.deepEqual(task_board_data.plan_entries("2026-11-01"), []);
+
+    task_board_data.clear();
+    assert.ok(!task_board_data.has_plan_for(TODAY));
+});
+
+run_test("a planned card lands between the neighbors it was moved against", () => {
+    plan(TODAY, 1, 2, 3);
+
+    // Top, middle, and bottom of the visible list, with card 3 moving.
+    assert.equal(task_board_data.plan_position_for_slot(TODAY, [1, 2], 0, 3), 0);
+    assert.equal(task_board_data.plan_position_for_slot(TODAY, [1, 2], 1, 3), 1500);
+    assert.equal(task_board_data.plan_position_for_slot(TODAY, [1, 2], 2, 3), 3000);
+
+    // Hidden planned cards (card 2 is done) keep their place: moving card 3
+    // below card 1 puts it between 1 and the hidden 2.
+    assert.equal(task_board_data.plan_position_for_slot(TODAY, [1], 1, 3), 1500);
+
+    plan(TODAY);
+    assert.equal(task_board_data.plan_position_for_slot(TODAY, [], 0, 1), 1000);
+});
