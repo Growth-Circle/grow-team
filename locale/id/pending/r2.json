@@ -1,0 +1,38 @@
+{
+  "frontend": {
+    "Chat": "Chat",
+    "Open notes": "Buka catatan",
+    "Open in full view": "Buka di tampilan penuh",
+    "Conversation": "Percakapan",
+    "Message": "Pesan",
+    "Write a message": "Tulis pesan",
+    "Loading…": "Memuat…",
+    "No messages yet.": "Belum ada pesan.",
+    "CHAT · {conversation}": "CHAT · {conversation}",
+    "Could not load this conversation.": "Percakapan ini tidak bisa dimuat.",
+    "Could not send the message": "Pesan tidak bisa dikirim",
+    "You cannot post in this conversation.": "Kamu tidak bisa mengirim pesan di percakapan ini.",
+    "This channel is archived.": "Channel ini sudah diarsipkan.",
+    "You do not have permission to post in this channel.": "Kamu tidak punya izin mengirim pesan di channel ini.",
+    "Channel views": "Tampilan channel",
+    "Pins": "Pin",
+    "Files": "File",
+    "Links": "Tautan",
+    "PINS · #{stream_name}": "PIN · #{stream_name}",
+    "Jump to message": "Lompat ke pesan",
+    "Unpin": "Lepas pin",
+    "No pinned messages yet.": "Belum ada pesan yang dipin.",
+    "Open the menu of a message and choose Pin to channel.": "Buka menu sebuah pesan lalu pilih Pin ke channel.",
+    "Could not load the pinned messages.": "Pesan yang dipin tidak bisa dimuat.",
+    "Pin to channel": "Pin ke channel",
+    "Unpin from channel": "Lepas pin dari channel",
+    "Pinned to channel": "Dipin di channel",
+    "Could not pin the message": "Pesan tidak bisa dipin",
+    "Could not unpin the message": "Pin pesan tidak bisa dilepas"
+  },
+  "backend": {
+    "Message is already pinned.": "Pesan ini sudah dipin.",
+    "Message is not pinned.": "Pesan ini tidak dipin.",
+    "Only channel messages can be pinned.": "Hanya pesan channel yang bisa dipin."
+  }
+}
