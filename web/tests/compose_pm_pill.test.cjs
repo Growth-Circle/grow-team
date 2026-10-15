@@ -12,7 +12,7 @@ const input_pill = mock_esm("../src/input_pill");
 const people = zrequire("people");
 
 const compose_pm_pill = zrequire("compose_pm_pill");
-const {set_realm} = zrequire("state_data");
+const {set_current_user, set_realm} = zrequire("state_data");
 
 set_realm(make_realm());
 
@@ -45,6 +45,7 @@ run_test("pills", ({override}) => {
         full_name: "Hamlet",
     });
 
+    set_current_user(me);
     people.initialize_current_user(me.user_id);
     people.add_active_user(me);
     people.add_active_user(othello);

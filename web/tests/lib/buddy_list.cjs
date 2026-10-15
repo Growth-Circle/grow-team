@@ -42,6 +42,10 @@ exports.stub_buddy_list_elements = () => {
     $.reset_selector("#buddy-list-other-users-container .view-all-users-link");
     $.set_results("#buddy-list-other-users-container .view-all-users-link", []);
 
+    // The presence dividers are looked up among the list's children.
+    $("#buddy-list-users-matching-view").set_children([]);
+    $("#buddy-list-other-users").set_children([]);
+
     // Simulate no avatar images for clear_avatar_preload_backgrounds.
     $.reset_selector("#user-list .avatar-preload-background img");
     $.set_results("#user-list .avatar-preload-background img", []);

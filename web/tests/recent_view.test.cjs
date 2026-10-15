@@ -227,7 +227,7 @@ rt.set_hide_other_views(noop);
 const recent_view_util = zrequire("recent_view_util");
 const rt_data = zrequire("recent_view_data");
 const muted_users = zrequire("muted_users");
-const {set_realm} = zrequire("state_data");
+const {set_current_user, set_realm} = zrequire("state_data");
 const sub_store = zrequire("sub_store");
 const util = zrequire("util");
 
@@ -265,6 +265,7 @@ people.add_active_user({
     full_name: "Eren Yeager",
 });
 
+set_current_user({user_id: 1});
 people.initialize_current_user(1);
 muted_users.add_muted_user(2, 17947949);
 muted_users.add_muted_user(4, 17947949);
