@@ -261,14 +261,21 @@ run_test("marking a mention done resolves that message", async () => {
 
 const card = {id: 8, display_id: "GT-8", title: "Write the release notes"};
 
-run_test("a card notification is listed under all and nowhere else", () => {
+run_test("a card notification is listed under all and its own tab", () => {
     const items = [
         make_item({id: "mention:1", kind: "mention"}),
         make_item({id: "card_mention:2", kind: "card_mention", task: card}),
         make_item({id: "card_assigned:3", kind: "card_assigned", task: card}),
+        make_item({id: "card_assigned:4", kind: "card_assigned", task: card}),
     ];
-    assert.equal(needs_data.count_for_tab(items, "all"), 3);
+    assert.equal(needs_data.count_for_tab(items, "all"), 4);
     assert.equal(needs_data.count_for_tab(items, "mention"), 1);
+    assert.equal(needs_data.count_for_tab(items, "card_mention"), 1);
+    assert.equal(needs_data.count_for_tab(items, "card_assigned"), 2);
+    assert.deepEqual(
+        needs_data.items_for_tab(items, "card_assigned").map((item) => item.id),
+        ["card_assigned:3", "card_assigned:4"],
+    );
     assert.ok(needs_data.is_card_kind("card_mention"));
     assert.ok(needs_data.is_card_kind("card_assigned"));
     assert.ok(!needs_data.is_card_kind("mention"));

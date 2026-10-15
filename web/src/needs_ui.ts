@@ -26,7 +26,7 @@ import * as views_util from "./views_util.ts";
 // is the card, and card_context() builds its fields, so that the Today
 // page shows the same card.
 
-const TABS: NeedTab[] = ["all", "approval", "mention", "decision"];
+const TABS: NeedTab[] = ["all", "approval", "mention", "decision", "card_mention", "card_assigned"];
 const OPTION_LABEL_LIMIT = 40;
 
 let visible = false;
@@ -476,7 +476,14 @@ function handle_args(): void {
 // ----- Clicks -----
 
 function is_need_tab(value: string | undefined): value is NeedTab {
-    return value === "all" || value === "approval" || value === "mention" || value === "decision";
+    return (
+        value === "all" ||
+        value === "approval" ||
+        value === "mention" ||
+        value === "decision" ||
+        value === "card_mention" ||
+        value === "card_assigned"
+    );
 }
 
 function on_view_click(): void {
