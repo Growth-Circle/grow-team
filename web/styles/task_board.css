@@ -444,6 +444,68 @@
     color: var(--color-text-item);
 }
 
+.task-board-status-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+}
+
+.task-board-status-field {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    margin: 0;
+    color: var(--sj-text-muted);
+    font-size: 0.75em;
+    font-weight: normal;
+    gap: 0.25em;
+}
+
+.task-board-status-select {
+    box-sizing: border-box;
+    width: 100%;
+    height: 2.5em;
+    padding: 0 0.5em;
+    border: 0.125em solid var(--sj-divider);
+    border-radius: 0.5em;
+    background: var(--sj-surface);
+    color: var(--sj-text);
+    font-size: 1.1667em;
+
+    &:hover {
+        border-color: var(--sj-outline);
+    }
+
+    &:focus-visible {
+        outline: 0.125em solid var(--sj-outline);
+        outline-offset: 0.125em;
+    }
+}
+
+.task-board-status-save {
+    align-self: flex-start;
+}
+
+/* Nested so these beat the detail section's paragraph rule. */
+.task-board-status {
+    .task-board-status-error {
+        color: var(--sj-text-bahaya);
+        font-weight: 600;
+
+        &:empty {
+            display: none;
+        }
+    }
+
+    .task-board-status-hint {
+        color: var(--sj-text-muted);
+    }
+
+    .task-board-status-current {
+        font-weight: 600;
+    }
+}
+
 .task-board-detail-checklist,
 .task-board-detail-history {
     display: flex;

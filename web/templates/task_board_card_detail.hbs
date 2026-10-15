@@ -17,6 +17,36 @@
     <p class="task-board-detail-body">{{body}}</p>
 {{/if}}
 
+<section class="task-board-detail-section task-board-status" aria-labelledby="task-board-status-heading">
+    <h3 id="task-board-status-heading">{{t "Status"}}</h3>
+    {{#if can_edit}}
+        <div class="task-board-status-controls">
+            <label class="task-board-status-field" for="task-board-status-column">
+                <span>{{t "Move to"}}</span>
+                <select id="task-board-status-column" class="task-board-status-select">
+                    {{#each status_columns}}
+                        <option value="{{this.id}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>
+                    {{/each}}
+                </select>
+            </label>
+            <label class="task-board-status-field" for="task-board-status-position">
+                <span>{{t "Position"}}</span>
+                <select id="task-board-status-position" class="task-board-status-select">
+                    <option value="top" {{#if status_edge_is_top}}selected{{/if}}>{{t "Top of column"}}</option>
+                    <option value="bottom" {{#unless status_edge_is_top}}selected{{/unless}}>{{t "Bottom of column"}}</option>
+                </select>
+            </label>
+            <button type="button" id="task-board-status-save" class="task-board-status-save action-button action-button-solid-brand" {{#if status_save_disabled}}disabled{{/if}}>
+                <span class="action-button-label">{{t "Save"}}</span>
+            </button>
+        </div>
+        <p class="task-board-status-error" role="alert">{{status_error}}</p>
+    {{else}}
+        <p class="task-board-status-current">{{column_name}}</p>
+        <p class="task-board-status-hint">{{move_hint}}</p>
+    {{/if}}
+</section>
+
 <section class="task-board-detail-section">
     <h3>{{t "Where this card came from"}}</h3>
     {{#if origin_label}}

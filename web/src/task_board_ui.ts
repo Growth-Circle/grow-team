@@ -25,7 +25,7 @@ import {current_user} from "./state_data.ts";
 import * as stream_data from "./stream_data.ts";
 import * as sub_store from "./sub_store.ts";
 import * as task_board_data from "./task_board_data.ts";
-import type {Task, TaskHistoryEntry} from "./task_board_data.ts";
+import type {MoveEdge, Task, TaskHistoryEntry} from "./task_board_data.ts";
 import {history_text} from "./task_board_history.ts";
 import * as task_board_notes from "./task_board_notes.ts";
 import type {TaskNote} from "./task_board_notes.ts";
@@ -60,6 +60,23 @@ let note_typeahead_element: HTMLElement | undefined;
 const ASSIGNEE_BUTTON_ID = "task-board-assignee_widget";
 let assignee_picker: dropdown_widget.DropdownWidget | undefined;
 let assignee_picker_instance: tippy.Instance | undefined;
+
+const STATUS_COLUMN_ID = "task-board-status-column";
+const STATUS_POSITION_ID = "task-board-status-position";
+const STATUS_SAVE_ID = "task-board-status-save";
+
+// What the reader has chosen in the Status row and not saved yet. It
+// is tied to the column the card was in, so a card moved by someone
+// else shows its new status instead of a stale choice.
+type StatusDraft = {
+    task_id: number;
+    base_column_id: number;
+    column_id: number;
+    edge: MoveEdge;
+};
+let status_draft: StatusDraft | undefined;
+let status_error: {task_id: number; message: string} | undefined;
+let status_is_saving = false;
 
 export const is_visible = task_board_data.is_visible;
 const set_visible = task_board_data.set_visible;
@@ -399,6 +416,39 @@ function update_note_submit_button(): void {
     );
 }
 
+function current_status_draft(task: Task): StatusDraft {
+    if (status_draft?.task_id === task.id && status_draft.base_column_id === task.column_id) {
+        return status_draft;
+    }
+    status_draft = undefined;
+    return {
+        task_id: task.id,
+        base_column_id: task.column_id,
+        column_id: task.column_id,
+        edge: "top",
+    };
+}
+
+function status_save_is_disabled(task: Task, draft: StatusDraft): boolean {
+    return (
+        status_is_saving || task_board_data.move_to_edge_is_noop(task, draft.column_id, draft.edge)
+    );
+}
+
+function status_error_message(task: Task): string {
+    if (status_error?.task_id === task.id) {
+        return status_error.message;
+    }
+    return "";
+}
+
+function move_hint(): string {
+    return $t({
+        defaultMessage:
+            "Only the person responsible, the creator, the reviewer, an admin, or an admin of the card's channel can move this card.",
+    });
+}
+
 function render_card_detail(task_id: number): void {
     const task = task_board_data.get_task(task_id);
     if (task === undefined) {
@@ -409,7 +459,11 @@ function render_card_detail(task_id: number): void {
     // The panel is drawn again on every card event. Close an open
     // picker, whose button is about to be replaced, and keep the
     // keyboard focus where the reader left it.
-    const keep_focus_on_assignee_button = document.activeElement?.id === ASSIGNEE_BUTTON_ID;
+    const focused_id = document.activeElement?.id;
+    const keep_focus_on_assignee_button = focused_id === ASSIGNEE_BUTTON_ID;
+    const status_focus_id = [STATUS_COLUMN_ID, STATUS_POSITION_ID, STATUS_SAVE_ID].find(
+        (id) => id === focused_id,
+    );
     const composer_focus =
         document.activeElement instanceof HTMLElement &&
         $("#task-board-detail .task-board-note-composer").has(document.activeElement).length > 0
@@ -426,6 +480,7 @@ function render_card_detail(task_id: number): void {
 
     const column = task_board_data.get_column(task.column_id);
     const history = history_by_task_id.get(task_id) ?? [];
+    const status = current_status_draft(task);
 
     $("#task-board-detail").html(
         render_task_board_card_detail({
@@ -446,6 +501,15 @@ function render_card_detail(task_id: number): void {
             has_checklist: task.checklist.length > 0,
             checklist: task.checklist.map((item, index) => ({...item, index})),
             can_edit: can_edit_task(task),
+            status_columns: task_board_data.get_columns().map((status_column) => ({
+                id: status_column.id,
+                name: status_column.name,
+                selected: status_column.id === status.column_id,
+            })),
+            status_edge_is_top: status.edge === "top",
+            status_save_disabled: status_save_is_disabled(task, status),
+            status_error: status_error_message(task),
+            move_hint: move_hint(),
             task_id,
             note_count: notes_by_task_id.get(task_id)?.length ?? task.note_count,
             notes_loaded: notes_by_task_id.has(task_id),
@@ -485,6 +549,8 @@ function render_card_detail(task_id: number): void {
 
     if (keep_focus_on_assignee_button && $(`#${ASSIGNEE_BUTTON_ID}`).length > 0) {
         $(`#${ASSIGNEE_BUTTON_ID}`).trigger("focus");
+    } else if (status_focus_id !== undefined && $(`#${status_focus_id}:enabled`).length > 0) {
+        $(`#${status_focus_id}`).trigger("focus");
     } else if (composer_focus !== undefined) {
         // A button that just turned off, such as Add note after a post,
         // hands the focus back to the box.
@@ -548,6 +614,10 @@ function resolve_card_notifications(task_id: number): void {
 }
 
 function open_card_detail(task_id: number): void {
+    if (open_task_id !== task_id) {
+        status_draft = undefined;
+        status_error = undefined;
+    }
     open_task_id = task_id;
     card_unavailable = false;
     render_card_detail(task_id);
@@ -590,25 +660,45 @@ function report_error(xhr: JQuery.jqXHR): void {
 function patch_task(
     task_id: number,
     data: Record<string, string | number | boolean>,
-    callbacks: {success?: () => void; error?: () => void} = {},
+    callbacks: {
+        success?: () => void;
+        error?: (xhr: JQuery.jqXHR) => void;
+        // The caller shows the failure itself, next to what it changed.
+        quiet?: boolean;
+    } = {},
 ): void {
     void channel.patch({
         url: `/json/tasks/${task_id}`,
         data,
         success: callbacks.success,
         error(xhr) {
-            report_error(xhr);
-            callbacks.error?.();
+            if (callbacks.quiet !== true) {
+                report_error(xhr);
+            }
+            callbacks.error?.(xhr);
         },
     });
 }
 
-function move_task(task_id: number, column_id: number, index: number): void {
+function move_task(
+    task_id: number,
+    column_id: number,
+    position: number,
+    callbacks: {
+        start?: () => void;
+        success?: () => void;
+        error?: (xhr: JQuery.jqXHR) => void;
+        quiet?: boolean;
+    } = {},
+): void {
     const task = task_board_data.get_task(task_id);
     if (task === undefined) {
         return;
     }
-    const position = task_board_data.position_for_drop(column_id, index);
+    const send = (): void => {
+        callbacks.start?.();
+        patch_task(task_id, {column_id, position}, callbacks);
+    };
 
     const column = task_board_data.get_column(column_id);
     const crossing_into_a_full_column =
@@ -625,14 +715,73 @@ function move_task(task_id: number, column_id: number, index: number): void {
                 {column: column.name},
             ),
             modal_submit_button_text: $t({defaultMessage: "Move it"}),
-            on_click() {
-                patch_task(task_id, {column_id, position});
-            },
+            on_click: send,
         });
         return;
     }
 
-    patch_task(task_id, {column_id, position});
+    send();
+}
+
+function update_status_controls(task: Task): void {
+    const draft = current_status_draft(task);
+    $(`#${STATUS_SAVE_ID}`).prop("disabled", status_save_is_disabled(task, draft));
+    $("#task-board-detail .task-board-status-error").text(status_error_message(task));
+}
+
+function read_status_draft(task: Task): StatusDraft {
+    return {
+        task_id: task.id,
+        base_column_id: task.column_id,
+        column_id: Number($<HTMLSelectElement>(`#${STATUS_COLUMN_ID}`).val()),
+        edge: $<HTMLSelectElement>(`#${STATUS_POSITION_ID}`).val() === "bottom" ? "bottom" : "top",
+    };
+}
+
+function save_status(task_id: number): void {
+    const task = task_board_data.get_task(task_id);
+    if (task === undefined || status_is_saving) {
+        return;
+    }
+    const draft = current_status_draft(task);
+    if (task_board_data.move_to_edge_is_noop(task, draft.column_id, draft.edge)) {
+        return;
+    }
+    const position = task_board_data.position_for_edge(draft.column_id, draft.edge, task_id);
+    status_error = undefined;
+    const finish = (): void => {
+        status_is_saving = false;
+        status_draft = undefined;
+    };
+
+    move_task(task_id, draft.column_id, position, {
+        quiet: true,
+        start() {
+            status_is_saving = true;
+            update_status_controls(task);
+        },
+        success() {
+            finish();
+            if (open_task_id === task_id) {
+                render_card_detail(task_id);
+                fetch_history(task_id);
+            }
+        },
+        error(xhr) {
+            finish();
+            const parsed = z.object({msg: z.string()}).safeParse(xhr.responseJSON);
+            status_error = {
+                task_id,
+                message:
+                    xhr.status >= 400 && xhr.status < 500 && parsed.success
+                        ? parsed.data.msg
+                        : $t({defaultMessage: "Could not move the card. Try again."}),
+            };
+            if (open_task_id === task_id) {
+                render_card_detail(task_id);
+            }
+        },
+    });
 }
 
 function drop_index($column_cards: JQuery, drop_y: number): number {
@@ -1067,6 +1216,24 @@ export function initialize(opts: {hide_other_views: () => void}): void {
         });
     });
 
+    $view.on("change", `#${STATUS_COLUMN_ID}, #${STATUS_POSITION_ID}`, () => {
+        const task =
+            open_task_id === undefined ? undefined : task_board_data.get_task(open_task_id);
+        if (task === undefined) {
+            return;
+        }
+        status_draft = read_status_draft(task);
+        status_error = undefined;
+        update_status_controls(task);
+    });
+
+    $view.on("click", `#${STATUS_SAVE_ID}`, (event) => {
+        event.preventDefault();
+        if (open_task_id !== undefined) {
+            save_status(open_task_id);
+        }
+    });
+
     $view.on("click", ".task-board-detail-delete", (event) => {
         event.preventDefault();
         if (open_task_id === undefined) {
@@ -1120,6 +1287,10 @@ export function initialize(opts: {hide_other_views: () => void}): void {
             return;
         }
         const column_id = Number($(this).attr("data-column-id"));
-        move_task(task_id, column_id, drop_index($(this), original.clientY));
+        move_task(
+            task_id,
+            column_id,
+            task_board_data.position_for_drop(column_id, drop_index($(this), original.clientY)),
+        );
     });
 }

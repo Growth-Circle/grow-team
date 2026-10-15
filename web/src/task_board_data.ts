@@ -268,11 +268,7 @@ export function origin_stream_ids(): number[] {
 // separating them; a client that hits that re-fetches the board.
 const POSITION_STEP = 1000;
 
-export function position_for_drop(column_id: number, index: number): number {
-    const column_tasks = tasks_in_column(column_id);
-    const before = column_tasks[index - 1];
-    const after = column_tasks[index];
-
+function position_between(before: Task | undefined, after: Task | undefined): number {
     if (before === undefined && after === undefined) {
         return POSITION_STEP;
     }
@@ -283,6 +279,35 @@ export function position_for_drop(column_id: number, index: number): number {
         return before.position + POSITION_STEP;
     }
     return (before.position + after.position) / 2;
+}
+
+export function position_for_drop(column_id: number, index: number): number {
+    const column_tasks = tasks_in_column(column_id);
+    return position_between(column_tasks[index - 1], column_tasks[index]);
+}
+
+export type MoveEdge = "top" | "bottom";
+
+export function position_for_edge(
+    column_id: number,
+    edge: MoveEdge,
+    moving_task_id: number,
+): number {
+    const others = tasks_in_column(column_id).filter((task) => task.id !== moving_task_id);
+    return edge === "top"
+        ? position_between(undefined, others[0])
+        : position_between(others.at(-1), undefined);
+}
+
+// Saving a card into the column and the spot it already has changes
+// nothing, so there is nothing to send.
+export function move_to_edge_is_noop(task: Task, column_id: number, edge: MoveEdge): boolean {
+    if (task.column_id !== column_id) {
+        return false;
+    }
+    const column_tasks = tasks_in_column(column_id);
+    const current_edge_task = edge === "top" ? column_tasks[0] : column_tasks.at(-1);
+    return current_edge_task?.id === task.id;
 }
 
 export function column_is_over_work_limit(column_id: number): boolean {

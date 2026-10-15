@@ -87,6 +87,50 @@ run_test("a drop lands between the two cards it was dropped between", () => {
     assert.equal(task_board_data.position_for_drop(12, 0), 1000);
 });
 
+run_test("a move to the top or bottom lands past the card at that end", () => {
+    load([
+        make_task({id: 1, position: 1000}),
+        make_task({id: 2, position: 2000}),
+        make_task({id: 3, column_id: 11, position: 500}),
+    ]);
+
+    assert.equal(task_board_data.position_for_edge(11, "top", 1), 500 - 1000);
+    assert.equal(task_board_data.position_for_edge(11, "bottom", 1), 500 + 1000);
+    // An empty column gives the card a position of its own.
+    assert.equal(task_board_data.position_for_edge(12, "top", 1), 1000);
+    assert.equal(task_board_data.position_for_edge(12, "bottom", 1), 1000);
+});
+
+run_test("a move within a column ignores the card that moves", () => {
+    load([
+        make_task({id: 1, position: 1000}),
+        make_task({id: 2, position: 2000}),
+        make_task({id: 3, position: 3000}),
+    ]);
+
+    assert.equal(task_board_data.position_for_edge(10, "top", 3), 0);
+    assert.equal(task_board_data.position_for_edge(10, "bottom", 1), 4000);
+    // The top card sent to the top keeps the position past the next one.
+    assert.equal(task_board_data.position_for_edge(10, "top", 1), 1000);
+});
+
+run_test("saving the spot a card already has is a no-op", () => {
+    load([
+        make_task({id: 1, position: 1000}),
+        make_task({id: 2, position: 2000}),
+        make_task({id: 3, position: 3000}),
+    ]);
+    const get = (id) => task_board_data.get_task(id);
+
+    assert.ok(task_board_data.move_to_edge_is_noop(get(1), 10, "top"));
+    assert.ok(!task_board_data.move_to_edge_is_noop(get(1), 10, "bottom"));
+    assert.ok(task_board_data.move_to_edge_is_noop(get(3), 10, "bottom"));
+    assert.ok(!task_board_data.move_to_edge_is_noop(get(2), 10, "top"));
+    assert.ok(!task_board_data.move_to_edge_is_noop(get(2), 10, "bottom"));
+    // Another column is always a change.
+    assert.ok(!task_board_data.move_to_edge_is_noop(get(1), 11, "top"));
+});
+
 run_test("a column reports when it reaches its work limit", () => {
     load([make_task({id: 1, column_id: 11}), make_task({id: 2, column_id: 11})]);
     assert.ok(task_board_data.column_is_over_work_limit(11));
