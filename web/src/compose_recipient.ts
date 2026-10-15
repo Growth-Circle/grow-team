@@ -505,6 +505,7 @@ export function update_topic_displayed_text(topic_name = "", has_topic_focus = f
     $topic_not_mandatory_placeholder.removeClass("visible");
     $topic_not_mandatory_placeholder.hide();
     $("#compose-channel-recipient").removeClass("disabled");
+    $("#compose-recipient").removeClass("compose-recipient-flat");
 
     if (!stream_data.can_use_empty_topic(compose_state.stream_id())) {
         $input.attr("placeholder", $t({defaultMessage: "Topic"}));
@@ -521,6 +522,9 @@ export function update_topic_displayed_text(topic_name = "", has_topic_focus = f
         $input.prop("disabled", true);
         $input.addClass("empty-topic-only");
         $("#compose-channel-recipient").addClass("disabled");
+        // There is only one conversation to write to, so the topic box
+        // has nothing to offer.
+        $("#compose-recipient").addClass("compose-recipient-flat");
         $("textarea#compose-textarea").trigger("focus");
         has_topic_focus = false;
     }

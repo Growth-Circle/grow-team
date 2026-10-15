@@ -256,6 +256,18 @@ run_test("compute_placeholder_text", ({override, override_rewire}) => {
     override_rewire(stream_data, "can_create_new_topics_in_stream", () => false);
     assert.equal(compose_ui.compute_placeholder_text(opts), $t({defaultMessage: "Message #open"}));
 
+    // A channel with no topics never names a topic.
+    const stream_flat = make_stream({
+        subscribed: true,
+        name: "flat",
+        stream_id: 4,
+        topics_policy: "empty_topic_only",
+    });
+    stream_data.add_sub_for_tests(stream_flat);
+    opts.stream_id = stream_flat.stream_id;
+    override_rewire(stream_data, "can_create_new_topics_in_stream", () => true);
+    assert.equal(compose_ui.compute_placeholder_text(opts), $t({defaultMessage: "Message #flat"}));
+
     // direct message narrows
     opts = {
         message_type: "private",

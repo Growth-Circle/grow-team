@@ -438,6 +438,8 @@ export function compute_placeholder_text(opts: ComposePlaceholderOptions): strin
             topic_display_name = opts.topic;
         } else if (
             stream_data.can_use_empty_topic(opts.stream_id) &&
+            // A channel with no topics has no topic to name.
+            !stream_data.is_empty_topic_only_channel(opts.stream_id) &&
             !$("input#stream_message_recipient_topic").is(":focus")
         ) {
             topic_display_name = util.get_final_topic_display_name(opts.topic);

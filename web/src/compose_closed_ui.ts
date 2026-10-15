@@ -28,6 +28,10 @@ function get_stream_recipient_label(stream_id: number, topic: string): Recipient
     const stream = stream_data.get_sub_by_id(stream_id);
     const topic_display_name = util.get_final_topic_display_name(topic);
     if (stream) {
+        // A channel with no topics has nothing to name after the channel.
+        if (stream_data.is_empty_topic_only_channel(stream_id)) {
+            return {label_text: "#" + stream.name, stream_name: stream.name};
+        }
         const recipient_label: RecipientLabel = {
             label_text: "#" + stream.name + " > " + topic_display_name,
             has_empty_string_topic: topic === "",

@@ -235,3 +235,30 @@ run_test("test_non_message_list_input", () => {
     label = $("#left_bar_compose_reply_button_big").text();
     assert.equal(label, "translated: Compose message");
 });
+
+run_test("a channel with no topics is labelled without a topic", () => {
+    message_lists.current = undefined;
+    recent_view_util.is_visible = () => true;
+    const stream = make_stream({
+        subscribed: true,
+        name: "chat only",
+        stream_id: 11,
+        topics_policy: "empty_topic_only",
+    });
+    stream_data.add_sub_for_tests(stream);
+
+    compose_closed_ui.update_recipient_text_for_reply_button({
+        stream_id: stream.stream_id,
+        topic: "",
+    });
+    test_reply_label("#chat only");
+
+    // A channel that uses topics keeps the topic in its label.
+    const other = make_stream({subscribed: true, name: "with topics", stream_id: 12});
+    stream_data.add_sub_for_tests(other);
+    compose_closed_ui.update_recipient_text_for_reply_button({
+        stream_id: other.stream_id,
+        topic: "a topic",
+    });
+    test_reply_label("#with topics &gt; a topic");
+});

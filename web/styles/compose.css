@@ -220,6 +220,15 @@
     flex-flow: column;
 
     #compose-recipient {
+        &.compose-recipient-flat {
+            .topic-marker-container,
+            #compose-channel-recipient {
+                /* compose_recipient.ts shows the topic box with an
+                   inline display, which would win over this rule. */
+                display: none !important;
+            }
+        }
+
         &.compose-recipient-direct-selected {
             #compose_select_recipient_widget_wrapper {
                 /* As the DM-pill area expands, we want to
