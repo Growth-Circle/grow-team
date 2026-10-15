@@ -10,12 +10,17 @@ import $ from "jquery";
 import * as z from "zod/mini";
 
 import render_room_header from "../templates/room_header.hbs";
+import render_room_header_tabs from "../templates/room_header_tabs.hbs";
 import render_room_summary_banner from "../templates/room_summary_banner.hbs";
 
 import * as channel from "./channel.ts";
+import * as channel_pins from "./channel_pins.ts";
 import {show_toast} from "./feedback_widget.ts";
+import * as hash_util from "./hash_util.ts";
 import {$t} from "./i18n.ts";
 import * as live_updates from "./live_updates.ts";
+import * as pins_drawer from "./pins_drawer.ts";
+import type {NarrowCanonicalTerm} from "./state_data.ts";
 import type {StreamSubscription} from "./sub_store.ts";
 
 const meta_schema = z.object({
@@ -50,12 +55,75 @@ const TYPE_KINDS = new Map([
     ["team", "team"],
 ]);
 
+// The tab that the narrow shows. Pins opens a drawer, so it is never the
+// tab of a narrow.
+type NarrowTab = "chat" | "files" | "links";
+
 let current_stream: StreamSubscription | undefined;
+let current_tab: NarrowTab = "chat";
+// Where the Chat tab goes: the conversation that the room showed last,
+// so a visit to Files or Links does not lose the topic.
+let chat_url = "";
 let current_meta: Meta | undefined;
 let toggle_in_flight = false;
 // Set once the server answers that it has no summaries to read.
 let digest_missing = false;
 let bound = false;
+
+// Files and Links are the narrows of the channel to messages that have an
+// attachment or a link.
+export function tab_for_terms(terms: NarrowCanonicalTerm[]): NarrowTab {
+    for (const term of terms) {
+        if (term.operator === "has" && !term.negated) {
+            if (term.operand === "attachment") {
+                return "files";
+            }
+            if (term.operand === "link") {
+                return "links";
+            }
+        }
+    }
+    return "chat";
+}
+
+function has_url(stream_id: number, operand: "attachment" | "link"): string {
+    return hash_util.search_terms_to_hash([
+        {operator: "channel", operand: String(stream_id)},
+        {operator: "has", operand},
+    ]);
+}
+
+function render_tabs(): void {
+    if (current_stream === undefined) {
+        return;
+    }
+    const stream_id = current_stream.stream_id;
+    $("#room-header .room-header-tabs").html(
+        render_room_header_tabs({
+            tabs: [
+                {
+                    key: "chat",
+                    label: $t({defaultMessage: "Chat"}),
+                    href: chat_url,
+                    is_active: current_tab === "chat",
+                },
+                {key: "pins", label: $t({defaultMessage: "Pins"}), href: ""},
+                {
+                    key: "files",
+                    label: $t({defaultMessage: "Files"}),
+                    href: has_url(stream_id, "attachment"),
+                    is_active: current_tab === "files",
+                },
+                {
+                    key: "links",
+                    label: $t({defaultMessage: "Links"}),
+                    href: has_url(stream_id, "link"),
+                    is_active: current_tab === "links",
+                },
+            ],
+        }),
+    );
+}
 
 function members_line(meta: Meta): string {
     // "4 people · 3 agents · WA" (RM-07). Each count is its own
@@ -102,6 +170,7 @@ function render_header(stream: StreamSubscription, meta: Meta): void {
             }),
         }),
     );
+    render_tabs();
 }
 
 function render_banner(digest: {message_count: number; summary: string} | null): void {
@@ -225,6 +294,11 @@ function bind_once(): void {
             window.location.hash = `#drive/room/${current_stream.stream_id}`;
         }
     });
+    $("#room-header").on("click", ".room-header-tab-pins", () => {
+        if (current_stream !== undefined) {
+            pins_drawer.open(current_stream.stream_id);
+        }
+    });
     $("#room-header").on("click", ".room-header-summary-toggle", () => {
         if (current_meta?.can_toggle_summary === true) {
             void set_summary(!current_meta.summary_enabled);
@@ -239,12 +313,24 @@ function bind_once(): void {
     });
 }
 
-export function show(stream: StreamSubscription): void {
+export function show(stream: StreamSubscription, terms: NarrowCanonicalTerm[]): void {
     bind_once();
     $(".column-middle-inner").addClass("sj-room-active");
     $("#compose").addClass("sj-room-composer");
-    if (current_stream?.stream_id === stream.stream_id && current_meta !== undefined) {
-        // A topic switch inside the same room keeps the header as it is.
+    const same_room = current_stream?.stream_id === stream.stream_id;
+    current_tab = tab_for_terms(terms);
+    if (current_tab === "chat") {
+        chat_url = hash_util.search_terms_to_hash(
+            terms.filter((term) => term.operator === "channel" || term.operator === "topic"),
+        );
+    } else if (!same_room) {
+        chat_url = hash_util.by_stream_url(stream.stream_id);
+    }
+    channel_pins.ensure_loaded(stream.stream_id);
+    if (same_room && current_meta !== undefined) {
+        // A topic switch inside the same room keeps the header, but the
+        // tabs follow the narrow.
+        render_tabs();
         return;
     }
     current_stream = stream;

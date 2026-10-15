@@ -7,12 +7,7 @@
    `position: sticky`. */
 .column-middle-inner.sj-room-active {
     display: grid;
-    grid-template-columns: 15em minmax(0, 1fr); /* 240px at 16px/1em */
-    grid-template-areas:
-        "header header"
-        "topics banner"
-        "topics feed";
-    grid-template-rows: auto auto 1fr;
+    grid-template: "header header" auto "topics banner" auto "topics feed" 1fr / 15em minmax(0, 1fr); /* 240px at 16px/1em */
     /* The topic column reaches the bottom of the window, even with few
        messages. */
     min-height: 100vh;
@@ -20,13 +15,7 @@
     @media (width < $shell_narrow_min) {
         /* Below the shell breakpoint the topics become a row of chips
            above the messages. */
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: auto auto auto 1fr;
-        grid-template-areas:
-            "header"
-            "topics"
-            "banner"
-            "feed";
+        grid-template: "header" auto "topics" auto "banner" auto "feed" 1fr / minmax(0, 1fr);
     }
 
     /* The column background reaches the bottom of the feed, while the
@@ -184,6 +173,58 @@
 .room-header-summary-toggle[aria-disabled="true"] {
     opacity: 0.6;
     cursor: not-allowed;
+}
+
+/* The Chat, Pins, Files and Links tabs under the room name. */
+.room-header-tabs {
+    display: flex;
+    gap: 0.25em;
+    /* The tab text lines up with the room name above: the room bar
+       pads 28px (14px on a narrow window) and each tab pads 9.75px. */
+    padding: 0 1.1406em; /* 18.25px at 16px/1em */
+    overflow-x: auto;
+
+    @media (width < $shell_narrow_min) {
+        padding: 0 0.2656em; /* 4.25px at 16px/1em */
+    }
+
+    &:empty {
+        display: none;
+    }
+}
+
+.room-header-tab {
+    flex: none;
+    padding: 0.5em 0.75em; /* 8px 12px at 16px/1em */
+    border: none;
+    border-bottom: 3px solid transparent;
+    background: none;
+    color: var(--sj-text-muted);
+    font-family: inherit;
+    font-size: 0.8125em; /* 13px at 16px/1em */
+    font-weight: 700;
+    line-height: 1.4;
+    text-decoration: none;
+    cursor: pointer;
+
+    &:hover {
+        color: var(--sj-text);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--sj-ring-focus);
+    }
+
+    @media (width < $shell_narrow_min) {
+        /* A touch target is at least 36px tall. */
+        min-height: 2.7692em; /* 36px at 13px/1em */
+    }
+}
+
+.room-header-tab-active {
+    border-bottom-color: var(--sj-kaki);
+    color: var(--sj-text);
 }
 
 /* RM-19..23: Kaki's summary above the messages. */

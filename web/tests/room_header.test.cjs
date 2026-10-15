@@ -44,6 +44,23 @@ mock_esm("../src/live_updates", {
     },
 });
 
+mock_esm("../src/hash_util", {
+    // A readable stand-in for the real hash: operator/operand pairs.
+    search_terms_to_hash: (terms) =>
+        "#narrow" + terms.map((term) => `/${term.operator}/${term.operand}`).join(""),
+    by_stream_url: (stream_id) => `#narrow/channel/${stream_id}`,
+});
+
+const pins_loaded = [];
+mock_esm("../src/channel_pins", {
+    ensure_loaded: (stream_id) => pins_loaded.push(stream_id),
+});
+
+const opened_pins = [];
+mock_esm("../src/pins_drawer", {
+    open: (stream_id) => opened_pins.push(stream_id),
+});
+
 const room_header = zrequire("room_header");
 
 const stream = {stream_id: 7, name: "rilis"};
@@ -53,6 +70,7 @@ const stream = {stream_id: 7, name: "rilis"};
 // keeps the handler for the tests after it. It acts on the state of the
 // module, not on the element.
 let click_toggle;
+let click_pins;
 
 function base_meta(overrides) {
     return {
@@ -83,7 +101,7 @@ async function open_room(overrides, digest_value) {
     digest_failure = undefined;
     patch_failure = undefined;
     room_header.hide();
-    room_header.show(stream);
+    room_header.show(stream, []);
     await flush();
 }
 
@@ -96,8 +114,9 @@ run_test("the header shows the room name, type, owner, and counts", async () => 
     meta = base_meta({whatsapp: true});
     digest = {digest: null};
     requests = [];
-    room_header.show(stream);
+    room_header.show(stream, []);
     click_toggle = $("#room-header").get_on_handler("click", ".room-header-summary-toggle");
+    click_pins = $("#room-header").get_on_handler("click", ".room-header-tab-pins");
     assert.ok(header_html().includes("sj-skeleton"), "loading placeholder");
     await flush();
     const html = header_html();
@@ -194,7 +213,7 @@ run_test("no banner when the summary is off, empty, or missing", async () => {
     await open_room({});
     digest_failure = new Error("not found");
     room_header.hide();
-    room_header.show(stream);
+    room_header.show(stream, []);
     await flush();
     assert.equal($("#room-summary-banner").html(), "");
     assert.ok(header_html().includes("# rilis"), "the header still shows");
@@ -204,7 +223,7 @@ run_test("a failed load shows a toast with Retry", async () => {
     room_header.hide();
     toasts = [];
     meta_failure = new Error("network");
-    room_header.show(stream);
+    room_header.show(stream, []);
     await flush();
     assert.equal(header_html(), "");
     assert.equal(toasts.at(-1).text, "translated: Could not load this room.");
@@ -218,11 +237,11 @@ run_test("a failed load shows a toast with Retry", async () => {
 run_test("a topic switch in the same room keeps the header", async () => {
     await open_room();
     requests = [];
-    room_header.show(stream);
+    room_header.show(stream, []);
     await flush();
     assert.deepEqual(requests, [], "no new request");
     assert.ok(header_html().includes("# rilis"));
-    room_header.show({stream_id: 8, name: "other"});
+    room_header.show({stream_id: 8, name: "other"}, []);
     assert.ok(header_html().includes("sj-skeleton"), "another room starts over");
     await flush();
 });
@@ -253,15 +272,119 @@ run_test("a server without summaries is asked once", async () => {
     requests = [];
     digest_failure = {status: 404};
     room_header.hide();
-    room_header.show(stream);
+    room_header.show(stream, []);
     await flush();
     assert.equal(requests.filter(([, url]) => url.endsWith("/digest")).length, 1);
     assert.equal($("#room-summary-banner").html(), "");
 
     requests = [];
     room_header.hide();
-    room_header.show(stream);
+    room_header.show(stream, []);
     await flush();
     assert.equal(requests.filter(([, url]) => url.endsWith("/digest")).length, 0);
     assert.ok(header_html().includes("# rilis"));
+});
+
+function tabs_html() {
+    return $("#room-header .room-header-tabs").html();
+}
+
+function show_room(terms) {
+    room_header.show(stream, terms);
+}
+
+run_test("the tabs are Chat, Pins, Files and Links, and Chat is the current one", async () => {
+    requests = [];
+    meta = base_meta();
+    digest = {digest: null};
+    room_header.hide();
+    show_room([
+        {operator: "channel", operand: "7"},
+        {operator: "topic", operand: "Deploys"},
+    ]);
+    await flush();
+
+    const html = tabs_html();
+    assert.ok(html.includes('href="#narrow/channel/7/topic/Deploys"'));
+    assert.ok(html.includes('href="#narrow/channel/7/has/attachment"'));
+    assert.ok(html.includes('href="#narrow/channel/7/has/link"'));
+    // Pins opens a drawer, so it is a button without a link.
+    assert.ok(html.includes('class="room-header-tab room-header-tab-pins"'));
+    for (const label of ["Chat", "Pins", "Files", "Links"]) {
+        assert.ok(html.includes(`translated: ${label}`), label);
+    }
+    assert.equal(html.match(/aria-current="page"/g).length, 1);
+    assert.ok(/data-tab="chat" href="[^"]*" aria-current="page"/.test(html));
+});
+
+run_test("the tab follows the narrow, and Chat goes back to the last topic", async () => {
+    requests = [];
+    meta = base_meta();
+    digest = {digest: null};
+    room_header.hide();
+    show_room([
+        {operator: "channel", operand: "7"},
+        {operator: "topic", operand: "Deploys"},
+    ]);
+    await flush();
+
+    show_room([
+        {operator: "channel", operand: "7"},
+        {operator: "has", operand: "attachment"},
+    ]);
+    let html = tabs_html();
+    assert.ok(/data-tab="files" href="[^"]*" aria-current="page"/.test(html));
+    assert.ok(!/data-tab="chat"[^>]*aria-current/.test(html));
+    // The room did not load again: only the tabs changed.
+    assert.equal(requests.filter(([, url]) => url.endsWith("/meta")).length, 1);
+    assert.ok(html.includes('href="#narrow/channel/7/topic/Deploys"'));
+
+    show_room([
+        {operator: "channel", operand: "7"},
+        {operator: "has", operand: "link"},
+    ]);
+    html = tabs_html();
+    assert.ok(/data-tab="links" href="[^"]*" aria-current="page"/.test(html));
+});
+
+run_test("a room opened on Files sends Chat to the room itself", async () => {
+    requests = [];
+    meta = base_meta();
+    digest = {digest: null};
+    room_header.hide();
+    show_room([
+        {operator: "channel", operand: "7"},
+        {operator: "has", operand: "attachment"},
+    ]);
+    await flush();
+
+    assert.ok(tabs_html().includes('data-tab="chat" href="#narrow/channel/7"'));
+});
+
+run_test("only a plain has:attachment or has:link narrow is a tab", () => {
+    const channel_term = {operator: "channel", operand: "7"};
+    assert.equal(room_header.tab_for_terms([channel_term]), "chat");
+    assert.equal(
+        room_header.tab_for_terms([channel_term, {operator: "has", operand: "image"}]),
+        "chat",
+    );
+    assert.equal(
+        room_header.tab_for_terms([
+            channel_term,
+            {operator: "has", operand: "link", negated: true},
+        ]),
+        "chat",
+    );
+    assert.equal(
+        room_header.tab_for_terms([channel_term, {operator: "has", operand: "link"}]),
+        "links",
+    );
+});
+
+run_test("the pins load with the room, and the Pins tab opens the drawer", async () => {
+    await open_room();
+    assert.ok(pins_loaded.includes(7));
+
+    click_pins();
+    assert.deepEqual(opened_pins, [7]);
 });

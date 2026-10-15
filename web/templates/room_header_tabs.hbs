@@ -1,0 +1,9 @@
+{{! The tabs of a room header. room_header.ts draws them into the
+    .room-header-tabs element of room_header.hbs. }}
+{{#each tabs}}
+    {{#if this.href}}
+        <a class="room-header-tab{{#if this.is_active}} room-header-tab-active{{/if}}" data-tab="{{this.key}}" href="{{this.href}}"{{#if this.is_active}} aria-current="page"{{/if}}>{{this.label}}</a>
+    {{else}}
+        <button type="button" class="room-header-tab room-header-tab-pins" data-tab="{{this.key}}" aria-haspopup="dialog">{{this.label}}</button>
+    {{/if}}
+{{/each}}

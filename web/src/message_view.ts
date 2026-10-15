@@ -703,7 +703,7 @@ export let show = (raw_terms: NarrowTerm[], show_opts: ShowMessageViewOpts): voi
                 : undefined;
         if (room_stream) {
             const topic = filter.terms_with_operator("topic")[0]?.operand;
-            room_header.show(room_stream);
+            room_header.show(room_stream, filter.terms());
             room_topics_column.show(room_stream.stream_id, topic, filter.terms().length === 1);
         } else {
             room_header.hide();
