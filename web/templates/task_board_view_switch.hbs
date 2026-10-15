@@ -1,0 +1,5 @@
+{{! Moves between the board and the reader's own list of cards. }}
+<nav class="task-board-view-switch" aria-label="{{t 'Task views'}}">
+    <a href="#tasks" class="task-board-view-switch-link{{#unless is_list}} task-board-view-switch-link-active{{/unless}}"{{#unless is_list}} aria-current="page"{{/unless}}>{{t "Board"}}</a>
+    <a href="#tasks/mine/list" class="task-board-view-switch-link{{#if is_list}} task-board-view-switch-link-active{{/if}}"{{#if is_list}} aria-current="page"{{/if}}>{{t "My tasks"}}</a>
+</nav>

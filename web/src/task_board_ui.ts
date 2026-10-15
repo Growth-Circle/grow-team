@@ -6,6 +6,7 @@ import * as z from "zod/mini";
 
 import render_task_board from "../templates/task_board.hbs";
 import render_task_board_card_detail from "../templates/task_board_card_detail.hbs";
+import render_task_board_my_tasks from "../templates/task_board_my_tasks.hbs";
 import render_task_board_new_card_form from "../templates/task_board_new_card_form.hbs";
 import render_task_board_rename_form from "../templates/task_board_rename_form.hbs";
 
@@ -88,7 +89,9 @@ const set_visible = task_board_data.set_visible;
 
 // The title center_views.ts shows in the browser tab.
 export function title(): string {
-    return $t({defaultMessage: "Task board"});
+    return task_board_data.get_view() === "list"
+        ? $t({defaultMessage: "My tasks"})
+        : $t({defaultMessage: "Task board"});
 }
 
 function day_label(timestamp: number): string {
@@ -254,12 +257,61 @@ function filter_options(): {value: string; label: string; selected: boolean}[] {
     ].map((option) => ({...option, selected: option.value === current}));
 }
 
+function due_section_title(section: task_board_data.DueSection): string {
+    switch (section) {
+        case "overdue":
+            return $t({defaultMessage: "Overdue"});
+        case "today":
+            return $t({defaultMessage: "Today"});
+        case "tomorrow":
+            return $t({defaultMessage: "Tomorrow"});
+        case "next_7_days":
+            return $t({defaultMessage: "Next 7 days"});
+        case "later":
+            return $t({defaultMessage: "Later"});
+        default:
+            return $t({defaultMessage: "No due date"});
+    }
+}
+
+// The list is redrawn from the card data on every card event, so a
+// card whose deadline, owner or column changed lands in its new section.
+function render_my_tasks(): void {
+    const open_tasks = task_board_data.open_tasks_assigned_to(people.my_current_user_id());
+    const sections = task_board_data
+        .group_by_due(open_tasks, Date.now(), timerender.display_time_zone)
+        .filter((group) => group.tasks.length > 0)
+        .map((group) => ({
+            section: group.section,
+            title: due_section_title(group.section),
+            is_overdue: group.section === "overdue",
+            card_count: group.tasks.length,
+            cards: group.tasks.map((task) => card_context(task)),
+        }));
+    $("#task-board-pane").html(
+        render_task_board_my_tasks({
+            is_list: true,
+            summary: $t({defaultMessage: "{count} open tasks"}, {count: open_tasks.length}),
+            is_empty: open_tasks.length === 0,
+            sections,
+            card_unavailable,
+        }),
+    );
+    if (open_task_id !== undefined) {
+        render_card_detail(open_task_id);
+    }
+}
+
 export function complete_rerender(): void {
     if (!is_visible()) {
         return;
     }
     const board = task_board_data.get_board();
     if (board === undefined) {
+        return;
+    }
+    if (task_board_data.get_view() === "list") {
+        render_my_tasks();
         return;
     }
 
@@ -310,6 +362,7 @@ export function complete_rerender(): void {
 
     $("#task-board-pane").html(
         render_task_board({
+            is_list: false,
             board_name: board.name,
             summary: board_summary(),
             columns,
@@ -1221,24 +1274,30 @@ function fetch_board(): void {
 export function show(
     filter: task_board_data.TaskFilter = task_board_data.FILTERS.ALL,
     task_id?: number,
+    view: task_board_data.BoardView = "board",
 ): void {
     assert(hide_other_views_callback !== undefined);
     hide_other_views_callback();
     task_board_data.set_filter(filter);
+    task_board_data.set_view(view);
     linked_task_id = task_id;
     card_unavailable = false;
+
+    // The personal list has its own sidebar entry, which marks itself
+    // from the hash. The filter's row would mark the board as well.
+    const highlight_filter = view === "list" ? "" : filter;
 
     const was_already_visible = is_visible();
     if (was_already_visible) {
         // views_util.show does nothing for a view that is already
         // open, so a switch between the Work rows moves the highlight
         // here.
-        left_sidebar_navigation_area.highlight_task_board_view(filter);
+        left_sidebar_navigation_area.highlight_task_board_view(highlight_filter);
     }
     views_util.show({
         highlight_view_in_left_sidebar() {
             views_util.handle_message_view_deactivated(() => {
-                left_sidebar_navigation_area.highlight_task_board_view(filter);
+                left_sidebar_navigation_area.highlight_task_board_view(highlight_filter);
             });
         },
         $view: $("#task-board-view"),
@@ -1357,18 +1416,26 @@ export function initialize(opts: {hide_other_views: () => void}): void {
 
     setup_assignee_picker();
 
-    $view.on("click", ".task-board-card", function (this: HTMLElement, event) {
-        event.preventDefault();
-        open_card_detail(Number($(this).attr("data-task-id")));
-    });
+    $view.on(
+        "click",
+        ".task-board-card, .task-board-list-row",
+        function (this: HTMLElement, event) {
+            event.preventDefault();
+            open_card_detail(Number($(this).attr("data-task-id")));
+        },
+    );
 
-    $view.on("keydown", ".task-board-card", function (this: HTMLElement, event) {
-        if (event.key !== "Enter" && event.key !== " ") {
-            return;
-        }
-        event.preventDefault();
-        open_card_detail(Number($(this).attr("data-task-id")));
-    });
+    $view.on(
+        "keydown",
+        ".task-board-card, .task-board-list-row",
+        function (this: HTMLElement, event) {
+            if (event.key !== "Enter" && event.key !== " ") {
+                return;
+            }
+            event.preventDefault();
+            open_card_detail(Number($(this).attr("data-task-id")));
+        },
+    );
 
     $view.on("click", ".task-board-detail-close", (event) => {
         event.preventDefault();

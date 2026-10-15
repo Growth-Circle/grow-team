@@ -9,6 +9,7 @@ export type TargetId =
     | "home"
     | "needs"
     | "tasks"
+    | "my_tasks"
     | "agents"
     | "mcp"
     | "runners"
@@ -28,6 +29,7 @@ const targets: Record<TargetId, Target> = {
     home: {hash: "#today", built: false, fallback_hash: "#inbox"},
     needs: {hash: "#needs", built: true, fallback_hash: null},
     tasks: {hash: "#tasks", built: true, fallback_hash: null},
+    my_tasks: {hash: "#tasks/mine/list", built: true, fallback_hash: null},
     agents: {hash: "#agents", built: false, fallback_hash: null},
     mcp: {hash: "#mcp", built: true, fallback_hash: null},
     runners: {hash: "#runners", built: false, fallback_hash: null},
@@ -35,9 +37,12 @@ const targets: Record<TargetId, Target> = {
     settings: {hash: "#workspace-settings", built: false, fallback_hash: "#organization"},
 };
 
+// "my_tasks" comes before "tasks": its route is inside the task board
+// route, and the first entry that matches marks the hash.
 const TARGET_IDS: TargetId[] = [
     "home",
     "needs",
+    "my_tasks",
     "tasks",
     "agents",
     "mcp",

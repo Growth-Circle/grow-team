@@ -407,7 +407,7 @@ export function initialize(): void {
 }
 
 // The sidebar (map-mockup-a.md section 4.2): workspace switcher, search
-// button, the eight navigation entries, rooms, and the user card.
+// button, the nine navigation entries, rooms, and the user card.
 
 const NAV_COUNT_IDS: nav_counts.NavCountId[] = ["needs", "tasks", "mcp", "runners"];
 
@@ -415,6 +415,7 @@ const NAV_IDS: sidebar_targets.TargetId[] = [
     "home",
     "needs",
     "tasks",
+    "my_tasks",
     "agents",
     "mcp",
     "runners",

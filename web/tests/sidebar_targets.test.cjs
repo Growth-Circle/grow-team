@@ -9,7 +9,7 @@ const sidebar_targets = zrequire("sidebar_targets");
 
 // The pages that ship. When a page ships, its entry moves from the
 // second list to the first, in sidebar_targets.ts and here.
-const BUILT = ["tasks", "needs", "mcp"];
+const BUILT = ["tasks", "my_tasks", "needs", "mcp"];
 const HIDDEN_OR_FALLBACK = ["search", "home", "agents", "runners", "drive", "settings"];
 
 run_test("built_pages", () => {
@@ -25,6 +25,7 @@ run_test("built_pages", () => {
 run_test("get_hash", () => {
     assert.equal(sidebar_targets.get_hash("tasks"), "#tasks");
     assert.equal(sidebar_targets.get_hash("mcp"), "#mcp");
+    assert.equal(sidebar_targets.get_hash("my_tasks"), "#tasks/mine/list");
     // A built page opens the section that the caller names.
     assert.equal(sidebar_targets.get_hash("tasks", "mine"), "#tasks/mine");
     // A page that is not built opens its fallback, or is hidden.
@@ -46,6 +47,9 @@ run_test("is_shown", () => {
 run_test("id_for_hash", () => {
     assert.equal(sidebar_targets.id_for_hash("#tasks"), "tasks");
     assert.equal(sidebar_targets.id_for_hash("#tasks/mine"), "tasks");
+    // The personal list marks its own entry, not the board.
+    assert.equal(sidebar_targets.id_for_hash("#tasks/mine/list"), "my_tasks");
+    assert.equal(sidebar_targets.id_for_hash("#tasks/42"), "tasks");
     // A built page marks itself for its links with an item too.
     assert.equal(sidebar_targets.id_for_hash("#needs"), "needs");
     assert.equal(sidebar_targets.id_for_hash("#needs/approval:1/confirm"), "needs");
