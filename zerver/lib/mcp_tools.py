@@ -74,13 +74,16 @@ class DirectMessages(Arguments):
     limit: Annotated[int, Field(ge=1, le=100)] = 30
     before: PositiveId | None = None
 
+
 class EditMessage(Arguments):
     message_id: PositiveId
     content: Annotated[str, StringConstraints(min_length=1, max_length=10000)]
 
+
 class Reaction(Arguments):
     message_id: PositiveId
     emoji_name: Annotated[str, StringConstraints(min_length=1, max_length=100)]
+
 
 class UploadFile(Arguments):
     filename: Annotated[str, StringConstraints(min_length=1, max_length=100)]
@@ -89,8 +92,10 @@ class UploadFile(Arguments):
         "application/octet-stream"
     )
 
+
 class TaskId(Arguments):
     task_id: PositiveId
+
 
 class Members(Arguments):
     query: Annotated[str, StringConstraints(max_length=100)] = ""
@@ -104,6 +109,11 @@ class CreateTask(Arguments):
     stream_id: PositiveId | None = None
     topic: Annotated[str, StringConstraints(max_length=60)] = ""
     assignee_id: PositiveId | None = None
+    priority: Annotated[int, Field(ge=0, le=3)] = 0
+    labels: Annotated[
+        list[Annotated[str, StringConstraints(max_length=40)]], Field(max_length=10)
+    ] = Field(default_factory=list)
+    due_at: PositiveId | None = None
 
 
 class UpdateTask(Arguments):
@@ -113,6 +123,13 @@ class UpdateTask(Arguments):
     body: Annotated[str, StringConstraints(max_length=10000)] | None = None
     assignee_id: PositiveId | None = None
     blocked: bool | None = None
+    priority: Annotated[int, Field(ge=0, le=3)] | None = None
+    labels: (
+        Annotated[list[Annotated[str, StringConstraints(max_length=40)]], Field(max_length=10)]
+        | None
+    ) = None
+    due_at: PositiveId | None = None
+    clear_due_at: bool = False
 
 
 TOOLS: dict[str, tuple[type[Arguments], str, bool]] = {

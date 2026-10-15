@@ -227,7 +227,9 @@ class MCPAccessTests(ZulipTestCase):
 
         attachment = Attachment.objects.get(path_id=output["url"].removeprefix("/user_uploads/"))
         self.assertEqual(attachment.owner_id, self.user.id)
-        self.assertTrue(self.call(token, "upload_file", {"filename": "a", "content_base64": "!!"})["isError"])
+        self.assertTrue(
+            self.call(token, "upload_file", {"filename": "a", "content_base64": "!!"})["isError"]
+        )
         self.assertTrue(
             self.call(self.manual(), "upload_file", {"filename": "a.txt", "content_base64": png})[
                 "isError"
@@ -247,7 +249,9 @@ class MCPAccessTests(ZulipTestCase):
         )
         message_id = sent["id"]
         self.call(token, "add_reaction", {"message_id": message_id, "emoji_name": "smile"})
-        self.assertTrue(Reaction.objects.filter(message_id=message_id, user_profile=self.user).exists())
+        self.assertTrue(
+            Reaction.objects.filter(message_id=message_id, user_profile=self.user).exists()
+        )
         self.call(token, "remove_reaction", {"message_id": message_id, "emoji_name": "smile"})
         self.assertFalse(Reaction.objects.filter(message_id=message_id).exists())
         self.call(token, "edit_message", {"message_id": message_id, "content": "two"})
@@ -255,9 +259,9 @@ class MCPAccessTests(ZulipTestCase):
         history = self.call(token, "get_direct_messages", {"user_ids": [other.id]})
         self.assertEqual(history["messages"][-1]["content"], "two")
         self.assertTrue(
-            self.call(
-                self.manual(), "edit_message", {"message_id": message_id, "content": "x"}
-            )["isError"]
+            self.call(self.manual(), "edit_message", {"message_id": message_id, "content": "x"})[
+                "isError"
+            ]
         )
 
     def test_discovery_and_bearer_challenge(self) -> None:
@@ -599,6 +603,71 @@ class MCPAccessTests(ZulipTestCase):
         card.refresh_from_db()
         self.assertEqual(card.title, "Iago card")
         self.assertEqual(card.column_id, columns[1].id)
+
+    def test_task_tools_take_priority_labels_and_due_date(self) -> None:
+        from zerver.lib.tasks import get_or_create_default_board
+        from zerver.models import Task
+
+        board = get_or_create_default_board(self.user.realm)
+        column_id = board.columns.order_by("order")[0].id
+        token = self.manual(write=True)
+
+        created = self.call(
+            token,
+            "create_task",
+            {
+                "title": "Planned",
+                "column_id": column_id,
+                "priority": 3,
+                "labels": ["ops", "q4"],
+                "due_at": 1893456000,
+            },
+        )
+        self.assertNotIn("isError", created)
+        card = Task.objects.get(title="Planned")
+        self.assertEqual(card.priority, 3)
+        self.assertEqual(card.labels, ["ops", "q4"])
+        assert card.due_at is not None
+        self.assertEqual(int(card.due_at.timestamp()), 1893456000)
+
+        updated = self.call(
+            token,
+            "update_task",
+            {"task_id": card.id, "priority": 1, "labels": ["ops"], "clear_due_at": True},
+        )
+        self.assertNotIn("isError", updated)
+        card.refresh_from_db()
+        self.assertEqual(card.priority, 1)
+        self.assertEqual(card.labels, ["ops"])
+        self.assertIsNone(card.due_at)
+
+        bad_arguments: list[dict[str, object]] = [
+            {"priority": 4},
+            {"labels": ["x" * 41]},
+            {"labels": ["a"] * 11},
+        ]
+        for bad in bad_arguments:
+            rejected = self.call(token, "update_task", {"task_id": card.id, **bad})
+            self.assertEqual(rejected, {"isError": True})
+        card.refresh_from_db()
+        self.assertEqual(card.priority, 1)
+
+    def test_update_task_priority_follows_the_edit_permission(self) -> None:
+        from zerver.actions.tasks import do_create_task
+        from zerver.lib.tasks import get_or_create_default_board
+        from zerver.models import Task
+
+        board = get_or_create_default_board(self.user.realm)
+        card = do_create_task(
+            user_profile=self.example_user("iago"),
+            board=board,
+            column=board.columns.order_by("order")[0],
+            title="Iago card",
+        )
+        token = self.manual(write=True)
+        edited = self.call(token, "update_task", {"task_id": card.id, "priority": 3})
+        self.assertEqual(edited, {"isError": True})
+        self.assertEqual(Task.objects.get(id=card.id).priority, 0)
 
     def test_secrets_are_hashed_and_audit_has_no_content(self) -> None:
         from zerver.models.mcp_access import MCPAccessAudit, MCPAccessToken
