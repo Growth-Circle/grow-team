@@ -257,3 +257,26 @@ run_test("footer actions: a plain button and a primary button", ({mock_template}
     $primary.get_on_handler("click")();
     assert.ok(approved);
 });
+
+run_test(
+    "a custom footer goes after the actions, and a class marks the drawer",
+    ({mock_template}) => {
+        document.activeElement = undefined;
+        const frames = prepare_frames(mock_template);
+        $.reset_selector("<button>");
+        const $footer = $.create("caller-footer-stub-1");
+
+        drawer.open({
+            kind_label: "CHAT · #general",
+            $body: $.create("caller-body-stub-10"),
+            actions: [{label: "Tutup", on_click: noop}],
+            $footer,
+            extra_class: "sj-chat-drawer",
+        });
+
+        const [frame] = frames;
+        assert.ok($(frame.html).hasClass("sj-chat-drawer"));
+        assert.equal(frame.footer_children.length, 2);
+        assert.equal(frame.footer_children[1][0], $footer[0]);
+    },
+);

@@ -30,6 +30,11 @@ export type DrawerOpenOptions = {
     kind_label: string;
     $body: JQuery;
     actions?: DrawerAction[];
+    // Content for the footer, such as a message box. It goes after any
+    // action buttons.
+    $footer?: JQuery;
+    // A class on the drawer, to style one kind of drawer.
+    extra_class?: string;
     on_close?: () => void;
 };
 
@@ -79,12 +84,18 @@ export function open(opts: DrawerOpenOptions): void {
     const $previous_trigger = $trigger ?? $(document.activeElement ?? document.body);
 
     const $drawer = $(render_drawer({drawer_unique_id: drawer_id, kind_label: opts.kind_label}));
+    if (opts.extra_class !== undefined) {
+        $drawer.addClass(opts.extra_class);
+    }
     $("body").append($drawer);
     $drawer.find(".sj-drawer__body").append(opts.$body);
     const $footer = $drawer.find(".sj-drawer__footer");
     for (const action of opts.actions ?? []) {
         const $button = build_action_button(action);
         $footer.append($button);
+    }
+    if (opts.$footer !== undefined) {
+        $footer.append(opts.$footer);
     }
 
     modals.open(drawer_id, {
