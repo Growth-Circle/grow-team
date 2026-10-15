@@ -8,7 +8,6 @@ module fills and reads them.
 import json
 import logging
 import re
-import zoneinfo
 from datetime import date, datetime, time, timedelta
 from typing import Any
 from uuid import uuid4
@@ -33,9 +32,9 @@ from zerver.lib.agent_events import send_room_meta_event
 from zerver.lib.agent_policy import AgentAccessDenied
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.model_budget import model_budget_state
+from zerver.lib.realm_clock import realm_local_now
 from zerver.lib.response import json_success
 from zerver.lib.streams import access_stream_by_id, access_stream_for_send_message
-from zerver.lib.timezone import canonicalize_timezone
 from zerver.lib.typed_endpoint import PathOnly, typed_endpoint
 from zerver.models import (
     AgentRealmSettings,
@@ -67,14 +66,6 @@ CONTEXT_MESSAGE_LIMIT = 99
 # preset of a job comes from its profile, and Kaki's profile serves other
 # work too: the code that picks the model asks is_room_digest_job.
 ROOM_DIGEST_MODEL_PRESET = "fast"
-
-
-def _realm_local_now(realm: Realm) -> datetime:
-    """The current time in the timezone that the workspace chose."""
-    tz_name = (
-        AgentRealmSettings.objects.filter(realm=realm).values_list("timezone", flat=True).first()
-    ) or "Asia/Jakarta"
-    return timezone_now().astimezone(zoneinfo.ZoneInfo(canonicalize_timezone(tz_name)))
 
 
 def _find_kaki(realm: Realm) -> agents.AgentProfile | None:
@@ -239,7 +230,7 @@ def send_realm_room_digests(realm: Realm) -> int:
         return 0
     if model_budget_state(realm) == "exceeded":
         return 0
-    local_now = _realm_local_now(realm)
+    local_now = realm_local_now(realm)
     if local_now.time() < time(DIGEST_HOUR, 0):
         return 0
     kaki = _find_kaki(realm)
@@ -316,7 +307,7 @@ def summarize_room(
         raise JsonableError(
             _("Kaki is not available in this workspace. Ask an admin to turn it on.")
         )
-    today = _realm_local_now(stream.realm).date()
+    today = realm_local_now(stream.realm).date()
     try:
         with agent_transaction():
             waiting = (
@@ -354,7 +345,7 @@ def get_room_digest_view(
     timezone, when `date` is not given."""
     (stream, _sub) = access_stream_by_id(user_profile, stream_id)
     target_date = (
-        _parse_digest_date(date) if date is not None else _realm_local_now(stream.realm).date()
+        _parse_digest_date(date) if date is not None else realm_local_now(stream.realm).date()
     )
     digest = RoomDigest.objects.filter(stream=stream, date=target_date).first()
     return json_success(request, data={"digest": None if digest is None else _digest_data(digest)})

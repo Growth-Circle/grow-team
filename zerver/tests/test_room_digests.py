@@ -925,7 +925,7 @@ class GetRoomDigestTest(RoomDigestTestCase):
         )
 
         self.login_user(owner)
-        with mock.patch("zerver.lib.room_digests.timezone_now", return_value=AFTER_DIGEST_HOUR):
+        with mock.patch("zerver.lib.realm_clock.timezone_now", return_value=AFTER_DIGEST_HOUR):
             data = self.assert_json_success(self.client_get(f"/json/streams/{room.id}/digest"))
         self.assertEqual(
             data["digest"],
@@ -948,7 +948,7 @@ class GetRoomDigestTest(RoomDigestTestCase):
         self.login_user(owner)
         # 18:00 UTC is 01:00 of the next day in Jakarta.
         with mock.patch(
-            "zerver.lib.room_digests.timezone_now",
+            "zerver.lib.realm_clock.timezone_now",
             return_value=AFTER_DIGEST_HOUR + timedelta(hours=12),
         ):
             data = self.assert_json_success(self.client_get(f"/json/streams/{room.id}/digest"))
