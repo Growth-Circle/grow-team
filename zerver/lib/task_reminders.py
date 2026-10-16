@@ -118,7 +118,8 @@ def reminder_content(reminder: TaskReminder) -> str:
         hidden = len(reminder.cards) - MAX_LISTED_CARDS
         if hidden > 0:
             lines.append(_("And {count} more.").format(count=hidden))
-        lines += ["", f"[{_('Open My tasks')}]({realm.url}/#tasks/mine/list)"]
+        open_my_tasks = _("Open My tasks")
+        lines += ["", f"[{open_my_tasks}]({realm.url}/#tasks/mine/list)"]
     return "\n".join(lines)
 
 
