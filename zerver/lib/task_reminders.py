@@ -1,8 +1,8 @@
 """The morning reminder of the cards a member should look at today.
 
 A member with open cards that are overdue or due today gets one direct
-message from the Notification Bot, once the workspace's own clock reaches
-07:00. A TaskReminderLog row marks the day as done for that member.
+message from the Notification Bot while the workspace's own clock is between
+07:00 and 10:00. A TaskReminderLog row marks the day as done for that member.
 """
 
 from dataclasses import dataclass
@@ -21,6 +21,10 @@ from zerver.models import Realm, Task, TaskReminderLog, UserProfile
 from zerver.models.users import get_system_bot
 
 REMINDER_HOUR = 7
+
+# A reminder that would first arrive after this hour is no longer a morning
+# reminder, so the day is skipped; the cards stay on My tasks and Planner.
+REMINDER_END_HOUR = 10
 
 # A long list stops being a reminder; the rest is one click away on My tasks.
 MAX_LISTED_CARDS = 10
@@ -47,11 +51,11 @@ def _next_midnight(local_now: datetime) -> datetime:
 
 def reminders_to_send(realm: Realm) -> list[TaskReminder]:
     """Who gets a reminder now, and for which cards. Empty before 07:00 on
-    the workspace's clock. A member already reminded today, a member with
-    nothing due, and a card in a channel its assignee cannot read are
-    all left out."""
+    the workspace's clock, and from 10:00 on. A member already reminded
+    today, a member with nothing due, and a card in a channel its assignee
+    cannot read are all left out."""
     local_now = realm_local_now(realm)
-    if local_now.time() < time(REMINDER_HOUR, 0):
+    if not time(REMINDER_HOUR, 0) <= local_now.time() < time(REMINDER_END_HOUR, 0):
         return []
     today = local_now.date()
 

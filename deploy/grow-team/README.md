@@ -266,8 +266,9 @@ Tanpa timer ini, job selesai tetapi jawabannya tertahan pada status `verifying`.
 ### Pengingat tugas pagi
 
 `grow-team-task-reminders.timer` berjalan tiap 15 menit dan menjalankan `send_task_reminders`.
-Begitu jam workspace mencapai 07:00, setiap anggota yang punya card terbuka terlambat atau jatuh tempo hari ini menerima satu DM dari Notification Bot.
+Selama jam workspace berada di antara 07:00 dan 10:00, setiap anggota yang punya card terbuka terlambat atau jatuh tempo hari ini menerima satu DM dari Notification Bot.
 Penanda per anggota per tanggal disimpan di tabel `TaskReminderLog`, jadi run berikutnya pada hari yang sama tidak mengirim lagi.
+Timer yang baru hidup lagi sebelum 10:00 masih mengirim satu kali; setelah 10:00 tidak ada DM hari itu, card tetap terlihat di My tasks dan Planner.
 Skrip memakai `flock` dan `timeout` di dalam container seperti rekonsiliasi; kegagalannya tidak memengaruhi aplikasi.
 
 Pasang setelah rilis dengan migrasi `0841` berjalan:

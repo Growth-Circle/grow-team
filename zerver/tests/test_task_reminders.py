@@ -158,6 +158,38 @@ class TaskReminderScheduleTest(TaskReminderTestCase):
             self.assertEqual(self.run_reminders(), "Sent 1 reminder(s).")
         self.assertEqual(self.reminder_count(self.hamlet), 1)
 
+    def test_the_window_is_seven_to_ten_on_the_workspace_clock(self) -> None:
+        self.create_card("Send the invoice", jakarta(-1, 10))
+
+        for hour, minute, sent in [(6, 59, 0), (9, 59, 1)]:
+            with self.subTest(hour=hour, minute=minute):
+                TaskReminderLog.objects.all().delete()
+                with time_machine.travel(jakarta(0, hour, minute), tick=False):
+                    self.assertEqual(self.run_reminders(), f"Sent {sent} reminder(s).")
+        TaskReminderLog.objects.all().delete()
+        with time_machine.travel(jakarta(0, 10), tick=False):
+            self.assertEqual(self.run_reminders(), "Sent 0 reminder(s).")
+        TaskReminderLog.objects.all().delete()
+        with time_machine.travel(jakarta(0, 7), tick=False):
+            self.assertEqual(self.run_reminders(), "Sent 1 reminder(s).")
+
+    def test_a_card_that_falls_due_after_ten_waits_for_the_next_morning(self) -> None:
+        with time_machine.travel(jakarta(0, 11), tick=False):
+            self.create_card("Due this afternoon", jakarta(0, 15))
+            self.assertEqual(self.run_reminders(), "Sent 0 reminder(s).")
+        self.assertEqual(self.reminder_count(self.hamlet), 0)
+
+        with time_machine.travel(jakarta(1, 7), tick=False):
+            self.assertEqual(self.run_reminders(), "Sent 1 reminder(s).")
+
+    def test_a_timer_that_resumes_inside_the_window_still_sends_once(self) -> None:
+        self.create_card("Send the invoice", jakarta(-1, 10))
+
+        with time_machine.travel(jakarta(0, 8, 30), tick=False):
+            self.assertEqual(self.run_reminders(), "Sent 1 reminder(s).")
+            self.assertEqual(self.run_reminders(), "Sent 0 reminder(s).")
+        self.assertEqual(self.reminder_count(self.hamlet), 1)
+
     def test_the_workspace_timezone_decides_the_hour_and_the_day(self) -> None:
         AgentRealmSettings.objects.filter(realm=self.realm).update(timezone="America/Los_Angeles")
         # 23:30 on 16 Oct in Los Angeles, which is already 17 Oct in Jakarta.
@@ -181,7 +213,7 @@ class TaskReminderScheduleTest(TaskReminderTestCase):
 
         with time_machine.travel(AT_SEVEN_JAKARTA, tick=False):
             self.assertEqual(self.run_reminders(), "Sent 1 reminder(s).")
-        with time_machine.travel(AT_SEVEN_JAKARTA + timedelta(hours=10), tick=False):
+        with time_machine.travel(AT_SEVEN_JAKARTA + timedelta(hours=2), tick=False):
             self.create_card("A new card for today", jakarta(0, 20))
             self.assertEqual(self.run_reminders(), "Sent 0 reminder(s).")
 
