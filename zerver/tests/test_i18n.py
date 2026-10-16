@@ -1,3 +1,5 @@
+import os
+import re
 from http.cookies import SimpleCookie
 from typing import TYPE_CHECKING, Any
 from unittest import mock
@@ -222,3 +224,20 @@ class FrontendRegexTestCase(ZulipTestCase):
             result = command.extract_strings(input_text)
             self.assert_length(result, 1)
             self.assertEqual(result[0], expected)
+
+    def test_templates_do_not_pass_arguments_to_the_t_helper(self) -> None:
+        # The helper fills {variables} from the current context and ignores
+        # `name=value` arguments, and the extraction regex for
+        # `{{t '...' name=value}}` swallows the next string on the page.
+        with_arguments = re.compile(r"""{{~?\s*t\s+(['"])[^'"]*\1\s+\w+=""")
+        templates_dir = os.path.join(settings.DEPLOY_ROOT, "web/templates")
+        offenders = []
+        for dirpath, _dirnames, filenames in os.walk(templates_dir):
+            for filename in filenames:
+                if not filename.endswith(".hbs"):
+                    continue
+                path = os.path.join(dirpath, filename)
+                with open(path) as template:
+                    if with_arguments.search(template.read()):
+                        offenders.append(os.path.relpath(path, templates_dir))
+        self.assertEqual(offenders, [])

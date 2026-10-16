@@ -120,11 +120,11 @@
         <p class="task-board-detail-priority">{{priority_current_label}}</p>
     {{/if}}
     <ul class="task-board-detail-labels" aria-label="{{t 'Labels'}}">
-        {{#each labels}}
+        {{#each label_items}}
             <li class="task-board-chip task-board-label">
-                <span>{{this}}</span>
+                <span>{{label}}</span>
                 {{#if ../can_edit}}
-                    <button type="button" class="task-board-label-remove" data-label="{{this}}" aria-label="{{t 'Remove label {label}' label=this}}">
+                    <button type="button" class="task-board-label-remove" data-label="{{label}}" aria-label="{{t 'Remove label {label}'}}">
                         <i class="zulip-icon zulip-icon-close" aria-hidden="true"></i>
                     </button>
                 {{/if}}

@@ -38,13 +38,13 @@
                 <li class="task-board-list-item task-board-plan-item" data-task-id="{{this.id}}" draggable="true">
                     {{> task_board_list_row . }}
                     <span class="task-board-plan-actions">
-                        <button type="button" class="task-board-plan-move task-board-plan-move-up" data-direction="up" data-task-id="{{this.id}}" aria-label="{{t 'Move {title} up' title=this.title}}" title="{{t 'Move up'}}" {{#if this.is_first}}disabled{{/if}}>
+                        <button type="button" class="task-board-plan-move task-board-plan-move-up" data-direction="up" data-task-id="{{this.id}}" aria-label="{{t 'Move {title} up'}}" title="{{t 'Move up'}}" {{#if this.is_first}}disabled{{/if}}>
                             <i class="zulip-icon zulip-icon-chevron-down" aria-hidden="true"></i>
                         </button>
-                        <button type="button" class="task-board-plan-move task-board-plan-move-down" data-direction="down" data-task-id="{{this.id}}" aria-label="{{t 'Move {title} down' title=this.title}}" title="{{t 'Move down'}}" {{#if this.is_last}}disabled{{/if}}>
+                        <button type="button" class="task-board-plan-move task-board-plan-move-down" data-direction="down" data-task-id="{{this.id}}" aria-label="{{t 'Move {title} down'}}" title="{{t 'Move down'}}" {{#if this.is_last}}disabled{{/if}}>
                             <i class="zulip-icon zulip-icon-chevron-down" aria-hidden="true"></i>
                         </button>
-                        <button type="button" class="task-board-plan-remove" data-task-id="{{this.id}}" aria-label="{{t 'Remove {title} from today' title=this.title}}" title="{{t 'Remove from today'}}">
+                        <button type="button" class="task-board-plan-remove" data-task-id="{{this.id}}" aria-label="{{t 'Remove {title} from today'}}" title="{{t 'Remove from today'}}">
                             <i class="zulip-icon zulip-icon-close" aria-hidden="true"></i>
                         </button>
                     </span>
@@ -58,7 +58,7 @@
                 <li class="task-board-list-item">
                     {{> task_board_list_row . }}
                     <span class="task-board-plan-actions">
-                        <button type="button" class="task-board-plan-add action-button action-button-subtle-neutral action-button-small" data-task-id="{{this.id}}" aria-label="{{t 'Add {title} to today' title=this.title}}">
+                        <button type="button" class="task-board-plan-add action-button action-button-subtle-neutral action-button-small" data-task-id="{{this.id}}" aria-label="{{t 'Add {title} to today'}}">
                             <span class="action-button-label">{{t "Add to today"}}</span>
                         </button>
                     </span>

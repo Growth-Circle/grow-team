@@ -795,7 +795,8 @@ function render_card_detail(task_id: number): void {
             priorities: priority_options(task.priority),
             priority_current_label:
                 priority_chip_label(task.priority) || $t({defaultMessage: "No priority"}),
-            labels: task.labels,
+            // The template needs each label as a context of its own to fill {label}.
+            label_items: task.labels.map((label) => ({label})),
             label_error: label_error?.task_id === task_id ? label_error.message : "",
             due_label: due_label(task),
             due_input_value: task_board_data.due_date_input_value(
