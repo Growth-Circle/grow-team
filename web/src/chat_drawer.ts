@@ -12,10 +12,12 @@ import * as hash_util from "./hash_util.ts";
 import {$t, $t_html} from "./i18n.ts";
 import * as people from "./people.ts";
 import * as rendered_markdown from "./rendered_markdown.ts";
+import {web_mark_read_on_scroll_policy_values} from "./settings_config.ts";
 import * as stream_data from "./stream_data.ts";
 import * as sub_store from "./sub_store.ts";
 import * as timerender from "./timerender.ts";
 import * as ui_report from "./ui_report.ts";
+import * as unread_ops from "./unread_ops.ts";
 import {user_settings} from "./user_settings.ts";
 import * as util from "./util.ts";
 
@@ -27,6 +29,11 @@ without leaving the page. It is not a message list: it keeps its own
 short list of messages and does not touch the message lists of the page.
 The server renders each message, and rendered_markdown.ts gives its
 links and mentions the same behavior as in the feed.
+
+Everything the drawer shows counts as read while the window has focus,
+unless the person turned off marking messages as read when they scroll.
+The drawer shows one conversation, so the "conversation only" setting
+allows it too.
 
 Messages come in three ways: the fetch of the last messages, the
 message events (message_events.ts calls handle_new_messages), and the
@@ -120,9 +127,22 @@ function update_send_button(state: State): void {
     state.$send.prop("disabled", !has_text || state.sending || state.$input.is(":disabled"));
 }
 
+function mark_displayed_messages_as_read(state: State): void {
+    if (
+        current !== state ||
+        !unread_ops.is_window_focused() ||
+        user_settings.web_mark_read_on_scroll_policy ===
+            web_mark_read_on_scroll_policy_values.never.code
+    ) {
+        return;
+    }
+    unread_ops.notify_server_message_ids_read(state.messages.map((message) => message.id));
+}
+
 function add_messages(state: State, messages: ChatMessage[]): void {
     state.messages = chat_drawer_data.merge_messages(state.messages, messages);
     render_log(state);
+    mark_displayed_messages_as_read(state);
 }
 
 function fetch_latest(state: State, {on_failure}: {on_failure: boolean}): void {
@@ -267,6 +287,12 @@ export function open(conversation: Conversation): void {
     });
 
     render_log(state);
+    // Messages that arrived while the window was in the background are
+    // marked as read once the person comes back to it.
+    const mark_read_on_focus = (): void => {
+        mark_displayed_messages_as_read(state);
+    };
+    $(window).on("focus", mark_read_on_focus);
     drawer.open({
         kind_label: $t(
             {defaultMessage: "CHAT · {conversation}"},
@@ -276,6 +302,7 @@ export function open(conversation: Conversation): void {
         $footer: $composer,
         extra_class: "sj-chat-drawer",
         on_close() {
+            $(window).off("focus", mark_read_on_focus);
             if (current === state) {
                 current = undefined;
             }

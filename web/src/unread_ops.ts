@@ -746,6 +746,27 @@ export function notify_server_message_read(
     notify_server_messages_read([message], options);
 }
 
+// Marks messages as read that a view outside the message lists shows,
+// such as the chat drawer, which does not keep Message objects.
+export function notify_server_message_ids_read(message_ids: number[]): void {
+    const unread_ids = unread.get_unread_message_ids(message_ids);
+    if (unread_ids.length === 0) {
+        return;
+    }
+
+    message_flags.mark_as_read(unread_ids);
+
+    for (const message_id of unread_ids) {
+        unread.mark_as_read(message_id);
+        const message = message_store.get(message_id);
+        if (message !== undefined) {
+            process_newly_read_message(message, {from: "pointer"});
+        }
+    }
+
+    unread_ui.update_unread_counts();
+}
+
 function process_scrolled_to_bottom(): void {
     if (message_lists.current === undefined) {
         // First, verify that user is narrowed to a list of messages.
