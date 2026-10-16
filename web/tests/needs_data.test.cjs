@@ -49,9 +49,12 @@ function make_item(overrides) {
         nonce: "nonce-1",
         job_version: null,
         task: null,
+        broadcast: false,
         ...overrides,
     };
 }
+
+const show_all = {show_team_wide: true};
 
 run_test("a tab shows only its own kind, and all shows every kind", () => {
     const items = [
@@ -60,14 +63,14 @@ run_test("a tab shows only its own kind, and all shows every kind", () => {
         make_item({id: "decision:3", kind: "decision"}),
     ];
     assert.deepEqual(
-        needs_data.items_for_tab(items, "approval").map((item) => item.id),
+        needs_data.items_for_tab(items, "approval", show_all).map((item) => item.id),
         ["approval:1"],
     );
     assert.deepEqual(
-        needs_data.items_for_tab(items, "mention").map((item) => item.id),
+        needs_data.items_for_tab(items, "mentions", show_all).map((item) => item.id),
         ["mention:2"],
     );
-    assert.equal(needs_data.items_for_tab(items, "all").length, 3);
+    assert.equal(needs_data.items_for_tab(items, "all", show_all).length, 3);
 });
 
 run_test("each tab count matches the items that tab shows", () => {
@@ -77,7 +80,7 @@ run_test("each tab count matches the items that tab shows", () => {
         make_item({id: "mention:3", kind: "mention"}),
     ];
     assert.equal(needs_data.count_for_tab(items, "approval"), 2);
-    assert.equal(needs_data.count_for_tab(items, "mention"), 1);
+    assert.equal(needs_data.count_for_tab(items, "mentions"), 1);
     assert.equal(needs_data.count_for_tab(items, "decision"), 0);
     assert.equal(needs_data.count_for_tab(items, "all"), 3);
 
@@ -85,6 +88,50 @@ run_test("each tab count matches the items that tab shows", () => {
     items.splice(0, 1);
     assert.equal(needs_data.count_for_tab(items, "approval"), 1);
     assert.equal(needs_data.count_for_tab(items, "all"), 2);
+});
+
+run_test("team-wide mentions are hidden until the person asks, and still counted", () => {
+    const items = [
+        make_item({id: "mention:1", kind: "mention"}),
+        make_item({id: "mention:2", kind: "mention", broadcast: true}),
+        make_item({id: "card_mention:3", kind: "card_mention", broadcast: true}),
+        make_item({id: "approval:4", kind: "approval"}),
+    ];
+    const ids = (tab, options) =>
+        needs_data.items_for_tab(items, tab, options).map((item) => item.id);
+
+    assert.deepEqual(ids("mentions", {show_team_wide: false}), ["mention:1"]);
+    assert.deepEqual(ids("mentions", {show_team_wide: true}), [
+        "mention:1",
+        "mention:2",
+        "card_mention:3",
+    ]);
+    // The all tab follows the same switch.
+    assert.deepEqual(ids("all", {show_team_wide: false}), ["mention:1", "approval:4"]);
+    assert.equal(ids("all", {show_team_wide: true}).length, 4);
+
+    // The tab numbers add up to the sidebar number whatever the switch says.
+    assert.equal(needs_data.count_for_tab(items, "mentions"), 3);
+    assert.equal(needs_data.count_for_tab(items, "all"), 4);
+    assert.equal(needs_data.team_wide_count_for_tab(items, "mentions"), 2);
+    assert.equal(needs_data.team_wide_count_for_tab(items, "all"), 2);
+    assert.equal(needs_data.team_wide_count_for_tab(items, "approval"), 0);
+});
+
+run_test("an address from before the tabs merged opens the tab that holds its kind", () => {
+    assert.equal(needs_data.tab_for_hash_arg("mention"), "mentions");
+    assert.equal(needs_data.tab_for_hash_arg("card_mention"), "mentions");
+    assert.equal(needs_data.tab_for_hash_arg("card_assigned"), "assigned");
+    assert.equal(needs_data.tab_for_hash_arg("approval"), "approval");
+    assert.equal(needs_data.tab_for_hash_arg("decision"), "decision");
+    for (const tab of needs_data.NEED_TABS) {
+        assert.equal(needs_data.tab_for_hash_arg(tab), tab);
+    }
+    // An item address is not a tab.
+    assert.equal(needs_data.tab_for_hash_arg("mention:42"), undefined);
+    assert.equal(needs_data.tab_for_hash_arg("approval:6f1c-77"), undefined);
+    assert.equal(needs_data.tab_for_hash_arg(""), undefined);
+    assert.equal(needs_data.tab_for_hash_arg(undefined), undefined);
 });
 
 run_test("a decision offers the choices the agent gave, and nothing else", () => {
@@ -269,11 +316,15 @@ run_test("a card notification is listed under all and its own tab", () => {
         make_item({id: "card_assigned:4", kind: "card_assigned", task: card}),
     ];
     assert.equal(needs_data.count_for_tab(items, "all"), 4);
-    assert.equal(needs_data.count_for_tab(items, "mention"), 1);
-    assert.equal(needs_data.count_for_tab(items, "card_mention"), 1);
-    assert.equal(needs_data.count_for_tab(items, "card_assigned"), 2);
+    // A mention in chat and a mention in a card note share one tab.
+    assert.equal(needs_data.count_for_tab(items, "mentions"), 2);
+    assert.equal(needs_data.count_for_tab(items, "assigned"), 2);
     assert.deepEqual(
-        needs_data.items_for_tab(items, "card_assigned").map((item) => item.id),
+        needs_data.items_for_tab(items, "mentions", show_all).map((item) => item.id),
+        ["mention:1", "card_mention:2"],
+    );
+    assert.deepEqual(
+        needs_data.items_for_tab(items, "assigned", show_all).map((item) => item.id),
         ["card_assigned:3", "card_assigned:4"],
     );
     assert.ok(needs_data.is_card_kind("card_mention"));

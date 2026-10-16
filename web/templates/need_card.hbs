@@ -10,6 +10,9 @@ The Needs you page and the Today page both render it. }}
     <div class="needs-body">
         <div class="needs-meta-row">
             <span class="needs-tag needs-tag-{{kind}}">{{tag}}</span>
+            {{#if team_wide}}
+                <span class="needs-tag needs-tag-team-wide">{{t "Team-wide"}}</span>
+            {{/if}}
             <span class="needs-meta">{{meta}}</span>
         </div>
         <p class="needs-text line-clamp">{{text}}</p>
@@ -23,7 +26,7 @@ The Needs you page and the Today page both render it. }}
     <div class="needs-actions">
         {{#each actions}}
             {{#if this.href}}
-                <a class="needs-btn needs-btn-secondary" href="{{this.href}}">{{this.label}}</a>
+                <a class="needs-btn needs-btn-{{this.variant}}" href="{{this.href}}">{{this.label}}</a>
             {{else if this.is_expired}}
                 <button type="button" class="needs-btn needs-btn-expired" aria-disabled="true">{{this.label}}</button>
             {{else}}

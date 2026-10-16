@@ -34,9 +34,11 @@ export const need_task_schema = z.object({
     title: z.string(),
 });
 
+const NEED_KINDS = ["approval", "mention", "decision", "card_mention", "card_assigned"] as const;
+
 export const need_item_schema = z.object({
     id: z.string(),
-    kind: z.enum(["approval", "mention", "decision", "card_mention", "card_assigned"]),
+    kind: z.enum(NEED_KINDS),
     actor: need_actor_schema,
     stream_id: z.nullable(z.number()),
     topic: z.nullable(z.string()),
@@ -54,6 +56,8 @@ export const need_item_schema = z.object({
     nonce: z.nullable(z.string()),
     job_version: z.nullable(z.number()),
     task: z.nullable(need_task_schema),
+    // A mention that names three people or more, or the whole channel.
+    broadcast: z.boolean(),
 });
 
 export const need_counts_schema = z.object({
@@ -75,7 +79,33 @@ export type NeedItem = z.infer<typeof need_item_schema>;
 export type NeedCounts = z.infer<typeof need_counts_schema>;
 export type NeedsResult = z.infer<typeof needs_result_schema>;
 export type NeedKind = NeedItem["kind"];
-export type NeedTab = NeedKind | "all";
+// A tab can hold more than one kind: a mention in a message and a
+// mention in a card note are both "mentions".
+export type NeedTab = "all" | "mentions" | "assigned" | "approval" | "decision";
+export const NEED_TABS: NeedTab[] = ["all", "mentions", "assigned", "approval", "decision"];
+
+const TAB_FOR_KIND: Record<NeedKind, Exclude<NeedTab, "all">> = {
+    approval: "approval",
+    mention: "mentions",
+    decision: "decision",
+    card_mention: "mentions",
+    card_assigned: "assigned",
+};
+
+export function tab_for_kind(kind: NeedKind): Exclude<NeedTab, "all"> {
+    return TAB_FOR_KIND[kind];
+}
+
+// An address can name a tab, and the ones from before the tabs merged
+// named a kind: #needs/mention, #needs/card_mention, #needs/card_assigned.
+export function tab_for_hash_arg(arg: string | undefined): NeedTab | undefined {
+    const tab = NEED_TABS.find((value) => value === arg);
+    if (tab !== undefined) {
+        return tab;
+    }
+    const kind = NEED_KINDS.find((value) => value === arg);
+    return kind === undefined ? undefined : tab_for_kind(kind);
+}
 
 export async function fetch_open(): Promise<NeedsResult> {
     const result: unknown = await channel.get({url: "/json/needs"});
@@ -87,17 +117,33 @@ export async function fetch_done_today(): Promise<NeedsResult> {
     return needs_result_schema.parse(result);
 }
 
-export function items_for_tab(items: NeedItem[], tab: NeedTab): NeedItem[] {
+function items_in_tab(items: NeedItem[], tab: NeedTab): NeedItem[] {
     if (tab === "all") {
         return items;
     }
-    return items.filter((item) => item.kind === tab);
+    return items.filter((item) => tab_for_kind(item.kind) === tab);
 }
 
-// The number on a tab is what the tab shows, so it changes at once
+// What a tab shows. Team-wide mentions stay out of the way until the
+// person asks for them.
+export function items_for_tab(
+    items: NeedItem[],
+    tab: NeedTab,
+    {show_team_wide}: {show_team_wide: boolean},
+): NeedItem[] {
+    const in_tab = items_in_tab(items, tab);
+    return show_team_wide ? in_tab : in_tab.filter((item) => !item.broadcast);
+}
+
+// The number on a tab counts everything in it, team-wide or not, so
+// the All tab matches the number in the sidebar. It changes at once
 // when the person handles an item.
 export function count_for_tab(items: NeedItem[], tab: NeedTab): number {
-    return items_for_tab(items, tab).length;
+    return items_in_tab(items, tab).length;
+}
+
+export function team_wide_count_for_tab(items: NeedItem[], tab: NeedTab): number {
+    return items_in_tab(items, tab).filter((item) => item.broadcast).length;
 }
 
 // A note that mentions the person, or a card they are now responsible

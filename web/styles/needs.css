@@ -89,6 +89,35 @@
     color: var(--sj-on-ink);
 }
 
+/* A tab with nothing in it is quieter and still a click away. */
+.needs-tab-empty:not(.needs-tab-active) {
+    background: transparent;
+    color: var(--sj-text-muted);
+    font-weight: 500;
+}
+
+.needs-filter {
+    display: flex;
+}
+
+.needs-team-wide-toggle {
+    border: var(--sj-border);
+    border-radius: var(--sj-radius-pill);
+    background: transparent;
+    color: var(--sj-text);
+    font-family: inherit;
+    /* 13px at 16px/1em */
+    font-size: 0.8125em;
+    font-weight: 700;
+    /* 8px 13px on a 13px font */
+    padding: 0.6154em 1em;
+    cursor: pointer;
+
+    &[aria-pressed="true"] {
+        background: var(--sj-surface-warm);
+    }
+}
+
 .needs-list {
     display: flex;
     flex-direction: column;
@@ -261,6 +290,10 @@
     background: var(--sj-tint-kaki);
 }
 
+.needs-tag-team-wide {
+    color: var(--sj-text-muted);
+}
+
 .needs-meta {
     color: var(--sj-text-muted);
     /* 13px at 16px/1em */
@@ -348,6 +381,16 @@ a.needs-btn:focus {
 .needs-btn-secondary:hover,
 a.needs-btn-secondary:hover {
     background: var(--sj-kuning);
+    color: var(--sj-tinta);
+}
+
+/* A link that is the main action keeps the colors of the main button. */
+a.needs-btn-primary,
+a.needs-btn-primary:focus {
+    color: var(--sj-on-ink);
+}
+
+a.needs-btn-primary:hover {
     color: var(--sj-tinta);
 }
 

@@ -1,5 +1,5 @@
 {{! The Needs you page: everything that waits on this person across
-every room, in tabs by kind, and what the person finished today. }}
+every room, in tabs, and what the person finished today. }}
 <div class="needs-page">
     <header class="needs-header">
         <div class="needs-heading">
@@ -10,13 +10,23 @@ every room, in tabs by kind, and what the person finished today. }}
             {{#each tabs}}
                 <button
                   type="button"
-                  class="needs-tab{{#if this.active}} needs-tab-active{{/if}}"
+                  class="needs-tab{{#if this.active}} needs-tab-active{{/if}}{{#if this.is_empty}} needs-tab-empty{{/if}}"
                   data-tab="{{this.value}}"
                   aria-pressed="{{#if this.active}}true{{else}}false{{/if}}"
                   >{{this.label}}</button>
             {{/each}}
         </div>
     </header>
+
+    {{#if team_wide_toggle}}
+        <div class="needs-filter">
+            <button
+              type="button"
+              class="needs-team-wide-toggle"
+              aria-pressed="{{#if team_wide_toggle.is_on}}true{{else}}false{{/if}}"
+              >{{team_wide_toggle.label}}</button>
+        </div>
+    {{/if}}
 
     {{#if load_failed}}
         <div class="needs-empty needs-error" role="alert">
@@ -33,7 +43,7 @@ every room, in tabs by kind, and what the person finished today. }}
         {{#if is_empty}}
             <div class="needs-empty">
                 <span class="needs-empty-icon" aria-hidden="true">✓</span>
-                <span class="needs-empty-text">{{t "Nothing is waiting in this category."}}</span>
+                <span class="needs-empty-text">{{empty_text}}</span>
             </div>
         {{/if}}
         {{#each cards}}

@@ -19,14 +19,14 @@ import {realm} from "./state_data.ts";
 import * as stream_data from "./stream_data.ts";
 import * as timerender from "./timerender.ts";
 import * as unread_ui from "./unread_ui.ts";
+import * as util from "./util.ts";
 import * as views_util from "./views_util.ts";
 
-// The Needs you page (#needs, #needs/<id>, #needs/<id>/confirm): what
-// waits on this person across every room, in three kinds. need_card.hbs
-// is the card, and card_context() builds its fields, so that the Today
-// page shows the same card.
+// The Needs you page (#needs, #needs/<tab>, #needs/<id>,
+// #needs/<id>/confirm): what waits on this person across every room,
+// in tabs. need_card.hbs is the card, and card_context() builds its
+// fields, so that the Today page shows the same card.
 
-const TABS: NeedTab[] = ["all", "approval", "mention", "decision", "card_mention", "card_assigned"];
 const OPTION_LABEL_LIMIT = 40;
 
 let visible = false;
@@ -36,6 +36,8 @@ let loaded = false;
 let load_failed = false;
 let done_loaded = false;
 let current_tab: NeedTab = "all";
+// Mentions that name a whole team are hidden until the person asks.
+let show_team_wide = false;
 let open_items: NeedItem[] = [];
 let done_items: NeedItem[] = [];
 // The ids that already had a card on screen, so that only a new card
@@ -50,13 +52,14 @@ function set_visible(value: boolean): void {
 
 // ----- Turning one item into template fields -----
 
+// The badge says where the request comes from.
 function tag_text(kind: NeedKind): string {
     const labels: Record<NeedKind, string> = {
-        approval: $t({defaultMessage: "APPROVAL"}),
-        mention: $t({defaultMessage: "MENTION"}),
-        decision: $t({defaultMessage: "DECISION"}),
-        card_mention: $t({defaultMessage: "Mentioned you"}),
-        card_assigned: $t({defaultMessage: "You're responsible"}),
+        approval: $t({defaultMessage: "Approval"}),
+        mention: $t({defaultMessage: "Chat"}),
+        decision: $t({defaultMessage: "Decision"}),
+        card_mention: $t({defaultMessage: "Card note"}),
+        card_assigned: $t({defaultMessage: "Assigned to you"}),
     };
     return labels[kind];
 }
@@ -64,13 +67,26 @@ function tag_text(kind: NeedKind): string {
 function tab_label(tab: NeedTab): string {
     const labels: Record<NeedTab, string> = {
         all: $t({defaultMessage: "All"}),
-        approval: $t({defaultMessage: "Approval"}),
-        mention: $t({defaultMessage: "Mention"}),
-        decision: $t({defaultMessage: "Decision"}),
-        card_mention: $t({defaultMessage: "Mentioned you"}),
-        card_assigned: $t({defaultMessage: "You're responsible"}),
+        mentions: $t({defaultMessage: "Mentions"}),
+        assigned: $t({defaultMessage: "Assigned to you"}),
+        approval: $t({defaultMessage: "Approvals"}),
+        decision: $t({defaultMessage: "Decisions"}),
     };
     return labels[tab];
+}
+
+// What an empty tab collects, so the person knows what to expect.
+function empty_tab_text(tab: NeedTab): string {
+    const texts: Record<NeedTab, string> = {
+        all: $t({defaultMessage: "Nothing is waiting for you."}),
+        mentions: $t({
+            defaultMessage: "Mentions of you in chat and in card notes collect here.",
+        }),
+        assigned: $t({defaultMessage: "Cards that are made yours collect here."}),
+        approval: $t({defaultMessage: "Approvals that an agent asks from you collect here."}),
+        decision: $t({defaultMessage: "Decisions that an agent asks from you collect here."}),
+    };
+    return texts[tab];
 }
 
 // The color of an agent goes in a style attribute, so only a plain hex
@@ -86,14 +102,23 @@ function meta_text(item: NeedItem): string {
     const time = timerender.relative_time_string_from_date(new Date(item.time));
     if (needs_data.is_card_kind(item.kind)) {
         return item.task === null
-            ? time
-            : $t({defaultMessage: "{card_id} · {time}"}, {card_id: item.task.display_id, time});
+            ? $t({defaultMessage: "{who} · {time}"}, {who, time})
+            : $t(
+                  {defaultMessage: "{who} · {card_id} · {time}"},
+                  {who, card_id: item.task.display_id, time},
+              );
     }
     const room = item.stream_id === null ? "" : stream_data.get_stream_name_from_id(item.stream_id);
     if (room === "") {
         return $t({defaultMessage: "{who} · {time}"}, {who, time});
     }
-    return $t({defaultMessage: "{who} · # {room} · {time}"}, {who, room, time});
+    if (item.topic === null) {
+        return $t({defaultMessage: "{who} · # {room} · {time}"}, {who, room, time});
+    }
+    return $t(
+        {defaultMessage: "{who} · # {room} › {topic} · {time}"},
+        {who, room, topic: util.get_final_topic_display_name(item.topic), time},
+    );
 }
 
 // Where the person can see the item: the topic of a room, or the
@@ -114,29 +139,44 @@ type CardAction = {
     is_expired?: boolean;
 };
 
+// The main action of a mention is the one that takes the person to
+// it, on the right as the main button of every kind is.
 function card_actions(item: NeedItem): CardAction[] {
-    const link = (label: string): CardAction => ({label, href: conversation_url(item)});
+    const link = (label: string, variant: "primary" | "secondary"): CardAction => ({
+        label,
+        variant,
+        href: conversation_url(item),
+    });
     // A mention is never waiting on an agent, so it does not expire.
     const expired = item.expired && item.kind !== "mention";
     const actions: CardAction[] = [];
     if (needs_data.is_card_kind(item.kind)) {
+        actions.push({
+            label:
+                item.kind === "card_mention"
+                    ? $t({defaultMessage: "Mark done"})
+                    : $t({defaultMessage: "Mark as seen"}),
+            variant: "secondary",
+            choice: "",
+        });
         if (item.task !== null) {
             actions.push({
                 label: $t({defaultMessage: "Open card"}),
+                variant: "primary",
                 href: `#tasks/${item.task.id}`,
             });
         }
-        actions.push({
-            label: $t({defaultMessage: "Mark as seen"}),
-            variant: "primary",
-            choice: "",
-        });
         return actions;
     }
     if (item.kind === "mention") {
-        actions.push(link($t({defaultMessage: "Reply"})));
-    } else if (item.kind === "approval" || expired) {
-        actions.push(link($t({defaultMessage: "View"})));
+        actions.push(
+            {label: $t({defaultMessage: "Mark done"}), variant: "secondary", choice: ""},
+            link($t({defaultMessage: "Reply"}), "primary"),
+        );
+        return actions;
+    }
+    if (item.kind === "approval" || expired) {
+        actions.push(link($t({defaultMessage: "View"}), "secondary"));
     }
 
     if (expired) {
@@ -149,15 +189,13 @@ function card_actions(item: NeedItem): CardAction[] {
 
     if (item.kind === "approval") {
         actions.push({label: $t({defaultMessage: "Approve"}), variant: "primary", choice: ""});
-    } else if (item.kind === "mention") {
-        actions.push({label: $t({defaultMessage: "Mark done"}), variant: "primary", choice: ""});
     } else {
         // The first choice is the main button. The other choices come
         // before it, like the second button of the other kinds.
         const [first, ...others] = needs_data.decision_options(item);
         if (first === undefined) {
             // An open question. The person answers in the room.
-            actions.push(link($t({defaultMessage: "Reply"})));
+            actions.push(link($t({defaultMessage: "Reply"}), "primary"));
         } else {
             for (const choice of others) {
                 actions.push({label: choice, variant: "secondary", choice});
@@ -176,6 +214,7 @@ export function card_context(item: NeedItem): Record<string, unknown> {
         kind: item.kind,
         is_new: !shown_ids.has(item.id),
         tag: tag_text(item.kind),
+        team_wide: item.broadcast,
         is_human,
         initials: actor.initials,
         avatar_shape: actor.shape === "ring" || actor.shape === "box" ? actor.shape : "circle",
@@ -189,8 +228,10 @@ export function card_context(item: NeedItem): Record<string, unknown> {
 
 function needs_view_context(): Record<string, unknown> {
     const cards = needs_data
-        .items_for_tab(open_items, current_tab)
+        .items_for_tab(open_items, current_tab, {show_team_wide})
         .map((item) => card_context(item));
+    const team_wide_count = needs_data.team_wide_count_for_tab(open_items, current_tab);
+    const only_team_wide_waits = cards.length === 0 && team_wide_count > 0 && !show_team_wide;
     return {
         loading: !loaded,
         load_failed,
@@ -198,20 +239,39 @@ function needs_view_context(): Record<string, unknown> {
             {defaultMessage: "FROM ALL ROOMS IN {workspace}"},
             {workspace: realm.realm_name},
         ),
-        tabs: TABS.map((tab) => {
+        tabs: needs_data.NEED_TABS.map((tab) => {
             const label = tab_label(tab);
+            const count = needs_data.count_for_tab(open_items, tab);
             return {
                 value: tab,
                 active: tab === current_tab,
-                label: loaded
-                    ? $t(
-                          {defaultMessage: "{label} · {count}"},
-                          {label, count: needs_data.count_for_tab(open_items, tab)},
-                      )
-                    : label,
+                // A tab with nothing in it stays one click away.
+                is_empty: loaded && count === 0,
+                label: loaded ? $t({defaultMessage: "{label} · {count}"}, {label, count}) : label,
             };
         }),
+        team_wide_toggle:
+            loaded && team_wide_count > 0
+                ? {
+                      is_on: show_team_wide,
+                      label: show_team_wide
+                          ? $t(
+                                {defaultMessage: "Hide team-wide mentions ({count})"},
+                                {count: team_wide_count},
+                            )
+                          : $t(
+                                {defaultMessage: "Show team-wide mentions ({count})"},
+                                {count: team_wide_count},
+                            ),
+                  }
+                : undefined,
         is_empty: cards.length === 0,
+        empty_text: only_team_wide_waits
+            ? $t({
+                  defaultMessage:
+                      "Only team-wide mentions are waiting. Show them with the button above.",
+              })
+            : empty_tab_text(current_tab),
         cards,
         show_done: done_loaded,
         done_label: $t({defaultMessage: "DONE TODAY · {count}"}, {count: done_items.length}),
@@ -234,6 +294,9 @@ function focus_selector(): string | undefined {
     const tab = element.dataset["tab"];
     if (tab !== undefined) {
         return `.needs-tab[data-tab="${tab}"]`;
+    }
+    if (element.classList.contains("needs-team-wide-toggle")) {
+        return ".needs-team-wide-toggle";
     }
     const need_id = element.dataset["needId"];
     if (need_id !== undefined) {
@@ -265,11 +328,10 @@ function focus_card_at(index: number): void {
         $(".needs-tab-active").trigger("focus");
         return;
     }
-    $cards
-        .eq(Math.min(Math.max(index, 0), $cards.length - 1))
-        .find(".needs-btn")
-        .last()
-        .trigger("focus");
+    const $card = $cards.eq(Math.min(Math.max(index, 0), $cards.length - 1));
+    // A card that holds only a link has no button.
+    const $buttons = $card.find("button.needs-btn");
+    ($buttons.length > 0 ? $buttons : $card.find(".needs-btn")).last().trigger("focus");
 }
 
 function update_nav_count(): void {
@@ -405,7 +467,9 @@ function start_commit(item: NeedItem, choice: string): void {
         start_action(
             item,
             async () => needs_data.commit_card_seen(item),
-            $t({defaultMessage: "Marked as seen."}),
+            item.kind === "card_mention"
+                ? $t({defaultMessage: "Marked done."})
+                : $t({defaultMessage: "Marked as seen."}),
         );
     } else if (choice !== "") {
         start_action(
@@ -465,6 +529,11 @@ function handle_args(): void {
         });
         return;
     }
+    if (item.broadcast && !show_team_wide) {
+        // The link is to an item that the filter hides.
+        show_team_wide = true;
+        complete_rerender();
+    }
     $(`#needs-view .needs-card[data-need-id="${CSS.escape(item.id)}"]`)[0]?.scrollIntoView({
         block: "center",
     });
@@ -475,26 +544,20 @@ function handle_args(): void {
 
 // ----- Clicks -----
 
-function is_need_tab(value: string | undefined): value is NeedTab {
-    return (
-        value === "all" ||
-        value === "approval" ||
-        value === "mention" ||
-        value === "decision" ||
-        value === "card_mention" ||
-        value === "card_assigned"
-    );
-}
-
 function on_view_click(): void {
     const $view = $("#needs-view");
 
     $view.on("click", ".needs-tab", function (this: HTMLElement) {
-        const tab = $(this).attr("data-tab");
-        if (is_need_tab(tab) && tab !== current_tab) {
+        const tab = needs_data.NEED_TABS.find((value) => value === $(this).attr("data-tab"));
+        if (tab !== undefined && tab !== current_tab) {
             current_tab = tab;
             complete_rerender();
         }
+    });
+
+    $view.on("click", ".needs-team-wide-toggle", () => {
+        show_team_wide = !show_team_wide;
+        complete_rerender();
     });
 
     $view.on("click", ".needs-retry", () => {
@@ -562,7 +625,16 @@ export function show(args: string[]): void {
     // This view has no message feed to reply to, so it hides the
     // closed compose bar. An open compose box stays on screen.
     $("#compose").addClass("hide-closed-compose");
-    args_to_handle = args;
+    // An address from before the tabs merged names a kind, and opens
+    // the tab that now holds it.
+    const tab = needs_data.tab_for_hash_arg(args[0]);
+    if (tab === undefined) {
+        args_to_handle = args;
+    } else {
+        current_tab = tab;
+        args_to_handle = undefined;
+        complete_rerender();
+    }
     refresh(true);
 }
 
