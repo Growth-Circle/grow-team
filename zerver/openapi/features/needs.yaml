@@ -17,6 +17,9 @@ paths:
         In Zulip 12.0 (feature level ZF-d81c47), added the `card_mention`
         and `card_assigned` kinds, the `task` field of an item, and the
         `card_mention` and `card_assigned` counts.
+
+        In Zulip 12.0 (feature level ZF-988a72), added the `broadcast` field
+        of an item.
       parameters:
         - name: kind
           in: query
@@ -97,6 +100,7 @@ paths:
                     nonce: "00000000-0000-4000-8000-000000000033"
                     job_version: null
                     task: null
+                    broadcast: false
                 counts:
                   approval: 1
                   mention: 0
@@ -559,6 +563,16 @@ components:
             - id
             - display_id
             - title
+        broadcast:
+          type: boolean
+          description: |
+            Whether a `mention` or `card_mention` item is team-wide: its
+            message in a channel, or its note, names 3 or more humans or
+            uses a wildcard mention, and does not name you as the only
+            human. Bots are not counted; silent mentions are.
+            Always `false` for a direct message and for the other kinds.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-988a72).
       required:
         - id
         - kind
@@ -579,6 +593,7 @@ components:
         - nonce
         - job_version
         - task
+        - broadcast
     NeedCounts:
       type: object
       additionalProperties: false

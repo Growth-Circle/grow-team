@@ -658,6 +658,101 @@ class NeedsMentionTests(NeedsTestCase):
         resolved = needs.list_needs(cordelia, kind="mention", status="resolved", since="today")
         self.assertEqual(resolved["items"], [])
 
+    def _broadcast_of(self, user: UserProfile, message_id: int) -> bool:
+        [item] = [
+            item
+            for item in needs.list_needs(user, kind="mention", status="open", since=None)["items"]
+            if item["id"] == f"mention:{message_id}"
+        ]
+        return item["broadcast"]
+
+    def test_mention_of_a_few_people_is_personal(self) -> None:
+        cordelia = self.example_user("cordelia")
+        othello = self.example_user("othello")
+        iago = self.example_user("iago")
+        for user in [self.owner, cordelia, othello, iago]:
+            self.subscribe(user, "needs-small")
+
+        def send(*mentioned: UserProfile) -> int:
+            mentions = " ".join(f"@**{user.full_name}**" for user in mentioned)
+            return self.send_stream_message(
+                self.owner, "needs-small", f"{mentions} look", topic_name="mentions"
+            )
+
+        self.assertFalse(self._broadcast_of(cordelia, send(cordelia)))
+        self.assertFalse(self._broadcast_of(cordelia, send(cordelia, othello)))
+        self.assertTrue(self._broadcast_of(cordelia, send(cordelia, othello, iago)))
+
+    def test_bots_do_not_count_towards_a_team_wide_mention(self) -> None:
+        cordelia = self.example_user("cordelia")
+        othello = self.example_user("othello")
+        for user in [self.owner, cordelia, othello, self.example_user("default_bot")]:
+            self.subscribe(user, "needs-small")
+        message_id = self.send_stream_message(
+            self.owner,
+            "needs-small",
+            f"@**{cordelia.full_name}** @**{othello.full_name}**"
+            f" @**{self.example_user('default_bot').full_name}** look",
+            topic_name="mentions",
+        )
+        self.assertFalse(self._broadcast_of(cordelia, message_id))
+
+    def test_wildcard_mention_is_team_wide_unless_it_names_only_the_user(self) -> None:
+        cordelia = self.example_user("cordelia")
+        othello = self.example_user("othello")
+        for user in [self.owner, cordelia, othello]:
+            self.subscribe(user, "needs-small")
+        team_wide = self.send_stream_message(
+            self.owner,
+            "needs-small",
+            f"@**all** @**{cordelia.full_name}** @**{othello.full_name}** standup",
+            topic_name="mentions",
+        )
+        addressed_to_user = self.send_stream_message(
+            self.owner,
+            "needs-small",
+            f"@**all** @**{cordelia.full_name}** please answer",
+            topic_name="mentions",
+        )
+        self.assertTrue(self._broadcast_of(cordelia, team_wide))
+        self.assertFalse(self._broadcast_of(cordelia, addressed_to_user))
+
+    def test_direct_message_is_never_team_wide(self) -> None:
+        cordelia = self.example_user("cordelia")
+        message_id = self.send_personal_message(self.owner, cordelia, "Are you free?")
+        self.assertFalse(self._broadcast_of(cordelia, message_id))
+
+    def test_resolved_mention_keeps_its_team_wide_flag(self) -> None:
+        cordelia = self.example_user("cordelia")
+        othello = self.example_user("othello")
+        iago = self.example_user("iago")
+        for user in [self.owner, cordelia, othello, iago]:
+            self.subscribe(user, "needs-small")
+        message_id = self.send_stream_message(
+            self.owner,
+            "needs-small",
+            " ".join(f"@**{user.full_name}**" for user in [cordelia, othello, iago]),
+            topic_name="mentions",
+        )
+        needs.resolve_mention(cordelia, message_id)
+
+        [item] = needs.list_needs(cordelia, kind="mention", status="resolved", since="today")[
+            "items"
+        ]
+        self.assertTrue(item["broadcast"])
+
+        replied_id = self.send_stream_message(
+            self.owner,
+            "needs-small",
+            " ".join(f"@**{user.full_name}**" for user in [cordelia, othello, iago]),
+            topic_name="replied",
+        )
+        self.send_stream_message(cordelia, "needs-small", "On it", topic_name="replied")
+        resolved = needs.list_needs(cordelia, kind="mention", status="resolved", since="today")
+        [replied] = [item for item in resolved["items"] if item["id"] == f"mention:{replied_id}"]
+        self.assertTrue(replied["broadcast"])
+        self.assertEqual(replied["resolved_action"], "replied")
+
     def test_bot_message_is_not_a_need(self) -> None:
         cordelia = self.example_user("cordelia")
         bot = self.example_user("default_bot")
@@ -895,6 +990,25 @@ class CardNeedsTests(ZulipTestCase):
         # The author is not notified of their own note.
         author_result = needs.list_needs(self.hamlet, kind=None, status="open", since=None)
         self.assertEqual(author_result["items"], [])
+
+    def test_a_note_that_mentions_three_people_is_team_wide(self) -> None:
+        self.note_mentioning_cordelia()
+        othello = self.example_user("othello")
+        iago = self.example_user("iago")
+        do_add_task_note(
+            user_profile=self.hamlet,
+            task=self.card,
+            content=" ".join(
+                f"@**{user.full_name}|{user.id}**" for user in [self.cordelia, othello, iago]
+            ),
+        )
+
+        items = needs.list_needs(self.cordelia, kind=None, status="open", since=None)["items"]
+
+        self.assertEqual(
+            sorted(item["broadcast"] for item in items if item["kind"] == "card_mention"),
+            [False, True],
+        )
 
     def test_assigned_item_shows_the_card_title_and_filters_by_kind(self) -> None:
         self.note_mentioning_cordelia()

@@ -61,6 +61,15 @@ MENTION_REPLY_GRACE = timedelta(hours=2)
 
 _ROW_LIMIT = 200
 
+# A message that names this many people, or a wildcard, is team-wide: it
+# reaches the user as one of many, so the list hides it unless asked.
+TEAM_WIDE_MENTION_MIN_PEOPLE = 3
+
+_USER_MENTION_RE = re.compile(r'<span class="user-mention(?: silent)?" data-user-id="(\d+)"')
+_WILDCARD_MENTION_RE = re.compile(
+    r'<span class="(?:user-mention channel-wildcard-mention|topic-mention)"'
+)
+
 KINDS = ("approval", "mention", "decision", "card_mention", "card_assigned")
 
 
@@ -110,6 +119,9 @@ class NeedItem(TypedDict):
     job_version: int | None
     # The card a card_mention or card_assigned item is about; null otherwise.
     task: NeedTask | None
+    # A mention that names 3 or more people, or a wildcard, in a channel,
+    # and is not addressed to this user alone. Always false for other kinds.
+    broadcast: bool
 
 
 class NeedCounts(TypedDict):
@@ -217,6 +229,7 @@ def _approval_item(
         "nonce": str(approval.nonce) if pending else None,
         "job_version": None,
         "task": None,
+        "broadcast": False,
     }
 
 
@@ -249,11 +262,56 @@ def _decision_item(
         "nonce": None,
         "job_version": job.version,
         "task": None,
+        "broadcast": False,
     }
 
 
+def _team_wide_keys(rendered_by_key: dict[int, str], actor: UserProfile) -> set[int]:
+    """Which of the given channel messages (or notes), by key, are team-wide
+    for `actor`: they carry a wildcard or name 3 or more people, bots left out
+    and silent mentions counted. One that names no human but `actor` is
+    addressed to them, wildcard or not, so it stays personal."""
+    mentioned_by_key = {
+        key: {int(user_id) for user_id in _USER_MENTION_RE.findall(rendered)}
+        for key, rendered in rendered_by_key.items()
+    }
+    all_ids = set().union(*mentioned_by_key.values())
+    human_ids = (
+        set(
+            UserProfile.objects.filter(realm=actor.realm, id__in=all_ids, is_bot=False).values_list(
+                "id", flat=True
+            )
+        )
+        if all_ids
+        else set()
+    )
+    team_wide = set()
+    for key, rendered in rendered_by_key.items():
+        humans = mentioned_by_key[key] & human_ids
+        if humans == {actor.id}:
+            continue
+        if len(humans) >= TEAM_WIDE_MENTION_MIN_PEOPLE or _WILDCARD_MENTION_RE.search(rendered):
+            team_wide.add(key)
+    return team_wide
+
+
+def _channel_message_team_wide_ids(messages: list[Message], actor: UserProfile) -> set[int]:
+    return _team_wide_keys(
+        {
+            message.id: message.rendered_content or ""
+            for message in messages
+            if message.is_channel_message
+        },
+        actor,
+    )
+
+
 def _mention_item(
-    message: Message, *, resolved_at: datetime | None = None, resolved_action: str | None = None
+    message: Message,
+    *,
+    broadcast: bool,
+    resolved_at: datetime | None = None,
+    resolved_action: str | None = None,
 ) -> NeedItem:
     stream_id = message.recipient.type_id if message.is_channel_message else None
     topic = message.topic_name() if message.is_channel_message else None
@@ -279,10 +337,11 @@ def _mention_item(
         "nonce": None,
         "job_version": None,
         "task": None,
+        "broadcast": broadcast,
     }
 
 
-def _card_item(notification: TaskNotification, *, task_id_prefix: str) -> NeedItem:
+def _card_item(notification: TaskNotification, *, task_id_prefix: str, broadcast: bool) -> NeedItem:
     task = notification.task
     expires_at = notification.date_created + MENTION_TTL
     resolved_at = notification.resolved_at
@@ -315,6 +374,7 @@ def _card_item(notification: TaskNotification, *, task_id_prefix: str) -> NeedIt
             "display_id": f"{task_id_prefix}-{task.counter}",
             "title": task.title,
         },
+        "broadcast": broadcast,
     }
 
 
@@ -447,11 +507,15 @@ def _open_mentions(actor: UserProfile) -> list[NeedItem]:
     one_on_one_ids = _one_on_one_recipient_ids(actor)
     resolved_ids = NeedResolution.objects.filter(realm=actor.realm, user=actor).values("message_id")
     candidates = _mention_candidates(actor, one_on_one_ids).exclude(message_id__in=resolved_ids)
-    return [
-        _mention_item(user_message.message)
+    open_messages = [
+        user_message.message
         for user_message in candidates[:_ROW_LIMIT]
         if _is_need_message(user_message.message, actor.id, one_on_one_ids)
         and _mention_is_open(user_message, actor)
+    ]
+    team_wide_ids = _channel_message_team_wide_ids(open_messages, actor)
+    return [
+        _mention_item(message, broadcast=message.id in team_wide_ids) for message in open_messages
     ]
 
 
@@ -471,11 +535,27 @@ def _card_items(
     else:
         notifications = notifications.filter(resolved_at__gte=resolved_since)
     task_id_prefix = realm_task_id_prefix(actor.realm)
+    readable = [
+        notification
+        for notification in notifications[:_ROW_LIMIT]
+        if user_can_access_task(actor, notification.task)
+    ]
+    team_wide_ids = _team_wide_keys(
+        {
+            notification.id: notification.note.rendered_content
+            for notification in readable
+            if notification.note is not None
+        },
+        actor,
+    )
     buckets: dict[str, list[NeedItem]] = {"card_mention": [], "card_assigned": []}
-    for notification in notifications[:_ROW_LIMIT]:
-        if user_can_access_task(actor, notification.task):
-            item = _card_item(notification, task_id_prefix=task_id_prefix)
-            buckets[item["kind"]].append(item)
+    for notification in readable:
+        item = _card_item(
+            notification,
+            task_id_prefix=task_id_prefix,
+            broadcast=notification.id in team_wide_ids,
+        )
+        buckets[item["kind"]].append(item)
     return buckets
 
 
@@ -553,25 +633,42 @@ def _resolved_mentions(actor: UserProfile, since: datetime) -> list[NeedItem]:
             user_profile=actor, message_id__in=resolved_ids
         ).select_related("message", "message__sender", "message__recipient")
     }
-    items = [
-        _mention_item(
-            user_messages[resolution.message_id].message,
-            resolved_at=resolution.resolved_at,
-            resolved_action=resolution.action,
-        )
-        for resolution in resolutions
-        if resolution.message_id in user_messages
-    ]
     # 03-R4: a reply resolves a mention with no resolution of its own.
     one_on_one_ids = _one_on_one_recipient_ids(actor)
     candidates = _mention_candidates(actor, one_on_one_ids).exclude(message_id__in=resolved_ids)
+    replied: list[tuple[Message, datetime]] = []
     for user_message in candidates[:_ROW_LIMIT]:
         message = user_message.message
         if not _is_need_message(message, actor.id, one_on_one_ids):
             continue
         replied_at = _replied_at(message, actor)
         if replied_at is not None and replied_at >= since:
-            items.append(_mention_item(message, resolved_at=replied_at, resolved_action="replied"))
+            replied.append((message, replied_at))
+
+    team_wide_ids = _channel_message_team_wide_ids(
+        [user_messages[message_id].message for message_id in user_messages]
+        + [message for message, _replied_at_time in replied],
+        actor,
+    )
+    items = [
+        _mention_item(
+            user_messages[resolution.message_id].message,
+            broadcast=resolution.message_id in team_wide_ids,
+            resolved_at=resolution.resolved_at,
+            resolved_action=resolution.action,
+        )
+        for resolution in resolutions
+        if resolution.message_id in user_messages
+    ]
+    items += [
+        _mention_item(
+            message,
+            broadcast=message.id in team_wide_ids,
+            resolved_at=replied_at,
+            resolved_action="replied",
+        )
+        for message, replied_at in replied
+    ]
     return items
 
 
