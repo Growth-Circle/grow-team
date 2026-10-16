@@ -9,6 +9,7 @@ from typing_extensions import override
 
 from zerver.actions.create_user import do_create_user
 from zerver.actions.tasks import do_create_task
+from zerver.actions.user_settings import do_change_user_setting
 from zerver.actions.users import do_deactivate_user
 from zerver.lib.task_reminders import MAX_LISTED_CARDS, reminders_to_send
 from zerver.lib.tasks import get_or_create_default_board
@@ -122,6 +123,27 @@ class TaskReminderContentTest(TaskReminderTestCase):
         self.assertIn("Card 09", content)
         self.assertNotIn("Card 10", content)
         self.assertIn("And 2 more.", content)
+
+    def test_the_reminder_is_written_in_the_language_of_the_member(self) -> None:
+        do_change_user_setting(self.hamlet, "default_language", "id", acting_user=None)
+        self.create_card("Kirim invoice", jakarta(-2, 10))
+        self.create_card("Cek brief", jakarta(0, 18))
+        for number in range(MAX_LISTED_CARDS - 2):
+            self.create_card(f"Card {number:02}", jakarta(-1, 9, number))
+        for number in range(2):
+            self.create_card(f"Late {number}", jakarta(0, 19, number))
+
+        with time_machine.travel(AT_SEVEN_JAKARTA, tick=False):
+            self.run_reminders()
+
+        content = most_recent_message(self.hamlet).content
+        self.assertIn("Selamat pagi. Card ini jatuh tempo hari ini atau sudah terlambat:", content)
+        self.assertIn("Terlambat 2 hari", content)
+        self.assertIn("Hari ini", content)
+        self.assertIn("[Buka card](", content)
+        self.assertIn("Dan 2 lainnya.", content)
+        self.assertIn("[Buka Tugas saya](", content)
+        self.assertNotIn("Days overdue", content)
 
 
 class TaskReminderScheduleTest(TaskReminderTestCase):

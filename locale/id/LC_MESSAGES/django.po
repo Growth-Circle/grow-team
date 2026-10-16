@@ -7561,6 +7561,38 @@ msgstr ""
 #~ msgid "GIF integration disabled"
 #~ msgstr "Integrasi"
 
+msgid "Message is already pinned."
+msgstr "Pesan ini sudah dipin."
+
+msgid "Message is not pinned."
+msgstr "Pesan ini tidak dipin."
+
+msgid "Only channel messages can be pinned."
+msgstr "Hanya pesan channel yang bisa dipin."
+
+msgid "Good morning. These cards are due today or overdue:"
+msgstr "Selamat pagi. Card ini jatuh tempo hari ini atau sudah terlambat:"
+
+#, python-brace-format
+msgid "Days overdue: {days}"
+msgstr "Terlambat {days} hari"
+
+msgid "Due today"
+msgstr "Hari ini"
+
+#, python-brace-format
+msgid "And {count} more."
+msgstr "Dan {count} lainnya."
+
+msgid "Open the card"
+msgstr "Buka card"
+
+msgid "Open My tasks"
+msgstr "Buka Tugas saya"
+
+msgid "Task is not in this plan."
+msgstr "Card ini tidak ada di rencana."
+
 #~ msgid "Avatar"
 #~ msgstr "Avatar"
 
