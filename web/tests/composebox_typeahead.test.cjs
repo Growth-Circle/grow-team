@@ -2675,6 +2675,100 @@ test("the note box of a task card suggests only active people", ({override, over
     assert.equal(caret_position, `ask @**King Hamlet|${hamlet.user_id}** `.length);
 });
 
+test("the chat drawer box suggests mentions for its own conversation", ({
+    override,
+    override_rewire,
+}) => {
+    let drawer_typeahead_options;
+    override(bootstrap_typeahead, "Typeahead", (_input_element, options) => {
+        drawer_typeahead_options = options;
+    });
+    ct.initialize_chat_drawer_typeahead($("textarea#chat-drawer-input"), {
+        stream_id: 7,
+        topic: "standup",
+    });
+
+    let caret_position;
+    const input_element = {
+        $element: {
+            caret(position) {
+                caret_position = position;
+            },
+        },
+        type: "textarea",
+    };
+
+    function candidates(before_cursor, after_cursor = "") {
+        override_rewire(ct, "split_at_cursor", () => [before_cursor, after_cursor]);
+        return drawer_typeahead_options.source(before_cursor + after_cursor, input_element);
+    }
+    function wildcard_names(items) {
+        return items.filter((item) => item.type === "broadcast").map((item) => item.user.full_name);
+    }
+
+    assert.equal(drawer_typeahead_options.dropup, true);
+    assert.deepEqual(candidates("no mention here"), []);
+    assert.deepEqual(candidates("see #haml"), []);
+    assert.deepEqual(candidates("hi :tad"), []);
+    assert.deepEqual(candidates("ask @haml", "et"), []);
+    assert.deepEqual(candidates("@ "), []);
+
+    function people_and_groups(items) {
+        return items.map((item) => [item.type, item.is_silent]);
+    }
+    assert.deepEqual(people_and_groups(candidates("ask @haml", " please")), [["user", false]]);
+    assert.deepEqual(candidates("ask @haml")[0], {...hamlet_item, is_silent: false});
+    // Silent mentions can also name any group.
+    assert.deepEqual(people_and_groups(candidates("ask @_haml")), [
+        ["user", true],
+        ["user_group", true],
+    ]);
+
+    // The wildcards follow the permission for the channel of the drawer,
+    // whatever the compose box is doing.
+    compose_state.set_message_type("private");
+    const allowed_for = [];
+    compose_validate.stream_wildcard_mention_allowed = (stream_id) => {
+        allowed_for.push(stream_id);
+        return true;
+    };
+    assert.deepEqual(wildcard_names(candidates("@all")), ["all"]);
+    assert.ok(allowed_for.length > 0 && allowed_for.every((stream_id) => stream_id === 7));
+    assert.deepEqual(wildcard_names(candidates("@_all")), []);
+
+    compose_validate.stream_wildcard_mention_allowed = () => false;
+    compose_validate.topic_wildcard_mention_allowed = (stream_id, topic) =>
+        stream_id === 7 && topic === "standup";
+    assert.deepEqual(wildcard_names(candidates("@topic")), ["topic"]);
+    assert.deepEqual(wildcard_names(candidates("@all")), []);
+    compose_validate.stream_wildcard_mention_allowed = () => true;
+    compose_validate.topic_wildcard_mention_allowed = () => true;
+    compose_state.set_message_type("stream");
+
+    function select(item, before_cursor, after_cursor = "") {
+        override_rewire(ct, "split_at_cursor", () => [before_cursor, after_cursor]);
+        return drawer_typeahead_options.updater(item, before_cursor + after_cursor, input_element);
+    }
+    assert.equal(
+        select({...hamlet_item, is_silent: false}, "ask @haml", " please"),
+        `ask @**King Hamlet**  please`,
+    );
+    assert.equal(caret_position, `ask @**King Hamlet** `.length);
+    assert.equal(select({...hamlet_item, is_silent: true}, "@_haml"), `@_**King Hamlet** `);
+    assert.equal(
+        select({type: "user_group", name: "hamletcharacters", is_silent: false}, "cc @hamlet"),
+        "cc @*hamletcharacters* ",
+    );
+    assert.equal(
+        select({type: "user_group", name: "hamletcharacters", is_silent: true}, "cc @_hamlet"),
+        "cc @_*hamletcharacters* ",
+    );
+    assert.equal(
+        select({...broadcast_item(ct.broadcast_mentions()[0]), is_silent: false}, "hey @al"),
+        "hey @**all** ",
+    );
+});
+
 test("tokenizing", () => {
     assert.equal(ct.tokenize_compose_str("/m"), "/m");
     assert.equal(ct.tokenize_compose_str("1/3"), "");

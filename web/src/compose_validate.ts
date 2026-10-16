@@ -756,8 +756,7 @@ export function set_user_acknowledged_stream_wildcard_flag(value: boolean): void
     user_acknowledged_stream_wildcard = value;
 }
 
-function is_recipient_large_stream(): boolean {
-    const stream_id = compose_state.stream_id();
+function is_recipient_large_stream(stream_id: number | undefined): boolean {
     if (stream_id === undefined) {
         return false;
     }
@@ -806,12 +805,11 @@ export function topic_participant_count_more_than_threshold(
     return false;
 }
 
-function is_recipient_large_topic(): boolean {
-    const stream_id = compose_state.stream_id();
+function is_recipient_large_topic(stream_id: number | undefined, topic: string): boolean {
     if (stream_id === undefined) {
         return false;
     }
-    return topic_participant_count_more_than_threshold(stream_id, compose_state.topic());
+    return topic_participant_count_more_than_threshold(stream_id, topic);
 }
 
 function user_can_mention_many_users(): boolean {
@@ -822,12 +820,19 @@ function user_can_mention_many_users(): boolean {
     );
 }
 
-export function stream_wildcard_mention_allowed(): boolean {
-    return !is_recipient_large_stream() || user_can_mention_many_users();
+// The compose box is the default recipient; the chat drawer passes
+// the conversation it writes to.
+export function stream_wildcard_mention_allowed(
+    stream_id: number | undefined = compose_state.stream_id(),
+): boolean {
+    return !is_recipient_large_stream(stream_id) || user_can_mention_many_users();
 }
 
-export function topic_wildcard_mention_allowed(): boolean {
-    return !is_recipient_large_topic() || user_can_mention_many_users();
+export function topic_wildcard_mention_allowed(
+    stream_id: number | undefined = compose_state.stream_id(),
+    topic: string = compose_state.topic(),
+): boolean {
+    return !is_recipient_large_topic(stream_id, topic) || user_can_mention_many_users();
 }
 
 export function set_wildcard_mention_threshold(value: number): void {

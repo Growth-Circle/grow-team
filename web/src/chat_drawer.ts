@@ -7,6 +7,7 @@ import render_chat_drawer_log from "../templates/chat_drawer_log.hbs";
 import * as channel from "./channel.ts";
 import * as chat_drawer_data from "./chat_drawer_data.ts";
 import type {ChatMessage, Conversation} from "./chat_drawer_data.ts";
+import * as composebox_typeahead from "./composebox_typeahead.ts";
 import * as drawer from "./drawer.ts";
 import * as hash_util from "./hash_util.ts";
 import {$t, $t_html} from "./i18n.ts";
@@ -270,9 +271,14 @@ export function open(conversation: Conversation): void {
     state.$input.on("input", () => {
         update_send_button(state);
     });
+    // The typeahead goes first so that its keydown handler runs before
+    // the one below. Enter that picks a suggestion is then already
+    // default-prevented, and it does not send the message.
+    composebox_typeahead.initialize_chat_drawer_typeahead(state.$input, conversation);
     state.$input.on("keydown", (event) => {
         if (
             event.key === "Enter" &&
+            !event.isDefaultPrevented() &&
             chat_drawer_data.should_send_on_enter({
                 enter_sends: user_settings.enter_sends,
                 shift_key: event.shiftKey,

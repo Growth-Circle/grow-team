@@ -507,8 +507,12 @@ export function tokenize_compose_str(s: string): string {
     return "";
 }
 
-function get_wildcard_string(mention: string): string {
-    if (compose_state.get_message_type() === "private") {
+// A stream and topic that a message goes to other than the one in the
+// compose box, as when the chat drawer sends.
+export type MentionRecipient = {stream_id: number; topic: string};
+
+function get_wildcard_string(mention: string, is_private: boolean): string {
+    if (is_private) {
         return $t({defaultMessage: "Notify recipients"});
     }
     if (mention === "topic") {
@@ -517,21 +521,24 @@ function get_wildcard_string(mention: string): string {
     return $t({defaultMessage: "Notify all channel subscribers"});
 }
 
-export function broadcast_mentions(): PseudoMentionUser[] {
+export function broadcast_mentions(recipient?: MentionRecipient): PseudoMentionUser[] {
     let wildcard_mention_array: string[] = [];
-    if (compose_state.get_message_type() === "private") {
+    const is_private = recipient === undefined && compose_state.get_message_type() === "private";
+    if (is_private) {
         wildcard_mention_array = ["all", "everyone"];
-    } else if (compose_validate.stream_wildcard_mention_allowed()) {
+    } else if (compose_validate.stream_wildcard_mention_allowed(recipient?.stream_id)) {
         // TODO: Eventually remove "stream" wildcard from typeahead suggestions
         // once the rename of stream to channel has settled for users.
         wildcard_mention_array = ["all", "everyone", "stream", "channel", "topic"];
-    } else if (compose_validate.topic_wildcard_mention_allowed()) {
+    } else if (
+        compose_validate.topic_wildcard_mention_allowed(recipient?.stream_id, recipient?.topic)
+    ) {
         wildcard_mention_array = ["topic"];
     }
 
     return wildcard_mention_array.map((mention, idx) => ({
         special_item_text: mention,
-        secondary_text: get_wildcard_string(mention),
+        secondary_text: get_wildcard_string(mention, is_private),
         email: mention,
 
         // Always sort above, under the assumption that names will
@@ -619,6 +626,7 @@ export function filter_and_sort_mentions(
     opts: {
         stream_id: number | undefined;
         topic: string | undefined;
+        broadcast_recipient?: MentionRecipient;
     },
 ): (UserGroupPillData | UserOrMentionPillData)[] {
     return get_person_suggestions(query, {
@@ -674,6 +682,7 @@ type PersonSuggestionOpts = {
     filter_groups_for_mention?: boolean;
     allow_custom_profile_field_matching?: boolean;
     filter_by_dm_permission?: boolean;
+    broadcast_recipient?: MentionRecipient;
 };
 
 function filter_persons<T>(
@@ -681,6 +690,7 @@ function filter_persons<T>(
     filter_pills: boolean,
     want_broadcast: boolean,
     filterer: (person_items: UserPillData[], broadcast_items: UserOrMentionPillData[]) => T[],
+    broadcast_recipient?: MentionRecipient,
 ): T[] {
     let persons;
 
@@ -700,7 +710,7 @@ function filter_persons<T>(
     let broadcast_items: UserOrMentionPillData[] = [];
 
     if (want_broadcast) {
-        broadcast_items = broadcast_mentions().map((mention) => ({
+        broadcast_items = broadcast_mentions(broadcast_recipient).map((mention) => ({
             type: "broadcast" as const,
             user: mention,
         }));
@@ -913,7 +923,13 @@ export function get_person_suggestions(
     });
 
     const filtered_message_persons = apply_dm_permission_filter(
-        filter_persons(message_persons, opts.filter_pills, opts.want_broadcast, filterer),
+        filter_persons(
+            message_persons,
+            opts.filter_pills,
+            opts.want_broadcast,
+            filterer,
+            opts.broadcast_recipient,
+        ),
     );
 
     let filtered_persons: UserOrMentionPillData[];
@@ -927,7 +943,13 @@ export function get_person_suggestions(
             active_users_only: false,
         });
         filtered_persons = apply_dm_permission_filter(
-            filter_persons(realm_people, opts.filter_pills, opts.want_broadcast, filterer),
+            filter_persons(
+                realm_people,
+                opts.filter_pills,
+                opts.want_broadcast,
+                filterer,
+                opts.broadcast_recipient,
+            ),
         );
     }
 
@@ -1796,6 +1818,97 @@ export function initialize_task_note_typeahead(
                 return items;
             },
             updater: task_note_mention_selected,
+            // Do not advance to the next field on a Tab or Enter.
+            stopAdvance: true,
+        },
+    );
+}
+
+// The box of the chat drawer suggests what the compose box does for
+// the same channel and topic when the person types an @ mention: people,
+// user groups, silent mentions, and the wildcards this person may use.
+// Its other typeaheads (emoji, channels, slash commands) do not apply.
+function get_chat_drawer_candidates(
+    conversation: MentionRecipient,
+): (query: string, input_element: TypeaheadInputElement) => TypeaheadSuggestion[] {
+    return (query, input_element) => {
+        const [before_cursor, after_cursor] = split_at_cursor(query, input_element.$element);
+        const typed = tokenize_compose_str(before_cursor);
+        if (!typed.startsWith("@")) {
+            return [];
+        }
+        if (after_cursor !== "" && !TERMINAL_SYMBOLS.includes(after_cursor[0]!)) {
+            return [];
+        }
+        let name = typed.slice(1);
+        const is_silent = name.startsWith("_");
+        if (is_silent) {
+            name = name.slice(1);
+        }
+        const mention_token = filter_mention_name(name);
+        if (mention_token === undefined) {
+            completing = null;
+            return [];
+        }
+        completing = is_silent ? "silent_mention" : "mention";
+        token = mention_token;
+        return filter_and_sort_mentions(is_silent, mention_token, {
+            ...conversation,
+            broadcast_recipient: conversation,
+        });
+    };
+}
+
+function chat_drawer_mention_selected(
+    item: TypeaheadSuggestion,
+    query: string,
+    input_element: TypeaheadInputElement,
+): string {
+    if (item.type !== "user_group" && item.type !== "user" && item.type !== "broadcast") {
+        return query;
+    }
+    const [before_cursor, after_cursor] = split_at_cursor(query, input_element.$element);
+    const typed = tokenize_compose_str(before_cursor);
+    const is_silent = item.is_silent ?? false;
+    const mention =
+        item.type === "user_group"
+            ? `${is_silent ? "@_*" : "@*"}${item.name}* `
+            : `${people.get_mention_syntax(
+                  item.user.full_name,
+                  item.type === "broadcast" ? undefined : item.user.user_id,
+                  is_silent,
+              )} `;
+    const beginning = before_cursor.slice(0, before_cursor.length - typed.length) + mention;
+    // The library writes the returned text into the box, which moves
+    // the caret to the end.
+    const $textbox = input_element.$element;
+    setTimeout(() => {
+        $textbox.caret(beginning.length);
+    }, 0);
+    return beginning + after_cursor;
+}
+
+export function initialize_chat_drawer_typeahead(
+    $element: JQuery<HTMLTextAreaElement>,
+    conversation: MentionRecipient,
+): Typeahead<TypeaheadSuggestion> {
+    return new Typeahead<TypeaheadSuggestion>(
+        {$element, type: "textarea"},
+        {
+            items: max_num_items,
+            // The box sits at the bottom of the drawer.
+            dropup: true,
+            // Performance note: as in the compose box, the matching
+            // and sorting happen in `source`.
+            source: get_chat_drawer_candidates(conversation),
+            item_html: content_item_html,
+            matcher() {
+                return () => true;
+            },
+            sorter(items) {
+                return items;
+            },
+            updater: chat_drawer_mention_selected,
             // Do not advance to the next field on a Tab or Enter.
             stopAdvance: true,
         },
