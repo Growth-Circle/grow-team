@@ -1,0 +1,217 @@
+#!/usr/bin/env python3
+"""Install pending translation files into the locale catalogs.
+
+Usage: tools/grow-team/apply-pending-translations [--locale id] [--force]
+           [--dry-run] PENDING.json [PENDING.json ...]
+
+Each pending file is `{"frontend": {english: translation}, "backend":
+{english: translation}}`. Frontend entries go to
+`locale/<locale>/translations.json`, backend entries to
+`locale/<locale>/LC_MESSAGES/django.po`. Run `./manage.py
+compilemessages` afterwards; `tools/update-prod-static` and the image
+build do that already.
+
+The script is idempotent. An entry whose catalog translation is empty
+is filled in, and one that already matches is left alone. An entry
+with a different non-empty translation is a conflict: it is reported
+and skipped unless `--force` is given. Both catalogs are edited so that
+the diff holds only the touched entries.
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+
+import orjson
+import polib
+
+ROOT = Path(__file__).resolve().parents[2]
+PLACEHOLDER_RE = re.compile(r"\{[A-Za-z_]\w*\}")
+PO_WRAP_WIDTH = 78
+
+
+@dataclass
+class Report:
+    added: list[str] = field(default_factory=list)
+    filled: list[str] = field(default_factory=list)
+    unchanged: list[str] = field(default_factory=list)
+    overwritten: list[str] = field(default_factory=list)
+    conflicts: list[tuple[str, str, str]] = field(default_factory=list)
+
+
+def load_pending(paths: list[Path]) -> tuple[dict[str, str], dict[str, str]]:
+    frontend: dict[str, str] = {}
+    backend: dict[str, str] = {}
+    for path in paths:
+        content = orjson.loads(path.read_bytes())
+        unknown = set(content) - {"frontend", "backend"}
+        if unknown:
+            raise ValueError(f"{path}: unexpected top-level keys {sorted(unknown)}")
+        for kind, target in (("frontend", frontend), ("backend", backend)):
+            for english, translation in content.get(kind, {}).items():
+                if not translation:
+                    raise ValueError(f"{path}: empty translation for {english!r}")
+                if set(PLACEHOLDER_RE.findall(english)) != set(PLACEHOLDER_RE.findall(translation)):
+                    raise ValueError(f"{path}: placeholders differ for {english!r}")
+                if target.get(english, translation) != translation:
+                    raise ValueError(f"{path}: {english!r} is translated differently elsewhere")
+                target[english] = translation
+    return frontend, backend
+
+
+def decide(report: Report, english: str, current: str | None, new: str, force: bool) -> bool:
+    """Record what happens to one entry and return whether to write `new`."""
+    if current is None:
+        report.added.append(english)
+    elif current == "":
+        report.filled.append(english)
+    elif current == new:
+        report.unchanged.append(english)
+        return False
+    elif force:
+        report.overwritten.append(english)
+    else:
+        report.conflicts.append((english, current, new))
+        return False
+    return True
+
+
+def apply_frontend(
+    catalog_path: Path, pending: dict[str, str], force: bool, dry_run: bool
+) -> Report:
+    report = Report()
+    catalog: dict[str, str] = orjson.loads(catalog_path.read_bytes())
+    for english, translation in pending.items():
+        if not decide(report, english, catalog.get(english), translation, force):
+            continue
+        if english in catalog:
+            catalog[english] = translation
+            continue
+        # makemessages sorts the file, so put a new key where it would.
+        items = list(catalog.items())
+        position = next(
+            (i for i, (key, _) in enumerate(items) if key.encode() > english.encode()), len(items)
+        )
+        items.insert(position, (english, translation))
+        catalog = dict(items)
+    if not dry_run:
+        catalog_path.write_bytes(
+            orjson.dumps(catalog, option=orjson.OPT_APPEND_NEWLINE | orjson.OPT_INDENT_2)
+        )
+    return report
+
+
+def po_unquote(lines: list[str]) -> str:
+    return "".join(orjson.loads(line.strip()) for line in lines)
+
+
+def po_quoted_continuation(lines: list[str]) -> list[str]:
+    continuation = []
+    for line in lines:
+        if not line.startswith('"'):
+            break
+        continuation.append(line)
+    return continuation
+
+
+def drop_fuzzy_flag(line: str) -> str:
+    """Return a `#,` flags line without `fuzzy`, or "" if nothing else is left.
+
+    msgfmt skips fuzzy entries, so a filled-in entry must lose the flag.
+    """
+    if not line.startswith("#,"):
+        return line
+    flags = [flag.strip() for flag in line.removeprefix("#,").split(",")]
+    flags = [flag for flag in flags if flag != "fuzzy"]
+    return f"#, {', '.join(flags)}" if flags else ""
+
+
+def render_po_entry(english: str, translation: str) -> str:
+    entry = polib.POEntry(msgid=english, msgstr=translation)
+    if PLACEHOLDER_RE.search(english):
+        entry.flags.append("python-brace-format")
+    return entry.__unicode__(wrapwidth=PO_WRAP_WIDTH).rstrip("\n")
+
+
+def apply_backend(
+    catalog_path: Path, pending: dict[str, str], force: bool, dry_run: bool
+) -> Report:
+    report = Report()
+    blocks = catalog_path.read_text(encoding="utf-8").rstrip("\n").split("\n\n")
+    index: dict[str, int] = {}
+    for position, block in enumerate(blocks):
+        lines = block.split("\n")
+        msgid_start = next((i for i, line in enumerate(lines) if line.startswith("msgid ")), None)
+        if msgid_start is not None:
+            msgid_lines = [lines[msgid_start].removeprefix("msgid ")]
+            msgid_lines += po_quoted_continuation(lines[msgid_start + 1 :])
+            index[po_unquote(msgid_lines)] = position
+
+    appended: list[str] = []
+    for english, translation in pending.items():
+        position = index.get(english)
+        current: str | None = None
+        if position is not None:
+            lines = blocks[position].split("\n")
+            msgstr_start = next(i for i, line in enumerate(lines) if line.startswith("msgstr "))
+            msgstr_lines = [lines[msgstr_start].removeprefix("msgstr ")]
+            msgstr_lines += po_quoted_continuation(lines[msgstr_start + 1 :])
+            current = po_unquote(msgstr_lines)
+        if not decide(report, english, current, translation, force):
+            continue
+        rendered = render_po_entry(english, translation)
+        if position is None:
+            appended.append(rendered)
+        else:
+            new_msgstr = rendered[rendered.index("\nmsgstr ") + 1 :]
+            header = [drop_fuzzy_flag(line) for line in lines[:msgstr_start]]
+            blocks[position] = "\n".join([line for line in header if line] + [new_msgstr])
+
+    if not dry_run:
+        # msgmerge keeps obsolete (#~) entries at the end of the file.
+        obsolete_start = next(
+            (i for i, block in enumerate(blocks) if block.startswith("#~")), len(blocks)
+        )
+        blocks[obsolete_start:obsolete_start] = appended
+        catalog_path.write_text("\n\n".join(blocks) + "\n", encoding="utf-8")
+    return report
+
+
+def print_report(label: str, report: Report) -> None:
+    print(
+        f"{label}: {len(report.added)} added, {len(report.filled)} filled, "
+        f"{len(report.overwritten)} overwritten, {len(report.unchanged)} unchanged, "
+        f"{len(report.conflicts)} conflicts"
+    )
+    for english, current, new in report.conflicts:
+        print(f"  CONFLICT {english!r}: catalog has {current!r}, pending has {new!r}")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Install pending translation files.")
+    parser.add_argument("pending", nargs="+", type=Path, help="pending translation JSON file")
+    parser.add_argument("--locale", default="id")
+    parser.add_argument("--locale-dir", type=Path, default=ROOT / "locale")
+    parser.add_argument("--force", action="store_true", help="overwrite conflicting translations")
+    parser.add_argument("--dry-run", action="store_true", help="report without writing")
+    args = parser.parse_args(argv)
+
+    frontend, backend = load_pending(args.pending)
+    locale_dir: Path = args.locale_dir / args.locale
+    frontend_report = apply_frontend(
+        locale_dir / "translations.json", frontend, args.force, args.dry_run
+    )
+    backend_report = apply_backend(
+        locale_dir / "LC_MESSAGES" / "django.po", backend, args.force, args.dry_run
+    )
+    print_report("frontend", frontend_report)
+    print_report("backend", backend_report)
+    return 1 if frontend_report.conflicts or backend_report.conflicts else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
