@@ -647,7 +647,7 @@ paths:
                   type: array
                   items:
                     type: string
-                  example: ["mention:42", "approval:00000000-0000-4000-8000-000000000030"]
+                  example: ["mention:42", "decision:7"]
               required:
                 - need_ids
             encoding:
