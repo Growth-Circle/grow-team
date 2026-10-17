@@ -818,7 +818,7 @@ export function initialize(): void {
     });
 
     tippy.delegate("body", {
-        target: ".folder_id-dropdown-list-container .dropdown-list-delete, .new_channel_folder_id-dropdown-list-container .dropdown-list-delete",
+        target: ".folder_id-dropdown-list-container .dropdown-list-delete",
         content: $t({defaultMessage: "Delete folder"}),
         delay: LONG_HOVER_DELAY,
         appendTo: () => document.body,
@@ -828,7 +828,7 @@ export function initialize(): void {
     });
 
     tippy.delegate("body", {
-        target: ".folder_id-dropdown-list-container .dropdown-list-manage-folder, .new_channel_folder_id-dropdown-list-container .dropdown-list-manage-folder",
+        target: ".folder_id-dropdown-list-container .dropdown-list-manage-folder",
         content(reference) {
             if (reference.querySelector(".zulip-icon-preview")) {
                 return $t({defaultMessage: "View details"});

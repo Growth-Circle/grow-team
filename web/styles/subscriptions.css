@@ -1614,10 +1614,6 @@ h4.user_group_setting_subsection_title {
         }
     }
 
-    .create-channel-folder .no-folders-configured-message {
-        display: none;
-    }
-
     .create-channel-choices {
         display: flex;
         gap: 0.75em;
@@ -1698,15 +1694,27 @@ h4.user_group_setting_subsection_title {
             min-width: 0;
             margin-bottom: 0;
 
-            /* Drop the minimum width meant for the wide permission
-               pill inputs, so the folder sits beside "Who can see it". */
-            .channel-folder-widget-container {
-                min-width: 0;
-            }
-
             @media (width < $sm_min) {
                 flex-basis: 100%;
             }
+        }
+    }
+
+    .create-channel-folder-select {
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 2.75em;
+        padding: 0 0.75em;
+        border: 0.125em solid var(--sj-divider);
+        border-radius: 0.75em;
+        background: var(--sj-surface);
+        color: var(--sj-text);
+        font: inherit;
+
+        &:focus-visible {
+            border-color: var(--sj-outline);
+            box-shadow: var(--sj-ring-focus);
+            outline: none;
         }
     }
 

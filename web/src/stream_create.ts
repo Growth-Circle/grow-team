@@ -6,9 +6,9 @@ import render_subscription_invites_warning_modal from "../templates/confirm_dial
 import render_channel_name_conflict_error from "../templates/stream_settings/channel_name_conflict_error.hbs";
 
 import * as channel from "./channel.ts";
+import * as channel_folders from "./channel_folders.ts";
 import * as channel_folders_ui from "./channel_folders_ui.ts";
 import * as confirm_dialog from "./confirm_dialog.ts";
-import type {DropdownWidget} from "./dropdown_widget.ts";
 import {$t, $t_html} from "./i18n.ts";
 import * as keydown_util from "./keydown_util.ts";
 import * as loading from "./loading.ts";
@@ -34,8 +34,6 @@ let created_stream: string | undefined;
 // Default is true since the current user is added to
 // the subscribers list initially.
 let current_user_subscribed_to_created_stream = true;
-
-let folder_widget: DropdownWidget | undefined;
 
 export function reset_created_stream(): void {
     created_stream = undefined;
@@ -373,8 +371,7 @@ function create_stream(): void {
         ...group_setting_values,
     };
 
-    assert(folder_widget !== undefined);
-    const folder_id = folder_widget.value();
+    const folder_id = get_channel_folder_dropdown_value();
     if (folder_id !== settings_config.no_folder_selected) {
         // We do not include "folder_id" in request data if
         // new stream will not be added to any folder.
@@ -436,13 +433,24 @@ export function new_stream_clicked(stream_name: string, folder_id: number | unde
     }
     show_new_stream_modal();
     set_more_settings_expanded(false);
-    assert(folder_widget !== undefined);
-    if (folder_id) {
-        folder_widget.render(folder_id);
-    } else {
-        folder_widget.render(-1);
-    }
+    render_folder_options(folder_id ?? settings_config.no_folder_selected);
     $("#create_stream_name").trigger("focus");
+}
+
+// The options are built each time, as folders can be added or archived
+// while the form is closed.
+function render_folder_options(selected_folder_id: number): void {
+    const select = util.the($<HTMLSelectElement>("select#create_stream_folder"));
+    select.replaceChildren(
+        new Option($t({defaultMessage: "No folder"}), String(settings_config.no_folder_selected)),
+        ...channel_folders
+            .get_channel_folders()
+            .map((folder) => new Option(folder.name, String(folder.id))),
+    );
+    select.value = String(selected_folder_id);
+    if (select.selectedIndex === -1) {
+        select.value = String(settings_config.no_folder_selected);
+    }
 }
 
 // The two "Who can see it" choices are shortcuts for the access type
@@ -725,7 +733,6 @@ export function set_up_handlers(): void {
 
     set_up_group_setting_widgets();
     settings_components.enable_opening_typeahead_on_clicking_label($container);
-    folder_widget = stream_settings_components.set_up_folder_dropdown_widget();
     stream_edit.set_up_channel_privacy_dropdown_widget(() => {
         update_announce_stream_state();
         sync_visibility_choice_with_privacy_widget();
@@ -743,20 +750,18 @@ export function initialize(): void {
 }
 
 export function set_channel_folder_dropdown_value(folder_id: number): void {
-    assert(folder_widget !== undefined);
-    folder_widget.render(folder_id);
+    render_folder_options(folder_id);
 }
 
 export function maybe_reset_channel_folder_dropdown(archived_folder_id: number): void {
-    assert(folder_widget !== undefined);
-    if (folder_widget.value() === archived_folder_id) {
-        set_channel_folder_dropdown_value(settings_config.no_folder_selected);
-    }
+    const selected_folder_id = get_channel_folder_dropdown_value();
+    render_folder_options(
+        selected_folder_id === archived_folder_id
+            ? settings_config.no_folder_selected
+            : selected_folder_id,
+    );
 }
 
 export function get_channel_folder_dropdown_value(): number {
-    assert(folder_widget !== undefined);
-    const value = folder_widget.value()!;
-    assert(typeof value === "number");
-    return value;
+    return Number.parseInt($<HTMLSelectOneElement>("select#create_stream_folder").val()!, 10);
 }

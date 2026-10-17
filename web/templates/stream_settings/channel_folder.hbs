@@ -13,15 +13,13 @@
             {{> ../dropdown_widget widget_name=channel_folder_widget_name}}
 
             {{#if is_admin}}
-                {{#unless hide_create_folder_button}}
-                    {{> ../components/action_button
-                      label=(t "Create new folder")
-                      variant="subtle"
-                      intent="neutral"
-                      type="button"
-                      custom_classes="create-channel-folder-button"
-                      }}
-                {{/unless}}
+                {{> ../components/action_button
+                  label=(t "Create new folder")
+                  variant="subtle"
+                  intent="neutral"
+                  type="button"
+                  custom_classes="create-channel-folder-button"
+                  }}
             {{/if}}
         </div>
     </div>

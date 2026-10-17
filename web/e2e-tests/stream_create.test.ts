@@ -77,6 +77,22 @@ async function test_visibility_choice(page: Page): Promise<void> {
     await page.waitForSelector('input[name="create_stream_visibility"][value="private"]:checked');
 }
 
+async function test_folder_choice(page: Page): Promise<void> {
+    // A plain list of the folders, starting with no folder, and no help icon.
+    const option_names = await page.$$eval("select#create_stream_folder option", (options) =>
+        options.map((option) => option.textContent),
+    );
+    assert.strictEqual(option_names[0], "No folder");
+    assert.strictEqual(
+        await page.$eval("select#create_stream_folder", (select) => select.value),
+        "-1",
+    );
+    assert.strictEqual(
+        await page.$("#stream-creation .create-channel-folder .help_link_widget"),
+        null,
+    );
+}
+
 async function test_all_team_button(page: Page): Promise<void> {
     const button_text = await common.get_text_from_selector(page, "#create_stream_add_all_team");
     const team_size = Number(/\((\d+)\)/.exec(button_text)?.[1]);
@@ -196,6 +212,7 @@ async function test_stream_creation(page: Page): Promise<void> {
     await click_create_new_stream(page);
     await test_chat_type_choice(page);
     await test_visibility_choice(page);
+    await test_folder_choice(page);
     await test_all_team_button(page);
 
     // The form starts again with only the creator when it is reopened.

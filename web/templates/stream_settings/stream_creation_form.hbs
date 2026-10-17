@@ -63,12 +63,9 @@
                             </div>
                             <p class="create-channel-choice-reason hide" id="create_stream_visibility_reason"></p>
                         </section>
-                        <section class="create-channel-folder">
-                            {{> channel_folder .
-                              is_stream_edit=false
-                              channel_folder_widget_name="new_channel_folder_id"
-                              hide_create_folder_button=true
-                              }}
+                        <section class="create-channel-folder channel-folder-container">
+                            <label class="settings-field-label" for="create_stream_folder">{{t "Folder" }}</label>
+                            <select id="create_stream_folder" class="create-channel-folder-select"></select>
                         </section>
                     </div>
                     <section class="create-channel-more-settings">
