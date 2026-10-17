@@ -232,11 +232,54 @@ async function test_streams_search_feature(page: Page): Promise<void> {
     );
 }
 
+async function current_hash(page: Page): Promise<string> {
+    return await page.evaluate(() => window.location.hash);
+}
+
+async function test_create_dialog(page: Page): Promise<void> {
+    await page.keyboard.press("Escape");
+    await page.waitForSelector("#subscription_overlay", {hidden: true});
+
+    // A link opens the form as a dialog, without the list of channels.
+    await common.go_to_hash(page, "#channels/new");
+    await page.waitForSelector("#subscription_overlay.channel-create-dialog #create_stream_name", {
+        visible: true,
+    });
+    await page.waitForSelector("#subscription_overlay .left", {hidden: true});
+    assert.strictEqual(
+        await common.get_text_from_selector(page, "#create_channel_dialog_title"),
+        "Create channel",
+    );
+
+    // Each way of closing the dialog leaves the channels overlay.
+    await page.click("form#stream_creation_form button.create_stream_cancel");
+    await page.waitForSelector("#subscription_overlay", {hidden: true});
+    assert.ok(!(await current_hash(page)).startsWith("#channels"));
+
+    await common.go_to_hash(page, "#channels/new");
+    await page.waitForSelector("#create_stream_name", {visible: true});
+    await page.click("#stream-creation .create-channel-dialog-close");
+    await page.waitForSelector("#subscription_overlay", {hidden: true});
+
+    await common.go_to_hash(page, "#channels/new");
+    await page.waitForSelector("#create_stream_name", {visible: true});
+    await page.keyboard.press("Escape");
+    await page.waitForSelector("#subscription_overlay", {hidden: true});
+    assert.ok(!(await current_hash(page)).startsWith("#channels"));
+
+    // The other routes of the overlay still show the list.
+    await common.go_to_hash(page, "#channels/subscribed");
+    await page.waitForSelector("#subscription_overlay:not(.channel-create-dialog) .left", {
+        visible: true,
+    });
+}
+
 async function subscriptions_tests(page: Page): Promise<void> {
     await common.log_in(page);
     await common.open_streams_modal(page);
     await test_stream_creation(page);
     await test_streams_search_feature(page);
+    await test_create_dialog(page);
 }
 
 await common.run_test(subscriptions_tests);

@@ -1208,6 +1208,7 @@ export function launch(
     folder_id?: number,
 ): void {
     setup_page(() => {
+        create_dialog_opened_from_channel_list = false;
         overlays.open_overlay({
             name: "subscriptions",
             $overlay: $("#subscription_overlay"),
@@ -1327,7 +1328,13 @@ export function do_open_create_stream(folder_id?: number): void {
     stream_create.new_stream_clicked(stream.trim(), folder_id);
 }
 
+// The "+" button and the Enter key in the filter are inside the list of
+// channels, so cancelling goes back to that list. Any other way in comes
+// from a link, and cancelling closes the overlay to where the user was.
+let create_dialog_opened_from_channel_list = false;
+
 export function open_create_stream(): void {
+    create_dialog_opened_from_channel_list = true;
     do_open_create_stream();
     browser_history.update("#channels/new");
 }
@@ -1341,14 +1348,20 @@ export function initialize(): void {
 
     $("#channels_overlay_container").on(
         "click",
-        "#stream_creation_form .create_stream_cancel",
+        "#stream_creation_form .create_stream_cancel, #stream-creation .create-channel-dialog-close",
         (e) => {
             e.preventDefault();
             // we want to make sure that the click is not just a simulated
             // click; this fixes an issue where hitting "Enter" would
             // trigger this code path due to bootstrap magic.
-            if (e.clientY !== 0) {
+            if (e.clientY === 0) {
+                return;
+            }
+            if (create_dialog_opened_from_channel_list) {
+                create_dialog_opened_from_channel_list = false;
                 stream_edit.open_edit_panel_empty();
+            } else {
+                overlays.close_overlay("subscriptions");
             }
         },
     );

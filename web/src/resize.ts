@@ -254,8 +254,26 @@ export function resize_settings_overlay_subheader($container: JQuery): void {
     }
 }
 
+// The channel creation dialog is as tall as its content, so none of
+// its panels is given a height.
+function clear_heights_for_dialog($container: JQuery): boolean {
+    if ($container.find(".two-pane-settings-overlay.channel-create-dialog").length === 0) {
+        return false;
+    }
+    $container
+        .find(
+            ".two-pane-settings-left-simplebar-container, .two-pane-settings-right-simplebar-container, .two-pane-settings-creation-simplebar-container",
+        )
+        .css("height", "");
+    return true;
+}
+
 export function resize_settings_overlay($container: JQuery): void {
     if ($container.find(".two-pane-settings-overlay.show").length === 0) {
+        return;
+    }
+
+    if (clear_heights_for_dialog($container)) {
         return;
     }
 
@@ -283,6 +301,10 @@ export function resize_settings_overlay($container: JQuery): void {
 
 export function resize_settings_creation_overlay($container: JQuery): void {
     if ($container.find(".two-pane-settings-creation-simplebar-container").length === 0) {
+        return;
+    }
+
+    if (clear_heights_for_dialog($container)) {
         return;
     }
 

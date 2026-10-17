@@ -83,8 +83,16 @@ export function set_right_panel_title(sub: StreamSubscription): void {
     set_visibility_for_stream_title_buttons(sub);
 }
 
+// The creation form is shown as a dialog of its own, without the list
+// of channels beside it. Every other pane is part of the two pane
+// overlay.
+function set_channel_create_dialog_mode(is_dialog: boolean): void {
+    $("#subscription_overlay").toggleClass("channel-create-dialog", is_dialog);
+}
+
 export const show_subs_pane = {
     nothing_selected(): void {
+        set_channel_create_dialog_mode(false);
         $(".settings, #stream-creation").hide();
         $(".nothing-selected").show();
         $("#subscription_overlay .stream-info-title").text(
@@ -93,12 +101,14 @@ export const show_subs_pane = {
         resize.resize_settings_overlay($("#channels_overlay_container"));
     },
     settings(sub: StreamSubscription): void {
+        set_channel_create_dialog_mode(false);
         $(".settings, #stream-creation").hide();
         $(".settings").show();
         set_right_panel_title(sub);
         resize.resize_settings_overlay($("#channels_overlay_container"));
     },
     create_stream(): void {
+        set_channel_create_dialog_mode(true);
         $("#subscription_overlay .stream-info-title").text($t({defaultMessage: "Create channel"}));
         $(".nothing-selected, .settings, #stream-creation").hide();
         $("#stream-creation").show();

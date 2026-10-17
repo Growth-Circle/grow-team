@@ -1,7 +1,8 @@
 <div class="hide two-pane-settings-right-simplebar-container" id="stream-creation" tabindex="-1" role="dialog"
-  aria-label="{{t 'Channel creation' }}">
+  aria-modal="true" aria-labelledby="create_channel_dialog_title">
+    <h2 class="create-channel-dialog-title" id="create_channel_dialog_title">{{t "Create channel" }}</h2>
     <form id="stream_creation_form" novalidate>
-        <div class="two-pane-settings-creation-simplebar-container" data-simplebar data-simplebar-tab-index="-1">
+        <div class="two-pane-settings-creation-simplebar-container">
             <div class="alert stream_create_info"></div>
             <div id="stream_creating_indicator"></div>
             <div class="stream-creation-body">
@@ -117,4 +118,7 @@
             </div>
         </div>
     </form>
+    <button type="button" class="create-channel-dialog-close" aria-label="{{t 'Close' }}">
+        <i class="zulip-icon zulip-icon-close" aria-hidden="true"></i>
+    </button>
 </div>
