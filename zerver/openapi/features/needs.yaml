@@ -417,6 +417,386 @@ paths:
           required: true
           schema:
             type: integer
+  /needs/resolve:
+    post:
+      operationId: resolve-needs
+      tags:
+        - needs
+      summary: Mark several items in the Perlu kamu inbox done
+      description: |
+        Marks each given `mention`, `card_mention` and `card_assigned` item
+        done, as `POST /needs/mentions/{message_id}/resolve` and
+        `POST /needs/card_notifications/{notification_id}/resolve` do one
+        at a time. Each item is handled on its own: one that cannot be
+        marked done (it is gone, or not yours) is listed in `failed`, and
+        the others stay done. Approvals and decisions are not accepted;
+        they are answered one at a time.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3491a7).
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                need_ids:
+                  description: |
+                    The `id` of each item, as a JSON list, at most 200. Only
+                    mention, `card_mention` and `card_assigned` ids are
+                    accepted where the endpoint says so.
+                  type: array
+                  items:
+                    type: string
+                  example: ["mention:42", "card_mention:7"]
+              required:
+                - need_ids
+            encoding:
+              need_ids:
+                contentType: application/json
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NeedsBulkResponse"
+              example:
+                result: success
+                msg: ""
+                schema_version: 1
+                done:
+                  - "mention:42"
+                failed:
+                  - "card_mention:7"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanFrameworkError"
+              example:
+                result: error
+                msg: "Not logged in: API authentication or user session required"
+                code: UNAUTHORIZED
+        "405":
+          description: REST dispatch returns permitted methods in the body and Allow header.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+  /needs/unresolve:
+    post:
+      operationId: unresolve-needs
+      tags:
+        - needs
+      summary: Undo marking several items in the Perlu kamu inbox done
+      description: |
+        Undoes `POST /needs/resolve`. A mention lists under `status=open`
+        again if it still qualifies as a need. A card item is reopened only
+        if it was closed in the last 5 minutes, together with every other
+        item of yours on the same card that was closed then. Each item is
+        handled on its own, and the ones that fail are listed in `failed`.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3491a7).
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                need_ids:
+                  description: |
+                    The `id` of each item, as a JSON list, at most 200. Only
+                    mention, `card_mention` and `card_assigned` ids are
+                    accepted where the endpoint says so.
+                  type: array
+                  items:
+                    type: string
+                  example: ["mention:42", "card_mention:7"]
+              required:
+                - need_ids
+            encoding:
+              need_ids:
+                contentType: application/json
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NeedsBulkResponse"
+              example:
+                result: success
+                msg: ""
+                schema_version: 1
+                done:
+                  - "mention:42"
+                  - "card_mention:7"
+                failed: []
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanFrameworkError"
+              example:
+                result: error
+                msg: "Not logged in: API authentication or user session required"
+                code: UNAUTHORIZED
+        "405":
+          description: REST dispatch returns permitted methods in the body and Allow header.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+  /needs/snooze:
+    post:
+      operationId: snooze-needs
+      tags:
+        - needs
+      summary: Put items in the Perlu kamu inbox off until tomorrow morning
+      description: |
+        Hides each given item, of any kind, from `GET /needs` with
+        `status=open` until the next 07:00 on the workspace's clock, the
+        hour the morning reminder goes out. Then it lists again without a
+        further call. Snoozing an item that no longer exists does nothing.
+        An item you mark done while it is snoozed stays done.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3491a7).
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                need_ids:
+                  description: |
+                    The `id` of each item, as a JSON list, at most 200. Only
+                    mention, `card_mention` and `card_assigned` ids are
+                    accepted where the endpoint says so.
+                  type: array
+                  items:
+                    type: string
+                  example: ["mention:42", "approval:00000000-0000-4000-8000-000000000030"]
+              required:
+                - need_ids
+            encoding:
+              need_ids:
+                contentType: application/json
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NeedsSnoozeResponse"
+              example:
+                result: success
+                msg: ""
+                schema_version: 1
+                until: "2026-10-18T00:00:00+00:00"
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanFrameworkError"
+              example:
+                result: error
+                msg: "Not logged in: API authentication or user session required"
+                code: UNAUTHORIZED
+        "405":
+          description: REST dispatch returns permitted methods in the body and Allow header.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+  /needs/unsnooze:
+    post:
+      operationId: unsnooze-needs
+      tags:
+        - needs
+      summary: Bring snoozed items back to the Perlu kamu inbox
+      description: |
+        Undoes `POST /needs/snooze` for each given item, so it lists
+        again at once.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3491a7).
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                need_ids:
+                  description: |
+                    The `id` of each item, as a JSON list, at most 200. Only
+                    mention, `card_mention` and `card_assigned` ids are
+                    accepted where the endpoint says so.
+                  type: array
+                  items:
+                    type: string
+                  example: ["mention:42"]
+              required:
+                - need_ids
+            encoding:
+              need_ids:
+                contentType: application/json
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NeedsWriteResponse"
+              example:
+                result: success
+                msg: ""
+                schema_version: 1
+        "400":
+          description: The agent wrapper rejected a parsed request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanFrameworkError"
+              example:
+                result: error
+                msg: "Not logged in: API authentication or user session required"
+                code: UNAUTHORIZED
+        "405":
+          description: REST dispatch returns permitted methods in the body and Allow header.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
 components:
   schemas:
     NeedActor:
@@ -722,3 +1102,63 @@ components:
         - result
         - msg
         - schema_version
+    NeedsBulkResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        done:
+          type: array
+          items:
+            type: string
+          description: The ids that were handled, in the order given.
+        failed:
+          type: array
+          items:
+            type: string
+          description: |
+            The ids that were not handled: the item is gone, is not yours,
+            or is of a kind the endpoint does not accept. The items in
+            `done` stay handled.
+      required:
+        - result
+        - msg
+        - schema_version
+        - done
+        - failed
+    NeedsSnoozeResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        until:
+          type: string
+          format: date-time
+          description: When the snoozed items list again.
+      required:
+        - result
+        - msg
+        - schema_version
+        - until

@@ -133,6 +133,10 @@
 * [Mark a mention in the Perlu kamu inbox done](/api/resolve-need-mention)
 * [Undo marking a mention in the Perlu kamu inbox done](/api/unresolve-need-mention)
 * [Mark a task card item in the Perlu kamu inbox done](/api/resolve-need-card-notification)
+* [Mark several items in the Perlu kamu inbox done](/api/resolve-needs)
+* [Undo marking several items in the Perlu kamu inbox done](/api/unresolve-needs)
+* [Put items in the Perlu kamu inbox off until tomorrow morning](/api/snooze-needs)
+* [Bring snoozed items back to the Perlu kamu inbox](/api/unsnooze-needs)
 
 ## Channels
 

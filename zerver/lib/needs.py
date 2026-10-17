@@ -18,7 +18,7 @@ than add a fourth kind.
 """
 
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 from typing import TypedDict
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -34,7 +34,9 @@ from zerver.lib.agent_context import agent_transaction, require_job_access
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.message import access_message
 from zerver.lib.push_notifications import get_mobile_push_content
+from zerver.lib.realm_clock import realm_local_now
 from zerver.lib.role_permissions import has_role_permission
+from zerver.lib.task_reminders import REMINDER_HOUR
 from zerver.lib.tasks import realm_task_id_prefix, user_can_access_task
 from zerver.lib.topic import messages_for_topic
 from zerver.models import (
@@ -48,7 +50,7 @@ from zerver.models import (
     UserProfile,
     agents,
 )
-from zerver.models.needs import NeedResolution
+from zerver.models.needs import NeedResolution, NeedSnooze
 from zerver.views.agent_jobs import needs_my_action
 
 # Q-06 / Q-32: decisions and mentions keep a fixed display TTL. Approvals use
@@ -60,6 +62,14 @@ MENTION_TTL = timedelta(days=7)
 MENTION_REPLY_GRACE = timedelta(hours=2)
 
 _ROW_LIMIT = 200
+
+# One call that handles many items stays as small as a list.
+BULK_LIMIT = _ROW_LIMIT
+
+# "Undo" after a bulk mark-done is a matter of seconds. A card item is
+# reopened only if it was closed this recently, so an old, separate closing
+# of the same card is never undone with it.
+CARD_UNDO_WINDOW = timedelta(minutes=5)
 
 # A message that names this many people, or a wildcard, is team-wide: it
 # reaches the user as one of many, so the list hides it unless asked.
@@ -142,6 +152,13 @@ class NeedCounts(TypedDict):
     card_mention: int
     card_assigned: int
     all: int
+
+
+class BulkNeedsResult(TypedDict):
+    # The ids that were handled and the ones that were not, in the order
+    # given. A failure leaves the other items done.
+    done: list[str]
+    failed: list[str]
 
 
 class NeedsResult(TypedDict):
@@ -718,6 +735,18 @@ def _start_of_today(realm: Realm) -> datetime:
     return start_of_day.astimezone(timezone.utc)
 
 
+def _drop_snoozed(actor: UserProfile, buckets: dict[str, list[NeedItem]]) -> None:
+    snoozed_ids = set(
+        NeedSnooze.objects.filter(user=actor, until__gt=timezone_now()).values_list(
+            "need_id", flat=True
+        )
+    )
+    if not snoozed_ids:
+        return
+    for name, items in buckets.items():
+        buckets[name] = [item for item in items if item["id"] not in snoozed_ids]
+
+
 def _count_items(buckets: dict[str, list[NeedItem]]) -> NeedCounts:
     return {
         "approval": len(buckets["approval"]),
@@ -756,6 +785,8 @@ def list_needs(
                 "mention": _resolved_mentions(actor, start),
                 **_card_items(actor, resolved_since=start),
             }
+    if status == "open":
+        _drop_snoozed(actor, buckets)
     personal_counts = _count_items(
         {
             name: [item for item in values if not item["broadcast"]]
@@ -812,3 +843,105 @@ def unresolve_mention(actor: UserProfile, message_id: int) -> None:
     # Deleting the user's own resolution needs no other check.
     with transaction.atomic(durable=True):
         NeedResolution.objects.filter(realm=actor.realm, user=actor, message_id=message_id).delete()
+
+
+def _split_need_id(need_id: str) -> tuple[str, str]:
+    kind, _separator, raw_id = need_id.partition(":")
+    if kind not in KINDS or raw_id == "" or len(need_id) > 80:
+        raise ValueError("Invalid need id.")
+    return kind, raw_id
+
+
+def _check_bulk_size(need_ids: list[str]) -> None:
+    if len(need_ids) > BULK_LIMIT:
+        raise ValueError("Too many items.")
+
+
+def resolve_many(actor: UserProfile, need_ids: list[str]) -> BulkNeedsResult:
+    """Mark each given mention and card item done. Each one is its own
+    transaction, so an item that cannot be resolved (it is gone, or no longer
+    this user's) is reported and the others stay done. Approvals and
+    decisions are answered one at a time and are not accepted."""
+    _check_bulk_size(need_ids)
+    result: BulkNeedsResult = {"done": [], "failed": []}
+    for need_id in need_ids:
+        try:
+            kind, raw_id = _split_need_id(need_id)
+            if kind == "mention":
+                resolve_mention(actor, int(raw_id))
+            elif kind in ("card_mention", "card_assigned"):
+                resolve_card_notification(actor, int(raw_id))
+            else:
+                raise ValueError("Only mentions and card items resolve in bulk.")
+        except (ValueError, ObjectDoesNotExist, JsonableError):
+            result["failed"].append(need_id)
+        else:
+            result["done"].append(need_id)
+    return result
+
+
+def unresolve_card_notification(actor: UserProfile, notification_id: int) -> None:
+    """Reopen the items that closing this one closed with it: the user's
+    items on the same card that were closed just now."""
+    notification = TaskNotification.objects.get(id=notification_id, user=actor)
+    TaskNotification.objects.filter(
+        user=actor,
+        task_id=notification.task_id,
+        resolved_at__gte=timezone_now() - CARD_UNDO_WINDOW,
+    ).update(resolved_at=None)
+
+
+def unresolve_many(actor: UserProfile, need_ids: list[str]) -> BulkNeedsResult:
+    """Undo resolve_many(). Same rules: each item on its own, and the
+    ones that fail are reported."""
+    _check_bulk_size(need_ids)
+    result: BulkNeedsResult = {"done": [], "failed": []}
+    for need_id in need_ids:
+        try:
+            kind, raw_id = _split_need_id(need_id)
+            if kind == "mention":
+                unresolve_mention(actor, int(raw_id))
+            elif kind in ("card_mention", "card_assigned"):
+                unresolve_card_notification(actor, int(raw_id))
+            else:
+                raise ValueError("Only mentions and card items resolve in bulk.")
+        except (ValueError, ObjectDoesNotExist, JsonableError):
+            result["failed"].append(need_id)
+        else:
+            result["done"].append(need_id)
+    return result
+
+
+def snooze_until(realm: Realm) -> datetime:
+    """The next 07:00 on the workspace's clock: the hour the morning
+    reminder goes out, so a snoozed item is back when the day starts."""
+    local_now = realm_local_now(realm)
+    wake_up = datetime.combine(local_now.date(), time(REMINDER_HOUR, 0), tzinfo=local_now.tzinfo)
+    if wake_up <= local_now:
+        wake_up = datetime.combine(
+            local_now.date() + timedelta(days=1), time(REMINDER_HOUR, 0), tzinfo=local_now.tzinfo
+        )
+    return wake_up.astimezone(timezone.utc)
+
+
+def snooze_many(actor: UserProfile, need_ids: list[str]) -> datetime:
+    """Hide the given items of any kind until snooze_until(). An id that
+    names no current item hides nothing, so the ids are only checked for
+    shape. Returns when the items come back."""
+    _check_bulk_size(need_ids)
+    for need_id in need_ids:
+        _split_need_id(need_id)
+    until = snooze_until(actor.realm)
+    with transaction.atomic(durable=True):
+        NeedSnooze.objects.filter(user=actor, until__lte=timezone_now()).delete()
+        for need_id in need_ids:
+            NeedSnooze.objects.update_or_create(
+                realm=actor.realm, user=actor, need_id=need_id, defaults={"until": until}
+            )
+    return until
+
+
+def unsnooze_many(actor: UserProfile, need_ids: list[str]) -> None:
+    _check_bulk_size(need_ids)
+    with transaction.atomic(durable=True):
+        NeedSnooze.objects.filter(user=actor, need_id__in=need_ids).delete()

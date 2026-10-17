@@ -4,6 +4,7 @@ the only write here marks a mention done, or undoes that."""
 from typing import Literal
 
 from django.http import HttpRequest, HttpResponse
+from pydantic import Json
 
 from zerver.lib import needs
 from zerver.lib.typed_endpoint import typed_endpoint
@@ -41,4 +42,38 @@ def resolve_mention(
         needs.unresolve_mention(user_profile, message_id)
     else:
         needs.resolve_mention(user_profile, message_id)
+    return _success(request)
+
+
+@safe_agent_endpoint
+@typed_endpoint
+def resolve_needs(
+    request: HttpRequest, user_profile: UserProfile, *, need_ids: Json[list[str]]
+) -> HttpResponse:
+    return _success(request, dict(needs.resolve_many(user_profile, need_ids)))
+
+
+@safe_agent_endpoint
+@typed_endpoint
+def unresolve_needs(
+    request: HttpRequest, user_profile: UserProfile, *, need_ids: Json[list[str]]
+) -> HttpResponse:
+    return _success(request, dict(needs.unresolve_many(user_profile, need_ids)))
+
+
+@safe_agent_endpoint
+@typed_endpoint
+def snooze_needs(
+    request: HttpRequest, user_profile: UserProfile, *, need_ids: Json[list[str]]
+) -> HttpResponse:
+    until = needs.snooze_many(user_profile, need_ids)
+    return _success(request, {"until": until.isoformat()})
+
+
+@safe_agent_endpoint
+@typed_endpoint
+def unsnooze_needs(
+    request: HttpRequest, user_profile: UserProfile, *, need_ids: Json[list[str]]
+) -> HttpResponse:
+    needs.unsnooze_many(user_profile, need_ids)
     return _success(request)

@@ -6,8 +6,10 @@ import hashlib
 import tempfile
 from datetime import datetime, timedelta, timezone
 from io import StringIO
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
+import orjson
 import time_machine
 from django.db.models import F
 from django.test import override_settings
@@ -42,7 +44,10 @@ from zerver.models import (
     UserProfile,
     agents,
 )
-from zerver.models.needs import NeedResolution
+from zerver.models.needs import NeedResolution, NeedSnooze
+
+if TYPE_CHECKING:
+    from django.test.client import _MonkeyPatchedWSGIResponse as TestHttpResponse
 
 # The counts of the task card kinds, for a test that creates no card item.
 NO_CARDS = {"card_mention": 0, "card_assigned": 0}
@@ -1012,6 +1017,170 @@ class NeedsViewTests(NeedsTestCase):
         self.assertFalse(NeedResolution.objects.filter(user=cordelia).exists())
 
 
+class NeedsBulkTests(NeedsTestCase):
+    def _post_ids(self, path: str, ids: list[str]) -> "TestHttpResponse":
+        return self.client_post(path, {"need_ids": orjson.dumps(ids).decode()})
+
+    def test_resolve_many_reports_what_failed_and_keeps_the_rest(self) -> None:
+        cordelia = self.example_user("cordelia")
+        first_id = self._mention(cordelia, "one")
+        second_id = self._mention(cordelia, "two")
+        # A message that mentions no one is not a need of cordelia.
+        unrelated_id = self.send_stream_message(
+            self.owner, "Denmark", "no mention", topic_name="mentions"
+        )
+
+        result = needs.resolve_many(
+            cordelia,
+            [
+                f"mention:{first_id}",
+                f"mention:{unrelated_id}",
+                "approval:x",
+                f"mention:{second_id}",
+            ],
+        )
+
+        self.assertEqual(result["done"], [f"mention:{first_id}", f"mention:{second_id}"])
+        self.assertEqual(result["failed"], [f"mention:{unrelated_id}", "approval:x"])
+        self.assertEqual(self._open_ids(cordelia, "mention"), [])
+
+    def test_unresolve_many_reopens_mentions(self) -> None:
+        cordelia = self.example_user("cordelia")
+        ids = [f"mention:{self._mention(cordelia, 'ping')}" for _ in range(2)]
+        needs.resolve_many(cordelia, ids)
+        self.assertEqual(self._open_ids(cordelia), [])
+
+        result = needs.unresolve_many(cordelia, ids)
+
+        self.assertEqual(result, {"done": ids, "failed": []})
+        self.assertCountEqual(self._open_ids(cordelia), ids)
+
+    def test_bulk_calls_reject_a_malformed_or_oversized_list(self) -> None:
+        cordelia = self.example_user("cordelia")
+        for call in [needs.resolve_many, needs.unresolve_many, needs.snooze_many]:
+            with self.assertRaises(ValueError):
+                call(cordelia, ["mention:1"] * (needs.BULK_LIMIT + 1))
+        for bad_id in ["", "mention", "mention:", "other:1", "x" * 90]:
+            with self.assertRaises(ValueError):
+                needs.snooze_many(cordelia, [bad_id])
+
+    def test_snooze_hides_an_item_until_seven_the_next_morning(self) -> None:
+        cordelia = self.example_user("cordelia")
+        # 21:00 in Jakarta on 16 October.
+        with time_machine.travel(datetime(2026, 10, 16, 14, 0, tzinfo=timezone.utc), tick=False):
+            snoozed_id = f"mention:{self._mention(cordelia, 'later')}"
+            other_id = f"mention:{self._mention(cordelia, 'now')}"
+            until = needs.snooze_many(cordelia, [snoozed_id])
+            self.assertEqual(self._open_ids(cordelia), [other_id])
+            counts = needs.list_needs(cordelia, kind=None, status="open", since=None)["counts"]
+            self.assertEqual(counts["mention"], 1)
+        # 07:00 on 17 October in Jakarta.
+        self.assertEqual(until, datetime(2026, 10, 17, 0, 0, tzinfo=timezone.utc))
+
+        with time_machine.travel(until - timedelta(seconds=1), tick=False):
+            self.assertEqual(self._open_ids(cordelia), [other_id])
+        with time_machine.travel(until, tick=False):
+            self.assertCountEqual(self._open_ids(cordelia), [snoozed_id, other_id])
+
+    def test_snooze_before_seven_ends_the_same_morning(self) -> None:
+        cordelia = self.example_user("cordelia")
+        # 05:30 in Jakarta on 17 October.
+        with time_machine.travel(datetime(2026, 10, 16, 22, 30, tzinfo=timezone.utc), tick=False):
+            until = needs.snooze_until(cordelia.realm)
+        self.assertEqual(until, datetime(2026, 10, 17, 0, 0, tzinfo=timezone.utc))
+        # Exactly 07:00 is already the next morning's.
+        with time_machine.travel(datetime(2026, 10, 17, 0, 0, tzinfo=timezone.utc), tick=False):
+            until = needs.snooze_until(cordelia.realm)
+        self.assertEqual(until, datetime(2026, 10, 18, 0, 0, tzinfo=timezone.utc))
+
+    def test_snooze_follows_the_workspace_timezone(self) -> None:
+        cordelia = self.example_user("cordelia")
+        agents.AgentRealmSettings.objects.filter(realm=cordelia.realm).update(
+            timezone="America/New_York"
+        )
+        # 12:00 UTC on 17 October is 08:00 in New York, so 07:00 is tomorrow's.
+        with time_machine.travel(datetime(2026, 10, 17, 12, 0, tzinfo=timezone.utc), tick=False):
+            until = needs.snooze_until(cordelia.realm)
+        self.assertEqual(until, datetime(2026, 10, 18, 11, 0, tzinfo=timezone.utc))
+
+    def test_snooze_covers_every_kind_and_unsnooze_brings_it_back(self) -> None:
+        job, _attempt = self._pending_decision()
+        decision_id = f"decision:{job.id}"
+        self.assertEqual(self._open_ids(self.owner), [decision_id])
+
+        needs.snooze_many(self.owner, [decision_id])
+        self.assertEqual(self._open_ids(self.owner), [])
+
+        needs.unsnooze_many(self.owner, [decision_id])
+        self.assertEqual(self._open_ids(self.owner), [decision_id])
+
+    def test_snooze_again_moves_the_end_and_sweeps_old_rows(self) -> None:
+        cordelia = self.example_user("cordelia")
+        message_id = self._mention(cordelia, "ping")
+        stale = NeedSnooze.objects.create(
+            realm=cordelia.realm,
+            user=cordelia,
+            need_id="mention:1",
+            until=now() - timedelta(days=1),
+        )
+        needs.snooze_many(cordelia, [f"mention:{message_id}"])
+        needs.snooze_many(cordelia, [f"mention:{message_id}"])
+
+        self.assertFalse(NeedSnooze.objects.filter(id=stale.id).exists())
+        self.assertEqual(NeedSnooze.objects.filter(user=cordelia).count(), 1)
+
+    def test_a_snoozed_item_marked_done_stays_done(self) -> None:
+        cordelia = self.example_user("cordelia")
+        need_id = f"mention:{self._mention(cordelia, 'ping')}"
+        needs.snooze_many(cordelia, [need_id])
+        needs.resolve_many(cordelia, [need_id])
+        needs.unsnooze_many(cordelia, [need_id])
+        self.assertEqual(self._open_ids(cordelia), [])
+
+    def test_snooze_is_per_user(self) -> None:
+        cordelia = self.example_user("cordelia")
+        othello = self.example_user("othello")
+        self.subscribe(othello, "Denmark")
+        message_id = self.send_stream_message(
+            self.owner,
+            "Denmark",
+            f"@**{cordelia.full_name}** @**{othello.full_name}** look",
+            topic_name="mentions",
+        )
+        need_id = f"mention:{message_id}"
+        needs.snooze_many(cordelia, [need_id])
+        self.assertEqual(self._open_ids(cordelia), [])
+        self.assertEqual(self._open_ids(othello), [need_id])
+
+    def test_bulk_endpoints_round_trip(self) -> None:
+        cordelia = self.example_user("cordelia")
+        ids = [f"mention:{self._mention(cordelia, 'ping')}" for _ in range(2)]
+        self.login_user(cordelia)
+
+        result = self.assert_json_success(
+            self._post_ids("/json/needs/resolve", [*ids, "mention:0"])
+        )
+        self.assertEqual(result["done"], ids)
+        self.assertEqual(result["failed"], ["mention:0"])
+        self.assertEqual(self._open_ids(cordelia), [])
+
+        result = self.assert_json_success(self._post_ids("/json/needs/unresolve", ids))
+        self.assertEqual(result["done"], ids)
+        self.assertCountEqual(self._open_ids(cordelia), ids)
+
+        result = self.assert_json_success(self._post_ids("/json/needs/snooze", ids))
+        self.assertTrue(result["until"].startswith("20"))
+        self.assertEqual(self._open_ids(cordelia), [])
+
+        self.assert_json_success(self._post_ids("/json/needs/unsnooze", ids))
+        self.assertCountEqual(self._open_ids(cordelia), ids)
+
+    def test_bulk_endpoints_reject_a_malformed_id(self) -> None:
+        self.login_user(self.example_user("cordelia"))
+        result = self._post_ids("/json/needs/snooze", ["nonsense"])
+        self.assert_json_error(result, "Agent request rejected.")
+
+
 class CardNeedsTests(ZulipTestCase):
     @override
     def setUp(self) -> None:
@@ -1149,6 +1318,41 @@ class CardNeedsTests(ZulipTestCase):
         self.assertEqual(
             needs.list_needs(self.cordelia, kind=None, status="open", since=None)["items"], []
         )
+
+    def test_bulk_resolve_and_undo_of_card_items(self) -> None:
+        self.note_mentioning_cordelia()
+        self.note_mentioning_cordelia()
+        ids = [
+            f"card_mention:{notification.id}"
+            for notification in TaskNotification.objects.order_by("id")
+        ]
+
+        result = needs.resolve_many(self.cordelia, ids[:1])
+        self.assertEqual(result, {"done": ids[:1], "failed": []})
+        # Closing one closed both, as opening the card does.
+        self.assertEqual(
+            needs.list_needs(self.cordelia, kind=None, status="open", since=None)["items"], []
+        )
+
+        needs.unresolve_many(self.cordelia, ids[:1])
+        listed = needs.list_needs(self.cordelia, kind=None, status="open", since=None)["items"]
+        self.assertCountEqual([item["id"] for item in listed], ids)
+
+    def test_undo_leaves_an_older_closing_of_the_card_alone(self) -> None:
+        self.note_mentioning_cordelia()
+        old = TaskNotification.objects.get()
+        with time_machine.travel(now() - timedelta(hours=2), tick=False):
+            needs.resolve_many(self.cordelia, [f"card_mention:{old.id}"])
+        self.note_mentioning_cordelia()
+        new = TaskNotification.objects.exclude(id=old.id).get()
+        needs.resolve_many(self.cordelia, [f"card_mention:{new.id}"])
+
+        needs.unresolve_many(self.cordelia, [f"card_mention:{new.id}"])
+
+        old.refresh_from_db()
+        new.refresh_from_db()
+        self.assertIsNotNone(old.resolved_at)
+        self.assertIsNone(new.resolved_at)
 
     def test_resolving_someone_elses_item_is_rejected(self) -> None:
         self.note_mentioning_cordelia()
