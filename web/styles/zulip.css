@@ -1323,19 +1323,6 @@ nav {
     border-radius: var(--radius-sm);
 }
 
-#create_stream_subscribers {
-    margin-top: 10px;
-
-    .checkbox {
-        display: block;
-
-        & input[type="checkbox"] {
-            margin: 5px 0;
-            float: none;
-        }
-    }
-}
-
 .sub_button_row {
     text-align: center;
 }

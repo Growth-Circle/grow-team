@@ -187,8 +187,7 @@ h4.user_group_setting_subsection_title {
     }
 }
 
-.subscribers-list-header,
-.create_stream_subscriber_list_header {
+.subscribers-list-header {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
@@ -1190,8 +1189,7 @@ h4.user_group_setting_subsection_title {
             }
         }
 
-        .create_user_group_member_list_header,
-        .create_stream_subscriber_list_header {
+        .create_user_group_member_list_header {
             margin-top: 10px;
             margin-bottom: 3px;
 
@@ -1569,10 +1567,6 @@ h4.user_group_setting_subsection_title {
     }
 
     .create-channel-members {
-        .subscriber-list-box {
-            max-height: 14em;
-        }
-
         .stream_setting_subsection_title {
             margin-bottom: 0.25em;
             font-size: 1em;
@@ -1584,6 +1578,11 @@ h4.user_group_setting_subsection_title {
         align-items: baseline;
         justify-content: space-between;
         gap: 0.5em;
+    }
+
+    .create-channel-members-help {
+        margin: 0.5em 0 0;
+        font-size: 0.875em;
     }
 
     .create-channel-members-count {
@@ -1974,7 +1973,6 @@ h4.user_group_setting_subsection_title {
 
 #stream_members_list,
 #user_group_settings .member-list,
-#stream_creation_form .subscriber-list,
 #user_group_creation_form .member-list {
     table-layout: fixed;
     width: 100%;
@@ -2010,7 +2008,6 @@ h4.user_group_setting_subsection_title {
     }
 }
 
-#stream_creation_form .subscriber-list,
 #user_group_creation_form .member-list {
     .action-column {
         width: 6em;
@@ -2024,7 +2021,6 @@ h4.user_group_setting_subsection_title {
 @media (width < $lg_min) {
     #stream_members_list,
     #user_group_settings .member-list,
-    #stream_creation_form .subscriber-list,
     #user_group_creation_form .member-list {
         .panel_user_list {
             width: auto;

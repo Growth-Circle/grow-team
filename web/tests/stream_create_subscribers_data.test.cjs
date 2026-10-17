@@ -53,22 +53,11 @@ function test(label, f) {
 
 test("basics", () => {
     stream_create_subscribers_data.initialize_with_current_user();
-
-    assert.deepEqual(stream_create_subscribers_data.sorted_user_ids(), [me.user_id]);
     assert.deepEqual(stream_create_subscribers_data.get_principals(), [me.user_id]);
 
-    const all_user_ids = stream_create_subscribers_data.get_all_user_ids();
-    assert.deepEqual(all_user_ids, [101, 102, 103, 400]);
-
-    stream_create_subscribers_data.add_user_ids(all_user_ids);
-    assert.deepEqual(stream_create_subscribers_data.sorted_user_ids(), [400, 101, 102, 103]);
-
-    stream_create_subscribers_data.remove_user_ids([101, 103]);
-    assert.deepEqual(stream_create_subscribers_data.sorted_user_ids(), [400, 102]);
-    assert.deepEqual(stream_create_subscribers_data.get_potential_subscribers(), [
-        test_user101,
-        test_user103,
-    ]);
+    stream_create_subscribers_data.add_user_ids([101, 103]);
+    assert.deepEqual(stream_create_subscribers_data.get_principals(), [400, 101, 103]);
+    assert.deepEqual(stream_create_subscribers_data.get_potential_subscribers(), [test_user102]);
 });
 
 test("all team", () => {
@@ -97,74 +86,17 @@ test("all team", () => {
     ]);
 
     stream_create_subscribers_data.add_user_ids([test_user101.user_id]);
-    stream_create_subscribers_data.soft_remove_user_id(test_user101.user_id);
-    stream_create_subscribers_data.soft_remove_user_id(bot.user_id);
     assert.deepEqual(stream_create_subscribers_data.get_team_members_not_yet_added(), [
         test_user102,
         test_user103,
     ]);
-
-    // Adding the team brings back a team member who was crossed out,
-    // and leaves everything else as it was.
-    stream_create_subscribers_data.undo_soft_remove_team_members();
-    assert.ok(!stream_create_subscribers_data.user_id_in_soft_remove_list(test_user101.user_id));
-    assert.ok(stream_create_subscribers_data.user_id_in_soft_remove_list(bot.user_id));
 });
 
 test("sync_user_ids", () => {
     stream_create_subscribers_data.initialize_with_current_user();
     stream_create_subscribers_data.sync_user_ids([test_user101.user_id, test_user102.user_id]);
-    assert.deepEqual(stream_create_subscribers_data.sorted_user_ids(), [
+    assert.deepEqual(stream_create_subscribers_data.get_principals(), [
         test_user101.user_id,
         test_user102.user_id,
-    ]);
-});
-
-test("soft remove", () => {
-    stream_create_subscribers_data.initialize_with_current_user();
-    stream_create_subscribers_data.add_user_ids([test_user101.user_id, test_user102.user_id]);
-
-    stream_create_subscribers_data.soft_remove_user_id(test_user102.user_id);
-    // sorted_user_ids should still have all the users.
-    assert.deepEqual(stream_create_subscribers_data.sorted_user_ids(), [
-        me.user_id,
-        test_user101.user_id,
-        test_user102.user_id,
-    ]);
-    assert.deepEqual(stream_create_subscribers_data.get_principals(), [
-        me.user_id,
-        test_user101.user_id,
-    ]);
-    assert.ok(stream_create_subscribers_data.user_id_in_soft_remove_list(test_user102.user_id));
-    assert.ok(!stream_create_subscribers_data.user_id_in_soft_remove_list(test_user101.user_id));
-
-    // Removing a user_id should also remove them from soft remove list.
-    stream_create_subscribers_data.remove_user_ids([test_user102.user_id]);
-    assert.ok(!stream_create_subscribers_data.user_id_in_soft_remove_list(test_user102.user_id));
-    assert.deepEqual(stream_create_subscribers_data.sorted_user_ids(), [
-        me.user_id,
-        test_user101.user_id,
-    ]);
-    assert.deepEqual(stream_create_subscribers_data.get_principals(), [
-        me.user_id,
-        test_user101.user_id,
-    ]);
-
-    // Undo soft remove
-    stream_create_subscribers_data.soft_remove_user_id(test_user101.user_id);
-    assert.deepEqual(stream_create_subscribers_data.sorted_user_ids(), [
-        me.user_id,
-        test_user101.user_id,
-    ]);
-    assert.deepEqual(stream_create_subscribers_data.get_principals(), [me.user_id]);
-
-    stream_create_subscribers_data.undo_soft_remove_user_id(test_user101.user_id);
-    assert.deepEqual(stream_create_subscribers_data.sorted_user_ids(), [
-        me.user_id,
-        test_user101.user_id,
-    ]);
-    assert.deepEqual(stream_create_subscribers_data.get_principals(), [
-        me.user_id,
-        test_user101.user_id,
     ]);
 });

@@ -4,19 +4,19 @@ import type {Page} from "puppeteer";
 
 import * as common from "./lib/common.ts";
 
-async function user_row_selector(page: Page, name: string): Promise<string> {
+async function user_pill_selector(page: Page, name: string): Promise<string> {
     const user_id = await common.get_user_id_from_name(page, name);
-    const selector = `.settings-subscriber-row[data-user-id="${user_id}"]`;
+    const selector = `#people_to_add .pill[data-user-id="${user_id}"]`;
     return selector;
 }
 
 async function await_user_visible(page: Page, name: string): Promise<void> {
-    const selector = await user_row_selector(page, name);
+    const selector = await user_pill_selector(page, name);
     await page.waitForSelector(selector, {visible: true});
 }
 
 async function await_user_hidden(page: Page, name: string): Promise<void> {
-    const selector = await user_row_selector(page, name);
+    const selector = await user_pill_selector(page, name);
     await page.waitForSelector(selector, {hidden: true});
 }
 
@@ -78,9 +78,7 @@ async function test_all_team_button(page: Page): Promise<void> {
 
     await page.click("#create_stream_add_all_team");
     await page.waitForFunction(
-        (team_size) =>
-            document.querySelectorAll("#create_stream_subscribers .settings-subscriber-row")
-                .length === team_size,
+        (team_size) => document.querySelectorAll("#people_to_add .pill").length === team_size,
         {},
         team_size,
     );
@@ -89,10 +87,7 @@ async function test_all_team_button(page: Page): Promise<void> {
     const pill_exits = await page.$$("#people_to_add .pill .exit");
     await pill_exits.at(-1)!.click();
     await page.waitForFunction(
-        (team_size) =>
-            document.querySelectorAll("#create_stream_subscribers .settings-subscriber-row")
-                .length ===
-            team_size - 1,
+        (team_size) => document.querySelectorAll("#people_to_add .pill").length === team_size - 1,
         {},
         team_size,
     );
@@ -102,39 +97,28 @@ async function test_all_team_button(page: Page): Promise<void> {
     );
 }
 
-async function clear_ot_filter_with_backspace(page: Page): Promise<void> {
-    await page.click(".add-user-list-filter");
-    await page.keyboard.press("Backspace");
-    await page.keyboard.press("Backspace");
-}
+async function test_members_without_table(page: Page): Promise<void> {
+    // Members are shown as pills only, with no table, email or filter.
+    assert.strictEqual(await page.$("#stream_creation_form .subscriber-list"), null);
+    assert.strictEqual(await page.$("#stream_creation_form .add-user-list-filter"), null);
+    assert.strictEqual(await page.$("#stream_creation_form .settings-email-column"), null);
 
-async function test_user_filter_ui(page: Page): Promise<void> {
-    await page.waitForSelector("form#stream_creation_form", {visible: true});
-    // Desdemona should be there by default
     await await_user_visible(page, "desdemona");
-
     await add_user_to_stream(page, common.fullname.cordelia);
     await add_user_to_stream(page, common.fullname.othello);
-
-    await page.type(`form#stream_creation_form [name="user_list_filter"]`, "ot", {delay: 100});
-    await page.waitForSelector("#create_stream_subscribers", {visible: true});
-    // Wait until filtering is completed.
-    await page.waitForFunction(
-        () =>
-            document.querySelectorAll("#create_stream_subscribers .remove_potential_subscriber")
-                .length === 1,
+    assert.strictEqual(
+        await common.get_text_from_selector(page, "#create_stream_members_count"),
+        "3 people",
     );
 
+    const cordelia_id = await common.get_user_id_from_name(page, common.fullname.cordelia);
+    await page.click(`#people_to_add .pill[data-user-id="${cordelia_id}"] .exit`);
     await await_user_hidden(page, common.fullname.cordelia);
-    await await_user_hidden(page, "desdemona");
-    await await_user_visible(page, common.fullname.othello);
-
-    // Clear the filter.
-    await clear_ot_filter_with_backspace(page);
-
-    await await_user_visible(page, common.fullname.cordelia);
-    await await_user_visible(page, "desdemona");
-    await await_user_visible(page, common.fullname.othello);
+    assert.strictEqual(
+        await common.get_text_from_selector(page, "#create_stream_members_count"),
+        "2 people",
+    );
+    await add_user_to_stream(page, common.fullname.cordelia);
 }
 
 async function create_stream(page: Page): Promise<void> {
@@ -211,7 +195,7 @@ async function test_stream_creation(page: Page): Promise<void> {
     // The form starts again with only the creator when it is reopened.
     await page.click("form#stream_creation_form button.create_stream_cancel");
     await click_create_new_stream(page);
-    await test_user_filter_ui(page);
+    await test_members_without_table(page);
     await create_stream(page);
     await test_streams_with_empty_names_cannot_be_created(page);
     await test_streams_with_duplicate_names_cannot_be_created(page);
