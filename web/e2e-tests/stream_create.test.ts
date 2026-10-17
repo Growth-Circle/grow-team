@@ -152,6 +152,9 @@ async function create_stream(page: Page): Promise<void> {
     // We redirect to the channel message view.
     await page.waitForSelector("#subscription_overlay", {hidden: true});
     await page.waitForSelector(
+        `xpath///*[${common.has_class_x("sj-toast__text")} and text()="Channel Puppeteer created."]`,
+    );
+    await page.waitForSelector(
         `xpath///*[${common.has_class_x("room-header-name")} and text()="# Puppeteer"]`,
     );
 

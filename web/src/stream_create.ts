@@ -418,6 +418,9 @@ function create_stream(): void {
                 );
             }
             loading.destroy_indicator($("#stream_creating_indicator"));
+            // The form keeps what was entered, so the reason is reported
+            // above it; make sure it is in view next to the Create button.
+            util.the($(".stream_create_info")).scrollIntoView({block: "nearest"});
         },
     });
 }

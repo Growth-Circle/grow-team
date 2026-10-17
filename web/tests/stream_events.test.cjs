@@ -16,6 +16,7 @@ const browser_history = mock_esm("../src/browser_history");
 const color_data = mock_esm("../src/color_data");
 const compose_recipient = mock_esm("../src/compose_recipient");
 const dialog_widget = mock_esm("../src/dialog_widget");
+const feedback_widget = mock_esm("../src/feedback_widget");
 const message_live_update = mock_esm("../src/message_live_update");
 const message_view = mock_esm("../src/message_view");
 const settings_streams = mock_esm("../src/settings_streams");
@@ -714,6 +715,8 @@ test("marked_subscribed (new channel creation)", ({override, override_rewire}) =
     const dialog_widget_stub = make_stub();
     override(dialog_widget, "launch", dialog_widget_stub.f);
 
+    // The toast is not shown with the modal: the mocked feedback_widget
+    // has no show_toast, so calling it would fail the test.
     stream_events.mark_subscribed(sub, [], "yellow");
 
     // Verify that the creator is redirected to channel view
@@ -721,4 +724,32 @@ test("marked_subscribed (new channel creation)", ({override, override_rewire}) =
     assert.equal(go_to_location_stub.num_calls, 1);
     assert.equal(dialog_widget_stub.num_calls, 1);
     assert.equal(stream_create.get_name(), undefined);
+});
+
+test("marked_subscribed (new channel creation, not the first)", ({override, override_rewire}) => {
+    override_rewire(stream_data, "set_max_channel_width_css_variable", noop);
+    stream_create.set_name(frontend.name);
+    const sub = {...frontend};
+    stream_data.add_sub_for_tests(sub);
+
+    const go_to_location_stub = make_stub();
+    override(browser_history, "go_to_location", go_to_location_stub.f);
+    override(unread_ui, "update_unread_counts", noop);
+    override(stream_list, "add_sidebar_row", noop);
+    override(stream_list, "update_subscribe_to_more_streams_link", noop);
+    override(user_profile, "update_user_profile_streams_list_for_users", noop);
+    override(onboarding_steps, "ONE_TIME_NOTICES_TO_DISPLAY", new Set());
+    const toast_stub = make_stub();
+    override(feedback_widget, "show_toast", toast_stub.f);
+
+    stream_events.mark_subscribed(sub, [], "yellow");
+
+    // The creator lands in the channel and gets a confirmation toast,
+    // without the first channel modal (dialog_widget is not stubbed).
+    assert.equal(go_to_location_stub.num_calls, 1);
+    assert.equal(toast_stub.num_calls, 1);
+    assert.equal(
+        toast_stub.get_args("opts").opts.text,
+        `translated: Channel ${frontend.name} created.`,
+    );
 });

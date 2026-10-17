@@ -11,6 +11,7 @@ import * as color_data from "./color_data.ts";
 import * as compose_recipient from "./compose_recipient.ts";
 import * as compose_state from "./compose_state.ts";
 import * as dialog_widget from "./dialog_widget.ts";
+import * as feedback_widget from "./feedback_widget.ts";
 import * as hash_util from "./hash_util.ts";
 import {$t} from "./i18n.ts";
 import * as message_lists from "./message_lists.ts";
@@ -313,6 +314,13 @@ export function mark_subscribed(
         if (stream_create.should_show_first_stream_created_modal()) {
             stream_create.set_first_stream_created_modal_shown();
             show_first_stream_created_modal(sub);
+        } else {
+            feedback_widget.show_toast({
+                text: $t(
+                    {defaultMessage: "Channel {channel_name} created."},
+                    {channel_name: sub.name},
+                ),
+            });
         }
     }
 
