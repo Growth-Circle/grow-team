@@ -1,6 +1,6 @@
-// The "Chat without topics" option in the channel creation form is a
-// shortcut for the channel's `topics_policy` setting: on, it is
-// `empty_topic_only`; off, the channel follows the organization default.
+// The "Chat type" choice in the channel creation form is a shortcut
+// for the channel's `topics_policy` setting: "No topics" is
+// `empty_topic_only`; "By topic" follows the organization default.
 // The setting itself stays under Advanced configuration, and the two
 // controls follow each other.
 

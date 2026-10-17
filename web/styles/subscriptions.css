@@ -1537,54 +1537,6 @@ h4.user_group_setting_subsection_title {
     margin: 20px 0;
 }
 
-#stream_creation_form .create-stream-no-topics {
-    margin: 1em 0;
-
-    .create-stream-no-topics-option {
-        display: flex;
-        align-items: flex-start;
-        margin: 0;
-        padding: 0.75em 1em;
-        border: 0.125em solid var(--sj-outline);
-        border-radius: 0.75em;
-        background: var(--sj-tint-kuning);
-        color: var(--sj-text);
-        cursor: pointer;
-        gap: 0.75em;
-
-        &:has(:focus-visible) {
-            box-shadow: var(--sj-ring-focus);
-        }
-
-        &:has(:disabled) {
-            border-color: var(--sj-divider);
-            background: var(--sj-surface-muted);
-            cursor: not-allowed;
-        }
-    }
-
-    .create-stream-no-topics-checkbox {
-        flex: none;
-        margin: 0.25em 0 0;
-    }
-
-    .create-stream-no-topics-text {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-        gap: 0.125em;
-    }
-
-    .create-stream-no-topics-title {
-        font-weight: 600;
-    }
-
-    .create-stream-no-topics-help {
-        color: var(--sj-text-muted);
-        font-size: 0.875em;
-    }
-}
-
 #stream_creation_form {
     .create-channel-form {
         max-width: 40em;
@@ -1597,6 +1549,70 @@ h4.user_group_setting_subsection_title {
 
     .create-channel-folder .no-folders-configured-message {
         display: none;
+    }
+
+    .create-channel-choices {
+        display: flex;
+        gap: 0.75em;
+
+        @media (width < $sm_min) {
+            flex-direction: column;
+        }
+    }
+
+    .create-channel-choice {
+        display: flex;
+        align-items: flex-start;
+        flex: 1;
+        margin: 0;
+        padding: 0.75em 1em;
+        border: 0.125em solid var(--sj-divider);
+        border-radius: 0.75em;
+        background: var(--sj-surface);
+        color: var(--sj-text);
+        cursor: pointer;
+        gap: 0.75em;
+
+        &:has(:checked) {
+            border-color: var(--sj-outline);
+            background: var(--sj-tint-kuning);
+        }
+
+        &:has(:focus-visible) {
+            box-shadow: var(--sj-ring-focus);
+        }
+
+        &:has(:disabled) {
+            border-color: var(--sj-divider);
+            background: var(--sj-surface-muted);
+            cursor: not-allowed;
+        }
+    }
+
+    .create-channel-choice-input {
+        flex: none;
+        margin: 0.25em 0 0;
+    }
+
+    .create-channel-choice-text {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        gap: 0.125em;
+    }
+
+    .create-channel-choice-title {
+        font-weight: 600;
+    }
+
+    .create-channel-choice-help,
+    .create-channel-choice-reason {
+        color: var(--sj-text-muted);
+        font-size: 0.875em;
+    }
+
+    .create-channel-choice-reason {
+        margin: 0.5em 0 0;
     }
 
     .create-channel-more-settings {

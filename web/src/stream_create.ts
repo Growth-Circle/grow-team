@@ -442,6 +442,12 @@ export function new_stream_clicked(stream_name: string, folder_id: number | unde
     $("#create_stream_name").trigger("focus");
 }
 
+function set_chat_type_option(is_no_topics: boolean): void {
+    $<HTMLInputElement>("input[name=create_stream_chat_type]").each(function () {
+        this.checked = (this.value === "flat") === is_no_topics;
+    });
+}
+
 function clear_error_display(): void {
     stream_name_error.clear_errors();
     $(".stream_create_info").hide();
@@ -501,11 +507,11 @@ export function show_new_stream_modal(): void {
     );
 
     $("#id_new_topics_policy").val(settings_config.get_stream_topics_policy_values().inherit.code);
-    $("#create_stream_no_topics").prop("checked", false);
-    if (!stream_data.user_can_set_topics_policy()) {
-        $("#id_new_topics_policy").prop("disabled", true);
-        $("#create_stream_no_topics").prop("disabled", true);
-    }
+    set_chat_type_option(false);
+    const can_set_topics_policy = stream_data.user_can_set_topics_policy();
+    $("#id_new_topics_policy").prop("disabled", !can_set_topics_policy);
+    $("input[name=create_stream_chat_type]").prop("disabled", !can_set_topics_policy);
+    $("#create_stream_chat_type_reason").toggleClass("hide", can_set_topics_policy);
 
     if (!stream_data.user_can_set_delete_message_policy()) {
         settings_components.disable_group_permission_setting(
@@ -644,19 +650,17 @@ export function set_up_handlers(): void {
         }
     });
 
-    $container.on("change", "#create_stream_no_topics", () => {
-        const is_checked = $("#create_stream_no_topics").is(":checked");
+    $container.on("change", "input[name=create_stream_chat_type]", () => {
+        const is_no_topics =
+            $<HTMLInputElement>("input[name=create_stream_chat_type]:checked").val() === "flat";
         $("#id_new_topics_policy").val(
-            stream_topics_policy.policy_for_no_topics_option(is_checked),
+            stream_topics_policy.policy_for_no_topics_option(is_no_topics),
         );
     });
 
     $container.on("change", "#id_new_topics_policy", () => {
         const policy = String($("#id_new_topics_policy").val());
-        $("#create_stream_no_topics").prop(
-            "checked",
-            stream_topics_policy.is_no_topics_policy(policy),
-        );
+        set_chat_type_option(stream_topics_policy.is_no_topics_policy(policy));
     });
 
     $container.on("input", "#id_new_history_public_to_subscribers", () => {

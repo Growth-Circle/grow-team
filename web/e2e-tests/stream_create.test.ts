@@ -43,6 +43,22 @@ async function click_create_new_stream(page: Page): Promise<void> {
     await await_user_visible(page, "desdemona");
 }
 
+async function topics_policy_value(page: Page): Promise<string> {
+    return await page.$eval("select#id_new_topics_policy", (select) => select.value);
+}
+
+async function test_chat_type_choice(page: Page): Promise<void> {
+    // By topic is the default and follows the organization.
+    await page.waitForSelector('input[name="create_stream_chat_type"][value="topic"]:checked');
+    assert.strictEqual(await topics_policy_value(page), "inherit");
+
+    await page.click('input[name="create_stream_chat_type"][value="flat"]');
+    assert.strictEqual(await topics_policy_value(page), "empty_topic_only");
+
+    await page.click('input[name="create_stream_chat_type"][value="topic"]');
+    assert.strictEqual(await topics_policy_value(page), "inherit");
+}
+
 async function clear_ot_filter_with_backspace(page: Page): Promise<void> {
     await page.click(".add-user-list-filter");
     await page.keyboard.press("Backspace");
@@ -142,6 +158,7 @@ async function test_streams_with_duplicate_names_cannot_be_created(page: Page): 
 
 async function test_stream_creation(page: Page): Promise<void> {
     await click_create_new_stream(page);
+    await test_chat_type_choice(page);
     await test_user_filter_ui(page);
     await create_stream(page);
     await test_streams_with_empty_names_cannot_be_created(page);
