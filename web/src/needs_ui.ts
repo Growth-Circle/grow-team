@@ -11,6 +11,7 @@ import * as hash_util from "./hash_util.ts";
 import {$t, $t_html} from "./i18n.ts";
 import * as left_sidebar_navigation_area from "./left_sidebar_navigation_area.ts";
 import * as live_updates from "./live_updates.ts";
+import * as narrow_title from "./narrow_title.ts";
 import * as nav_counts from "./nav_counts.ts";
 import type {NeedItem, NeedKind, NeedTab} from "./needs_data.ts";
 import * as needs_data from "./needs_data.ts";
@@ -241,7 +242,7 @@ function needs_view_context(): Record<string, unknown> {
         ),
         tabs: needs_data.NEED_TABS.map((tab) => {
             const label = tab_label(tab);
-            const count = needs_data.count_for_tab(open_items, tab);
+            const count = needs_data.count_for_tab(open_items, tab, {show_team_wide});
             return {
                 value: tab,
                 active: tab === current_tab,
@@ -267,10 +268,10 @@ function needs_view_context(): Record<string, unknown> {
                 : undefined,
         is_empty: cards.length === 0,
         empty_text: only_team_wide_waits
-            ? $t({
-                  defaultMessage:
-                      "Only team-wide mentions are waiting. Show them with the button above.",
-              })
+            ? $t(
+                  {defaultMessage: "Nothing needs you. {count} team-wide mentions are hidden."},
+                  {count: team_wide_count},
+              )
             : empty_tab_text(current_tab),
         cards,
         show_done: done_loaded,
@@ -335,7 +336,11 @@ function focus_card_at(index: number): void {
 }
 
 function update_nav_count(): void {
-    nav_counts.set_count("needs", open_items.length);
+    nav_counts.set_count("needs", needs_data.personal_count(open_items));
+    // The title of the page carries the same number.
+    if (visible) {
+        narrow_title.update_narrow_title(undefined);
+    }
 }
 
 // ----- Loading data -----
@@ -647,5 +652,8 @@ export function hide(): void {
 }
 
 export function title(): string {
-    return $t({defaultMessage: "Needs you"});
+    const count = needs_data.personal_count(open_items);
+    return count > 0
+        ? $t({defaultMessage: "Needs you · {count}"}, {count})
+        : $t({defaultMessage: "Needs you"});
 }

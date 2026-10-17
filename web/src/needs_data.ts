@@ -71,7 +71,9 @@ export const need_counts_schema = z.object({
 
 const needs_result_schema = z.object({
     items: z.array(need_item_schema),
+    // The counts leave out team-wide items, which broadcast_counts has.
     counts: need_counts_schema,
+    broadcast_counts: need_counts_schema,
 });
 
 export type NeedActor = z.infer<typeof need_actor_schema>;
@@ -135,11 +137,21 @@ export function items_for_tab(
     return show_team_wide ? in_tab : in_tab.filter((item) => !item.broadcast);
 }
 
-// The number on a tab counts everything in it, team-wide or not, so
-// the All tab matches the number in the sidebar. It changes at once
-// when the person handles an item.
-export function count_for_tab(items: NeedItem[], tab: NeedTab): number {
-    return items_in_tab(items, tab).length;
+// The number on a tab counts what the tab shows, so it never promises
+// more cards than the person can see. It changes at once when the
+// person handles an item or turns team-wide mentions on.
+export function count_for_tab(
+    items: NeedItem[],
+    tab: NeedTab,
+    options: {show_team_wide: boolean},
+): number {
+    return items_for_tab(items, tab, options).length;
+}
+
+// The number in the sidebar and in the title of the page: what waits
+// on the person themself, whether or not the team-wide mentions show.
+export function personal_count(items: NeedItem[]): number {
+    return items.filter((item) => !item.broadcast).length;
 }
 
 export function team_wide_count_for_tab(items: NeedItem[], tab: NeedTab): number {

@@ -79,18 +79,18 @@ run_test("each tab count matches the items that tab shows", () => {
         make_item({id: "approval:2", kind: "approval"}),
         make_item({id: "mention:3", kind: "mention"}),
     ];
-    assert.equal(needs_data.count_for_tab(items, "approval"), 2);
-    assert.equal(needs_data.count_for_tab(items, "mentions"), 1);
-    assert.equal(needs_data.count_for_tab(items, "decision"), 0);
-    assert.equal(needs_data.count_for_tab(items, "all"), 3);
+    assert.equal(needs_data.count_for_tab(items, "approval", show_all), 2);
+    assert.equal(needs_data.count_for_tab(items, "mentions", show_all), 1);
+    assert.equal(needs_data.count_for_tab(items, "decision", show_all), 0);
+    assert.equal(needs_data.count_for_tab(items, "all", show_all), 3);
 
     // The person handles one item: its tab and the "all" tab go down at once.
     items.splice(0, 1);
-    assert.equal(needs_data.count_for_tab(items, "approval"), 1);
-    assert.equal(needs_data.count_for_tab(items, "all"), 2);
+    assert.equal(needs_data.count_for_tab(items, "approval", show_all), 1);
+    assert.equal(needs_data.count_for_tab(items, "all", show_all), 2);
 });
 
-run_test("team-wide mentions are hidden until the person asks, and still counted", () => {
+run_test("team-wide mentions are hidden until the person asks, and counted apart", () => {
     const items = [
         make_item({id: "mention:1", kind: "mention"}),
         make_item({id: "mention:2", kind: "mention", broadcast: true}),
@@ -110,9 +110,13 @@ run_test("team-wide mentions are hidden until the person asks, and still counted
     assert.deepEqual(ids("all", {show_team_wide: false}), ["mention:1", "approval:4"]);
     assert.equal(ids("all", {show_team_wide: true}).length, 4);
 
-    // The tab numbers add up to the sidebar number whatever the switch says.
-    assert.equal(needs_data.count_for_tab(items, "mentions"), 3);
-    assert.equal(needs_data.count_for_tab(items, "all"), 4);
+    // A tab counts the cards it shows, so the number follows the switch.
+    assert.equal(needs_data.count_for_tab(items, "mentions", {show_team_wide: false}), 1);
+    assert.equal(needs_data.count_for_tab(items, "mentions", show_all), 3);
+    assert.equal(needs_data.count_for_tab(items, "all", {show_team_wide: false}), 2);
+    assert.equal(needs_data.count_for_tab(items, "all", show_all), 4);
+    // The sidebar number does not follow it.
+    assert.equal(needs_data.personal_count(items), 2);
     assert.equal(needs_data.team_wide_count_for_tab(items, "mentions"), 2);
     assert.equal(needs_data.team_wide_count_for_tab(items, "all"), 2);
     assert.equal(needs_data.team_wide_count_for_tab(items, "approval"), 0);
@@ -152,18 +156,35 @@ run_test("the open list is fetched from the needs endpoint", async () => {
     next_response = {
         items: [make_item()],
         counts: {approval: 1, mention: 0, decision: 0, card_mention: 0, card_assigned: 0, all: 1},
+        broadcast_counts: {
+            approval: 0,
+            mention: 2,
+            decision: 0,
+            card_mention: 0,
+            card_assigned: 0,
+            all: 2,
+        },
     };
     const result = await needs_data.fetch_open();
     assert.equal(last_call.method, "GET");
     assert.equal(last_call.url, "/json/needs");
     assert.equal(result.items.length, 1);
     assert.equal(result.counts.all, 1);
+    assert.equal(result.broadcast_counts.all, 2);
 });
 
 run_test("today's done list asks for resolved items since today", async () => {
     next_response = {
         items: [],
         counts: {approval: 0, mention: 0, decision: 0, card_mention: 0, card_assigned: 0, all: 0},
+        broadcast_counts: {
+            approval: 0,
+            mention: 0,
+            decision: 0,
+            card_mention: 0,
+            card_assigned: 0,
+            all: 0,
+        },
     };
     await needs_data.fetch_done_today();
     assert.equal(last_call.url, "/json/needs?status=resolved&since=today");
@@ -315,10 +336,10 @@ run_test("a card notification is listed under all and its own tab", () => {
         make_item({id: "card_assigned:3", kind: "card_assigned", task: card}),
         make_item({id: "card_assigned:4", kind: "card_assigned", task: card}),
     ];
-    assert.equal(needs_data.count_for_tab(items, "all"), 4);
+    assert.equal(needs_data.count_for_tab(items, "all", show_all), 4);
     // A mention in chat and a mention in a card note share one tab.
-    assert.equal(needs_data.count_for_tab(items, "mentions"), 2);
-    assert.equal(needs_data.count_for_tab(items, "assigned"), 2);
+    assert.equal(needs_data.count_for_tab(items, "mentions", show_all), 2);
+    assert.equal(needs_data.count_for_tab(items, "assigned", show_all), 2);
     assert.deepEqual(
         needs_data.items_for_tab(items, "mentions", show_all).map((item) => item.id),
         ["mention:1", "card_mention:2"],
@@ -368,6 +389,14 @@ run_test("the list parses card notifications and their card", async () => {
     next_response = {
         items: [make_item({id: "card_mention:2", kind: "card_mention", task: card})],
         counts: {approval: 0, mention: 0, decision: 0, card_mention: 1, card_assigned: 0, all: 1},
+        broadcast_counts: {
+            approval: 0,
+            mention: 2,
+            decision: 0,
+            card_mention: 0,
+            card_assigned: 0,
+            all: 2,
+        },
     };
     const result = await needs_data.fetch_open();
     assert.equal(result.items[0].task.display_id, "GT-8");
