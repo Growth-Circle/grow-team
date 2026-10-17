@@ -121,6 +121,11 @@ export function build_widgets(): void {
     const $simplebar_container = $add_people_container.find(".subscriber_list_container");
 
     pill_widget = build_pill_widget({$parent_container: $add_people_container});
+    // The search box is a contenteditable element with only a
+    // placeholder, which screen readers do not announce as a name.
+    $add_people_container
+        .find(".pill-container .input")
+        .attr({role: "textbox", "aria-label": $t({defaultMessage: "Members"})});
 
     stream_create_subscribers_data.initialize_with_current_user();
     const current_user_id = current_user.user_id;
