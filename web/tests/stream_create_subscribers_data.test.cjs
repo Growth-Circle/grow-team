@@ -71,6 +71,46 @@ test("basics", () => {
     ]);
 });
 
+test("all team", () => {
+    const bot = make_user({
+        email: "bot@zulip.com",
+        full_name: "A Bot",
+        user_id: 500,
+        is_bot: true,
+    });
+    const guest = make_user({
+        email: "guest@zulip.com",
+        full_name: "A Guest",
+        user_id: 501,
+        is_guest: true,
+    });
+    people.add_active_user(bot);
+    people.add_active_user(guest);
+    stream_create_subscribers_data.initialize_with_current_user();
+
+    // Neither the bot nor the guest is part of the team.
+    assert.equal(stream_create_subscribers_data.get_team_size(), 4);
+    assert.deepEqual(stream_create_subscribers_data.get_team_members_not_yet_added(), [
+        test_user101,
+        test_user102,
+        test_user103,
+    ]);
+
+    stream_create_subscribers_data.add_user_ids([test_user101.user_id]);
+    stream_create_subscribers_data.soft_remove_user_id(test_user101.user_id);
+    stream_create_subscribers_data.soft_remove_user_id(bot.user_id);
+    assert.deepEqual(stream_create_subscribers_data.get_team_members_not_yet_added(), [
+        test_user102,
+        test_user103,
+    ]);
+
+    // Adding the team brings back a team member who was crossed out,
+    // and leaves everything else as it was.
+    stream_create_subscribers_data.undo_soft_remove_team_members();
+    assert.ok(!stream_create_subscribers_data.user_id_in_soft_remove_list(test_user101.user_id));
+    assert.ok(stream_create_subscribers_data.user_id_in_soft_remove_list(bot.user_id));
+});
+
 test("sync_user_ids", () => {
     stream_create_subscribers_data.initialize_with_current_user();
     stream_create_subscribers_data.sync_user_ids([test_user101.user_id, test_user102.user_id]);

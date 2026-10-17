@@ -71,6 +71,37 @@ async function test_visibility_choice(page: Page): Promise<void> {
     await page.waitForSelector("#id_should_announce_new_stream:disabled");
 }
 
+async function test_all_team_button(page: Page): Promise<void> {
+    const button_text = await common.get_text_from_selector(page, "#create_stream_add_all_team");
+    const team_size = Number(/\((\d+)\)/.exec(button_text)?.[1]);
+    assert.ok(team_size > 1, button_text);
+
+    await page.click("#create_stream_add_all_team");
+    await page.waitForFunction(
+        (team_size) =>
+            document.querySelectorAll("#create_stream_subscribers .settings-subscriber-row")
+                .length === team_size,
+        {},
+        team_size,
+    );
+
+    // Each member can still be removed on its own.
+    const pill_exits = await page.$$("#people_to_add .pill .exit");
+    await pill_exits.at(-1)!.click();
+    await page.waitForFunction(
+        (team_size) =>
+            document.querySelectorAll("#create_stream_subscribers .settings-subscriber-row")
+                .length ===
+            team_size - 1,
+        {},
+        team_size,
+    );
+    assert.strictEqual(
+        await common.get_text_from_selector(page, "#create_stream_members_count"),
+        `${team_size - 1} people`,
+    );
+}
+
 async function clear_ot_filter_with_backspace(page: Page): Promise<void> {
     await page.click(".add-user-list-filter");
     await page.keyboard.press("Backspace");
@@ -172,6 +203,11 @@ async function test_stream_creation(page: Page): Promise<void> {
     await click_create_new_stream(page);
     await test_chat_type_choice(page);
     await test_visibility_choice(page);
+    await test_all_team_button(page);
+
+    // The form starts again with only the creator when it is reopened.
+    await page.click("form#stream_creation_form button.create_stream_cancel");
+    await click_create_new_stream(page);
     await test_user_filter_ui(page);
     await create_stream(page);
     await test_streams_with_empty_names_cannot_be_created(page);

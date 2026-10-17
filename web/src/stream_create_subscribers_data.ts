@@ -35,6 +35,29 @@ export function get_potential_subscribers(): User[] {
     const potential_subscribers = people.get_realm_users();
     return potential_subscribers.filter((user) => !user_id_set.has(user.user_id));
 }
+// "All team" means the active members of the organization. Bots are
+// left out, as nobody expects a new channel to start with every
+// integration in it. Guests are left out too: they are people from
+// outside the team, such as clients, and each one should be added by
+// choice.
+function get_team_members(): User[] {
+    return people.get_realm_active_human_users().filter((user) => !user.is_guest);
+}
+
+export function get_team_size(): number {
+    return get_team_members().length;
+}
+
+export function get_team_members_not_yet_added(): User[] {
+    return get_team_members().filter((user) => !user_id_set.has(user.user_id));
+}
+
+export function undo_soft_remove_team_members(): void {
+    for (const user of get_team_members()) {
+        soft_remove_user_id_set.delete(user.user_id);
+    }
+}
+
 export function add_user_ids(user_ids: number[]): void {
     for (const user_id of user_ids) {
         if (!user_id_set.has(user_id)) {

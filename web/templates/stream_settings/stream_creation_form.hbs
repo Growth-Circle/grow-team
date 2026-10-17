@@ -16,9 +16,13 @@
                     </section>
                     <section class="subscribers_container create-channel-members">
                         <div class="stream_create_add_subscriber_container">
-                            <h4 class="stream_setting_subsection_title new-stream-subscribers-title">
-                                <label class="choose-subscribers-label">{{t "Members" }}</label>
-                            </h4>
+                            <div class="create-channel-members-header">
+                                <h4 class="stream_setting_subsection_title new-stream-subscribers-title">
+                                    <label class="choose-subscribers-label">{{t "Members" }}</label>
+                                    <span class="create-channel-members-count" id="create_stream_members_count"></span>
+                                </h4>
+                                <button type="button" class="create-channel-all-team-button" id="create_stream_add_all_team">{{t "+ All team" }}</button>
+                            </div>
                             <div id="stream_subscription_error" class="stream_creation_error"></div>
                             <div class="controls" id="people_to_add"></div>
                         </div>

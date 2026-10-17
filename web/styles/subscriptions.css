@@ -1543,8 +1543,48 @@ h4.user_group_setting_subsection_title {
         margin: 0 auto;
     }
 
-    .create-channel-members .subscriber-list-box {
-        max-height: 14em;
+    .create-channel-members {
+        .subscriber-list-box {
+            max-height: 14em;
+        }
+
+        .stream_setting_subsection_title {
+            margin-bottom: 0.25em;
+            font-size: 1em;
+        }
+    }
+
+    .create-channel-members-header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.5em;
+    }
+
+    .create-channel-members-count {
+        color: var(--sj-text-muted);
+        font-size: 0.875em;
+    }
+
+    .create-channel-all-team-button {
+        min-height: 2em;
+        padding: 0 0.25em;
+        border: 0;
+        border-radius: 0.5em;
+        background: transparent;
+        color: var(--sj-text-ayame);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+
+        &:hover {
+            text-decoration: underline;
+        }
+
+        &:focus-visible {
+            outline: none;
+            box-shadow: var(--sj-ring-focus);
+        }
     }
 
     .create-channel-folder .no-folders-configured-message {

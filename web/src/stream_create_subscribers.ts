@@ -4,6 +4,7 @@ import render_new_stream_user from "../templates/stream_settings/new_stream_user
 import render_new_stream_users from "../templates/stream_settings/new_stream_users.hbs";
 
 import * as add_subscribers_pill from "./add_subscribers_pill.ts";
+import {$t} from "./i18n.ts";
 import * as ListWidget from "./list_widget.ts";
 import type {ListWidget as ListWidgetType} from "./list_widget.ts";
 import * as people from "./people.ts";
@@ -21,8 +22,18 @@ export function get_principals(): number[] {
     return stream_create_subscribers_data.get_principals();
 }
 
+function update_member_count(): void {
+    $("#create_stream_members_count").text(
+        $t(
+            {defaultMessage: "{N, plural, one {# person} other {# people}}"},
+            {N: stream_create_subscribers_data.get_principals().length},
+        ),
+    );
+}
+
 function redraw_subscriber_list(): void {
     all_users_list_widget.replace_list_data(stream_create_subscribers_data.sorted_user_ids());
+    update_member_count();
 }
 
 function add_user_ids(user_ids: number[]): void {
@@ -68,7 +79,22 @@ function build_pill_widget({
     });
 }
 
+export function add_all_team(): void {
+    stream_create_subscribers_data.undo_soft_remove_team_members();
+    for (const user of stream_create_subscribers_data.get_team_members_not_yet_added()) {
+        user_pill.append_user(user, pill_widget);
+    }
+    // Pills that were already there do not redraw the list, so this
+    // also shows the members that were crossed out and are back.
+    redraw_subscriber_list();
+}
+
 export function create_handlers($container: JQuery): void {
+    $container.on("click", "#create_stream_add_all_team", (e) => {
+        e.preventDefault();
+        add_all_team();
+    });
+
     $container.on("click", ".remove_potential_subscriber", function (this: HTMLElement, e) {
         e.preventDefault();
         const $subscriber_row = $(this).closest(".settings-subscriber-row");
@@ -134,6 +160,14 @@ export function build_widgets(): void {
     });
     const current_person = people.get_by_user_id(current_user.user_id);
     user_pill.append_user(current_person, pill_widget);
+
+    $("#create_stream_add_all_team").text(
+        $t(
+            {defaultMessage: "+ All team ({N})"},
+            {N: stream_create_subscribers_data.get_team_size()},
+        ),
+    );
+    update_member_count();
 }
 
 export function add_user_id_to_new_stream(user_id: number): void {
