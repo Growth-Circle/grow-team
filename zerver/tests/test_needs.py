@@ -717,6 +717,32 @@ class NeedsMentionTests(NeedsTestCase):
         self.assertTrue(self._broadcast_of(cordelia, team_wide))
         self.assertFalse(self._broadcast_of(cordelia, addressed_to_user))
 
+    def test_counts_leave_out_team_wide_mentions(self) -> None:
+        cordelia = self.example_user("cordelia")
+        othello = self.example_user("othello")
+        iago = self.example_user("iago")
+        for user in [self.owner, cordelia, othello, iago]:
+            self.subscribe(user, "needs-small")
+        self.send_stream_message(
+            self.owner, "needs-small", f"@**{cordelia.full_name}** look", topic_name="personal"
+        )
+        self.send_stream_message(
+            self.owner,
+            "needs-small",
+            " ".join(f"@**{user.full_name}**" for user in [cordelia, othello, iago]),
+            topic_name="team",
+        )
+
+        result = needs.list_needs(cordelia, kind=None, status="open", since=None)
+        self.assertEqual(len(result["items"]), 2)
+        self.assertEqual(
+            result["counts"], {**NO_CARDS, "approval": 0, "mention": 1, "decision": 0, "all": 1}
+        )
+        self.assertEqual(
+            result["broadcast_counts"],
+            {**NO_CARDS, "approval": 0, "mention": 1, "decision": 0, "all": 1},
+        )
+
     def test_direct_message_is_never_team_wide(self) -> None:
         cordelia = self.example_user("cordelia")
         message_id = self.send_personal_message(self.owner, cordelia, "Are you free?")

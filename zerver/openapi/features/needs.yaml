@@ -20,6 +20,9 @@ paths:
 
         In Zulip 12.0 (feature level ZF-988a72), added the `broadcast` field
         of an item.
+
+        In Zulip 12.0 (feature level ZF-e9cd61), `counts` no longer counts
+        team-wide items, which `broadcast_counts` counts instead.
       parameters:
         - name: kind
           in: query
@@ -108,6 +111,13 @@ paths:
                   card_mention: 0
                   card_assigned: 0
                   all: 1
+                broadcast_counts:
+                  approval: 0
+                  mention: 0
+                  decision: 0
+                  card_mention: 0
+                  card_assigned: 0
+                  all: 0
         "400":
           description: The agent wrapper rejected a parsed request.
           content:
@@ -644,13 +654,29 @@ components:
           items:
             $ref: "#/components/schemas/NeedItem"
         counts:
-          $ref: "#/components/schemas/NeedCounts"
+          allOf:
+            - $ref: "#/components/schemas/NeedCounts"
+          description: |
+            How many items there are per kind, leaving out team-wide ones
+            (`broadcast` is `true`). This is the number a client shows
+            by default.
+
+            **Changes**: In Zulip 12.0 (feature level ZF-e9cd61), team-wide
+            items are no longer counted here.
+        broadcast_counts:
+          allOf:
+            - $ref: "#/components/schemas/NeedCounts"
+          description: |
+            The same counts, for team-wide items only.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-e9cd61).
       required:
         - result
         - msg
         - schema_version
         - items
         - counts
+        - broadcast_counts
     NeedsWriteResponse:
       type: object
       additionalProperties: false

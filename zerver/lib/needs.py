@@ -135,7 +135,9 @@ class NeedCounts(TypedDict):
 
 class NeedsResult(TypedDict):
     items: list[NeedItem]
+    # What a person sees by default: team-wide mentions are not in here.
     counts: NeedCounts
+    broadcast_counts: NeedCounts
 
 
 def _initials(full_name: str) -> str:
@@ -682,6 +684,17 @@ def _start_of_today(realm: Realm) -> datetime:
     return start_of_day.astimezone(timezone.utc)
 
 
+def _count_items(buckets: dict[str, list[NeedItem]]) -> NeedCounts:
+    return {
+        "approval": len(buckets["approval"]),
+        "mention": len(buckets["mention"]),
+        "decision": len(buckets["decision"]),
+        "card_mention": len(buckets["card_mention"]),
+        "card_assigned": len(buckets["card_assigned"]),
+        "all": sum(len(values) for values in buckets.values()),
+    }
+
+
 def list_needs(
     actor: UserProfile, *, kind: str | None, status: str, since: str | None
 ) -> NeedsResult:
@@ -709,14 +722,15 @@ def list_needs(
                 "mention": _resolved_mentions(actor, start),
                 **_card_items(actor, resolved_since=start),
             }
-    counts: NeedCounts = {
-        "approval": len(buckets["approval"]),
-        "mention": len(buckets["mention"]),
-        "decision": len(buckets["decision"]),
-        "card_mention": len(buckets["card_mention"]),
-        "card_assigned": len(buckets["card_assigned"]),
-        "all": sum(len(values) for values in buckets.values()),
-    }
+    personal_counts = _count_items(
+        {
+            name: [item for item in values if not item["broadcast"]]
+            for name, values in buckets.items()
+        }
+    )
+    broadcast_counts = _count_items(
+        {name: [item for item in values if item["broadcast"]] for name, values in buckets.items()}
+    )
     items = (
         buckets[kind]
         if kind is not None
@@ -726,7 +740,7 @@ def list_needs(
         items.sort(key=lambda item: item["time"], reverse=True)
     else:
         items.sort(key=lambda item: item["resolved_at"] or "", reverse=True)
-    return {"items": items, "counts": counts}
+    return {"items": items, "counts": personal_counts, "broadcast_counts": broadcast_counts}
 
 
 def resolve_mention(actor: UserProfile, message_id: int) -> None:
