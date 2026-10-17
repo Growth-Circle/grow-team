@@ -158,6 +158,61 @@ export function team_wide_count_for_tab(items: NeedItem[], tab: NeedTab): number
     return items_in_tab(items, tab).filter((item) => item.broadcast).length;
 }
 
+// Open mentions from the same topic of a channel make one row, so a
+// topic that mentions the person three times is not three cards.
+export type NeedGroup = {
+    key: string;
+    stream_id: number;
+    topic: string;
+    // Newest first, as the list is.
+    items: NeedItem[];
+};
+
+export type NeedRow = {group: NeedGroup} | {item: NeedItem};
+
+function group_key_of(item: NeedItem): string | undefined {
+    if (item.kind !== "mention" || item.stream_id === null || item.topic === null) {
+        return undefined;
+    }
+    return `${item.stream_id}/${item.topic}`;
+}
+
+export function group_key_for_item(item: NeedItem, items: NeedItem[]): string | undefined {
+    const key = group_key_of(item);
+    if (key === undefined) {
+        return undefined;
+    }
+    return items.filter((other) => group_key_of(other) === key).length > 1 ? key : undefined;
+}
+
+// A group sits where its newest item sat. A topic with one item stays
+// a plain card.
+export function rows_for_items(items: NeedItem[]): NeedRow[] {
+    const groups = new Map<string, NeedItem[]>();
+    for (const item of items) {
+        const key = group_key_of(item);
+        if (key !== undefined) {
+            groups.set(key, [...(groups.get(key) ?? []), item]);
+        }
+    }
+    const rows: NeedRow[] = [];
+    const placed = new Set<string>();
+    for (const item of items) {
+        const key = group_key_of(item);
+        const members = key === undefined ? undefined : groups.get(key);
+        if (key === undefined || members === undefined || members.length < 2) {
+            rows.push({item});
+        } else if (!placed.has(key)) {
+            placed.add(key);
+            // Both are set when a key exists.
+            rows.push({
+                group: {key, stream_id: item.stream_id!, topic: item.topic!, items: members},
+            });
+        }
+    }
+    return rows;
+}
+
 // A note that mentions the person, or a card they are now responsible
 // for. Neither waits on an agent, and both are answered on the card.
 export function is_card_kind(kind: NeedKind): boolean {

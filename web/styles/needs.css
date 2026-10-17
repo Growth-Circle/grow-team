@@ -184,6 +184,102 @@
     padding: 1em;
 }
 
+/* Several mentions from one topic: one row that opens to the cards. */
+.needs-group {
+    display: flex;
+    flex-direction: column;
+    /* 12px at 16px/1em */
+    gap: 0.75em;
+}
+
+.needs-group-toggle {
+    display: flex;
+    align-items: center;
+    /* 14px at 16px/1em */
+    gap: 0.875em;
+    width: 100%;
+    border: var(--sj-border);
+    border-radius: var(--sj-radius-18);
+    background: var(--sj-surface);
+    color: var(--sj-text);
+    font-family: inherit;
+    text-align: left;
+    /* 16px at 16px/1em */
+    padding: 1em;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--sj-surface-warm);
+    }
+}
+
+.needs-group-chevron {
+    flex-shrink: 0;
+    color: var(--sj-text-muted);
+    /* 20px at 16px/1em */
+    font-size: 1.25em;
+    font-weight: 900;
+    line-height: 1;
+    transition: transform 0.15s ease-out;
+}
+
+.needs-group-expanded > .needs-group-toggle > .needs-group-chevron {
+    transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .needs-group-chevron {
+        transition: none;
+    }
+}
+
+.needs-group-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    /* 4px at 16px/1em */
+    gap: 0.25em;
+}
+
+.needs-group-title {
+    /* 16px at 16px/1em */
+    font-size: 1em;
+    font-weight: 700;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.needs-group-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    /* 8px at 16px/1em */
+    gap: 0.5em;
+    color: var(--sj-text-muted);
+    /* 13px at 16px/1em */
+    font-size: 0.8125em;
+}
+
+.needs-group-cards {
+    display: flex;
+    flex-direction: column;
+    /* 12px at 16px/1em */
+    gap: 0.75em;
+    /* The cards sit under the title of their group. */
+    margin-inline-start: 1.5em;
+
+    &[hidden] {
+        display: none;
+    }
+}
+
+@media (width < $sm_min) {
+    .needs-group-cards {
+        /* 10px at 16px/1em */
+        margin-inline-start: 0.625em;
+    }
+}
+
 /* Only a card that is new pops in. A new drawing of the list does not
    play the motion again for the cards that were there before. The card
    keeps 0.3s, not the shared pop time of 200ms: the inbox card is a

@@ -411,3 +411,52 @@ run_test("marking a card notification as seen resolves that notification", async
     assert.equal(last_call.method, "POST");
     assert.equal(last_call.url, "/json/needs/card_notifications/17/resolve");
 });
+
+run_test("open mentions from one topic make one group, at the place of the newest", () => {
+    const mention = (id, topic, overrides) =>
+        make_item({id, kind: "mention", stream_id: 5, topic, ...overrides});
+    const items = [
+        mention("mention:9", "Cek pagi"),
+        make_item({id: "approval:1"}),
+        mention("mention:8", "Rekap"),
+        mention("mention:7", "Cek pagi"),
+        mention("mention:6", "Cek pagi"),
+    ];
+    const rows = needs_data.rows_for_items(items);
+    assert.equal(rows.length, 3);
+    assert.deepEqual(
+        rows[0].group.items.map((item) => item.id),
+        ["mention:9", "mention:7", "mention:6"],
+    );
+    assert.equal(rows[0].group.key, "5/Cek pagi");
+    assert.equal(rows[0].group.topic, "Cek pagi");
+    // A topic with one item, and any other kind, stay plain cards.
+    assert.equal(rows[1].item.id, "approval:1");
+    assert.equal(rows[2].item.id, "mention:8");
+});
+
+run_test("the same topic name in two channels is two groups, and a DM never groups", () => {
+    const mention = (id, stream_id) => make_item({id, kind: "mention", stream_id, topic: "Cek"});
+    const rows = needs_data.rows_for_items([
+        mention("mention:4", 1),
+        mention("mention:3", 2),
+        mention("mention:2", 1),
+        mention("mention:1", 2),
+        make_item({id: "mention:20", kind: "mention", stream_id: null, topic: null}),
+        make_item({id: "mention:21", kind: "mention", stream_id: null, topic: null}),
+    ]);
+    assert.deepEqual(
+        rows.map((row) => ("group" in row ? row.group.key : row.item.id)),
+        ["1/Cek", "2/Cek", "mention:20", "mention:21"],
+    );
+});
+
+run_test("group_key_for_item names a group only when the topic has more than one item", () => {
+    const items = [
+        make_item({id: "mention:3", kind: "mention", stream_id: 5, topic: "A"}),
+        make_item({id: "mention:2", kind: "mention", stream_id: 5, topic: "A"}),
+        make_item({id: "mention:1", kind: "mention", stream_id: 5, topic: "B"}),
+    ];
+    assert.equal(needs_data.group_key_for_item(items[0], items), "5/A");
+    assert.equal(needs_data.group_key_for_item(items[2], items), undefined);
+});

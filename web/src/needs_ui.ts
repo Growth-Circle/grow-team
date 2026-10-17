@@ -13,7 +13,7 @@ import * as left_sidebar_navigation_area from "./left_sidebar_navigation_area.ts
 import * as live_updates from "./live_updates.ts";
 import * as narrow_title from "./narrow_title.ts";
 import * as nav_counts from "./nav_counts.ts";
-import type {NeedItem, NeedKind, NeedTab} from "./needs_data.ts";
+import type {NeedGroup, NeedItem, NeedKind, NeedTab} from "./needs_data.ts";
 import * as needs_data from "./needs_data.ts";
 import {page_params} from "./page_params.ts";
 import {realm} from "./state_data.ts";
@@ -39,6 +39,10 @@ let done_loaded = false;
 let current_tab: NeedTab = "all";
 // Mentions that name a whole team are hidden until the person asks.
 let show_team_wide = false;
+// The groups the person opened, by key.
+const expanded_groups = new Set<string>();
+// Each group has an id in the page, for the button that opens it.
+const group_dom_ids = new Map<string, string>();
 let open_items: NeedItem[] = [];
 let done_items: NeedItem[] = [];
 // The ids that already had a card on screen, so that only a new card
@@ -227,12 +231,55 @@ export function card_context(item: NeedItem): Record<string, unknown> {
     };
 }
 
+function group_dom_id(key: string): string {
+    let dom_id = group_dom_ids.get(key);
+    if (dom_id === undefined) {
+        dom_id = `needs-group-${group_dom_ids.size}`;
+        group_dom_ids.set(key, dom_id);
+    }
+    return dom_id;
+}
+
+function group_context(group: NeedGroup): Record<string, unknown> {
+    const [newest] = group.items;
+    const expanded = expanded_groups.has(group.key);
+    return {
+        key: group.key,
+        dom_id: group_dom_id(group.key),
+        expanded,
+        title: $t(
+            {defaultMessage: "{count} mentions in # {room} › {topic}"},
+            {
+                count: group.items.length,
+                room: stream_data.get_stream_name_from_id(group.stream_id),
+                topic: util.get_final_topic_display_name(group.topic),
+            },
+        ),
+        meta:
+            newest === undefined
+                ? ""
+                : $t(
+                      {defaultMessage: "Latest: {who} · {time}"},
+                      {
+                          who: newest.actor.name,
+                          time: timerender.relative_time_string_from_date(new Date(newest.time)),
+                      },
+                  ),
+        team_wide: group.items.every((item) => item.broadcast),
+        group_cards: expanded ? group.items.map((item) => card_context(item)) : [],
+    };
+}
+
 function needs_view_context(): Record<string, unknown> {
-    const cards = needs_data
-        .items_for_tab(open_items, current_tab, {show_team_wide})
-        .map((item) => card_context(item));
+    const rows = needs_data
+        .rows_for_items(needs_data.items_for_tab(open_items, current_tab, {show_team_wide}))
+        .map((row) =>
+            "group" in row
+                ? {is_group: true, ...group_context(row.group)}
+                : {is_group: false, ...card_context(row.item)},
+        );
     const team_wide_count = needs_data.team_wide_count_for_tab(open_items, current_tab);
-    const only_team_wide_waits = cards.length === 0 && team_wide_count > 0 && !show_team_wide;
+    const only_team_wide_waits = rows.length === 0 && team_wide_count > 0 && !show_team_wide;
     return {
         loading: !loaded,
         load_failed,
@@ -266,14 +313,14 @@ function needs_view_context(): Record<string, unknown> {
                             ),
                   }
                 : undefined,
-        is_empty: cards.length === 0,
+        is_empty: rows.length === 0,
         empty_text: only_team_wide_waits
             ? $t(
                   {defaultMessage: "Nothing needs you. {count} team-wide mentions are hidden."},
                   {count: team_wide_count},
               )
             : empty_tab_text(current_tab),
-        cards,
+        rows,
         show_done: done_loaded,
         done_label: $t({defaultMessage: "DONE TODAY · {count}"}, {count: done_items.length}),
         done_rows: done_items.map((item) => ({
@@ -295,6 +342,10 @@ function focus_selector(): string | undefined {
     const tab = element.dataset["tab"];
     if (tab !== undefined) {
         return `.needs-tab[data-tab="${tab}"]`;
+    }
+    const group_key = element.dataset["groupKey"];
+    if (group_key !== undefined) {
+        return `.needs-group-toggle[data-group-key="${CSS.escape(group_key)}"]`;
     }
     if (element.classList.contains("needs-team-wide-toggle")) {
         return ".needs-team-wide-toggle";
@@ -539,6 +590,15 @@ function handle_args(): void {
         show_team_wide = true;
         complete_rerender();
     }
+    // The link is to an item inside a group that is closed.
+    const group_key = needs_data.group_key_for_item(
+        item,
+        needs_data.items_for_tab(open_items, current_tab, {show_team_wide}),
+    );
+    if (group_key !== undefined && !expanded_groups.has(group_key)) {
+        expanded_groups.add(group_key);
+        complete_rerender();
+    }
     $(`#needs-view .needs-card[data-need-id="${CSS.escape(item.id)}"]`)[0]?.scrollIntoView({
         block: "center",
     });
@@ -563,6 +623,33 @@ function on_view_click(): void {
     $view.on("click", ".needs-team-wide-toggle", () => {
         show_team_wide = !show_team_wide;
         complete_rerender();
+    });
+
+    $view.on("click", ".needs-group-toggle", function (this: HTMLElement) {
+        const key = $(this).attr("data-group-key");
+        if (key === undefined) {
+            return;
+        }
+        if (expanded_groups.has(key)) {
+            expanded_groups.delete(key);
+        } else {
+            expanded_groups.add(key);
+        }
+        complete_rerender();
+    });
+
+    // Escape closes the group that has focus and puts focus on its
+    // button, so a person at the keyboard does not lose their place.
+    $view.on("keydown", ".needs-group", function (this: HTMLElement, event) {
+        const key = $(this).attr("data-group-key");
+        if (event.key !== "Escape" || key === undefined || !expanded_groups.has(key)) {
+            return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        expanded_groups.delete(key);
+        complete_rerender();
+        $(`.needs-group-toggle[data-group-key="${CSS.escape(key)}"]`).trigger("focus");
     });
 
     $view.on("click", ".needs-retry", () => {

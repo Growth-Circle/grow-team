@@ -46,8 +46,12 @@ every room, in tabs, and what the person finished today. }}
                 <span class="needs-empty-text">{{empty_text}}</span>
             </div>
         {{/if}}
-        {{#each cards}}
-            {{> need_card . }}
+        {{#each rows}}
+            {{#if this.is_group}}
+                {{> need_group . }}
+            {{else}}
+                {{> need_card . }}
+            {{/if}}
         {{/each}}
         {{#if show_done}}
             <div class="needs-done">
