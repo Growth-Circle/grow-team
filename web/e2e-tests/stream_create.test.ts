@@ -69,6 +69,12 @@ async function test_visibility_choice(page: Page): Promise<void> {
 
     await page.click('input[name="create_stream_visibility"][value="private"]');
     await page.waitForSelector("#id_should_announce_new_stream:disabled");
+
+    // Arrow keys move between the two options, as in any radio group.
+    await page.keyboard.press("ArrowRight");
+    await page.waitForSelector('input[name="create_stream_visibility"][value="public"]:checked');
+    await page.keyboard.press("ArrowLeft");
+    await page.waitForSelector('input[name="create_stream_visibility"][value="private"]:checked');
 }
 
 async function test_all_team_button(page: Page): Promise<void> {

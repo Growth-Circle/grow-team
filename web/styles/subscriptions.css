@@ -1712,9 +1712,7 @@ h4.user_group_setting_subsection_title {
 
     .create-channel-segmented {
         display: flex;
-        padding: 0.1875em;
-        border-radius: 0.75em;
-        background: var(--sj-surface-muted);
+        gap: 0.5em;
     }
 
     .create-channel-segment {
@@ -1722,18 +1720,20 @@ h4.user_group_setting_subsection_title {
         flex: 1;
         align-items: center;
         justify-content: center;
-        min-height: 2.375em;
+        min-height: 2.75em;
         margin: 0;
         padding: 0 0.75em;
-        border-radius: 0.625em;
+        border: 0.125em solid var(--sj-divider);
+        border-radius: 0.75em;
+        background: var(--sj-surface);
         color: var(--sj-text);
         font-weight: 600;
         text-align: center;
         cursor: pointer;
 
         &:has(:checked) {
-            background: var(--sj-surface);
-            box-shadow: 0 0 0 0.0625em var(--sj-outline);
+            border-color: var(--sj-outline);
+            background: var(--sj-tint-kuning);
         }
 
         &:has(:focus-visible) {
@@ -1741,6 +1741,7 @@ h4.user_group_setting_subsection_title {
         }
 
         &:has(:disabled) {
+            background: var(--sj-surface-muted);
             color: var(--sj-text-muted);
             cursor: not-allowed;
         }
