@@ -1541,6 +1541,31 @@ h4.user_group_setting_subsection_title {
     .create-channel-form {
         max-width: 40em;
         margin: 0 auto;
+
+        @media (width < $sm_min) {
+            /* These controls have a fixed width, which is wider than
+               the form on a phone. */
+            .dropdown_widget_with_label_wrapper,
+            .dropdown-widget-button,
+            .pill-container {
+                box-sizing: border-box;
+                min-width: 0;
+                max-width: 100%;
+            }
+
+            /* A text input is content-box sized too. */
+            .settings_text_input {
+                max-width: calc(
+                    100% - 2 * var(--input-horizontal-padding) - 2px
+                );
+            }
+
+            /* A select is content-box sized, with 33px of padding and
+               border that its width calculation leaves out. */
+            .settings_select {
+                max-width: calc(100% - 33px);
+            }
+        }
     }
 
     .create-channel-members {
