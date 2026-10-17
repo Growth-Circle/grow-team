@@ -194,15 +194,20 @@ async function create_stream(page: Page): Promise<void> {
 async function test_streams_with_empty_names_cannot_be_created(page: Page): Promise<void> {
     await page.click("#add_new_subscription .create_stream_button");
     await page.waitForSelector("form#stream_creation_form", {visible: true});
+    await page.waitForSelector("form#stream_creation_form .finalize_create_stream:disabled");
+
     await common.fill_form(page, "form#stream_creation_form", {stream_name: "  "});
-    await page.click("form#stream_creation_form .finalize_create_stream");
-    assert.strictEqual(await stream_name_error(page), "Choose a name for the new channel.");
+    await page.waitForSelector("form#stream_creation_form .finalize_create_stream:disabled");
+
+    await common.fill_form(page, "form#stream_creation_form", {stream_name: "Not taken"});
+    await page.waitForSelector("form#stream_creation_form .finalize_create_stream:not(:disabled)");
 }
 
 async function test_streams_with_duplicate_names_cannot_be_created(page: Page): Promise<void> {
+    // The conflict is shown while typing, and the button waits for another name.
     await common.fill_form(page, "form#stream_creation_form", {stream_name: "Puppeteer"});
-    await page.click("form#stream_creation_form .finalize_create_stream");
     assert.strictEqual(await stream_name_error(page), "A channel with this name already exists.");
+    await page.waitForSelector("form#stream_creation_form .finalize_create_stream:disabled");
 
     const cancel_button_selector = "form#stream_creation_form button.create_stream_cancel";
     await page.click(cancel_button_selector);

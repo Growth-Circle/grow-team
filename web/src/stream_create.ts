@@ -67,9 +67,20 @@ export function should_show_first_stream_created_modal(): boolean {
     return onboarding_steps.ONE_TIME_NOTICES_TO_DISPLAY.has("first_stream_created_banner");
 }
 
+// A channel cannot be created without a name, or with the name of
+// another channel, so the button is off until the name is usable.
+function update_create_button_state(): void {
+    const stream_name = $<HTMLInputElement>("input#create_stream_name").val()!.trim();
+    $(".finalize_create_stream").prop(
+        "disabled",
+        !stream_name || stream_data.get_sub(stream_name) !== undefined,
+    );
+}
+
 export function maybe_update_error_message(): void {
     const stream_name = $<HTMLInputElement>("input#create_stream_name").val()!.trim();
     stream_name_error.pre_validate(stream_name);
+    update_create_button_state();
 }
 
 class StreamSubscriptionError {
@@ -94,11 +105,6 @@ class StreamNameError {
 
     clear_errors(): void {
         $("#stream_name_error").hide();
-    }
-
-    report_empty_stream(): void {
-        $("#stream_name_error").text($t({defaultMessage: "Choose a name for the new channel."}));
-        $("#stream_name_error").show();
     }
 
     select(): void {
@@ -133,12 +139,6 @@ class StreamNameError {
     }
 
     validate_for_submit(stream_name: string): boolean {
-        if (!stream_name) {
-            this.report_empty_stream();
-            this.select();
-            return false;
-        }
-
         const stream = stream_data.get_sub(stream_name);
         if (stream) {
             const can_rename =
@@ -407,6 +407,7 @@ function create_stream(): void {
                 });
                 stream_name_error.report_already_exists(rendered_error);
                 stream_name_error.select();
+                $(".finalize_create_stream").prop("disabled", true);
             } else {
                 ui_report.error(
                     $t_html({defaultMessage: "Error creating channel"}),
@@ -434,6 +435,7 @@ export function new_stream_clicked(stream_name: string, folder_id: number | unde
     show_new_stream_modal();
     set_more_settings_expanded(false);
     render_folder_options(folder_id ?? settings_config.no_folder_selected);
+    maybe_update_error_message();
     $("#create_stream_name").trigger("focus");
 }
 
@@ -684,10 +686,8 @@ export function set_up_handlers(): void {
     });
 
     $container.on("input", "#create_stream_name", () => {
-        const stream_name = $<HTMLInputElement>("input#create_stream_name").val()!.trim();
-
         // This is an inexpensive check.
-        stream_name_error.pre_validate(stream_name);
+        maybe_update_error_message();
     });
 
     // Do not allow the user to enter newline characters while typing out the
