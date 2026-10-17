@@ -460,3 +460,48 @@ run_test("group_key_for_item names a group only when the topic has more than one
     assert.equal(needs_data.group_key_for_item(items[0], items), "5/A");
     assert.equal(needs_data.group_key_for_item(items[2], items), undefined);
 });
+
+run_test("only mentions and card items can be marked done together", () => {
+    const items = [
+        make_item({id: "approval:1"}),
+        make_item({id: "decision:2", kind: "decision"}),
+        make_item({id: "mention:3", kind: "mention", broadcast: true}),
+        make_item({id: "mention:4", kind: "mention"}),
+        make_item({id: "card_assigned:5", kind: "card_assigned"}),
+    ];
+    const ids = (tab, options) =>
+        needs_data.resolvable_items_for_tab(items, tab, options).map((item) => item.id);
+    // Team-wide mentions that the tab hides are not marked done unseen.
+    assert.deepEqual(ids("all", {show_team_wide: false}), ["mention:4", "card_assigned:5"]);
+    assert.deepEqual(ids("all", show_all), ["mention:3", "mention:4", "card_assigned:5"]);
+    assert.deepEqual(ids("approval", show_all), []);
+});
+
+run_test("marking items done together sends their ids and reports what failed", async () => {
+    next_response = {done: ["mention:1"], failed: ["mention:2"]};
+    const items = [
+        make_item({id: "mention:1", kind: "mention"}),
+        make_item({id: "mention:2", kind: "mention"}),
+    ];
+    const result = await needs_data.commit_bulk_done(items);
+    assert.equal(last_call.method, "POST");
+    assert.equal(last_call.url, "/json/needs/resolve");
+    assert.deepEqual(JSON.parse(last_call.data.need_ids), ["mention:1", "mention:2"]);
+    assert.deepEqual(result, {done: ["mention:1"], failed: ["mention:2"]});
+
+    next_response = {done: ["mention:1"], failed: []};
+    await needs_data.commit_bulk_undo([items[0]]);
+    assert.equal(last_call.url, "/json/needs/unresolve");
+});
+
+run_test("snoozing returns when the items list again, and can be undone", async () => {
+    next_response = {until: "2026-10-18T00:00:00+00:00"};
+    const item = make_item({id: "mention:1", kind: "mention"});
+    const until = await needs_data.commit_snooze([item]);
+    assert.equal(last_call.url, "/json/needs/snooze");
+    assert.equal(until.toISOString(), "2026-10-18T00:00:00.000Z");
+
+    next_response = {};
+    await needs_data.commit_unsnooze([item]);
+    assert.equal(last_call.url, "/json/needs/unsnooze");
+});

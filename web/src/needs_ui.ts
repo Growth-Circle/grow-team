@@ -140,6 +140,8 @@ type CardAction = {
     label: string;
     variant?: "primary" | "secondary";
     choice?: string;
+    // The button that puts the item off, not a choice of the item.
+    is_snooze?: boolean;
     href?: string;
     is_expired?: boolean;
 };
@@ -155,6 +157,9 @@ function card_actions(item: NeedItem): CardAction[] {
     // A mention is never waiting on an agent, so it does not expire.
     const expired = item.expired && item.kind !== "mention";
     const actions: CardAction[] = [];
+    if (!expired) {
+        actions.push({label: $t({defaultMessage: "Snooze"}), is_snooze: true});
+    }
     if (needs_data.is_card_kind(item.kind)) {
         actions.push({
             label:
@@ -266,6 +271,7 @@ function group_context(group: NeedGroup): Record<string, unknown> {
                       },
                   ),
         team_wide: group.items.every((item) => item.broadcast),
+        count: group.items.length,
         group_cards: expanded ? group.items.map((item) => card_context(item)) : [],
     };
 }
@@ -313,6 +319,11 @@ function needs_view_context(): Record<string, unknown> {
                             ),
                   }
                 : undefined,
+        // Handlebars tests only booleans.
+        can_mark_all:
+            loaded &&
+            needs_data.resolvable_items_for_tab(open_items, current_tab, {show_team_wide}).length >
+                0,
         is_empty: rows.length === 0,
         empty_text: only_team_wide_waits
             ? $t(
@@ -350,7 +361,13 @@ function focus_selector(): string | undefined {
     if (element.classList.contains("needs-team-wide-toggle")) {
         return ".needs-team-wide-toggle";
     }
+    if (element.classList.contains("needs-mark-all")) {
+        return ".needs-mark-all";
+    }
     const need_id = element.dataset["needId"];
+    if (need_id !== undefined && element.classList.contains("needs-card-snooze")) {
+        return `.needs-card-snooze[data-need-id="${CSS.escape(need_id)}"]`;
+    }
     if (need_id !== undefined) {
         const variant = element.classList.contains("needs-card-primary") ? "primary" : "secondary";
         const choice = element.dataset["choice"] ?? "";
@@ -442,6 +459,158 @@ function refresh(with_done: boolean): void {
             complete_rerender();
         }
     })();
+}
+
+// ----- Handling several items at once -----
+
+// The items come back at the hour the server gave. A page that stays
+// open lists them again then, with no click.
+const wake_timers = new Map<number, ReturnType<typeof setTimeout>>();
+
+function wake_at(until: Date): void {
+    const at = until.getTime();
+    const delay = at - Date.now();
+    if (wake_timers.has(at) || delay <= 0 || delay > 48 * 60 * 60 * 1000) {
+        return;
+    }
+    wake_timers.set(
+        at,
+        setTimeout(() => {
+            wake_timers.delete(at);
+            refresh(visible);
+        }, delay + 1000),
+    );
+}
+
+function remove_items(items: NeedItem[]): void {
+    const first_index = Math.min(
+        ...items.map((item) => open_items.findIndex((open_item) => open_item.id === item.id)),
+    );
+    const ids = new Set(items.map((item) => item.id));
+    open_items = open_items.filter((item) => !ids.has(item.id));
+    complete_rerender();
+    update_nav_count();
+    focus_card_at(first_index);
+}
+
+function show_save_error(retry: () => void): void {
+    feedback_widget.show_toast({
+        variant: "error",
+        text: $t({defaultMessage: "Could not save. Try again."}),
+        on_retry: retry,
+    });
+}
+
+function mark_done_together(items: NeedItem[]): void {
+    void (async () => {
+        try {
+            const result = await needs_data.commit_bulk_done(items);
+            const done_ids = new Set(result.done);
+            const done = items.filter((item) => done_ids.has(item.id));
+            const failed = items.filter((item) => !done_ids.has(item.id));
+            if (done.length > 0) {
+                remove_items(done);
+            }
+            if (failed.length > 0) {
+                // The failed items stay in the list, and a retry takes
+                // only them.
+                feedback_widget.show_toast({
+                    variant: "error",
+                    text: $t(
+                        {
+                            defaultMessage:
+                                "{done} of {total} marked done. {failed} could not be saved.",
+                        },
+                        {done: done.length, total: items.length, failed: failed.length},
+                    ),
+                    on_retry() {
+                        mark_done_together(failed);
+                    },
+                });
+            } else {
+                feedback_widget.show_toast({
+                    text: $t({defaultMessage: "{count} marked done."}, {count: done.length}),
+                    duration_ms: needs_data.BULK_UNDO_MS,
+                    on_undo() {
+                        void undo_done_together(done);
+                    },
+                });
+            }
+            // What the server did is the truth, whatever it said.
+            refresh(visible);
+        } catch {
+            show_save_error(() => {
+                mark_done_together(items);
+            });
+            refresh(visible);
+        }
+    })();
+}
+
+async function undo_done_together(items: NeedItem[]): Promise<void> {
+    try {
+        await needs_data.commit_bulk_undo(items);
+    } catch {
+        show_save_error(() => {
+            void undo_done_together(items);
+        });
+    }
+    refresh(true);
+}
+
+function snooze_together(items: NeedItem[]): void {
+    void (async () => {
+        try {
+            const until = await needs_data.commit_snooze(items);
+            remove_items(items);
+            wake_at(until);
+            feedback_widget.show_toast({
+                text: $t({defaultMessage: "Snoozed until the morning."}),
+                duration_ms: needs_data.BULK_UNDO_MS,
+                on_undo() {
+                    void (async () => {
+                        try {
+                            await needs_data.commit_unsnooze(items);
+                        } catch {
+                            show_save_error(() => {
+                                snooze_together(items);
+                            });
+                        }
+                        refresh(visible);
+                    })();
+                },
+            });
+        } catch {
+            show_save_error(() => {
+                snooze_together(items);
+            });
+        }
+    })();
+}
+
+// A person confirms before many items go at once, and the dialog says
+// how many.
+function confirm_mark_done(items: NeedItem[]): void {
+    if (items.length === 0) {
+        return;
+    }
+    confirm_dialog.launch({
+        modal_title_text: $t({defaultMessage: "Mark all done?"}),
+        modal_content_html: $t_html(
+            {defaultMessage: "{count} items will be marked done. You can undo for 10 seconds."},
+            {count: items.length},
+        ),
+        modal_submit_button_text: $t({defaultMessage: "Mark all done"}),
+        on_click() {
+            mark_done_together(items);
+        },
+    });
+}
+
+function items_of_group(key: string | undefined): NeedItem[] {
+    return needs_data
+        .items_for_tab(open_items, current_tab, {show_team_wide})
+        .filter((item) => needs_data.group_key_of(item) === key);
 }
 
 // ----- An action with a 5-second window to undo it -----
@@ -650,6 +819,31 @@ function on_view_click(): void {
         expanded_groups.delete(key);
         complete_rerender();
         $(`.needs-group-toggle[data-group-key="${CSS.escape(key)}"]`).trigger("focus");
+    });
+
+    $view.on("click", ".needs-mark-all", () => {
+        confirm_mark_done(
+            needs_data.resolvable_items_for_tab(open_items, current_tab, {show_team_wide}),
+        );
+    });
+
+    $view.on("click", ".needs-group-done", function (this: HTMLElement) {
+        confirm_mark_done(items_of_group($(this).attr("data-group-key")));
+    });
+
+    $view.on("click", ".needs-group-snooze", function (this: HTMLElement) {
+        const items = items_of_group($(this).attr("data-group-key"));
+        if (items.length > 0) {
+            snooze_together(items);
+        }
+    });
+
+    $view.on("click", ".needs-card-snooze", function (this: HTMLElement) {
+        const need_id = $(this).attr("data-need-id");
+        const item = need_id === undefined ? undefined : find_open_item(need_id);
+        if (item !== undefined) {
+            snooze_together([item]);
+        }
     });
 
     $view.on("click", ".needs-retry", () => {

@@ -170,7 +170,7 @@ export type NeedGroup = {
 
 export type NeedRow = {group: NeedGroup} | {item: NeedItem};
 
-function group_key_of(item: NeedItem): string | undefined {
+export function group_key_of(item: NeedItem): string | undefined {
     if (item.kind !== "mention" || item.stream_id === null || item.topic === null) {
         return undefined;
     }
@@ -268,6 +268,62 @@ export async function commit_mention_done(item: NeedItem): Promise<void> {
 
 export async function commit_card_seen(item: NeedItem): Promise<void> {
     await channel.post({url: `/json/needs/card_notifications/${raw_id(item.id)}/resolve`});
+}
+
+// A mention or a card item can be handled with others in one call.
+// Approvals and decisions are answered one at a time.
+export function is_bulk_resolvable(item: NeedItem): boolean {
+    return item.kind === "mention" || is_card_kind(item.kind);
+}
+
+// What the person can mark done together in a tab: the cards they can
+// see in it.
+export function resolvable_items_for_tab(
+    items: NeedItem[],
+    tab: NeedTab,
+    options: {show_team_wide: boolean},
+): NeedItem[] {
+    return items_for_tab(items, tab, options).filter((item) => is_bulk_resolvable(item));
+}
+
+// How long "Undo" stays on the toast after a bulk action.
+export const BULK_UNDO_MS = 10_000;
+
+const bulk_result_schema = z.object({
+    done: z.array(z.string()),
+    failed: z.array(z.string()),
+});
+export type BulkResult = z.infer<typeof bulk_result_schema>;
+
+const snooze_result_schema = z.object({until: z.string()});
+
+function ids_data(items: NeedItem[]): {need_ids: string} {
+    return {need_ids: JSON.stringify(items.map((item) => item.id))};
+}
+
+// The server handles each item on its own: the ones it could not
+// handle come back in `failed`, and the rest stay handled.
+export async function commit_bulk_done(items: NeedItem[]): Promise<BulkResult> {
+    const result: unknown = await channel.post({url: "/json/needs/resolve", data: ids_data(items)});
+    return bulk_result_schema.parse(result);
+}
+
+export async function commit_bulk_undo(items: NeedItem[]): Promise<BulkResult> {
+    const result: unknown = await channel.post({
+        url: "/json/needs/unresolve",
+        data: ids_data(items),
+    });
+    return bulk_result_schema.parse(result);
+}
+
+// Returns when the items list again.
+export async function commit_snooze(items: NeedItem[]): Promise<Date> {
+    const result: unknown = await channel.post({url: "/json/needs/snooze", data: ids_data(items)});
+    return new Date(snooze_result_schema.parse(result).until);
+}
+
+export async function commit_unsnooze(items: NeedItem[]): Promise<void> {
+    await channel.post({url: "/json/needs/unsnooze", data: ids_data(items)});
 }
 
 // A committed action cannot be undone, so "Undo" only ever cancels a

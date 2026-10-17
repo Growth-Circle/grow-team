@@ -2,22 +2,28 @@
 opens to show the cards. The toggle is a real button, so Enter and Space
 open it, and Escape closes the group again (needs_ui.ts). }}
 <section class="needs-group{{#if expanded}} needs-group-expanded{{/if}}" data-group-key="{{key}}">
-    <button
-      type="button"
-      class="needs-group-toggle"
-      data-group-key="{{key}}"
-      aria-expanded="{{#if expanded}}true{{else}}false{{/if}}"
-      aria-controls="{{dom_id}}"
-      >
-        <span class="needs-group-chevron" aria-hidden="true">›</span>
-        <span class="needs-group-text">
-            <span class="needs-group-title">{{title}}</span>
-            <span class="needs-group-meta">
-                {{#if team_wide}}<span class="needs-tag needs-tag-team-wide">{{t "Team-wide"}}</span>{{/if}}
-                <span>{{meta}}</span>
+    <div class="needs-group-head">
+        <button
+          type="button"
+          class="needs-group-toggle"
+          data-group-key="{{key}}"
+          aria-expanded="{{#if expanded}}true{{else}}false{{/if}}"
+          aria-controls="{{dom_id}}"
+          >
+            <span class="needs-group-chevron" aria-hidden="true">›</span>
+            <span class="needs-group-text">
+                <span class="needs-group-title">{{title}}</span>
+                <span class="needs-group-meta">
+                    {{#if team_wide}}<span class="needs-tag needs-tag-team-wide">{{t "Team-wide"}}</span>{{/if}}
+                    <span>{{meta}}</span>
+                </span>
             </span>
-        </span>
-    </button>
+        </button>
+        <div class="needs-actions">
+            <button type="button" class="needs-btn needs-btn-secondary needs-group-snooze" data-group-key="{{key}}">{{t "Snooze"}}</button>
+            <button type="button" class="needs-btn needs-btn-primary needs-group-done" data-group-key="{{key}}">{{t "Mark all done"}}</button>
+        </div>
+    </div>
     <div class="needs-group-cards" id="{{dom_id}}" {{#unless expanded}}hidden{{/unless}}>
         {{#each group_cards}}
             {{> need_card . }}

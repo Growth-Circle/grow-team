@@ -98,6 +98,9 @@
 
 .needs-filter {
     display: flex;
+    flex-wrap: wrap;
+    /* 6px at 16px/1em */
+    gap: 0.375em;
 }
 
 .needs-team-wide-toggle {
@@ -115,6 +118,25 @@
 
     &[aria-pressed="true"] {
         background: var(--sj-surface-warm);
+    }
+}
+
+.needs-mark-all {
+    border: var(--sj-border);
+    border-radius: var(--sj-radius-pill);
+    background: var(--sj-ink);
+    color: var(--sj-on-ink);
+    font-family: inherit;
+    /* 13px at 16px/1em */
+    font-size: 0.8125em;
+    font-weight: 800;
+    /* 8px 13px on a 13px font */
+    padding: 0.6154em 1em;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--sj-matcha);
+        color: var(--sj-tinta);
     }
 }
 
@@ -192,38 +214,49 @@
     gap: 0.75em;
 }
 
-.needs-group-toggle {
+.needs-group-head {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     /* 14px at 16px/1em */
     gap: 0.875em;
-    width: 100%;
     border: var(--sj-border);
     border-radius: var(--sj-radius-18);
     background: var(--sj-surface);
-    color: var(--sj-text);
-    font-family: inherit;
-    text-align: left;
     /* 16px at 16px/1em */
     padding: 1em;
-    cursor: pointer;
+}
 
-    &:hover {
-        background: var(--sj-surface-warm);
-    }
+.needs-group-toggle {
+    display: flex;
+    flex: 1 1 14em;
+    align-items: center;
+    /* 14px at 16px/1em */
+    gap: 0.875em;
+    min-width: 0;
+    border: 0;
+    border-radius: var(--sj-radius-10);
+    background: transparent;
+    color: var(--sj-text);
+    font-family: inherit;
+    font-size: 1em;
+    text-align: left;
+    /* 4px 6px at 16px/1em, room for the focus ring */
+    padding: 0.25em 0.375em;
+    cursor: pointer;
 }
 
 .needs-group-chevron {
     flex-shrink: 0;
     color: var(--sj-text-muted);
-    /* 20px at 16px/1em */
-    font-size: 1.25em;
+    /* 24px at 16px/1em */
+    font-size: 1.5em;
     font-weight: 900;
     line-height: 1;
     transition: transform 0.15s ease-out;
 }
 
-.needs-group-expanded > .needs-group-toggle > .needs-group-chevron {
+.needs-group-expanded .needs-group-chevron {
     transform: rotate(90deg);
 }
 

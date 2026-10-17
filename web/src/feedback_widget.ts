@@ -206,6 +206,9 @@ export type ShowToastOptions = {
     variant?: ToastVariant;
     on_undo?: () => void;
     on_retry?: () => void;
+    // How long the toast stays. The default is 3.2 seconds, or 5
+    // seconds with an Undo button.
+    duration_ms?: number;
     // "| undefined" lets the Undo button give this value to the
     // "Cancelled." toast as it is.
     inline_container?: JQuery | undefined;
@@ -354,5 +357,7 @@ export function show_toast(opts: ShowToastOptions): void {
     }
     announce(opts.text);
 
-    schedule_clear(opts.on_undo ? TOAST_DURATION_WITH_UNDO_MS : TOAST_DURATION_MS);
+    schedule_clear(
+        opts.duration_ms ?? (opts.on_undo ? TOAST_DURATION_WITH_UNDO_MS : TOAST_DURATION_MS),
+    );
 }

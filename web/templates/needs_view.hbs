@@ -18,13 +18,18 @@ every room, in tabs, and what the person finished today. }}
         </div>
     </header>
 
-    {{#if team_wide_toggle}}
+    {{#if (or team_wide_toggle can_mark_all)}}
         <div class="needs-filter">
-            <button
-              type="button"
-              class="needs-team-wide-toggle"
-              aria-pressed="{{#if team_wide_toggle.is_on}}true{{else}}false{{/if}}"
-              >{{team_wide_toggle.label}}</button>
+            {{#if team_wide_toggle}}
+                <button
+                  type="button"
+                  class="needs-team-wide-toggle"
+                  aria-pressed="{{#if team_wide_toggle.is_on}}true{{else}}false{{/if}}"
+                  >{{team_wide_toggle.label}}</button>
+            {{/if}}
+            {{#if can_mark_all}}
+                <button type="button" class="needs-mark-all">{{t "Mark all done"}}</button>
+            {{/if}}
         </div>
     {{/if}}
 

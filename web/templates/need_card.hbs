@@ -27,6 +27,12 @@ The Needs you page and the Today page both render it. }}
         {{#each actions}}
             {{#if this.href}}
                 <a class="needs-btn needs-btn-{{this.variant}}" href="{{this.href}}">{{this.label}}</a>
+            {{else if this.is_snooze}}
+                <button
+                  type="button"
+                  class="needs-btn needs-btn-secondary needs-card-snooze"
+                  data-need-id="{{../id}}"
+                  >{{this.label}}</button>
             {{else if this.is_expired}}
                 <button type="button" class="needs-btn needs-btn-expired" aria-disabled="true">{{this.label}}</button>
             {{else}}
