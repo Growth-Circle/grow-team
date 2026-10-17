@@ -1,0 +1,16 @@
+{
+  "frontend": {
+    "Snooze": "Tunda",
+    "Mark all done": "Tandai semua selesai",
+    "Mark all done?": "Tandai semua selesai?",
+    "{count} items will be marked done. You can undo for 10 seconds.": "{count} item akan ditandai selesai. Kamu bisa membatalkannya selama 10 detik.",
+    "{count} marked done.": "{count} item ditandai selesai.",
+    "{done} of {total} marked done. {failed} could not be saved.": "{done} dari {total} ditandai selesai. {failed} gagal disimpan.",
+    "Snoozed until the morning.": "Ditunda sampai besok pagi.",
+    "{count} mentions in # {room} › {topic}": "{count} mention di # {room} › {topic}",
+    "Latest: {who} · {time}": "Terbaru: {who} · {time}",
+    "Nothing needs you. {count} team-wide mentions are hidden.": "Tidak ada yang butuh kamu. {count} mention tim tersembunyi.",
+    "Needs you · {count}": "Perlu kamu · {count}"
+  },
+  "backend": {}
+}
