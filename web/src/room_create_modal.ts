@@ -9,6 +9,8 @@ import * as dialog_widget from "./dialog_widget.ts";
 import * as feedback_widget from "./feedback_widget.ts";
 import * as hash_util from "./hash_util.ts";
 import {$t} from "./i18n.ts";
+import * as pending_channel_name from "./pending_channel_name.ts";
+import * as settings_data from "./settings_data.ts";
 import * as sidebar_targets from "./sidebar_targets.ts";
 
 // The "New room" modal, opened by the "+" next to ROOMS. A room is a
@@ -39,6 +41,14 @@ export function folder_id_for_type(
 ): number | undefined {
     const folder_name = ROOM_TYPES.find((room_type) => room_type.key === type)!.folder_name;
     return folders.find((folder) => folder.name === folder_name)?.id;
+}
+
+export function channel_form_hash(
+    type: RoomType,
+    folders: readonly {id: number; name: string}[],
+): string {
+    const folder_id = folder_id_for_type(type, folders);
+    return folder_id === undefined ? "#channels/new" : `#channels/folders/${folder_id}/new`;
 }
 
 function update_type_selection(): void {
@@ -149,6 +159,16 @@ function ask_kaki(): void {
     }
 }
 
+function open_channel_form(): void {
+    const name = $<HTMLInputElement>("#room_create_name").val()!.trim();
+    const hash = channel_form_hash(selected_type, channel_folders.get_channel_folders());
+    dialog_widget.close();
+    if (window.location.hash !== hash) {
+        pending_channel_name.set(name);
+        window.location.hash = hash.slice(1);
+    }
+}
+
 export function open(): void {
     selected_type = "project";
     dialog_widget.launch({
@@ -159,6 +179,9 @@ export function open(): void {
         }),
         modal_content_html: render_room_create_modal({
             show_kaki_card: sidebar_targets.is_built("home"),
+            show_channel_form_link:
+                settings_data.user_can_create_private_streams() ||
+                settings_data.user_can_create_public_streams(),
             room_types: ROOM_TYPES.map((room_type) => ({
                 key: room_type.key,
                 label: room_type.label(),
@@ -173,6 +196,7 @@ export function open(): void {
         },
         post_render() {
             $(".room-create-kaki-card").on("click", ask_kaki);
+            $(".room-create-channel-form-link").on("click", open_channel_form);
             $(".room-create-type-pill").on("click", function (this: HTMLElement) {
                 const room_type = ROOM_TYPES.find(
                     (type) => type.key === $(this).attr("data-room-type"),

@@ -4109,6 +4109,28 @@ body:not(.spectator-view)
     font-size: 0.8125em;
 }
 
+.room-create-channel-form-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--sj-text-2);
+    cursor: pointer;
+    font: inherit;
+    /* 13px at 16px/1em */
+    font-size: 0.8125em;
+    text-decoration: underline;
+
+    &:hover {
+        text-decoration-thickness: 2px;
+    }
+
+    &:focus-visible {
+        border-radius: 0.25em;
+        box-shadow: var(--sj-ring-focus);
+        outline: none;
+    }
+}
+
 .room-create-separator {
     display: flex;
     align-items: center;

@@ -28,6 +28,7 @@ import * as message_live_update from "./message_live_update.ts";
 import * as message_view_header from "./message_view_header.ts";
 import * as narrow_state from "./narrow_state.ts";
 import * as overlays from "./overlays.ts";
+import * as pending_channel_name from "./pending_channel_name.ts";
 import {postprocess_content} from "./postprocess_content.ts";
 import * as resize from "./resize.ts";
 import * as scroll_util from "./scroll_util.ts";
@@ -1321,7 +1322,8 @@ export function do_open_create_stream(folder_id?: number): void {
     // Only call this directly for hash changes.
     // Prefer open_create_stream().
 
-    const stream = $<HTMLInputElement>("input#search_stream_name").val()!;
+    const stream =
+        pending_channel_name.take() ?? $<HTMLInputElement>("input#search_stream_name").val()!;
     stream_create.new_stream_clicked(stream.trim(), folder_id);
 }
 
