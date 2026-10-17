@@ -539,14 +539,6 @@ h4.user_group_setting_subsection_title {
             overflow: hidden;
             width: 100%;
 
-            &.new-channel-members-title {
-                line-clamp: 2;
-                display: -webkit-box;
-                -webkit-line-clamp: 2;
-                -webkit-box-orient: vertical;
-                width: unset;
-            }
-
             /* The right pane header/title for user group and channel setting menu has
                two major components, The group/channel name section and the button groups. */
             .selected-group-title,
@@ -1402,34 +1394,27 @@ h4.user_group_setting_subsection_title {
         }
     }
 
-    .two-pane-settings-creation-simplebar-container.subscribers-visible,
     .two-pane-settings-creation-simplebar-container.members-visible {
-        /* When the subscribers/members step is visible in the stream/group
-        creation form, disable simplebar on the outer container and use
-        flex layout so only the subscriber/member list table scrolls
-        via its own simplebar. */
+        /* When the members step is visible in the group creation form,
+        disable simplebar on the outer container and use flex layout
+        so only the member list table scrolls via its own simplebar. */
         overflow-y: hidden;
 
-        .simplebar-content:has(> .stream-creation-body),
         .simplebar-content:has(> .user-group-creation-body) {
             height: 100%;
             display: flex;
             flex-direction: column;
 
-            .stream-creation-body,
             .user-group-creation-body {
                 flex: 1;
                 overflow: hidden;
 
-                .subscribers_container,
                 .user_group_members_container {
                     height: 100%;
                     display: flex;
                     flex-direction: column;
 
-                    .stream_create_add_subscriber_container,
                     #choose_member_section,
-                    #people_to_add,
                     #people_to_add_in_group {
                         flex: 1;
                         overflow: hidden;
@@ -1443,8 +1428,6 @@ h4.user_group_setting_subsection_title {
 
     #stream_settings.subscribers-tab-active .subscriber-list-box,
     #user_group_settings.members-tab-active .member-list-box,
-    .two-pane-settings-creation-simplebar-container.subscribers-visible
-        .subscriber-list-box,
     .two-pane-settings-creation-simplebar-container.members-visible
         .member-list-box {
         /* flex: 1 takes remaining space after the auto-sized siblings. */
@@ -1599,6 +1582,68 @@ h4.user_group_setting_subsection_title {
     .create-stream-no-topics-help {
         color: var(--sj-text-muted);
         font-size: 0.875em;
+    }
+}
+
+#stream_creation_form {
+    .create-channel-form {
+        max-width: 40em;
+        margin: 0 auto;
+    }
+
+    .create-channel-members .subscriber-list-box {
+        max-height: 14em;
+    }
+
+    .create-channel-folder .no-folders-configured-message {
+        display: none;
+    }
+
+    .create-channel-more-settings {
+        padding-top: 0.5em;
+        border-top: 1px solid var(--sj-divider);
+    }
+
+    .create-channel-more-settings-toggle {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 0.5em;
+        min-height: 2.5em;
+        padding: 0.25em 0;
+        border: 0;
+        background: transparent;
+        color: var(--sj-text-2);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+
+        &:focus-visible {
+            outline: none;
+            box-shadow: var(--sj-ring-focus);
+            border-radius: 0.5em;
+        }
+    }
+
+    .create-channel-more-settings-hint {
+        color: var(--sj-text-muted);
+        font-size: 0.875em;
+        font-weight: 400;
+    }
+
+    .create-channel-more-settings-body {
+        padding-top: 0.5em;
+    }
+}
+
+.create-channel-enter-hint {
+    align-self: center;
+    color: var(--sj-text-muted);
+    font-size: 0.875em;
+    text-align: left;
+
+    @media (width < $sm_min) {
+        display: none;
     }
 }
 

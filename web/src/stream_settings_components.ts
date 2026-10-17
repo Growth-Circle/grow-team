@@ -3,7 +3,6 @@ import * as z from "zod/mini";
 
 import render_unsubscribe_private_stream_modal from "../templates/confirm_dialog/confirm_unsubscribe_private_stream.hbs";
 import render_decorated_channel_name from "../templates/decorated_channel_name.hbs";
-import render_new_channel_members_title from "../templates/stream_settings/new_channel_members_title.hbs";
 import render_selected_stream_title from "../templates/stream_settings/selected_stream_title.hbs";
 
 import * as blueslip from "./blueslip.ts";
@@ -74,15 +73,13 @@ export function set_right_panel_title(sub: StreamSubscription): void {
 
     const preview_url = hash_util.channel_url_by_user_setting(sub.stream_id);
     const settings_sub = stream_settings_data.get_sub_for_settings(sub);
-    $("#subscription_overlay .stream-info-title")
-        .html(
-            render_selected_stream_title({
-                sub: settings_sub,
-                title_icon_color,
-                preview_url,
-            }),
-        )
-        .toggleClass("new-channel-members-title", false);
+    $("#subscription_overlay .stream-info-title").html(
+        render_selected_stream_title({
+            sub: settings_sub,
+            title_icon_color,
+            preview_url,
+        }),
+    );
     set_visibility_for_stream_title_buttons(sub);
 }
 
@@ -90,9 +87,9 @@ export const show_subs_pane = {
     nothing_selected(): void {
         $(".settings, #stream-creation").hide();
         $(".nothing-selected").show();
-        $("#subscription_overlay .stream-info-title")
-            .text($t({defaultMessage: "Channel settings"}))
-            .toggleClass("new-channel-members-title", false);
+        $("#subscription_overlay .stream-info-title").text(
+            $t({defaultMessage: "Channel settings"}),
+        );
         resize.resize_settings_overlay($("#channels_overlay_container"));
     },
     settings(sub: StreamSubscription): void {
@@ -101,59 +98,14 @@ export const show_subs_pane = {
         set_right_panel_title(sub);
         resize.resize_settings_overlay($("#channels_overlay_container"));
     },
-    create_stream(
-        container_name = "configure_channel_settings",
-        sub?: {
-            name: string;
-            invite_only: boolean;
-            is_web_public: boolean;
-        },
-    ): void {
-        $(".stream_creation_container").hide();
-        if (container_name === "configure_channel_settings") {
-            $("#subscription_overlay .stream-info-title")
-                .text($t({defaultMessage: "Configure new channel settings"}))
-                .toggleClass("new-channel-members-title", false);
-        } else {
-            $("#subscription_overlay .stream-info-title")
-                .html(
-                    render_new_channel_members_title({
-                        sub: sub ?? {
-                            name: "",
-                            invite_only: false,
-                            is_web_public: false,
-                            can_change_name_description: false,
-                        },
-                    }),
-                )
-                .toggleClass("new-channel-members-title", true);
-        }
-        update_footer_buttons(container_name);
-        $(`.${CSS.escape(container_name)}`).show();
+    create_stream(): void {
+        $("#subscription_overlay .stream-info-title").text($t({defaultMessage: "Create channel"}));
         $(".nothing-selected, .settings, #stream-creation").hide();
         $("#stream-creation").show();
         resize.resize_settings_overlay($("#channels_overlay_container"));
         resize.resize_settings_creation_overlay($("#channels_overlay_container"));
-        $("#stream_creation_form .two-pane-settings-creation-simplebar-container").toggleClass(
-            "subscribers-visible",
-            container_name === "subscribers_container",
-        );
     },
 };
-
-export function update_footer_buttons(container_name: string): void {
-    if (container_name === "subscribers_container") {
-        // Hide stream creation containers and show add subscriber container
-        $(".finalize_create_stream").show();
-        $("#stream_creation_go_to_subscribers").hide();
-        $("#stream_creation_go_to_configure_channel_settings").show();
-    } else {
-        // Hide add subscriber container and show stream creation containers
-        $(".finalize_create_stream").hide();
-        $("#stream_creation_go_to_subscribers").show();
-        $("#stream_creation_go_to_configure_channel_settings").hide();
-    }
-}
 
 export function get_active_data(): {
     $row: JQuery;

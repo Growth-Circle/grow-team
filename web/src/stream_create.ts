@@ -184,17 +184,29 @@ function toggle_advanced_configurations(): void {
     }
 }
 
-$("body").on("click", ".settings-sticky-footer #stream_creation_go_to_subscribers", (e) => {
-    e.preventDefault();
+$("body").on("click", ".advanced-configurations-container .advance-config-toggle-area", (e) => {
     e.stopPropagation();
+    toggle_advanced_configurations();
+});
 
-    const stream_name = $<HTMLInputElement>("input#create_stream_name").val()!.trim();
-    const is_stream_name_valid = stream_name_error.validate_for_submit(stream_name);
-    const privacy_type = stream_settings_components.channel_creation_privacy_widget.value();
-    let invite_only = false;
-    let is_web_public = false;
+function set_more_settings_expanded(expanded: boolean): void {
+    $("#create_channel_more_settings").toggleClass("hide", !expanded);
+    $(".create-channel-more-settings-toggle").attr("aria-expanded", String(expanded));
+    $(".create-channel-more-settings-icon")
+        .toggleClass("fa-caret-down", expanded)
+        .toggleClass("fa-caret-right", !expanded);
+}
 
-    let is_any_stream_group_widget_pending = false;
+function expand_advanced_configurations(): void {
+    if ($(".advanced-configurations-collapase-view").hasClass("hide")) {
+        toggle_advanced_configurations();
+    }
+}
+
+// A group setting that is still being typed is only reported once the
+// user submits, and its input lives under "More settings". Open the
+// section so the error is not left hidden.
+function report_pending_group_setting_widget(): boolean {
     const permission_settings = Object.keys(realm.server_supported_permission_settings.stream);
     for (const setting_name of permission_settings) {
         const widget =
@@ -202,45 +214,17 @@ $("body").on("click", ".settings-sticky-footer #stream_creation_go_to_subscriber
         assert(widget !== undefined);
         assert(widget !== null);
         if (widget.is_pending()) {
-            is_any_stream_group_widget_pending = true;
+            set_more_settings_expanded(true);
+            expand_advanced_configurations();
             // We are not appending any value here, but instead this is
             // a proxy to invoke the error state for a group widget
             // that would usually get triggered on pressing enter.
             widget.appendValue(widget.getCurrentText()!);
-            break;
+            return true;
         }
     }
-
-    if (is_stream_name_valid && !is_any_stream_group_widget_pending) {
-        if (privacy_type === "invite-only") {
-            invite_only = true;
-        } else if (privacy_type === "web-public") {
-            is_web_public = true;
-        }
-
-        const sub = {
-            name: stream_name,
-            invite_only,
-            is_web_public,
-        };
-        stream_settings_components.show_subs_pane.create_stream("subscribers_container", sub);
-    }
-});
-
-$("body").on(
-    "click",
-    ".settings-sticky-footer #stream_creation_go_to_configure_channel_settings",
-    (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        stream_settings_components.show_subs_pane.create_stream("configure_channel_settings");
-    },
-);
-
-$("body").on("click", ".advanced-configurations-container .advance-config-toggle-area", (e) => {
-    e.stopPropagation();
-    toggle_advanced_configurations();
-});
+    return false;
+}
 
 // Stores the previous state of the stream creation checkbox.
 let stream_announce_previous_value: boolean;
@@ -426,10 +410,6 @@ function create_stream(): void {
                 });
                 stream_name_error.report_already_exists(rendered_error);
                 stream_name_error.select();
-
-                stream_settings_components.show_subs_pane.create_stream(
-                    "configure_channel_settings",
-                );
             } else {
                 ui_report.error(
                     $t_html({defaultMessage: "Error creating channel"}),
@@ -452,6 +432,7 @@ export function new_stream_clicked(stream_name: string, folder_id: number | unde
         $("#create_stream_name").val(stream_name);
     }
     show_new_stream_modal();
+    set_more_settings_expanded(false);
     assert(folder_widget !== undefined);
     if (folder_id) {
         folder_widget.render(folder_id);
@@ -591,6 +572,11 @@ export function set_up_handlers(): void {
 
     const $container = $("#stream-creation").expectOne();
 
+    $container.on("click", ".create-channel-more-settings-toggle", (e) => {
+        e.preventDefault();
+        set_more_settings_expanded($("#create_channel_more_settings").hasClass("hide"));
+    });
+
     $container.on("click", ".finalize_create_stream", (e) => {
         e.preventDefault();
         clear_error_display();
@@ -599,7 +585,10 @@ export function set_up_handlers(): void {
         const name_ok = stream_name_error.validate_for_submit(stream_name);
 
         if (!name_ok) {
-            stream_settings_components.show_subs_pane.create_stream("configure_channel_settings");
+            return;
+        }
+
+        if (report_pending_group_setting_widget()) {
             return;
         }
 

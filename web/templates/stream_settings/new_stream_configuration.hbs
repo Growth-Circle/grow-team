@@ -17,9 +17,17 @@
       }}
 </div>
 
-{{> channel_folder .
-  is_stream_edit=false
-  }}
+{{#if is_admin}}
+    <div class="create-channel-folder-action">
+        {{> ../components/action_button
+          label=(t "Create new folder")
+          variant="subtle"
+          intent="neutral"
+          type="button"
+          custom_classes="create-channel-folder-button"
+          }}
+    </div>
+{{/if}}
 
 <div class="advanced-configurations-container">
     <div class="advance-config-title-container">

@@ -1,11 +1,11 @@
 <div class="hide two-pane-settings-right-simplebar-container" id="stream-creation" tabindex="-1" role="dialog"
   aria-label="{{t 'Channel creation' }}">
-    <form id="stream_creation_form">
+    <form id="stream_creation_form" novalidate>
         <div class="two-pane-settings-creation-simplebar-container" data-simplebar data-simplebar-tab-index="-1">
             <div class="alert stream_create_info"></div>
             <div id="stream_creating_indicator"></div>
             <div class="stream-creation-body">
-                <div class="configure_channel_settings stream_creation_container">
+                <div class="create-channel-form stream_creation_container">
                     <section id="create_stream_title_container">
                         <label for="create_stream_name">
                             {{t "Channel name" }}
@@ -14,13 +14,14 @@
                           placeholder="{{t 'Channel name' }}" value="" autocomplete="off" maxlength="{{ max_stream_name_length }}" />
                         <div id="stream_name_error" class="stream_creation_error"></div>
                     </section>
-                    <section id="create_stream_description_container">
-                        <label for="create_stream_description" class="settings-field-label">
-                            {{t "Channel description" }}
-                            {{> ../help_link_widget link="/help/change-the-channel-description" }}
-                        </label>
-                        <input type="text" name="stream_description" id="create_stream_description" class="settings_text_input"
-                          placeholder="{{t 'Channel description' }}" value="" autocomplete="off" maxlength="{{ max_stream_description_length }}" />
+                    <section class="subscribers_container create-channel-members">
+                        <div class="stream_create_add_subscriber_container">
+                            <h4 class="stream_setting_subsection_title new-stream-subscribers-title">
+                                <label class="choose-subscribers-label">{{t "Members" }}</label>
+                            </h4>
+                            <div id="stream_subscription_error" class="stream_creation_error"></div>
+                            <div class="controls" id="people_to_add"></div>
+                        </div>
                     </section>
                     <section id="create_stream_no_topics_container" class="create-stream-no-topics">
                         <label class="create-stream-no-topics-option" for="create_stream_no_topics">
@@ -31,34 +32,42 @@
                             </span>
                         </label>
                     </section>
-                    <section id="make-invite-only">
-                        <div class="new-stream-configuration">
-                            {{> new_stream_configuration .
-                              prefix="id_new_"
-                              channel_folder_widget_name="new_channel_folder_id"}}
-                        </div>
+                    <section class="create-channel-folder">
+                        {{> channel_folder .
+                          is_stream_edit=false
+                          channel_folder_widget_name="new_channel_folder_id"
+                          hide_create_folder_button=true
+                          }}
                     </section>
-                </div>
-                <div class="subscribers_container stream_creation_container">
-                    <section class="stream_create_add_subscriber_container">
-                        <h4 class="stream_setting_subsection_title new-stream-subscribers-title">
-                            <label class="choose-subscribers-label">{{t "Choose subscribers" }}</label>
-                        </h4>
-                        <div id="stream_subscription_error" class="stream_creation_error"></div>
-                        <div class="controls" id="people_to_add"></div>
+                    <section class="create-channel-more-settings">
+                        <button type="button" class="create-channel-more-settings-toggle" aria-expanded="false" aria-controls="create_channel_more_settings">
+                            <i class="fa fa-sm fa-caret-right create-channel-more-settings-icon" aria-hidden="true"></i>
+                            <span class="create-channel-more-settings-title">{{t "More settings" }}</span>
+                            <span class="create-channel-more-settings-hint">{{t "description, announcement, permissions, retention…" }}</span>
+                        </button>
+                        <div id="create_channel_more_settings" class="create-channel-more-settings-body hide">
+                            <section id="create_stream_description_container">
+                                <label for="create_stream_description" class="settings-field-label">
+                                    {{t "Channel description" }}
+                                    {{> ../help_link_widget link="/help/change-the-channel-description" }}
+                                </label>
+                                <input type="text" name="stream_description" id="create_stream_description" class="settings_text_input"
+                                  placeholder="{{t 'Channel description' }}" value="" autocomplete="off" maxlength="{{ max_stream_description_length }}" />
+                            </section>
+                            <section id="make-invite-only">
+                                <div class="new-stream-configuration">
+                                    {{> new_stream_configuration .
+                                      prefix="id_new_"}}
+                                </div>
+                            </section>
+                        </div>
                     </section>
                 </div>
             </div>
         </div>
         <div class="settings-sticky-footer">
             <div class="settings-sticky-footer-left">
-                {{> ../components/action_button
-                  label=(t "Back to settings")
-                  custom_classes="hide"
-                  id="stream_creation_go_to_configure_channel_settings"
-                  variant="subtle"
-                  intent="brand"
-                  }}
+                <span class="create-channel-enter-hint">{{t "Press Enter to create" }}</span>
             </div>
             <div class="settings-sticky-footer-right">
                 {{> ../components/action_button
@@ -68,18 +77,11 @@
                   intent="neutral"
                   }}
                 {{> ../components/action_button
-                  label=(t "Create")
-                  custom_classes="finalize_create_stream hide"
-                  variant="subtle"
+                  label=(t "Create channel")
+                  custom_classes="finalize_create_stream inline-block"
+                  variant="solid"
                   intent="brand"
                   type="submit"
-                  }}
-                {{> ../components/action_button
-                  label=(t "Continue to add subscribers")
-                  custom_classes="inline-block"
-                  id="stream_creation_go_to_subscribers"
-                  variant="subtle"
-                  intent="brand"
                   }}
             </div>
         </div>
