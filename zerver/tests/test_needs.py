@@ -627,10 +627,54 @@ class NeedsMentionTests(NeedsTestCase):
         self.assertEqual(item["actor"]["initials"], "KH")
         self.assertEqual(item["stream_id"], self.get_stream_id("Denmark"))
         self.assertEqual(item["topic"], "mentions")
-        self.assertEqual(item["text"], f"@{cordelia.full_name} can you review this?")
+        self.assertEqual(item["text"], "can you review this?")
+        self.assertEqual(item["raw_text"], f"@{cordelia.full_name} can you review this?")
         self.assertIsNone(item["attachment"])
         self.assertEqual(item["actions"], [])
         self.assertIsNone(item["job_id"])
+
+    def _mention_text_of(self, user: UserProfile, content: str) -> tuple[str, str]:
+        for name in ["needs-small"]:
+            for subscriber in [self.owner, user]:
+                self.subscribe(subscriber, name)
+        message_id = self.send_stream_message(self.owner, "needs-small", content, topic_name="text")
+        [item] = [
+            item
+            for item in needs.list_needs(user, kind="mention", status="open", since=None)["items"]
+            if item["id"] == f"mention:{message_id}"
+        ]
+        return item["text"], item["raw_text"]
+
+    def test_excerpt_drops_leading_mentions_and_keeps_the_first_sentence(self) -> None:
+        cordelia = self.example_user("cordelia")
+        othello = self.example_user("othello")
+        iago = self.example_user("iago")
+        mentions = " ".join(f"@**{user.full_name}**" for user in [cordelia, othello, iago])
+
+        text, raw_text = self._mention_text_of(
+            cordelia, f"{mentions}, Rekap harian 17 Okt. Ada tiga hal yang perlu dicek."
+        )
+        self.assertEqual(text, "Rekap harian 17 Okt.")
+        self.assertTrue(raw_text.startswith(f"@{cordelia.full_name} @{othello.full_name}"))
+        self.assertIn("Ada tiga hal", raw_text)
+
+        # A mention that is not at the start stays in the sentence.
+        text, _raw = self._mention_text_of(
+            cordelia, f"@**{cordelia.full_name}** can you ask @**{othello.full_name}**? Thanks"
+        )
+        self.assertEqual(text, f"can you ask @{othello.full_name}?")
+
+        # Without a sentence end, the text is cut at the line break.
+        text, _raw = self._mention_text_of(
+            cordelia, f"@**{cordelia.full_name}** first line\n\nsecond line"
+        )
+        self.assertEqual(text, "first line")
+
+    def test_excerpt_of_a_message_with_only_mentions_keeps_them(self) -> None:
+        cordelia = self.example_user("cordelia")
+        text, raw_text = self._mention_text_of(cordelia, f"@**{cordelia.full_name}**")
+        self.assertEqual(text, f"@{cordelia.full_name}")
+        self.assertEqual(raw_text, text)
 
     def test_group_wildcard_and_silent_mentions_are_not_needs(self) -> None:
         cordelia = self.example_user("cordelia")
@@ -1005,7 +1049,8 @@ class CardNeedsTests(ZulipTestCase):
         self.assertEqual(item["kind"], "card_mention")
         self.assertEqual(item["actor"]["id"], self.hamlet.id)
         self.assertEqual(item["actor"]["type"], "human")
-        self.assertEqual(item["text"], f"@{self.cordelia.full_name} please check this")
+        self.assertEqual(item["text"], "please check this")
+        self.assertEqual(item["raw_text"], f"@{self.cordelia.full_name} please check this")
         self.assertEqual(item["time"], notification.date_created.isoformat())
         self.assertEqual(
             item["task"],

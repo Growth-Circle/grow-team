@@ -70,6 +70,14 @@ _WILDCARD_MENTION_RE = re.compile(
     r'<span class="(?:user-mention channel-wildcard-mention|topic-mention)"'
 )
 
+# The run of @-mentions a message opens with, and what separates them. They
+# fill the excerpt with names while the person is shown who asked anyway.
+_LEADING_MENTIONS_RE = re.compile(
+    r'^<p>(?:[\s,:;]|&nbsp;|<span class="(?:user-mention|user-group-mention|topic-mention)[^"]*"[^>]*>[^<]*</span>)+'
+)
+_SENTENCE_END_RE = re.compile(r"([.!?])(?=\s|$)|\n")
+_EXCERPT_LIMIT = 400
+
 KINDS = ("approval", "mention", "decision", "card_mention", "card_assigned")
 
 
@@ -102,7 +110,10 @@ class NeedItem(TypedDict):
     stream_id: int | None
     topic: str | None
     time: str
+    # For a mention, the first sentence after its leading @-mentions.
     text: str
+    # `text` as it is, without that trimming. Same as `text` for other kinds.
+    raw_text: str
     attachment: NeedAttachment | None
     actions: list[str]
     expires_at: str
@@ -146,6 +157,25 @@ def _initials(full_name: str) -> str:
     if len(words) > 1:
         return (words[0][0] + words[-1][0]).upper()
     return "".join(words)[:2].upper()
+
+
+def _plain_excerpt(rendered_content: str) -> str:
+    return get_mobile_push_content(rendered_content)[:_EXCERPT_LIMIT]
+
+
+def _mention_excerpt(rendered_content: str) -> str:
+    """The first sentence of a message once its leading @-mentions are gone,
+    so the excerpt shows what is asked instead of who is addressed. A message
+    that is nothing but mentions keeps its whole text."""
+    stripped = _LEADING_MENTIONS_RE.sub("<p>", rendered_content, count=1)
+    text = get_mobile_push_content(stripped).strip()
+    if text == "":
+        return _plain_excerpt(rendered_content)
+    sentence_end = _SENTENCE_END_RE.search(text)
+    if sentence_end is not None:
+        # The punctuation stays with its sentence; a line break does not.
+        text = text[: sentence_end.end() if sentence_end.group(1) else sentence_end.start()]
+    return text[:_EXCERPT_LIMIT]
 
 
 def _agent_actor(profile: agents.AgentProfile) -> NeedActor:
@@ -217,6 +247,7 @@ def _approval_item(
         "topic": topic,
         "time": approval.created_at.isoformat(),
         "text": job.request[:80],
+        "raw_text": job.request[:80],
         "attachment": _approval_attachment(approval.operation),
         # Every approval gets the same action today, whatever its tool.
         "actions": ["approve"],
@@ -252,6 +283,7 @@ def _decision_item(
         "topic": topic,
         "time": question.occurred_at.isoformat(),
         "text": question.payload.get("question") or job.request[:80],
+        "raw_text": question.payload.get("question") or job.request[:80],
         "attachment": None,
         "actions": list(question.payload.get("options") or []),
         "expires_at": expires_at.isoformat(),
@@ -325,8 +357,9 @@ def _mention_item(
         "stream_id": stream_id,
         "topic": topic,
         "time": message.date_sent.isoformat(),
+        "text": _mention_excerpt(message.rendered_content or ""),
         # Plain text, the same way a push notification shows the message.
-        "text": get_mobile_push_content(message.rendered_content or "")[:400],
+        "raw_text": _plain_excerpt(message.rendered_content or ""),
         "attachment": _message_attachment(message),
         "actions": [],
         "expires_at": expires_at.isoformat(),
@@ -348,10 +381,10 @@ def _card_item(notification: TaskNotification, *, task_id_prefix: str, broadcast
     expires_at = notification.date_created + MENTION_TTL
     resolved_at = notification.resolved_at
     if notification.note is not None:
-        # Plain text, the same way a push notification shows the message.
-        text = get_mobile_push_content(notification.note.rendered_content)[:400]
+        text = _mention_excerpt(notification.note.rendered_content)
+        raw_text = _plain_excerpt(notification.note.rendered_content)
     else:
-        text = task.title[:400]
+        text = raw_text = task.title[:400]
     return {
         "id": f"card_{notification.kind}:{notification.id}",
         "kind": f"card_{notification.kind}",
@@ -360,6 +393,7 @@ def _card_item(notification: TaskNotification, *, task_id_prefix: str, broadcast
         "topic": task.topic or None,
         "time": notification.date_created.isoformat(),
         "text": text,
+        "raw_text": raw_text,
         "attachment": None,
         "actions": [],
         "expires_at": expires_at.isoformat(),

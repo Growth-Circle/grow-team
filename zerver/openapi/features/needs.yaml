@@ -21,6 +21,10 @@ paths:
         In Zulip 12.0 (feature level ZF-988a72), added the `broadcast` field
         of an item.
 
+        In Zulip 12.0 (feature level ZF-413f36), added the `raw_text` field
+        of an item, and the `text` of a `mention` or `card_mention` item
+        is now its first sentence after leading @-mentions.
+
         In Zulip 12.0 (feature level ZF-e9cd61), `counts` no longer counts
         team-wide items, which `broadcast_counts` counts instead.
       parameters:
@@ -87,6 +91,7 @@ paths:
                     topic: rilis-v2
                     time: "2026-09-25T09:00:00Z"
                     text: Push the release branch
+                    raw_text: Push the release branch
                     attachment:
                       kind: diff
                       id: 00000000-0000-4000-8000-000000000031
@@ -480,6 +485,25 @@ components:
           format: date-time
         text:
           type: string
+          description: |
+            A plain-text excerpt of what the item is about, at most 400
+            characters. For a `mention` or `card_mention` item it is the
+            first sentence of the message or note once the @-mentions it
+            opens with are removed, so the excerpt shows what is asked;
+            a message made only of mentions keeps them. See `raw_text` for
+            the text without that trimming.
+
+            **Changes**: In Zulip 12.0 (feature level ZF-413f36), a
+            `mention` or `card_mention` item's text is trimmed this way.
+            Before, it was the start of the message as it is.
+        raw_text:
+          type: string
+          description: |
+            The same excerpt as `text`, without removing leading
+            @-mentions or cutting at the first sentence. Equal to `text`
+            for the other kinds.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-413f36).
         attachment:
           type: object
           nullable: true
@@ -591,6 +615,7 @@ components:
         - topic
         - time
         - text
+        - raw_text
         - attachment
         - actions
         - expires_at
