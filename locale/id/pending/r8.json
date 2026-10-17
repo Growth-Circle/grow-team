@@ -1,0 +1,13 @@
+{
+  "frontend": {
+    "Type a name…": "Ketik nama…",
+    "Type a name. A user group or #channel adds all of its members.": "Ketik nama. Grup pengguna atau #channel menambahkan semua anggotanya.",
+    "Folder": "Folder",
+    "No folder": "Tanpa folder",
+    "A <z-link>channel</z-link> with this name already exists.": "<z-link>Channel</z-link> dengan nama ini sudah ada.",
+    "A channel with this name already exists.": "Channel dengan nama ini sudah ada.",
+    "An <z-link>archived channel</z-link> with this name already exists.": "<z-link>Channel yang diarsipkan</z-link> dengan nama ini sudah ada.",
+    "An archived channel with this name already exists.": "Channel yang diarsipkan dengan nama ini sudah ada.",
+    "Add roles, groups or users": "Tambah peran, grup, atau pengguna"
+  }
+}
