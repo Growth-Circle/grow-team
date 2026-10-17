@@ -8,7 +8,9 @@ from zerver.models.messages import Message
 from zerver.models.realms import Realm
 from zerver.models.users import UserProfile
 
-NEED_RESOLUTION_ACTIONS = ["done", "dismissed"]
+# "superseded" is the system's, not the user's: a newer team-wide mention in
+# the same topic took the item's place. It never lists under done today.
+NEED_RESOLUTION_ACTIONS = ["done", "dismissed", "superseded"]
 
 
 class NeedResolution(models.Model):

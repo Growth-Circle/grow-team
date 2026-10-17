@@ -25,6 +25,11 @@ paths:
         of an item, and the `text` of a `mention` or `card_mention` item
         is now its first sentence after leading @-mentions.
 
+        In Zulip 12.0 (feature level ZF-48ffae), with `status=open`, a team-wide
+        item (`broadcast` is `true`) older than 48 hours is no longer listed,
+        and of the team-wide `mention` items in one topic of a channel only
+        the newest is listed.
+
         In Zulip 12.0 (feature level ZF-e9cd61), `counts` no longer counts
         team-wide items, which `broadcast_counts` counts instead.
       parameters:
@@ -985,6 +990,11 @@ components:
             uses a wildcard mention, and does not name you as the only
             human. Bots are not counted; silent mentions are.
             Always `false` for a direct message and for the other kinds.
+
+            **Changes**: In Zulip 12.0 (feature level ZF-48ffae), a team-wide
+            item stays open for 48 hours instead of 7 days, and a newer
+            team-wide `mention` in the same channel and topic replaces an
+            older one, unless you reacted to the older one.
 
             **Changes**: New in Zulip 12.0 (feature level ZF-988a72).
       required:

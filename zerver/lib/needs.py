@@ -43,6 +43,7 @@ from zerver.models import (
     Attachment,
     Message,
     MutedUser,
+    Reaction,
     Realm,
     Subscription,
     TaskNotification,
@@ -57,6 +58,9 @@ from zerver.views.agent_jobs import needs_my_action
 # the workspace's approval_ttl_minutes (WP03 AgentRealmSettings) instead.
 DECISION_TTL = timedelta(hours=24)
 MENTION_TTL = timedelta(days=7)
+# A team-wide mention (a daily summary, say) is stale sooner than a mention
+# of one person: it leaves the list after this, though it stays in its channel.
+BROADCAST_TTL = timedelta(hours=48)
 # Q-05: a read mention only becomes a need again once this much time has
 # passed with no reply from the mentioned user in that conversation.
 MENTION_REPLY_GRACE = timedelta(hours=2)
@@ -556,7 +560,59 @@ def _open_decisions(actor: UserProfile) -> list[NeedItem]:
     return [_decision_item(job, questions[job.id]) for job in jobs if job.id in questions]
 
 
-def _open_mentions(actor: UserProfile) -> list[NeedItem]:
+def _superseded_message_ids(
+    open_messages: list[Message], team_wide_ids: set[int], actor: UserProfile
+) -> set[int]:
+    """Of the open team-wide mentions, the ones a newer one in the same
+    topic replaces. A message the actor reacted to is one they are acting
+    on, so it neither replaces nor is replaced."""
+    broadcasts = [
+        message
+        for message in open_messages
+        if message.id in team_wide_ids and message.is_channel_message
+    ]
+    reacted_ids = set(
+        Reaction.objects.filter(
+            user_profile=actor, message_id__in=[message.id for message in broadcasts]
+        ).values_list("message_id", flat=True)
+    )
+    newest_by_topic: dict[tuple[int, str], int] = {}
+    # open_messages is newest first, so the first one seen per topic wins.
+    for message in broadcasts:
+        if message.id not in reacted_ids:
+            newest_by_topic.setdefault(
+                (message.recipient_id, message.topic_name().lower()), message.id
+            )
+    return {
+        message.id
+        for message in broadcasts
+        if message.id not in reacted_ids
+        and newest_by_topic[(message.recipient_id, message.topic_name().lower())] != message.id
+    }
+
+
+def _record_superseded(actor: UserProfile, message_ids: set[int]) -> None:
+    """Make the superseding stick: once an item is replaced it stays
+    resolved, even after the item that replaced it is handled."""
+    if not message_ids:
+        return
+    # A plain transaction, for the reason resolve_mention() gives.
+    with transaction.atomic(durable=True):
+        NeedResolution.objects.bulk_create(
+            [
+                NeedResolution(
+                    realm=actor.realm, user=actor, message_id=message_id, action="superseded"
+                )
+                for message_id in message_ids
+            ],
+            ignore_conflicts=True,
+        )
+
+
+def _open_mentions(actor: UserProfile) -> tuple[list[NeedItem], set[int]]:
+    """The open mention items, and the message ids of the team-wide ones
+    that a newer team-wide mention in the same topic replaces: those are
+    left out and the caller records them."""
     one_on_one_ids = _one_on_one_recipient_ids(actor)
     resolved_ids = NeedResolution.objects.filter(realm=actor.realm, user=actor).values("message_id")
     candidates = _mention_candidates(actor, one_on_one_ids).exclude(message_id__in=resolved_ids)
@@ -567,9 +623,24 @@ def _open_mentions(actor: UserProfile) -> list[NeedItem]:
         and _mention_is_open(user_message, actor)
     ]
     team_wide_ids = _channel_message_team_wide_ids(open_messages, actor)
-    return [
-        _mention_item(message, broadcast=message.id in team_wide_ids) for message in open_messages
+    superseded_ids = _superseded_message_ids(open_messages, team_wide_ids, actor)
+    reacted_ids = set(
+        Reaction.objects.filter(user_profile=actor, message_id__in=team_wide_ids).values_list(
+            "message_id", flat=True
+        )
+    )
+    stale_before = timezone_now() - BROADCAST_TTL
+    items = [
+        _mention_item(message, broadcast=message.id in team_wide_ids)
+        for message in open_messages
+        if message.id not in superseded_ids
+        and not (
+            message.id in team_wide_ids
+            and message.id not in reacted_ids
+            and message.date_sent <= stale_before
+        )
     ]
+    return items, superseded_ids
 
 
 def _card_items(
@@ -673,9 +744,9 @@ def _resolved_decisions(actor: UserProfile, since: datetime) -> list[NeedItem]:
 
 def _resolved_mentions(actor: UserProfile, since: datetime) -> list[NeedItem]:
     resolutions = list(
-        NeedResolution.objects.filter(
-            realm=actor.realm, user=actor, resolved_at__gte=since
-        ).order_by("-resolved_at")[:_ROW_LIMIT]
+        NeedResolution.objects.filter(realm=actor.realm, user=actor, resolved_at__gte=since)
+        .exclude(action="superseded")
+        .order_by("-resolved_at")[:_ROW_LIMIT]
     )
     resolved_ids = [resolution.message_id for resolution in resolutions]
     # Load the messages through the user's own UserMessage rows: a message
@@ -688,7 +759,14 @@ def _resolved_mentions(actor: UserProfile, since: datetime) -> list[NeedItem]:
     }
     # 03-R4: a reply resolves a mention with no resolution of its own.
     one_on_one_ids = _one_on_one_recipient_ids(actor)
-    candidates = _mention_candidates(actor, one_on_one_ids).exclude(message_id__in=resolved_ids)
+    superseded_ids = NeedResolution.objects.filter(
+        realm=actor.realm, user=actor, action="superseded"
+    ).values("message_id")
+    candidates = (
+        _mention_candidates(actor, one_on_one_ids)
+        .exclude(message_id__in=resolved_ids)
+        .exclude(message_id__in=superseded_ids)
+    )
     replied: list[tuple[Message, datetime]] = []
     for user_message in candidates[:_ROW_LIMIT]:
         message = user_message.message
@@ -735,6 +813,15 @@ def _start_of_today(realm: Realm) -> datetime:
     return start_of_day.astimezone(timezone.utc)
 
 
+def _drop_stale_card_broadcasts(buckets: dict[str, list[NeedItem]]) -> None:
+    stale_before = (timezone_now() - BROADCAST_TTL).isoformat()
+    buckets["card_mention"] = [
+        item
+        for item in buckets["card_mention"]
+        if not item["broadcast"] or item["time"] > stale_before
+    ]
+
+
 def _drop_snoozed(actor: UserProfile, buckets: dict[str, list[NeedItem]]) -> None:
     snoozed_ids = set(
         NeedSnooze.objects.filter(user=actor, until__gt=timezone_now()).values_list(
@@ -770,11 +857,13 @@ def list_needs(
     if since not in (None, "", "today"):
         raise ValueError("Invalid since parameter.")
     with agent_transaction(read_only=True):
+        superseded_ids: set[int] = set()
         if status == "open":
+            mentions, superseded_ids = _open_mentions(actor)
             buckets = {
                 "approval": _open_approvals(actor),
                 "decision": _open_decisions(actor),
-                "mention": _open_mentions(actor),
+                "mention": mentions,
                 **_card_items(actor, resolved_since=None),
             }
         else:
@@ -786,6 +875,8 @@ def list_needs(
                 **_card_items(actor, resolved_since=start),
             }
     if status == "open":
+        _record_superseded(actor, superseded_ids)
+        _drop_stale_card_broadcasts(buckets)
         _drop_snoozed(actor, buckets)
     personal_counts = _count_items(
         {
@@ -842,7 +933,10 @@ def resolve_card_notification(actor: UserProfile, notification_id: int) -> None:
 def unresolve_mention(actor: UserProfile, message_id: int) -> None:
     # Deleting the user's own resolution needs no other check.
     with transaction.atomic(durable=True):
-        NeedResolution.objects.filter(realm=actor.realm, user=actor, message_id=message_id).delete()
+        # A superseded item is not the user's to reopen.
+        NeedResolution.objects.filter(realm=actor.realm, user=actor, message_id=message_id).exclude(
+            action="superseded"
+        ).delete()
 
 
 def _split_need_id(need_id: str) -> tuple[str, str]:

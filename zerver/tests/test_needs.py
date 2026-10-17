@@ -1017,6 +1017,110 @@ class NeedsViewTests(NeedsTestCase):
         self.assertFalse(NeedResolution.objects.filter(user=cordelia).exists())
 
 
+class NeedsBroadcastTests(NeedsTestCase):
+    @override
+    def setUp(self) -> None:
+        super().setUp()
+        self.cordelia = self.example_user("cordelia")
+        self.othello = self.example_user("othello")
+        self.iago = self.example_user("iago")
+        for user in [self.owner, self.cordelia, self.othello, self.iago]:
+            self.subscribe(user, "needs-small")
+
+    def _team_post(self, topic: str, text: str = "Rekap") -> str:
+        """A mention of three humans, which is team-wide for cordelia."""
+        mentions = " ".join(
+            f"@**{user.full_name}**" for user in [self.cordelia, self.othello, self.iago]
+        )
+        message_id = self.send_stream_message(
+            self.owner, "needs-small", f"{mentions} {text}", topic_name=topic
+        )
+        return f"mention:{message_id}"
+
+    def _personal_post(self, topic: str) -> str:
+        message_id = self.send_stream_message(
+            self.owner, "needs-small", f"@**{self.cordelia.full_name}** look", topic_name=topic
+        )
+        return f"mention:{message_id}"
+
+    def test_only_the_newest_team_wide_mention_per_topic_stays_open(self) -> None:
+        oldest = self._team_post("Cek pagi")
+        other_topic = self._team_post("Rekap")
+        middle = self._team_post("Cek pagi")
+        newest = self._team_post("cek PAGI")
+
+        self.assertCountEqual(self._open_ids(self.cordelia), [newest, other_topic])
+        self.assertEqual(
+            set(
+                NeedResolution.objects.filter(user=self.cordelia, action="superseded").values_list(
+                    "message_id", flat=True
+                )
+            ),
+            {int(oldest.split(":")[1]), int(middle.split(":")[1])},
+        )
+
+    def test_superseded_mentions_stay_resolved_and_do_not_reopen(self) -> None:
+        oldest = self._team_post("Cek pagi")
+        newest = self._team_post("Cek pagi")
+        self.assertEqual(self._open_ids(self.cordelia), [newest])
+
+        needs.resolve_many(self.cordelia, [newest])
+        self.assertEqual(self._open_ids(self.cordelia), [])
+        needs.unresolve_many(self.cordelia, [newest, oldest])
+        self.assertEqual(self._open_ids(self.cordelia), [newest])
+
+        # A newer post in the topic takes the place of the one still open.
+        newer = self._team_post("Cek pagi")
+        self.assertEqual(self._open_ids(self.cordelia), [newer])
+
+    def test_superseded_mentions_are_not_listed_as_done(self) -> None:
+        self._team_post("Cek pagi")
+        self._team_post("Cek pagi")
+        self._open_ids(self.cordelia)
+        resolved = needs.list_needs(self.cordelia, kind=None, status="resolved", since="today")
+        self.assertEqual(resolved["items"], [])
+
+    def test_personal_mentions_are_never_superseded(self) -> None:
+        first = self._personal_post("Cek pagi")
+        second = self._personal_post("Cek pagi")
+        self.assertCountEqual(self._open_ids(self.cordelia), [first, second])
+        self.assertFalse(NeedResolution.objects.exists())
+
+    def test_team_wide_mention_leaves_the_list_after_48_hours(self) -> None:
+        with time_machine.travel(now() - timedelta(hours=49), tick=False):
+            stale_team = self._team_post("Lama")
+            old_personal = self._personal_post("Lama")
+        with time_machine.travel(now() - timedelta(hours=47), tick=False):
+            recent_team = self._team_post("Baru")
+
+        open_ids = self._open_ids(self.cordelia)
+        self.assertCountEqual(open_ids, [old_personal, recent_team])
+        self.assertNotIn(stale_team, open_ids)
+        counts = needs.list_needs(self.cordelia, kind=None, status="open", since=None)
+        self.assertEqual(counts["counts"]["mention"], 1)
+        self.assertEqual(counts["broadcast_counts"]["mention"], 1)
+
+    def test_a_team_wide_mention_the_user_reacted_to_is_left_alone(self) -> None:
+        with time_machine.travel(now() - timedelta(hours=49), tick=False):
+            stale = self._team_post("Lama")
+        older = self._team_post("Cek pagi")
+        newest = self._team_post("Cek pagi")
+        for need_id in [stale, older]:
+            self.api_post(
+                self.cordelia,
+                f"/api/v1/messages/{need_id.split(':')[1]}/reactions",
+                {"emoji_name": "+1"},
+            )
+
+        self.assertCountEqual(self._open_ids(self.cordelia), [stale, older, newest])
+
+    def test_a_replied_team_wide_mention_stays_resolved(self) -> None:
+        self._team_post("Cek pagi")
+        self.send_stream_message(self.cordelia, "needs-small", "On it", topic_name="Cek pagi")
+        newest = self._team_post("Cek pagi")
+        self.assertEqual(self._open_ids(self.cordelia), [newest])
+
+
 class NeedsBulkTests(NeedsTestCase):
     def _post_ids(self, path: str, ids: list[str]) -> "TestHttpResponse":
         return self.client_post(path, {"need_ids": orjson.dumps(ids).decode()})
@@ -1318,6 +1422,28 @@ class CardNeedsTests(ZulipTestCase):
         self.assertEqual(
             needs.list_needs(self.cordelia, kind=None, status="open", since=None)["items"], []
         )
+
+    def test_team_wide_card_note_leaves_the_list_after_48_hours(self) -> None:
+        othello = self.example_user("othello")
+        iago = self.example_user("iago")
+        mentions = " ".join(
+            f"@**{user.full_name}|{user.id}**" for user in [self.cordelia, othello, iago]
+        )
+        do_add_task_note(user_profile=self.hamlet, task=self.card, content=f"{mentions} rekap")
+        self.note_mentioning_cordelia()
+        stale, fresh = TaskNotification.objects.filter(user=self.cordelia).order_by("id")
+        TaskNotification.objects.filter(id=stale.id).update(
+            date_created=now() - timedelta(hours=49)
+        )
+        TaskNotification.objects.filter(id=fresh.id).update(
+            date_created=now() - timedelta(hours=49)
+        )
+
+        listed = needs.list_needs(self.cordelia, kind=None, status="open", since=None)["items"]
+
+        # The note that names three people is team-wide and stale. The
+        # personal one is as old and stays.
+        self.assertEqual([item["id"] for item in listed], [f"card_mention:{fresh.id}"])
 
     def test_bulk_resolve_and_undo_of_card_items(self) -> None:
         self.note_mentioning_cordelia()
