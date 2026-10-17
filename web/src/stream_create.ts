@@ -442,6 +442,35 @@ export function new_stream_clicked(stream_name: string, folder_id: number | unde
     $("#create_stream_name").trigger("focus");
 }
 
+// The two "Who can see it" choices are shortcuts for the access type
+// dropdown under More settings, which also offers Web-public. Web-public
+// is shown as the team-wide choice because it is a wider public channel.
+function sync_visibility_choice_with_privacy_widget(): void {
+    const is_private =
+        stream_settings_components.channel_creation_privacy_widget.value() ===
+        settings_config.stream_privacy_policy_values.private.code;
+    $<HTMLInputElement>("input[name=create_stream_visibility]").each(function () {
+        this.checked = (this.value === "private") === is_private;
+    });
+}
+
+function update_visibility_choice_permissions(): void {
+    const can_create_private = settings_data.user_can_create_private_streams();
+    const can_create_public = settings_data.user_can_create_public_streams();
+    $("input[name=create_stream_visibility][value=private]").prop("disabled", !can_create_private);
+    $("input[name=create_stream_visibility][value=public]").prop("disabled", !can_create_public);
+
+    let reason = "";
+    if (!can_create_private) {
+        reason = $t({defaultMessage: "You cannot create private channels."});
+    } else if (!can_create_public) {
+        reason = $t({defaultMessage: "You cannot create public channels."});
+    }
+    $("#create_stream_visibility_reason")
+        .text(reason)
+        .toggleClass("hide", reason === "");
+}
+
 function set_chat_type_option(is_no_topics: boolean): void {
     $<HTMLInputElement>("input[name=create_stream_chat_type]").each(function () {
         this.checked = (this.value === "flat") === is_no_topics;
@@ -508,6 +537,11 @@ export function show_new_stream_modal(): void {
 
     $("#id_new_topics_policy").val(settings_config.get_stream_topics_policy_values().inherit.code);
     set_chat_type_option(false);
+    stream_settings_components.channel_creation_privacy_widget.render(
+        settings_data.default_privacy_code_for_new_channel(),
+    );
+    update_visibility_choice_permissions();
+    sync_visibility_choice_with_privacy_widget();
     const can_set_topics_policy = stream_data.user_can_set_topics_policy();
     $("#id_new_topics_policy").prop("disabled", !can_set_topics_policy);
     $("input[name=create_stream_chat_type]").prop("disabled", !can_set_topics_policy);
@@ -524,6 +558,9 @@ export function show_new_stream_modal(): void {
 
     // set default state for "announce stream" and "default stream" option.
     $("#stream_creation_form .default-stream input").prop("checked", false);
+    // Announcing is on by default; it is switched off again below for
+    // private channels, and restored when the user picks a public one.
+    $("#announce-new-stream input").prop("checked", true).prop("disabled", false);
     update_announce_stream_state();
     stream_ui_updates.update_can_subscribe_group_label($("#stream-creation"));
     stream_ui_updates.update_default_stream_option_state($("#stream-creation"));
@@ -663,6 +700,17 @@ export function set_up_handlers(): void {
         set_chat_type_option(stream_topics_policy.is_no_topics_policy(policy));
     });
 
+    $container.on("change", "input[name=create_stream_visibility]", () => {
+        const privacy_values = settings_config.stream_privacy_policy_values;
+        const is_private =
+            $<HTMLInputElement>("input[name=create_stream_visibility]:checked").val() === "private";
+        stream_settings_components.channel_creation_privacy_widget.render(
+            is_private ? privacy_values.private.code : privacy_values.public.code,
+        );
+        stream_ui_updates.handle_channel_privacy_update($("#stream-creation"));
+        update_announce_stream_state();
+    });
+
     $container.on("input", "#id_new_history_public_to_subscribers", () => {
         stream_ui_updates.update_can_create_topic_group_setting_state($("#stream-creation"));
     });
@@ -675,7 +723,10 @@ export function set_up_handlers(): void {
     set_up_group_setting_widgets();
     settings_components.enable_opening_typeahead_on_clicking_label($container);
     folder_widget = stream_settings_components.set_up_folder_dropdown_widget();
-    stream_edit.set_up_channel_privacy_dropdown_widget(update_announce_stream_state);
+    stream_edit.set_up_channel_privacy_dropdown_widget(() => {
+        update_announce_stream_state();
+        sync_visibility_choice_with_privacy_widget();
+    });
 }
 
 export function initialize(): void {

@@ -43,13 +43,29 @@
                         </div>
                         <p class="create-channel-choice-reason hide" id="create_stream_chat_type_reason">{{t "You cannot change this here. New channels use the workspace default." }}</p>
                     </section>
-                    <section class="create-channel-folder">
-                        {{> channel_folder .
-                          is_stream_edit=false
-                          channel_folder_widget_name="new_channel_folder_id"
-                          hide_create_folder_button=true
-                          }}
-                    </section>
+                    <div class="create-channel-visibility-folder">
+                        <section id="create_stream_visibility_container" class="create-channel-choice-section">
+                            <span class="settings-field-label" id="create_stream_visibility_label">{{t "Who can see it" }}</span>
+                            <div class="create-channel-segmented" role="radiogroup" aria-labelledby="create_stream_visibility_label" aria-describedby="create_stream_visibility_reason">
+                                <label class="create-channel-segment">
+                                    <input type="radio" class="create-channel-segment-input" name="create_stream_visibility" value="private" />
+                                    <span class="create-channel-segment-label">{{t "Only members" }}</span>
+                                </label>
+                                <label class="create-channel-segment">
+                                    <input type="radio" class="create-channel-segment-input" name="create_stream_visibility" value="public" />
+                                    <span class="create-channel-segment-label">{{t "Everyone on the team" }}</span>
+                                </label>
+                            </div>
+                            <p class="create-channel-choice-reason hide" id="create_stream_visibility_reason"></p>
+                        </section>
+                        <section class="create-channel-folder">
+                            {{> channel_folder .
+                              is_stream_edit=false
+                              channel_folder_widget_name="new_channel_folder_id"
+                              hide_create_folder_button=true
+                              }}
+                        </section>
+                    </div>
                     <section class="create-channel-more-settings">
                         <button type="button" class="create-channel-more-settings-toggle" aria-expanded="false" aria-controls="create_channel_more_settings">
                             <i class="fa fa-sm fa-caret-right create-channel-more-settings-icon" aria-hidden="true"></i>

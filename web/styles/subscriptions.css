@@ -1615,6 +1615,74 @@ h4.user_group_setting_subsection_title {
         margin: 0.5em 0 0;
     }
 
+    .create-channel-visibility-folder {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0 1.5em;
+        margin-bottom: 20px;
+
+        .create-channel-choice-section {
+            flex: 1 1 18em;
+            margin-bottom: 0;
+        }
+
+        .create-channel-folder {
+            flex: 0 1 14em;
+            min-width: 0;
+            margin-bottom: 0;
+
+            /* Drop the minimum width meant for the wide permission
+               pill inputs, so the folder sits beside "Who can see it". */
+            .channel-folder-widget-container {
+                min-width: 0;
+            }
+        }
+    }
+
+    .create-channel-segmented {
+        display: flex;
+        padding: 0.1875em;
+        border-radius: 0.75em;
+        background: var(--sj-surface-muted);
+    }
+
+    .create-channel-segment {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.375em;
+        margin: 0;
+        padding: 0 0.75em;
+        border-radius: 0.625em;
+        color: var(--sj-text);
+        font-weight: 600;
+        text-align: center;
+        cursor: pointer;
+
+        &:has(:checked) {
+            background: var(--sj-surface);
+            box-shadow: 0 0 0 0.0625em var(--sj-outline);
+        }
+
+        &:has(:focus-visible) {
+            box-shadow: var(--sj-ring-focus);
+        }
+
+        &:has(:disabled) {
+            color: var(--sj-text-muted);
+            cursor: not-allowed;
+        }
+    }
+
+    /* The radio input stays in the tab order and is announced by
+       screen readers, but the segment itself is the visible control. */
+    .create-channel-segment-input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
     .create-channel-more-settings {
         padding-top: 0.5em;
         border-top: 1px solid var(--sj-divider);

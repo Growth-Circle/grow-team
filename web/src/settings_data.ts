@@ -137,6 +137,18 @@ export function user_can_create_public_streams(): boolean {
     );
 }
 
+// Private is the default for a new channel. Fall back to what the user
+// may create when the organization does not allow it.
+export function default_privacy_code_for_new_channel(): string {
+    if (user_can_create_private_streams()) {
+        return settings_config.stream_privacy_policy_values.private.code;
+    }
+    if (user_can_create_public_streams()) {
+        return settings_config.stream_privacy_policy_values.public.code;
+    }
+    return settings_config.stream_privacy_policy_values.web_public.code;
+}
+
 export function user_can_create_web_public_streams(): boolean {
     if (!realm.server_web_public_streams_enabled || !realm.realm_enable_spectator_access) {
         return false;

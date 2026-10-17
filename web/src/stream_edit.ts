@@ -393,13 +393,7 @@ export function set_up_channel_privacy_dropdown_widget(
     if (sub) {
         default_id = stream_data.get_stream_privacy_policy(sub.stream_id);
     } else {
-        if (settings_data.user_can_create_public_streams()) {
-            default_id = settings_config.stream_privacy_policy_values.public.code;
-        } else if (settings_data.user_can_create_web_public_streams()) {
-            default_id = settings_config.stream_privacy_policy_values.web_public.code;
-        } else {
-            default_id = settings_config.stream_privacy_policy_values.private.code;
-        }
+        default_id = settings_data.default_privacy_code_for_new_channel();
     }
 
     let widget_name = "channel_privacy";

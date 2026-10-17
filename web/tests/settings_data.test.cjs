@@ -637,6 +637,44 @@ run_test("user_can_create_web_public_streams", ({override}) => {
     assert.equal(settings_data.user_can_create_web_public_streams(), false);
 });
 
+run_test("default_privacy_code_for_new_channel", ({override}) => {
+    const admin_user_id = 1;
+    const admins = make_user_group({
+        name: "Admins",
+        id: 1,
+        members: new Set([admin_user_id]),
+        is_system_group: true,
+        direct_subgroup_ids: new Set(),
+    });
+    const nobody = make_user_group({
+        name: "Nobody",
+        id: 2,
+        members: new Set(),
+        is_system_group: true,
+        direct_subgroup_ids: new Set(),
+    });
+    user_groups.initialize({realm_user_groups: [admins, nobody]});
+    group_permission_settings.get_group_permission_setting_config = () => ({
+        allow_everyone_group: false,
+    });
+    page_params.is_spectator = false;
+    override(current_user, "is_guest", false);
+    override(current_user, "user_id", admin_user_id);
+    override(realm, "server_web_public_streams_enabled", true);
+    override(realm, "realm_enable_spectator_access", true);
+    override(realm, "realm_can_create_private_channel_group", admins.id);
+    override(realm, "realm_can_create_public_channel_group", admins.id);
+    override(realm, "realm_can_create_web_public_channel_group", admins.id);
+
+    assert.equal(settings_data.default_privacy_code_for_new_channel(), "invite-only");
+
+    override(realm, "realm_can_create_private_channel_group", nobody.id);
+    assert.equal(settings_data.default_privacy_code_for_new_channel(), "public");
+
+    override(realm, "realm_can_create_public_channel_group", nobody.id);
+    assert.equal(settings_data.default_privacy_code_for_new_channel(), "web-public");
+});
+
 run_test("guests_can_access_all_other_users", () => {
     const guest_user_id = 1;
     const member_user_id = 2;

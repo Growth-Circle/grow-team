@@ -59,6 +59,18 @@ async function test_chat_type_choice(page: Page): Promise<void> {
     assert.strictEqual(await topics_policy_value(page), "inherit");
 }
 
+async function test_visibility_choice(page: Page): Promise<void> {
+    // Only members is the default, and announcing is off for it.
+    await page.waitForSelector('input[name="create_stream_visibility"][value="private"]:checked');
+    await page.waitForSelector("#id_should_announce_new_stream:disabled");
+
+    await page.click('input[name="create_stream_visibility"][value="public"]');
+    await page.waitForSelector("#id_should_announce_new_stream:not(:disabled)");
+
+    await page.click('input[name="create_stream_visibility"][value="private"]');
+    await page.waitForSelector("#id_should_announce_new_stream:disabled");
+}
+
 async function clear_ot_filter_with_backspace(page: Page): Promise<void> {
     await page.click(".add-user-list-filter");
     await page.keyboard.press("Backspace");
@@ -159,6 +171,7 @@ async function test_streams_with_duplicate_names_cannot_be_created(page: Page): 
 async function test_stream_creation(page: Page): Promise<void> {
     await click_create_new_stream(page);
     await test_chat_type_choice(page);
+    await test_visibility_choice(page);
     await test_user_filter_ui(page);
     await create_stream(page);
     await test_streams_with_empty_names_cannot_be_created(page);
