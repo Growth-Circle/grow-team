@@ -4,7 +4,8 @@ WP13 step 7 / §4.5: each one is an `answer` profile on the runner's
 endpoint harness with the given provider, described in §3.5. A rerun is
 safe: it keeps each built-in, probes one that is not ready again, and
 enables it when the runner reports it ready. `--archive` archives the
-built-ins, and a later run without it makes new ones.
+built-ins, and a later run without it makes new ones. `--role` limits
+either one to the built-ins with those roles; the default is all four.
 """
 
 import time
@@ -116,6 +117,10 @@ BUILTIN_AGENTS = [
         ),
     ),
 ]
+
+
+def selected_builtins(roles: list[str] | None) -> list[BuiltinAgent]:
+    return [spec for spec in BUILTIN_AGENTS if not roles or spec.agent_role in roles]
 
 
 def live_builtin(realm_id: int, agent_role: str) -> agents.AgentProfile | None:
@@ -231,6 +236,12 @@ class Command(ZulipBaseCommand):
             "--set-default", action="store_true", help="Make Kaki the workspace's team default."
         )
         parser.add_argument(
+            "--role",
+            action="append",
+            choices=[spec.agent_role for spec in BUILTIN_AGENTS],
+            help="Only act on the built-in agent with this role; repeatable (default: all).",
+        )
+        parser.add_argument(
             "--archive", action="store_true", help="Archive the built-in agents instead."
         )
         parser.add_argument(
@@ -246,14 +257,14 @@ class Command(ZulipBaseCommand):
         assert realm is not None
         with agent_realm(realm.id):
             if options["archive"]:
-                self._archive(realm)
+                self._archive(realm, options["role"])
                 return
             if not options["runner"] or not options["provider"]:
                 raise CommandError("--runner and --provider are required unless --archive.")
             self._ensure(realm, options)
 
-    def _archive(self, realm: Realm) -> None:
-        for spec in BUILTIN_AGENTS:
+    def _archive(self, realm: Realm, roles: list[str] | None) -> None:
+        for spec in selected_builtins(roles):
             profile = live_builtin(realm.id, spec.agent_role)
             if profile is None:
                 self.stdout.write(f"{spec.name}: already archived.")
@@ -262,6 +273,11 @@ class Command(ZulipBaseCommand):
             self.stdout.write(f"{spec.name}: archived.")
 
     def _ensure(self, realm: Realm, options: dict[str, Any]) -> None:
+        specs = selected_builtins(options["role"])
+        if options["set_default"] and not any(spec.agent_role == "planner" for spec in specs):
+            raise CommandError(
+                "--set-default makes Kaki the default, so it needs the planner role."
+            )
         runner = agents.AgentRunner.objects.get(id=options["runner"], realm=realm)
         provider = agents.AgentProvider.objects.get(id=options["provider"], realm=realm)
         owner = (
@@ -279,7 +295,7 @@ class Command(ZulipBaseCommand):
         kaki_profile: agents.AgentProfile | None = None
         # Built-in text uses the workspace language, not the operator's.
         with override_language(realm.default_language):
-            for spec in BUILTIN_AGENTS:
+            for spec in specs:
                 profile = live_builtin(realm.id, spec.agent_role)
                 if profile is None:
                     release_archived_names(realm.id, spec.agent_role)

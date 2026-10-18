@@ -652,6 +652,43 @@ class EnsureBuiltinAgentsCommandTest(AgentDirectoryAPITestCase):
         for profile in self.builtins():
             self.assertEqual(profile.desired_state, "enabled")
 
+    def test_role_limits_the_built_ins_that_are_created(self) -> None:
+        output = self.ensure("--role", "custom", ready=True)
+
+        self.assertIn("Sanji Agent: created", output)
+        self.assertNotIn("Kaki", output)
+        self.assertEqual(
+            list(
+                agents.AgentProfile.objects.filter(is_builtin=True).values_list("name", flat=True)
+            ),
+            ["Sanji Agent"],
+        )
+
+    def test_role_is_repeatable(self) -> None:
+        self.ensure("--role", "planner", "--role", "custom", ready=True)
+
+        self.assertEqual(
+            set(agents.AgentProfile.objects.filter(is_builtin=True).values_list("name", flat=True)),
+            {"Kaki", "Sanji Agent"},
+        )
+
+    def test_archive_role_archives_only_that_built_in(self) -> None:
+        self.ensure(ready=True)
+
+        output = self.call("--archive", "--role", "custom")
+
+        self.assertIn("Sanji Agent: archived.", output)
+        self.assertNotIn("Kaki", output)
+        self.assertIsNone(live_builtin(self.owner.realm.id, "custom"))
+        for role in ("planner", "builder", "reviewer"):
+            self.assertIsNotNone(live_builtin(self.owner.realm.id, role))
+
+    def test_set_default_needs_the_planner_role(self) -> None:
+        with self.assertRaisesRegex(CommandError, "needs the planner role"):
+            self.ensure("--role", "custom", "--set-default")
+
+        self.assertFalse(agents.AgentProfile.objects.filter(is_builtin=True).exists())
+
     def test_sanji_agent_is_the_routine_sender_and_its_name_is_reserved(self) -> None:
         self.ensure("--share-group", "role:members", ready=True)
 
