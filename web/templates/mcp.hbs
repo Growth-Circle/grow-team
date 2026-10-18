@@ -1,89 +1,68 @@
 <div class="mcp-page">
-    <header class="mcp-header">
-        <div><h1>{{t "MCP connections"}}</h1><p>{{t
-                    "Connect Claude Cowork, ChatGPT, OpenClaw, Hermes, and other agents to your workspace."
-                }}</p></div>
+    {{#> components/page_header . title=(t "MCP connections") title_focusable=true description=(t "Connect Claude Cowork, ChatGPT, OpenClaw, Hermes, and other agents to your workspace.")}}
         <button
-            type="button"
-            id="mcp-refresh"
-            class="action-button action-button-subtle-neutral"
-        >{{t "Refresh"}}</button>
-    </header>
+          type="button"
+          id="mcp-refresh"
+          class="action-button action-button-subtle-neutral"
+          >{{t "Refresh"}}</button>
+    {{/components/page_header}}
     <p id="mcp-status" role="status" aria-live="polite"></p>
     <section class="mcp-section">
         <h2>{{t "Connect with OAuth"}}</h2>
-        <p>{{t
-                "Add this URL as a remote MCP connector in Claude Cowork or ChatGPT."
-            }}</p>
+        <p>{{t "Add this URL as a remote MCP connector in Claude Cowork or ChatGPT."}}</p>
         <code id="mcp-endpoint"></code>
-        <p>{{t
-                "Sign in to this workspace. Select write access to send messages, mention members, and change tasks. Then approve the connection."
-            }}</p>
-        <p>{{t
-                "Each connection uses your account permissions. You can revoke access below."
-            }}</p>
+        <p>{{t "Sign in to this workspace. Select write access to send messages, mention members, and change tasks. Then approve the connection."}}</p>
+        <p>{{t "Each connection uses your account permissions. You can revoke access below."}}</p>
         <details><summary>{{t "Setup instructions"}}</summary>
-            <p>{{t
-                    "Claude Cowork: Open Customize, then Connectors. Add a custom connector with this URL and complete the sign-in process."
-                }}</p>
-            <p>{{t
-                    "ChatGPT: Enable Developer mode in Security and login settings if your account supports it. Add this URL in Plugins and select OAuth."
-                }}</p>
-            <p>{{t
-                    "OpenClaw and Hermes: Add an HTTP MCP server with this URL. Set the Authorization header to Bearer followed by your token."
-                }}</p>
-            <p>{{t
-                    "For a client that only supports stdio, use an HTTP MCP bridge that supports OAuth or bearer headers."
-                }}</p>
+            <p>{{t "Claude Cowork: Open Customize, then Connectors. Add a custom connector with this URL and complete the sign-in process."}}</p>
+            <p>{{t "ChatGPT: Enable Developer mode in Security and login settings if your account supports it. Add this URL in Plugins and select OAuth."}}</p>
+            <p>{{t "OpenClaw and Hermes: Add an HTTP MCP server with this URL. Set the Authorization header to Bearer followed by your token."}}</p>
+            <p>{{t "For a client that only supports stdio, use an HTTP MCP bridge that supports OAuth or bearer headers."}}</p>
         </details>
     </section>
     <section class="mcp-section">
         <h2>{{t "Create an agent token"}}</h2>
-        <p>{{t
-                "Use a token for agents that support HTTP MCP with bearer authentication. Tokens expire after 90 days."
-            }}</p>
+        <p>{{t "Use a token for agents that support HTTP MCP with bearer authentication. Tokens expire after 90 days."}}</p>
         <form id="mcp-token-form">
             <label for="mcp-token-name">{{t "Agent name"}}</label>
             <input
-                id="mcp-token-name"
-                class="settings_text_input"
-                required
-                maxlength="100"
-                placeholder="OpenClaw / Hermes"
-            />
+              id="mcp-token-name"
+              class="settings_text_input"
+              required
+              maxlength="100"
+              placeholder="{{t 'OpenClaw / Hermes'}}"
+              />
             <label class="mcp-write-option"><input
                     type="checkbox"
                     id="mcp-token-write"
                 />
                 {{t
-                    "Allow this agent to send channel messages, direct messages, mentions, and task changes as me."
-                }}</label>
+                  "Allow this agent to send channel messages, direct messages, mentions, and task changes as me."
+                  }}</label>
             <button
-                type="submit"
-                class="action-button action-button-solid-brand"
-            >{{t "Create token"}}</button>
+              type="submit"
+              class="action-button action-button-solid-brand"
+              >{{t "Create token"}}</button>
         </form>
         <div id="mcp-token-result" hidden>
-            <p>{{t
-                    "Copy this token now. It will appear only once. Store it in your agent's secret settings."
-                }}</p>
+            <p>{{t "Copy this token now. It will appear only once. Store it in your agent's secret settings."}}</p>
             <textarea
-                id="mcp-created-token"
-                readonly
-                autocomplete="off"
-                spellcheck="false"
-                aria-label="{{t 'Agent token'}}"
-            ></textarea>
+              id="mcp-created-token"
+              readonly
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="{{t 'Agent token'}}"
+              ></textarea>
             <button
-                type="button"
-                id="mcp-copy-token"
-                class="action-button action-button-subtle-neutral"
-            >{{t "Copy token"}}</button>
+              type="button"
+              id="mcp-copy-token"
+              class="action-button action-button-subtle-neutral"
+              >{{t "Copy token"}}</button>
             <button
-                type="button"
-                id="mcp-hide-token"
-                class="action-button action-button-subtle-neutral"
-            >{{t "Hide token"}}</button>
+              type="button"
+              id="mcp-hide-token"
+              class="action-button action-button-subtle-neutral"
+              >{{t "Hide token"}}</button>
             <p>{{t "HTTP header:"}}
                 <code>Authorization: Bearer &lt;token&gt;</code></p>
         </div>
@@ -92,4 +71,13 @@
         <h2>{{t "Your connections"}}</h2>
         <div id="mcp-access-list"></div>
     </section>
+    {{#> components/settings_card . title=(t "Activity") heading_id="mcp-activity-title" description=(t "What happened to calls from your connections, newest first. Content is never shown here.") custom_classes="mcp-activity"}}
+        <div id="mcp-activity-list"></div>
+        <button
+          type="button"
+          id="mcp-activity-more"
+          class="action-button action-button-subtle-neutral"
+          hidden
+          >{{t "Load more"}}</button>
+    {{/components/settings_card}}
 </div>

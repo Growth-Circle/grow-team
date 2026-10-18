@@ -10,13 +10,6 @@
     color: var(--color-text-default);
 }
 
-.mcp-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
-}
-
 .mcp-section {
     padding: 24px 0;
     border-bottom: 1px solid var(--color-border-default);
@@ -81,8 +74,210 @@
     }
 }
 
+.mcp-connection-actions {
+    display: flex;
+    flex-wrap: wrap;
+    /* 8px at 16px/1em */
+    gap: 0.5em;
+    margin-top: 0.75em;
+}
+
+.mcp-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.mcp-tools-panel {
+    margin-top: 1em;
+}
+
+.mcp-tools-note {
+    margin: 0 0 0.75em;
+    border: 1px solid var(--sj-divider);
+    border-radius: var(--sj-radius-12);
+    background: var(--sj-surface-warm);
+    color: var(--sj-text);
+    /* 14px at 16px/1em */
+    font-size: 0.875em;
+    padding: 0.75em 0.875em;
+}
+
+.mcp-tools-bulk {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    margin-bottom: 0.75em;
+}
+
+.mcp-tool-list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    gap: 0.5em;
+    list-style: none;
+}
+
+.mcp-tool {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75em 1em;
+    border: 1px solid var(--sj-divider);
+    border-radius: var(--sj-radius-12);
+    background: var(--sj-surface);
+    padding: 0.75em 0.875em;
+}
+
+.mcp-tool-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    min-width: 0;
+    gap: 0.25em 0.5em;
+}
+
+.mcp-tool-name {
+    color: var(--sj-text);
+    font-family: var(--sj-font-mono);
+    /* 14px at 16px/1em */
+    font-size: 0.875em;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.mcp-tool-kind {
+    border: 1px solid var(--sj-divider);
+    border-radius: var(--sj-radius-pill);
+    color: var(--sj-text);
+    /* 12px at 16px/1em */
+    font-size: 0.75em;
+    font-weight: 600;
+    padding: 0.125em 0.625em;
+}
+
+.mcp-tool-kind-read {
+    background: var(--sj-tint-matcha);
+}
+
+.mcp-tool-kind-write {
+    background: var(--sj-tint-kuning);
+}
+
+.mcp-tool-kind-destructive {
+    background: var(--sj-tint-kaki);
+}
+
+.mcp-tool-description {
+    flex-basis: 100%;
+    margin: 0;
+    color: var(--sj-text-muted);
+    /* 13px at 16px/1em */
+    font-size: 0.8125em;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.mcp-policy {
+    display: flex;
+    flex-wrap: wrap;
+    min-width: 0;
+    margin: 0;
+    border: 0;
+    padding: 0;
+    gap: 0.375em;
+}
+
+.mcp-policy-option {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    border: var(--sj-border);
+    border-radius: var(--sj-radius-pill);
+    background: var(--sj-surface-raised);
+    color: var(--sj-text);
+    cursor: pointer;
+    /* 13px at 16px/1em */
+    font-size: 0.8125em;
+    font-weight: 700;
+    padding: 0.4em 0.9em;
+
+    input {
+        position: absolute;
+        opacity: 0;
+        inset: 0;
+        margin: 0;
+        cursor: pointer;
+    }
+
+    &:has(input:focus-visible) {
+        box-shadow: var(--sj-ring-focus);
+    }
+
+    &:has(input:disabled) {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+}
+
+.mcp-policy-option-checked {
+    background: var(--sj-ink);
+    color: var(--sj-on-ink);
+}
+
+.mcp-activity-list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    gap: 0.5em;
+    list-style: none;
+}
+
+.mcp-activity-entry {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25em 0.75em;
+    border-bottom: 1px solid var(--sj-divider);
+    /* 14px at 16px/1em */
+    font-size: 0.875em;
+    padding-bottom: 0.5em;
+}
+
+.mcp-activity-time,
+.mcp-activity-meta {
+    color: var(--sj-text-muted);
+}
+
+.mcp-activity-what {
+    color: var(--sj-text);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.mcp-activity-outcome {
+    color: var(--sj-text);
+}
+
+.mcp-activity {
+    margin-top: 1.5em;
+}
+
+/* An action button sets its own display, which would show a button that
+   has the hidden attribute. */
+.mcp-page [hidden] {
+    display: none;
+}
+
 @media (width <= 600px) {
     .mcp-page {
         padding: 16px;
+    }
+
+    .mcp-tool {
+        grid-template-columns: minmax(0, 1fr);
     }
 }

@@ -35,3 +35,5 @@ web/templates/playbook*.hbs
 zerver/lib/playbooks.py
 zerver/actions/playbooks.py
 zerver/views/playbooks.py
+web/src/mcp*.ts
+web/templates/mcp*.hbs

@@ -1,0 +1,33 @@
+{{! The tools of one connection, each with its policy. A tool that only
+reads can be Auto or Off. Any other tool can also be Ask first. The
+policy is a group of radio buttons, so the keyboard works as it does
+for any radio group. }}
+<div class="mcp-tools">
+    {{#if note}}
+        <p class="mcp-tools-note">{{note}}</p>
+    {{/if}}
+    <div class="mcp-tools-bulk">
+        <button type="button" class="mcp-tools-bulk-button action-button action-button-subtle-neutral" data-mcp-bulk="read-auto" {{#if busy}}disabled{{/if}}>{{t "Set all read tools to Auto"}}</button>
+        <button type="button" class="mcp-tools-bulk-button action-button action-button-subtle-neutral" data-mcp-bulk="recommended" {{#if busy}}disabled{{/if}}>{{t "Use recommended settings"}}</button>
+    </div>
+    <ul class="mcp-tool-list">
+        {{#each tools}}
+            <li class="mcp-tool">
+                <div class="mcp-tool-info">
+                    <span class="mcp-tool-name">{{name}}</span>
+                    <span class="mcp-tool-kind mcp-tool-kind-{{kind}}">{{kind_label}}</span>
+                    <p class="mcp-tool-description">{{description}}</p>
+                </div>
+                <fieldset class="mcp-policy" {{#if ../busy}}disabled{{/if}}>
+                    <legend class="mcp-visually-hidden">{{legend}}</legend>
+                    {{#each options}}
+                        <label class="mcp-policy-option{{#if checked}} mcp-policy-option-checked{{/if}}">
+                            <input type="radio" class="mcp-policy-input" name="{{../radio_name}}" value="{{value}}" data-tool="{{../name}}" {{#if checked}}checked{{/if}} />
+                            <span>{{label}}</span>
+                        </label>
+                    {{/each}}
+                </fieldset>
+            </li>
+        {{/each}}
+    </ul>
+</div>

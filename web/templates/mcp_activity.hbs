@@ -1,0 +1,18 @@
+{{! What happened to calls: when, what, and who. It never has the content
+of a call or a token. }}
+{{#if is_empty}}
+    {{> components/empty_state title=(t "No activity yet.") description=(t "Calls from your connections show up here, without their content.")}}
+{{else}}
+    <ol class="mcp-activity-list">
+        {{#each entries}}
+            <li class="mcp-activity-entry">
+                <span class="mcp-activity-time">{{time}}</span>
+                <span class="mcp-activity-what">{{what}}</span>
+                <span class="mcp-activity-outcome">{{outcome}}</span>
+                {{#if meta}}
+                    <span class="mcp-activity-meta">{{meta}}</span>
+                {{/if}}
+            </li>
+        {{/each}}
+    </ol>
+{{/if}}
