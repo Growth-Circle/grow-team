@@ -30,3 +30,8 @@ zerver/views/needs.py
 zerver/views/pins.py
 zerver/views/task_plans.py
 zerver/views/tasks.py
+web/src/playbooks*.ts
+web/templates/playbook*.hbs
+zerver/lib/playbooks.py
+zerver/actions/playbooks.py
+zerver/views/playbooks.py

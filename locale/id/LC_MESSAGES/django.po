@@ -7633,6 +7633,34 @@ msgstr "Item daftar centang terlalu banyak."
 msgid "Label is too long."
 msgstr "Label terlalu panjang."
 
+msgid "Guests cannot use playbooks."
+msgstr "Tamu tidak bisa memakai playbook."
+
+msgid "Playbook does not exist."
+msgstr "Playbook tidak ditemukan."
+
+msgid "Revision does not exist."
+msgstr "Revisi tidak ditemukan."
+
+msgid "Someone saved a newer revision of this playbook."
+msgstr "Ada yang menyimpan revisi yang lebih baru dari playbook ini."
+
+msgid "This playbook could not be displayed. Simplify its Markdown."
+msgstr "Playbook ini tidak bisa ditampilkan. Sederhanakan Markdown-nya."
+
+msgid "You do not have permission to change this playbook."
+msgstr "Kamu tidak punya izin untuk mengubah playbook ini."
+
+msgid "You do not have permission to create a playbook."
+msgstr "Kamu tidak punya izin untuk membuat playbook."
+
+msgid ""
+"Only an administrator or the member who made a shared playbook can archive "
+"it."
+msgstr ""
+"Hanya admin atau anggota yang membuat playbook bersama yang bisa "
+"mengarsipkannya."
+
 #~ msgid "Avatar"
 #~ msgstr "Avatar"
 
