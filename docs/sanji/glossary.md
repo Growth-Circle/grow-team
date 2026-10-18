@@ -13,42 +13,45 @@ this file does that, in review.
 
 ## Names
 
-| Feature                                                                            | English (UI)     | Indonesian (UI)                       | Do not write             |
-| ---------------------------------------------------------------------------------- | ---------------- | ------------------------------------- | ------------------------ |
-| A place to talk about one subject (sidebar)                                        | Room(s)          | Ruang                                 | Saluran, Grup            |
-| The same place, in create and settings dialogs                                     | Channel          | Channel                               | Stream                   |
-| A conversation inside a room                                                       | Topic            | Topik                                 | Utas, Thread             |
-| One item on the task board                                                         | Card             | Kartu                                 | Card, Tiket              |
-| Work that a card or an agent stands for                                            | Task             | Tugas                                 | Pekerjaan (for one task) |
-| The board with columns                                                             | Task board       | Papan tugas                           | Tugas, Kanban            |
-| One column of the board                                                            | Column           | Kolom                                 | Lajur                    |
-| A person's open cards, by deadline                                                 | My tasks         | Tugas saya                            | Tugasku                  |
-| The cards a person picked for today                                                | Today plan       | Rencana hari ini                      | Rencana harian           |
-| Put a card in today's plan                                                         | Add to today     | Tambah ke hari ini                    | Masukkan ke hari ini     |
-| What waits on this person in every room                                            | Needs you        | Perlu kamu                            | Butuh kamu, Inbox        |
-| An at-sign message to a person                                                     | Mention          | Mention (noun and verb: "me-mention") | Sebutan, Disebut, Tag    |
-| A request an agent makes before it acts                                            | Approval         | Persetujuan                           | Approval                 |
-| Say yes to an approval                                                             | Approve          | Setujui                               | Approve                  |
-| A tool that an external client or agent may use without asking                     | Auto             | Auto                                  | Otomatis                 |
-| A tool that waits for the owner's approval before it runs                          | Ask first        | Tanya dulu                            | Konfirmasi               |
-| A tool that the client cannot see or use                                           | Off              | Mati                                  | Nonaktif                 |
-| What happened to calls on an MCP connection                                        | Activity         | Aktivitas                             | Log, Audit               |
-| A question an agent asks, with choices                                             | Decision         | Keputusan                             | Pilihan                  |
-| A message kept at the top of a channel                                             | Pin              | Pin ("Dipin", "Lepas pin")            | Sematkan                 |
-| An AI team member                                                                  | Agent            | Agen                                  | Agent, Bot               |
-| A reusable document of steps that the team follows, and that an agent can be given | Playbook         | Playbook                              | Skill, SOP               |
-| One saved version of a playbook                                                    | Revision         | Revisi                                | Version, Versi           |
-| A playbook for the whole workspace, and the tab that lists them                    | Shared           | Bersama                               | Publik, Tim              |
-| A playbook that only its owner can open, and the tab that lists them               | Mine             | Milikku                               | Pribadi, Personal        |
-| Move a playbook out of the list, and bring it back                                 | Archive, Restore | Arsipkan, Pulihkan                    | Hapus, Delete            |
-| A routine that runs on a schedule                                                  | Scheduled        | Terjadwal                             | Otomatis, Rutin          |
-| A message that comes back later                                                    | Reminder         | Pengingat                             | Reminder                 |
-| The person a card is given to                                                      | Responsible      | Penanggung jawab                      | PIC, Owner               |
-| The person who checks a card                                                       | Reviewer         | Peninjau                              | Reviewer                 |
-| A person in a room                                                                 | Member           | Anggota                               | Pelanggan, Subscriber    |
-| The whole organization's space                                                     | Workspace        | Workspace                             | Organisasi               |
-| The card has not got what it needs                                                 | Blocked          | Terhambat                             | Diblokir                 |
-| Cancel the last action                                                             | Undo             | Urungkan                              | Undo                     |
+| Feature                                                                            | English (UI)       | Indonesian (UI)                       | Do not write             |
+| ---------------------------------------------------------------------------------- | ------------------ | ------------------------------------- | ------------------------ |
+| A place to talk about one subject (sidebar)                                        | Room(s)            | Ruang                                 | Saluran, Grup            |
+| The same place, in create and settings dialogs                                     | Channel            | Channel                               | Stream                   |
+| A conversation inside a room                                                       | Topic              | Topik                                 | Utas, Thread             |
+| One item on the task board                                                         | Card               | Kartu                                 | Card, Tiket              |
+| Work that a card or an agent stands for                                            | Task               | Tugas                                 | Pekerjaan (for one task) |
+| The board with columns                                                             | Task board         | Papan tugas                           | Tugas, Kanban            |
+| One column of the board                                                            | Column             | Kolom                                 | Lajur                    |
+| A person's open cards, by deadline                                                 | My tasks           | Tugas saya                            | Tugasku                  |
+| The cards a person picked for today                                                | Today plan         | Rencana hari ini                      | Rencana harian           |
+| Put a card in today's plan                                                         | Add to today       | Tambah ke hari ini                    | Masukkan ke hari ini     |
+| What waits on this person in every room                                            | Needs you          | Perlu kamu                            | Butuh kamu, Inbox        |
+| An at-sign message to a person                                                     | Mention            | Mention (noun and verb: "me-mention") | Sebutan, Disebut, Tag    |
+| A request an agent makes before it acts                                            | Approval           | Persetujuan                           | Approval                 |
+| Say yes to an approval                                                             | Approve            | Setujui                               | Approve                  |
+| A tool that an external client or agent may use without asking                     | Auto               | Auto                                  | Otomatis                 |
+| A tool that waits for the owner's approval before it runs                          | Ask first          | Tanya dulu                            | Konfirmasi               |
+| A tool that the client cannot see or use                                           | Off                | Mati                                  | Nonaktif                 |
+| What happened to calls on an MCP connection                                        | Activity           | Aktivitas                             | Log, Audit               |
+| A question an agent asks, with choices                                             | Decision           | Keputusan                             | Pilihan                  |
+| A message kept at the top of a channel                                             | Pin                | Pin ("Dipin", "Lepas pin")            | Sematkan                 |
+| An AI team member                                                                  | Agent              | Agen                                  | Agent, Bot               |
+| A reusable document of steps that the team follows, and that an agent can be given | Playbook           | Playbook                              | Skill, SOP               |
+| One saved version of a playbook                                                    | Revision           | Revisi                                | Version, Versi           |
+| A playbook for the whole workspace, and the tab that lists them                    | Shared             | Bersama                               | Publik, Tim              |
+| A playbook that only its owner can open, and the tab that lists them               | Mine               | Milikku                               | Pribadi, Personal        |
+| Move a playbook out of the list, and bring it back                                 | Archive, Restore   | Arsipkan, Pulihkan                    | Hapus, Delete            |
+| The page of the routines that run on a schedule                                    | Scheduled          | Terjadwal                             | Otomatis                 |
+| Work that an agent does again on a schedule                                        | Routine            | Rutinitas                             | Rutin, Jadwal            |
+| Start a routine at once, apart from its schedule                                   | Run now            | Jalankan sekarang                     | Eksekusi                 |
+| A routine that something outside Sanji runs, and Sanji only shows                  | Runs outside Sanji | Dijalankan di luar Sanji              | Eksternal                |
+| A message that comes back later                                                    | Reminder           | Pengingat                             | Reminder                 |
+| The person a card is given to                                                      | Responsible        | Penanggung jawab                      | PIC, Owner               |
+| The person who checks a card                                                       | Reviewer           | Peninjau                              | Reviewer                 |
+| A person in a room                                                                 | Member             | Anggota                               | Pelanggan, Subscriber    |
+| The whole organization's space                                                     | Workspace          | Workspace                             | Organisasi               |
+| The card has not got what it needs                                                 | Blocked            | Terhambat                             | Diblokir                 |
+| Cancel the last action                                                             | Undo               | Urungkan                              | Undo                     |
 
 ## Rules
 

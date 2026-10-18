@@ -41,3 +41,11 @@ zerver/lib/mcp_policy.py
 zerver/lib/mcp_pending.py
 zerver/lib/mcp_preview.py
 zerver/views/mcp_access.py
+web/src/routines*.ts
+web/templates/routine*.hbs
+zerver/lib/routines.py
+zerver/lib/routine_schedule.py
+zerver/lib/routine_access.py
+zerver/lib/routine_templates.py
+zerver/actions/routines.py
+zerver/views/routines.py

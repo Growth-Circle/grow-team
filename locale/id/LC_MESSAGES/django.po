@@ -7694,6 +7694,185 @@ msgstr "Tool tidak dikenal."
 msgid "A read tool can be Auto or Off, not Ask first."
 msgstr "Tool baca hanya bisa Auto atau Mati, bukan Tanya dulu."
 
+msgid "No agent is available to post routines. Ask an admin."
+msgstr "Belum ada agen untuk memposting rutinitas. Minta admin."
+
+msgid "Agent does not exist."
+msgstr "Agen tidak ada."
+
+msgid "Scheduled routines are for members, not guests."
+msgstr "Rutinitas terjadwal untuk anggota, bukan tamu."
+
+msgid "This routine runs outside Sanji and cannot be changed here."
+msgstr "Rutinitas ini dijalankan di luar Sanji dan tidak bisa diubah di sini."
+
+msgid "Only the owner of this routine or an administrator can change it."
+msgstr "Hanya pemilik rutinitas ini atau administrator yang bisa mengubahnya."
+
+msgid "Routine does not exist."
+msgstr "Rutinitas tidak ada."
+
+msgid "This agent is not available."
+msgstr "Agen ini tidak tersedia."
+
+msgid "Choose how often the routine runs."
+msgstr "Pilih seberapa sering rutinitas berjalan."
+
+msgid "Unknown timezone."
+msgstr "Zona waktu tidak dikenal."
+
+#, python-brace-format
+msgid "Minutes between runs must be from {minimum} to {maximum}."
+msgstr "Menit antar jalan harus dari {minimum} sampai {maximum}."
+
+#, python-brace-format
+msgid "Hours between runs must be from 1 to {maximum}."
+msgstr "Jam antar jalan harus dari 1 sampai {maximum}."
+
+msgid "Choose the time of day."
+msgstr "Pilih jamnya."
+
+msgid "Choose at least one day of the week."
+msgstr "Pilih paling sedikit satu hari dalam seminggu."
+
+msgid "Choose a day of the month from 1 to 31."
+msgstr "Pilih tanggal dari 1 sampai 31."
+
+msgid "Morning brief"
+msgstr "Brief pagi"
+
+msgid ""
+"Summarize what needs attention today: cards that are due, cards that are "
+"stuck, and decisions that are waiting. At most 8 items, and no mention of "
+"everyone."
+msgstr ""
+"Rangkum yang perlu diperhatikan hari ini: kartu jatuh tempo, kartu macet, "
+"dan keputusan yang menunggu. Maksimal 8 butir, tanpa mention massal."
+
+msgid "End-of-day summary"
+msgstr "Ringkasan akhir hari"
+
+msgid ""
+"Write what was finished today, what is still open, and one thing for "
+"tomorrow."
+msgstr ""
+"Tulis apa yang selesai hari ini, apa yang masih terbuka, dan satu hal untuk "
+"besok."
+
+msgid "Weekly team digest"
+msgstr "Rangkuman mingguan tim"
+
+msgid ""
+"Summarize this week per person: done, in progress, blocked. End with three "
+"priorities for next week."
+msgstr ""
+"Rangkum minggu ini per orang: selesai, berjalan, terhambat. Tutup dengan "
+"tiga prioritas minggu depan."
+
+msgid "Client check"
+msgstr "Cek klien"
+
+msgid ""
+"Check the client conversations in this channel: messages that have gone "
+"unanswered for more than 1 day, and promises that are due."
+msgstr ""
+"Periksa percakapan klien di channel ini: pesan yang belum dibalas lebih dari"
+" 1 hari dan janji yang jatuh tempo."
+
+msgid "Overdue cards"
+msgstr "Kartu terlambat"
+
+msgid "Cards due today"
+msgstr "Kartu jatuh tempo hari ini"
+
+msgid "Blocked cards"
+msgstr "Kartu terhambat"
+
+#, python-brace-format
+msgid "Task board on {date}:"
+msgstr "Papan tugas per {date}:"
+
+msgid "The owner of the routine is no longer an active member."
+msgstr "Pemilik rutinitas bukan lagi anggota aktif."
+
+msgid "The agent is archived, paused or not ready."
+msgstr "Agen diarsipkan, dijeda, atau belum siap."
+
+msgid "The owner can no longer use this agent."
+msgstr "Pemilik tidak bisa lagi memakai agen ini."
+
+msgid "The owner can no longer read this channel."
+msgstr "Pemilik tidak bisa lagi membaca channel ini."
+
+msgid "The budget for this month is used up."
+msgstr "Budget bulan ini sudah habis."
+
+msgid "The agent's job failed."
+msgstr "Job agen gagal."
+
+msgid "The agent's job was cancelled."
+msgstr "Job agen dibatalkan."
+
+msgid "The agent's job was interrupted."
+msgstr "Job agen terhenti."
+
+msgid "The agent's job could not start."
+msgstr "Job agen tidak bisa mulai."
+
+msgid "The agent's job is gone."
+msgstr "Job agen hilang."
+
+msgid "The agent's job could not be started."
+msgstr "Job agen tidak bisa dimulai."
+
+msgid "Something went wrong."
+msgstr "Ada yang salah."
+
+msgid "Open Scheduled"
+msgstr "Buka Terjadwal"
+
+#, python-brace-format
+msgid "The routine {title} did not run well."
+msgstr "Rutinitas {title} tidak berjalan dengan baik."
+
+#, python-brace-format
+msgid "The routine {title} did not run."
+msgstr "Rutinitas {title} tidak jalan."
+
+msgid "The routine is paused. Resume it on the Scheduled page."
+msgstr "Rutinitas dijeda. Lanjutkan di halaman Terjadwal."
+
+#, python-brace-format
+msgid ""
+"The budget for this month is almost used up. The routine {title} keeps "
+"running."
+msgstr "Budget bulan ini hampir habis. Rutinitas {title} tetap berjalan."
+
+msgid "This routine runs outside Sanji."
+msgstr "Rutinitas ini dijalankan di luar Sanji."
+
+msgid "This routine ran a moment ago. Wait a minute to run it again."
+msgstr ""
+"Rutinitas ini baru saja jalan. Tunggu semenit untuk menjalankannya lagi."
+
+msgid ""
+"Runs the scheduled routines of this workspace and posts their results under "
+"its own name."
+msgstr ""
+"Menjalankan rutinitas terjadwal di workspace ini dan memposting hasilnya "
+"atas namanya sendiri."
+
+msgid ""
+"You are Sanji Agent, the assistant that runs the scheduled routines in "
+"sanji. Follow the instructions of the routine, and write in the language of "
+"the channel. Keep it short, and never mention everyone in a channel. Do not "
+"create tasks, do not choose a PIC, and do not open pull requests."
+msgstr ""
+"Kamu Sanji Agent, asisten yang menjalankan rutinitas terjadwal di sanji. "
+"Ikuti instruksi rutinitas, dan tulis dalam bahasa channel. Singkat saja, dan"
+" jangan pernah me-mention semua orang di channel. Jangan membuat tugas, "
+"jangan memilih PIC, dan jangan membuka pull request."
+
 #~ msgid "Avatar"
 #~ msgstr "Avatar"
 
