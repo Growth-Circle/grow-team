@@ -92,7 +92,7 @@ class TaskReminderContentTest(TaskReminderTestCase):
         content = message.content
         self.assertIn("due today or overdue", content)
         self.assertIn(f"GT-{overdue.counter} Send the invoice", content)
-        self.assertIn("Days overdue: 2", content)
+        self.assertIn("Days overdue: 2 (due Oct 14)", content)
         self.assertIn(f"GT-{due_today.counter} Review the brief", content)
         self.assertIn("Due today", content)
         self.assertLess(content.index("Send the invoice"), content.index("Review the brief"))
@@ -232,7 +232,7 @@ class TaskReminderScheduleTest(TaskReminderTestCase):
             self.assertEqual(self.run_reminders(), "Sent 1 reminder(s).")
 
         self.assertEqual(self.reminder_count(self.hamlet), 2)
-        self.assertIn("Days overdue: 2", most_recent_message(self.hamlet).content)
+        self.assertIn("Days overdue: 2 (due Oct 15)", most_recent_message(self.hamlet).content)
 
     def test_nobody_is_messaged_when_nothing_is_due(self) -> None:
         self.create_card("Next week", jakarta(7, 10))

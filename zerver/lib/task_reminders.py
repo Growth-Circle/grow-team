@@ -16,6 +16,7 @@ from django.utils.translation import override as override_language
 from zerver.actions.message_send import internal_send_private_message
 from zerver.actions.tasks import code_span, task_card_link
 from zerver.lib.realm_clock import realm_local_now
+from zerver.lib.sanji_format import format_date_short
 from zerver.lib.tasks import readable_stream_ids, realm_task_id_prefix
 from zerver.models import Realm, Task, TaskReminderLog, UserProfile
 from zerver.models.users import get_system_bot
@@ -35,6 +36,8 @@ class DueCard:
     task: Task
     # 0 for a card due today.
     days_overdue: int
+    # The workspace's date the card is due.
+    due_date: date
 
 
 @dataclass
@@ -95,7 +98,9 @@ def reminders_to_send(realm: Realm) -> list[TaskReminder]:
                 continue
             assert task.due_at is not None
             due_date = task.due_at.astimezone(local_now.tzinfo).date()
-            cards.append(DueCard(task=task, days_overdue=max(0, (today - due_date).days)))
+            cards.append(
+                DueCard(task=task, days_overdue=max(0, (today - due_date).days), due_date=due_date)
+            )
         if cards:
             reminders.append(TaskReminder(user=user, cards=cards, date=today))
     return sorted(reminders, key=lambda reminder: reminder.user.id)
@@ -108,7 +113,10 @@ def reminder_content(reminder: TaskReminder) -> str:
         lines = [_("Good morning. These cards are due today or overdue:"), ""]
         for card in reminder.cards[:MAX_LISTED_CARDS]:
             when = (
-                _("Days overdue: {days}").format(days=card.days_overdue)
+                _("Days overdue: {days} (due {date})").format(
+                    days=card.days_overdue,
+                    date=format_date_short(card.due_date, reminder.user.default_language),
+                )
                 if card.days_overdue
                 else _("Due today")
             )

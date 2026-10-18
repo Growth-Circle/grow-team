@@ -7593,6 +7593,14 @@ msgstr "Buka Tugas saya"
 msgid "Task is not in this plan."
 msgstr "Card ini tidak ada di rencana."
 
+#, python-brace-format
+msgid "{month} {day}"
+msgstr "{day} {month}"
+
+#, python-brace-format
+msgid "Days overdue: {days} (due {date})"
+msgstr "Terlambat {days} hari (jatuh tempo {date})"
+
 #~ msgid "Avatar"
 #~ msgstr "Avatar"
 

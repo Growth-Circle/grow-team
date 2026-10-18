@@ -1,0 +1,6 @@
+{
+    "backend": {
+        "{month} {day}": "{day} {month}",
+        "Days overdue: {days} (due {date})": "Terlambat {days} hari (jatuh tempo {date})"
+    }
+}
