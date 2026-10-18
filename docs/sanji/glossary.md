@@ -29,6 +29,10 @@ this file does that, in review.
 | An at-sign message to a person                                                     | Mention          | Mention (noun and verb: "me-mention") | Sebutan, Disebut, Tag    |
 | A request an agent makes before it acts                                            | Approval         | Persetujuan                           | Approval                 |
 | Say yes to an approval                                                             | Approve          | Setujui                               | Approve                  |
+| A tool that an external client or agent may use without asking                     | Auto             | Auto                                  | Otomatis                 |
+| A tool that waits for the owner's approval before it runs                          | Ask first        | Tanya dulu                            | Konfirmasi               |
+| A tool that the client cannot see or use                                           | Off              | Mati                                  | Nonaktif                 |
+| What happened to calls on an MCP connection                                        | Activity         | Aktivitas                             | Log, Audit               |
 | A question an agent asks, with choices                                             | Decision         | Keputusan                             | Pilihan                  |
 | A message kept at the top of a channel                                             | Pin              | Pin ("Dipin", "Lepas pin")            | Sematkan                 |
 | An AI team member                                                                  | Agent            | Agen                                  | Agent, Bot               |
@@ -63,6 +67,9 @@ this file does that, in review.
   page, in the API docs or in a message. "Mine" and "Shared" name the
   two tabs and the two choices when a playbook is made; the API calls
   them and .
+- **Auto is not translated.** The three choices of a tool read Auto,
+  Tanya dulu and Mati in Indonesian. The task board chip for a card that
+  was added by itself reads Auto as well.
 - **Numbers, money, dates, times.** Never format by hand. The web app
   uses `web/src/sanji_format.ts` and the server uses
   `zerver/lib/sanji_format.py`: "6,9 rb", "Rp 1.500.000", "14 Okt",

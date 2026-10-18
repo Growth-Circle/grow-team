@@ -37,3 +37,7 @@ zerver/actions/playbooks.py
 zerver/views/playbooks.py
 web/src/mcp*.ts
 web/templates/mcp*.hbs
+zerver/lib/mcp_policy.py
+zerver/lib/mcp_pending.py
+zerver/lib/mcp_preview.py
+zerver/views/mcp_access.py

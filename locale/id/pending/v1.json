@@ -97,5 +97,17 @@
         "Agent token": "Token agen",
         "OpenClaw / Hermes": "OpenClaw / Hermes"
     },
-    "backend": {}
+    "backend": {
+        "Only an administrator can change this connection while it is locked.": "Hanya administrator yang bisa mengubah koneksi ini selama terkunci.",
+        "Too many requests are waiting for approval.": "Terlalu banyak permintaan menunggu persetujuan.",
+        "Approval does not exist.": "Persetujuan tidak ditemukan.",
+        "This request was already decided.": "Permintaan ini sudah diputuskan.",
+        "This request has expired.": "Permintaan ini sudah kedaluwarsa.",
+        "This request changed. Reload and review it again.": "Permintaan ini berubah. Muat ulang lalu tinjau lagi.",
+        "This connection can no longer run this tool.": "Koneksi ini tidak bisa lagi menjalankan tool ini.",
+        "Column does not exist.": "Kolom tidak ditemukan.",
+        "Connection does not exist.": "Koneksi tidak ditemukan.",
+        "Unknown tool.": "Tool tidak dikenal.",
+        "A read tool can be Auto or Off, not Ask first.": "Tool baca hanya bisa Auto atau Mati, bukan Tanya dulu."
+    }
 }

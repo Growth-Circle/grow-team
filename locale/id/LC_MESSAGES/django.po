@@ -7661,6 +7661,39 @@ msgstr ""
 "Hanya admin atau anggota yang membuat playbook bersama yang bisa "
 "mengarsipkannya."
 
+msgid "Only an administrator can change this connection while it is locked."
+msgstr "Hanya administrator yang bisa mengubah koneksi ini selama terkunci."
+
+msgid "Too many requests are waiting for approval."
+msgstr "Terlalu banyak permintaan menunggu persetujuan."
+
+msgid "Approval does not exist."
+msgstr "Persetujuan tidak ditemukan."
+
+msgid "This request was already decided."
+msgstr "Permintaan ini sudah diputuskan."
+
+msgid "This request has expired."
+msgstr "Permintaan ini sudah kedaluwarsa."
+
+msgid "This request changed. Reload and review it again."
+msgstr "Permintaan ini berubah. Muat ulang lalu tinjau lagi."
+
+msgid "This connection can no longer run this tool."
+msgstr "Koneksi ini tidak bisa lagi menjalankan tool ini."
+
+msgid "Column does not exist."
+msgstr "Kolom tidak ditemukan."
+
+msgid "Connection does not exist."
+msgstr "Koneksi tidak ditemukan."
+
+msgid "Unknown tool."
+msgstr "Tool tidak dikenal."
+
+msgid "A read tool can be Auto or Off, not Ask first."
+msgstr "Tool baca hanya bisa Auto atau Mati, bukan Tanya dulu."
+
 #~ msgid "Avatar"
 #~ msgstr "Avatar"
 
