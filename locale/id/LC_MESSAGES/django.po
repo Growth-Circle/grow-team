@@ -7571,7 +7571,7 @@ msgid "Only channel messages can be pinned."
 msgstr "Hanya pesan channel yang bisa dipin."
 
 msgid "Good morning. These cards are due today or overdue:"
-msgstr "Selamat pagi. Card ini jatuh tempo hari ini atau sudah terlambat:"
+msgstr "Selamat pagi. Kartu ini jatuh tempo hari ini atau sudah terlambat:"
 
 #, python-brace-format
 msgid "Days overdue: {days}"
@@ -7585,13 +7585,13 @@ msgid "And {count} more."
 msgstr "Dan {count} lainnya."
 
 msgid "Open the card"
-msgstr "Buka card"
+msgstr "Buka kartu"
 
 msgid "Open My tasks"
 msgstr "Buka Tugas saya"
 
 msgid "Task is not in this plan."
-msgstr "Card ini tidak ada di rencana."
+msgstr "Kartu ini tidak ada di rencana."
 
 #, python-brace-format
 msgid "{month} {day}"
@@ -7600,6 +7600,38 @@ msgstr "{day} {month}"
 #, python-brace-format
 msgid "Days overdue: {days} (due {date})"
 msgstr "Terlambat {days} hari (jatuh tempo {date})"
+
+#, python-brace-format
+msgid "{user} mentioned you in a note on {card}."
+msgstr "{user} me-mention kamu di catatan pada {card}."
+
+#, python-brace-format
+msgid "{user} made you responsible for {card}."
+msgstr "{user} menjadikanmu penanggung jawab {card}."
+
+msgid "Task board column does not exist."
+msgstr "Kolom papan tugas tidak ada."
+
+msgid "Only the author or an administrator can delete a note."
+msgstr "Hanya penulis atau administrator yang bisa menghapus catatan."
+
+msgid "Task does not exist."
+msgstr "Tugas tidak ada."
+
+msgid "Note does not exist."
+msgstr "Catatan tidak ada."
+
+msgid "Task board does not exist."
+msgstr "Papan tugas tidak ada."
+
+msgid "Too many labels."
+msgstr "Label terlalu banyak."
+
+msgid "Too many checklist items."
+msgstr "Item daftar centang terlalu banyak."
+
+msgid "Label is too long."
+msgstr "Label terlalu panjang."
 
 #~ msgid "Avatar"
 #~ msgstr "Avatar"

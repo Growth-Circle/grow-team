@@ -137,10 +137,10 @@ class TaskReminderContentTest(TaskReminderTestCase):
             self.run_reminders()
 
         content = most_recent_message(self.hamlet).content
-        self.assertIn("Selamat pagi. Card ini jatuh tempo hari ini atau sudah terlambat:", content)
+        self.assertIn("Selamat pagi. Kartu ini jatuh tempo hari ini atau sudah terlambat:", content)
         self.assertIn("Terlambat 2 hari", content)
         self.assertIn("Hari ini", content)
-        self.assertIn("[Buka card](", content)
+        self.assertIn("[Buka kartu](", content)
         self.assertIn("Dan 2 lainnya.", content)
         self.assertIn("[Buka Tugas saya](", content)
         self.assertNotIn("Days overdue", content)
