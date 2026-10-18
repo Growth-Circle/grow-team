@@ -337,6 +337,7 @@ sudo systemctl daemon-reload
 
 `deploy-server.sh FULL_SHA TAG TARBALL` membangun image dari tarball `package_image.py`, menjalankan `check_image.py` dan `backup.sh`, menyimpan rollback, lalu mengganti image `zulip`.
 Skrip berhenti dengan kode 3 bila sisa disk di bawah 20 GB sebelum build dan sebelum swap.
+Setelah verifikasi, skrip menghapus direktori di `/opt/grow-team/builds` kecuali build baru dan satu build sebelumnya, sesuai kebijakan menyimpan dua image untuk rollback.
 Rollback: salin `compose.override.yaml.bak-<tag lama>` ke `compose.override.yaml`, lalu jalankan `compose.sh up -d --no-deps --no-build --wait --wait-timeout 300 zulip`.
 
 Disk `server-gteam` dipakai bersama tenant lain; cache build Go milik `hermesadmin` bisa tumbuh puluhan GB per hari.

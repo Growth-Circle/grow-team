@@ -117,13 +117,108 @@ class DeployServerScriptTest(unittest.TestCase):
         self.assertLess(text.index("guard swap"), text.index('sed -i "s#${old_tag}'))
         self.assertEqual((DEPLOY / "deploy-server.sh").stat().st_mode & 0o777, 0o755)
 
+    def test_the_deploy_prunes_old_builds_after_verify(self) -> None:
+        text = (DEPLOY / "deploy-server.sh").read_text()
+
+        self.assertLess(text.index('step "verify"'), text.index('prune_builds "$build"'))
+        self.assertLess(text.index('step "verify"'), text.index('step "prune old builds"'))
+
+
+class PruneBuildsTest(unittest.TestCase):
+    @override
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.builds = self.root / "builds"
+        self.builds.mkdir()
+        # The real script runs find and rm through sudo; the substitute just runs them.
+        bin_dir = self.root / "bin"
+        bin_dir.mkdir()
+        sudo = bin_dir / "sudo"
+        sudo.write_text('#!/bin/sh\nexec "$@"\n')
+        sudo.chmod(0o755)
+        self.bin_dir = bin_dir
+
+    def make_build(self, name: str, age_days: int) -> Path:
+        path = self.builds / name
+        (path / "nested").mkdir(parents=True)
+        (path / "nested" / "file").write_text("x")
+        stamp = time.time() - age_days * 86400
+        os.utime(path, (stamp, stamp))
+        return path
+
+    def prune(self, keep: Path) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [str(DEPLOY / "deploy-server.sh"), "prune-builds", str(keep)],
+            check=False,
+            capture_output=True,
+            text=True,
+            env={
+                **os.environ,
+                "PATH": f"{self.bin_dir}:{os.environ['PATH']}",
+                "BUILDS_DIR": str(self.builds),
+            },
+            timeout=20,
+        )
+
+    def test_keeps_the_new_build_and_the_previous_one(self) -> None:
+        for name, age in (("aaa", 9), ("bbb", 7), ("ccc with space", 5), ("ddd", 3)):
+            self.make_build(name, age)
+        new = self.make_build("eee", 0)
+
+        result = self.prune(new)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(sorted(path.name for path in self.builds.iterdir()), ["ddd", "eee"])
+
+    def test_keeps_the_new_build_even_when_it_looks_older(self) -> None:
+        # tar can restore an old mtime on the build directory it extracts into.
+        self.make_build("old-a", 2)
+        self.make_build("old-b", 4)
+        new = self.make_build("new", 30)
+
+        result = self.prune(new)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(sorted(path.name for path in self.builds.iterdir()), ["new", "old-a"])
+
+    def test_leaves_files_and_symlink_targets_alone(self) -> None:
+        outside = self.root / "outside"
+        outside.mkdir()
+        (outside / "keep.txt").write_text("x")
+        (self.builds / "link").symlink_to(outside)
+        (self.builds / "stray-file").write_text("x")
+        for name, age in (("aaa", 9), ("bbb", 7)):
+            self.make_build(name, age)
+        new = self.make_build("ccc", 0)
+
+        result = self.prune(new)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            sorted(path.name for path in self.builds.iterdir()),
+            ["bbb", "ccc", "link", "stray-file"],
+        )
+        self.assertTrue((outside / "keep.txt").exists())
+
+    def test_a_single_build_is_kept(self) -> None:
+        new = self.make_build("only", 0)
+
+        result = self.prune(new)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(new.exists())
+
 
 class DiskGuardUnitsTest(unittest.TestCase):
     def test_the_alert_runs_hourly_at_low_priority(self) -> None:
         service = read_unit("grow-team-disk-alert.service")
         timer = read_unit("grow-team-disk-alert.timer")
 
-        self.assertEqual(service["Service"]["ExecStart"], "/opt/grow-team/deploy/disk-guard.sh check")
+        self.assertEqual(
+            service["Service"]["ExecStart"], "/opt/grow-team/deploy/disk-guard.sh check"
+        )
         self.assertEqual(service["Service"]["Slice"], "grow-team.slice")
         self.assertEqual(timer["Timer"]["OnCalendar"], "hourly")
         self.assertEqual(timer["Timer"]["Unit"], "grow-team-disk-alert.service")

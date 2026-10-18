@@ -1,7 +1,26 @@
 #!/usr/bin/env bash
 # Build and swap the Grow Team image on server-gteam. Run as hermesadmin with sudo.
 # Usage: deploy-server.sh FULL_SHA TAG TARBALL
+#        deploy-server.sh prune-builds KEEP_DIR
 set -euo pipefail
+
+# Keep KEEP_DIR plus the most recently modified other build, which is the
+# previous release that a rollback needs. Only direct child directories are
+# removed; find does not follow symlinks, so nothing outside is touched.
+prune_builds() {
+    local dir=${BUILDS_DIR:-/opt/grow-team/builds} keep=$1 old
+    sudo find "$dir" -mindepth 1 -maxdepth 1 -type d ! -path "$keep" -printf '%T@ %p\0' |
+        sort -z -rn | tail -z -n +2 | cut -z -d' ' -f2- |
+        while IFS= read -r -d '' old; do
+            echo "remove $old"
+            sudo rm -rf -- "$old"
+        done
+}
+if [ "${1:-}" = prune-builds ]; then
+    prune_builds "$2"
+    exit 0
+fi
+
 sha=$1
 tag=$2
 tarball=$3
@@ -51,3 +70,7 @@ step "verify"
 "${compose[@]}" logs --no-color --since 10m zulip 2>/dev/null | grep -iE 'Applying|No migrations|migrations completed|Traceback|Error' | tail -15
 "${compose[@]}" exec -T zulip supervisorctl status | awk '{print $2}' | sort | uniq -c
 curl -s -o /dev/null -w 'login %{http_code}\n' https://team.growc.id/login/
+
+step "prune old builds"
+prune_builds "$build"
+echo "disk free after prune: $(free_gb)G"
