@@ -68,6 +68,7 @@ class ErrorCode(Enum):
     INTERNAL_SERVER_ERROR_ON_BOUNCER = auto()
     ADMIN_ACTION_REQUIRED = auto()
     PERMISSION_DENIED = auto()
+    PLAYBOOK_REVISION_CONFLICT = auto()
 
 
 class JsonableError(Exception):

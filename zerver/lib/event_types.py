@@ -1085,6 +1085,36 @@ class EventTaskBoardUpdate(BaseEvent):
     board: TaskBoardFields
 
 
+class PlaybookRevisionFields(BaseModel):
+    number: int
+    author_id: int
+    date_created: int
+    summary: str
+
+
+class PlaybookFields(BaseModel):
+    id: int
+    title: str
+    slug: str
+    scope: Literal["shared", "personal"]
+    owner_id: int
+    archived: bool
+    date_created: int
+    latest_revision: PlaybookRevisionFields
+
+
+class EventPlaybookAdd(BaseEvent):
+    type: Literal["playbook"]
+    op: Literal["add"]
+    playbook: PlaybookFields
+
+
+class EventPlaybookUpdate(BaseEvent):
+    type: Literal["playbook"]
+    op: Literal["update"]
+    playbook: PlaybookFields
+
+
 class EventAgentJobUpdate(BaseEvent):
     type: Literal["agent_job"]
     op: Literal["update"]

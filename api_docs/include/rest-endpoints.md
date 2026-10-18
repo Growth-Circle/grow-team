@@ -73,6 +73,18 @@
 * [Remove a card from your plan](/api/remove-task-from-plan)
 * [Rename a task board](/api/update-task-board)
 
+## Playbooks
+
+* [List playbooks](/api/list-playbooks)
+* [Create a playbook](/api/create-playbook)
+* [Render playbook Markdown](/api/render-playbook-preview)
+* [Get a playbook](/api/get-playbook)
+* [Edit a playbook](/api/update-playbook)
+* [Archive a playbook](/api/archive-playbook)
+* [Restore an archived playbook](/api/unarchive-playbook)
+* [Get one revision of a playbook](/api/get-playbook-revision)
+* [Compare two revisions of a playbook](/api/get-playbook-diff)
+
 ## Agents
 
 * [Approve an agent runner pairing](/api/approve-agent-pairing)

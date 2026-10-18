@@ -18,6 +18,7 @@ from zproject.feature_routes import (
     models,
     needs,
     oauth_callback,
+    playbooks,
     push,
     pwa,
     rooms,
@@ -48,6 +49,7 @@ _MODULES = (
     models,
     cloud_runners,
     oauth_callback,
+    playbooks,
 )
 
 API_PATTERNS: list[URLPattern] = [pattern for module in _MODULES for pattern in module.api_patterns]

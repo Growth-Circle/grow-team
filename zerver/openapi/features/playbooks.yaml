@@ -1,0 +1,1105 @@
+paths:
+  /playbooks:
+    get:
+      operationId: list-playbooks
+      tags: ["playbooks"]
+      summary: List playbooks
+      description: |
+        List the playbooks the user can read: every shared playbook of the
+        organization, and the user's own personal playbooks. The most
+        recently changed come first. The list is not paginated, and each
+        item carries the latest revision without its content; use
+        [`GET /playbooks/{playbook_id}`](/api/get-playbook) to read it.
+
+        A guest cannot use playbooks, and gets an error.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-492662).
+      parameters:
+        - name: scope
+          in: query
+          description: |
+            Narrows the list to shared or to personal playbooks. Omit it to
+            list both.
+          schema:
+            type: string
+            enum:
+              - shared
+              - personal
+          example: shared
+        - name: search
+          in: query
+          description: |
+            Keep playbooks whose title or latest content contains this
+            text, ignoring case.
+          schema:
+            type: string
+          example: evaluasi
+        - name: archived
+          in: query
+          description: |
+            When `true`, list archived playbooks instead of active ones.
+          schema:
+            type: boolean
+            default: false
+          example: false
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      playbooks:
+                        type: array
+                        description: |
+                          The playbooks, most recently changed first.
+                        items:
+                          $ref: "#/components/schemas/Playbook"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "playbooks":
+                          [
+                            {
+                              "id": 4,
+                              "title": "Evaluasi 4 jam",
+                              "slug": "evaluasi-4-jam",
+                              "scope": "shared",
+                              "owner_id": 10,
+                              "archived": false,
+                              "date_created": 1760000000,
+                              "latest_revision":
+                                {
+                                  "number": 3,
+                                  "author_id": 12,
+                                  "date_created": 1760100000,
+                                  "summary": "Add the blocked-card step",
+                                },
+                            },
+                          ],
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Guests cannot use playbooks.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the user is a
+                      guest:
+    post:
+      operationId: create-playbook
+      tags: ["playbooks"]
+      summary: Create a playbook
+      description: |
+        Create a playbook with its first revision. The content is rendered
+        to HTML on the server with Zulip Markdown, after HTML comments
+        outside code are removed. Raw HTML in the content is never passed
+        through.
+
+        A guest or a bot cannot create a playbook.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-492662).
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: |
+                    The title. Surrounding whitespace is removed, and the
+                    result must be between 1 and 100 characters long.
+                  example: Evaluasi 4 jam
+                content:
+                  type: string
+                  description: |
+                    The playbook in Markdown, at most 100,000 characters.
+                  example: "# Evaluasi 4 jam\n\n1. Cek kartu yang terhambat."
+                scope:
+                  type: string
+                  description: |
+                    `shared` makes the playbook available to the
+                    organization; `personal` keeps it for the user alone.
+                    The scope cannot change later.
+                  enum:
+                    - shared
+                    - personal
+                  default: shared
+                  example: shared
+                summary:
+                  type: string
+                  description: |
+                    A short note about this revision, at most 200
+                    characters.
+                  default: ""
+                  example: First version
+              required:
+                - title
+                - content
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      playbook:
+                        $ref: "#/components/schemas/PlaybookDetail"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "playbook":
+                          {
+                            "id": 4,
+                            "title": "Evaluasi 4 jam",
+                            "slug": "evaluasi-4-jam",
+                            "scope": "shared",
+                            "owner_id": 10,
+                            "archived": false,
+                            "date_created": 1760000000,
+                            "can_edit": true,
+                            "can_archive": true,
+                            "latest_revision":
+                              {
+                                "number": 1,
+                                "author_id": 10,
+                                "date_created": 1760000000,
+                                "summary": "First version",
+                                "content": "# Evaluasi 4 jam\n\n1. Cek kartu yang terhambat.",
+                                "rendered_content": "<h1>Evaluasi 4 jam</h1>\n<ol>\n<li>Cek kartu yang terhambat.</li>\n</ol>",
+                              },
+                          },
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "You do not have permission to create a playbook.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the user is a
+                      guest or a bot:
+  /playbooks/render:
+    post:
+      operationId: render-playbook-preview
+      tags: ["playbooks"]
+      summary: Render playbook Markdown
+      description: |
+        Render Markdown the way a playbook is rendered, without saving
+        anything, so that an editor can show a preview. HTML comments
+        outside code are removed, and raw HTML is never passed through.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-492662).
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  description: |
+                    The Markdown to render, at most 100,000 characters.
+                  example: "# Evaluasi 4 jam"
+              required:
+                - content
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      rendered_content:
+                        type: string
+                        description: |
+                          The content rendered as HTML.
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "rendered_content": "<h1>Evaluasi 4 jam</h1>",
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Guests cannot use playbooks.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the user is a
+                      guest:
+  /playbooks/{playbook_id}:
+    get:
+      operationId: get-playbook
+      tags: ["playbooks"]
+      summary: Get a playbook
+      description: |
+        Fetch one playbook with the content of its latest revision, and the
+        list of all its revisions, newest first. A personal playbook of
+        another user answers like an ID that does not exist.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-492662).
+      parameters:
+        - name: playbook_id
+          in: path
+          schema:
+            type: integer
+          description: |
+            The ID of the playbook.
+          required: true
+          example: 4
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      playbook:
+                        $ref: "#/components/schemas/PlaybookDetail"
+                      revisions:
+                        type: array
+                        description: |
+                          Every revision of the playbook, newest first,
+                          without the content.
+                        items:
+                          $ref: "#/components/schemas/PlaybookRevisionSummary"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "playbook":
+                          {
+                            "id": 4,
+                            "title": "Evaluasi 4 jam",
+                            "slug": "evaluasi-4-jam",
+                            "scope": "shared",
+                            "owner_id": 10,
+                            "archived": false,
+                            "date_created": 1760000000,
+                            "can_edit": true,
+                            "can_archive": false,
+                            "latest_revision":
+                              {
+                                "number": 2,
+                                "author_id": 12,
+                                "date_created": 1760100000,
+                                "summary": "",
+                                "content": "# Evaluasi 4 jam\n\n1. Cek kartu yang terhambat.\n2. Kirim ringkasan.",
+                                "rendered_content": "<h1>Evaluasi 4 jam</h1>\n<ol>\n<li>Cek kartu yang terhambat.</li>\n<li>Kirim ringkasan.</li>\n</ol>",
+                              },
+                          },
+                        "revisions":
+                          [
+                            {
+                              "number": 2,
+                              "author_id": 12,
+                              "date_created": 1760100000,
+                              "summary": "",
+                            },
+                            {
+                              "number": 1,
+                              "author_id": 10,
+                              "date_created": 1760000000,
+                              "summary": "First version",
+                            },
+                          ],
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Playbook does not exist.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the playbook
+                      does not exist or is another user's personal
+                      playbook:
+    patch:
+      operationId: update-playbook
+      tags: ["playbooks"]
+      summary: Edit a playbook
+      description: |
+        Change the title or the content of a playbook. A change of content
+        adds a new revision and leaves the earlier ones as they were. A
+        change of title alone adds none, and the slug never changes.
+
+        `base_revision` is the revision the editor started from. If a newer
+        revision exists, nothing is saved and the request fails with HTTP
+        status 409 and the `PLAYBOOK_REVISION_CONFLICT` error code, so one
+        member never overwrites another's change without seeing it. A
+        request that changes nothing succeeds and adds no revision.
+
+        Any user who can read a playbook can edit it, except a bot.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-492662).
+      parameters:
+        - name: playbook_id
+          in: path
+          schema:
+            type: integer
+          description: |
+            The ID of the playbook.
+          required: true
+          example: 4
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                base_revision:
+                  type: integer
+                  description: |
+                    The number of the latest revision that the client has
+                    seen.
+                  example: 2
+                title:
+                  type: string
+                  description: |
+                    The new title, between 1 and 100 characters long.
+                  example: Evaluasi 4 jam (v2)
+                content:
+                  type: string
+                  description: |
+                    The new content in Markdown, at most 100,000
+                    characters.
+                  example: "# Evaluasi 4 jam\n\n1. Cek kartu yang terhambat."
+                summary:
+                  type: string
+                  description: |
+                    A short note about the new revision, at most 200
+                    characters.
+                  default: ""
+                  example: Shorter steps
+              required:
+                - base_revision
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      playbook:
+                        $ref: "#/components/schemas/PlaybookDetail"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "playbook":
+                          {
+                            "id": 4,
+                            "title": "Evaluasi 4 jam",
+                            "slug": "evaluasi-4-jam",
+                            "scope": "shared",
+                            "owner_id": 10,
+                            "archived": false,
+                            "date_created": 1760000000,
+                            "can_edit": true,
+                            "can_archive": false,
+                            "latest_revision":
+                              {
+                                "number": 3,
+                                "author_id": 12,
+                                "date_created": 1760200000,
+                                "summary": "Shorter steps",
+                                "content": "# Evaluasi 4 jam\n\n1. Cek kartu yang terhambat.",
+                                "rendered_content": "<h1>Evaluasi 4 jam</h1>\n<ol>\n<li>Cek kartu yang terhambat.</li>\n</ol>",
+                              },
+                          },
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Playbook does not exist.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the playbook
+                      does not exist or the user cannot read it:
+        "409":
+          description: A newer revision exists.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      code: {}
+                      latest_revision:
+                        type: integer
+                        description: |
+                          The number of the newest revision. A client
+                          can fetch it, merge, and save again with it as
+                          `base_revision`.
+                    example:
+                      {
+                        "code": "PLAYBOOK_REVISION_CONFLICT",
+                        "msg": "Someone saved a newer revision of this playbook.",
+                        "result": "error",
+                        "latest_revision": 3,
+                      }
+                    description: |
+                      A typical failed JSON response for when another member
+                      saved first:
+  /playbooks/{playbook_id}/archive:
+    post:
+      operationId: archive-playbook
+      tags: ["playbooks"]
+      summary: Archive a playbook
+      description: |
+        Move a playbook out of the default list. Its revisions are kept, and
+        it can be restored with
+        [`POST /playbooks/{playbook_id}/unarchive`](/api/unarchive-playbook).
+        An organization administrator or the member who made a shared
+        playbook can archive it; the owner of a personal playbook can
+        archive it.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-492662).
+      parameters:
+        - name: playbook_id
+          in: path
+          schema:
+            type: integer
+          description: |
+            The ID of the playbook.
+          required: true
+          example: 4
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      playbook:
+                        $ref: "#/components/schemas/PlaybookDetail"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "playbook":
+                          {
+                            "id": 4,
+                            "title": "Evaluasi 4 jam",
+                            "slug": "evaluasi-4-jam",
+                            "scope": "shared",
+                            "owner_id": 10,
+                            "archived": true,
+                            "date_created": 1760000000,
+                            "can_edit": true,
+                            "can_archive": true,
+                            "latest_revision":
+                              {
+                                "number": 1,
+                                "author_id": 10,
+                                "date_created": 1760000000,
+                                "summary": "",
+                                "content": "# Evaluasi 4 jam",
+                                "rendered_content": "<h1>Evaluasi 4 jam</h1>",
+                              },
+                          },
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Only an administrator or the member who made a shared playbook can archive it.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the user may
+                      read the playbook but not archive it:
+  /playbooks/{playbook_id}/unarchive:
+    post:
+      operationId: unarchive-playbook
+      tags: ["playbooks"]
+      summary: Restore an archived playbook
+      description: |
+        Put an archived playbook back in the default list. The same users
+        who can archive a playbook can restore it.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-492662).
+      parameters:
+        - name: playbook_id
+          in: path
+          schema:
+            type: integer
+          description: |
+            The ID of the playbook.
+          required: true
+          example: 4
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      playbook:
+                        $ref: "#/components/schemas/PlaybookDetail"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "playbook":
+                          {
+                            "id": 4,
+                            "title": "Evaluasi 4 jam",
+                            "slug": "evaluasi-4-jam",
+                            "scope": "shared",
+                            "owner_id": 10,
+                            "archived": false,
+                            "date_created": 1760000000,
+                            "can_edit": true,
+                            "can_archive": true,
+                            "latest_revision":
+                              {
+                                "number": 1,
+                                "author_id": 10,
+                                "date_created": 1760000000,
+                                "summary": "",
+                                "content": "# Evaluasi 4 jam",
+                                "rendered_content": "<h1>Evaluasi 4 jam</h1>",
+                              },
+                          },
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Playbook does not exist.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the playbook
+                      does not exist or the user cannot read it:
+  /playbooks/{playbook_id}/revisions/{revision_number}:
+    get:
+      operationId: get-playbook-revision
+      tags: ["playbooks"]
+      summary: Get one revision of a playbook
+      description: |
+        Fetch one revision of a playbook with its content, as it was saved.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-492662).
+      parameters:
+        - name: playbook_id
+          in: path
+          schema:
+            type: integer
+          description: |
+            The ID of the playbook.
+          required: true
+          example: 4
+        - name: revision_number
+          in: path
+          schema:
+            type: integer
+          description: |
+            The number of the revision, starting at 1.
+          required: true
+          example: 1
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      revision:
+                        $ref: "#/components/schemas/PlaybookRevision"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "revision":
+                          {
+                            "number": 1,
+                            "author_id": 10,
+                            "date_created": 1760000000,
+                            "summary": "First version",
+                            "content": "# Evaluasi 4 jam",
+                            "rendered_content": "<h1>Evaluasi 4 jam</h1>",
+                          },
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Revision does not exist.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the playbook
+                      has no such revision:
+  /playbooks/{playbook_id}/diff:
+    get:
+      operationId: get-playbook-diff
+      tags: ["playbooks"]
+      summary: Compare two revisions of a playbook
+      description: |
+        Compare the Markdown of two revisions of a playbook. The server
+        returns a unified diff, line by line, with the revision numbers in
+        its header. The diff is empty when the two revisions have the same
+        content.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-492662).
+      parameters:
+        - name: playbook_id
+          in: path
+          schema:
+            type: integer
+          description: |
+            The ID of the playbook.
+          required: true
+          example: 4
+        - name: from_revision
+          in: query
+          description: |
+            The number of the older revision.
+          schema:
+            type: integer
+          required: true
+          example: 1
+        - name: to_revision
+          in: query
+          description: |
+            The number of the newer revision.
+          schema:
+            type: integer
+          required: true
+          example: 2
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      from_revision:
+                        type: integer
+                        description: |
+                          The number of the older revision.
+                      to_revision:
+                        type: integer
+                        description: |
+                          The number of the newer revision.
+                      diff:
+                        type: string
+                        description: |
+                          The unified diff, from the older to the newer
+                          revision.
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "from_revision": 1,
+                        "to_revision": 2,
+                        "diff": "--- revision 1\n+++ revision 2\n@@ -1 +1,2 @@\n # Evaluasi 4 jam\n+\n+Kirim ringkasan.",
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Revision does not exist.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when a revision
+                      does not exist:
+
+components:
+  schemas:
+    PlaybookRevisionSummary:
+      type: object
+      description: |
+        Object containing who saved one revision of a playbook and when.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-492662).
+      additionalProperties: false
+      properties:
+        number:
+          type: integer
+          description: |
+            The number of the revision. The first revision is 1.
+        author_id:
+          type: integer
+          description: |
+            The ID of the user who saved the revision.
+        date_created:
+          type: integer
+          description: |
+            The UNIX timestamp for when the revision was saved, in UTC
+            seconds.
+        summary:
+          type: string
+          description: |
+            The note the author gave the revision, or an empty string.
+    PlaybookRevision:
+      type: object
+      description: |
+        Object containing one revision of a playbook, with its content.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-492662).
+      additionalProperties: false
+      properties:
+        number:
+          type: integer
+          description: |
+            The number of the revision. The first revision is 1.
+        author_id:
+          type: integer
+          description: |
+            The ID of the user who saved the revision.
+        date_created:
+          type: integer
+          description: |
+            The UNIX timestamp for when the revision was saved, in UTC
+            seconds.
+        summary:
+          type: string
+          description: |
+            The note the author gave the revision, or an empty string.
+        content:
+          type: string
+          description: |
+            The revision in Markdown, as the author wrote it. HTML comments
+            are kept.
+        rendered_content:
+          type: string
+          description: |
+            The revision rendered as HTML with Zulip Markdown, after HTML
+            comments outside code are removed.
+    Playbook:
+      type: object
+      description: |
+        Object containing one playbook in a list.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-492662).
+      additionalProperties: false
+      properties:
+        id:
+          type: integer
+          description: |
+            The stable ID of the playbook. It does not change when the
+            title or content does.
+        title:
+          type: string
+          description: |
+            The title of the playbook.
+        slug:
+          type: string
+          description: |
+            A short name made from the title when the playbook was
+            created. It is unique among shared playbooks, and among a
+            user's personal playbooks, and never changes.
+        scope:
+          type: string
+          description: |
+            `shared` for a playbook that belongs to the organization, and
+            `personal` for one that belongs to its owner alone.
+          enum:
+            - shared
+            - personal
+        owner_id:
+          type: integer
+          description: |
+            The ID of the user who created the playbook.
+        archived:
+          type: boolean
+          description: |
+            Whether the playbook is archived.
+        date_created:
+          type: integer
+          description: |
+            The UNIX timestamp for when the playbook was created, in UTC
+            seconds.
+        latest_revision:
+          allOf:
+            - $ref: "#/components/schemas/PlaybookRevisionSummary"
+          description: |
+            The newest revision, without its content.
+    PlaybookDetail:
+      type: object
+      description: |
+        Object containing one playbook with the content of its newest
+        revision and what the user may do with it.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-492662).
+      additionalProperties: false
+      properties:
+        id:
+          type: integer
+          description: |
+            The stable ID of the playbook.
+        title:
+          type: string
+          description: |
+            The title of the playbook.
+        slug:
+          type: string
+          description: |
+            The slug of the playbook.
+        scope:
+          type: string
+          description: |
+            `shared` or `personal`.
+          enum:
+            - shared
+            - personal
+        owner_id:
+          type: integer
+          description: |
+            The ID of the user who created the playbook.
+        archived:
+          type: boolean
+          description: |
+            Whether the playbook is archived.
+        date_created:
+          type: integer
+          description: |
+            The UNIX timestamp for when the playbook was created, in UTC
+            seconds.
+        latest_revision:
+          allOf:
+            - $ref: "#/components/schemas/PlaybookRevision"
+          description: |
+            The newest revision, with its content.
+        can_edit:
+          type: boolean
+          description: |
+            Whether the user can edit the playbook.
+        can_archive:
+          type: boolean
+          description: |
+            Whether the user can archive or restore the playbook.
+    EventPlaybookAdd:
+      additionalProperties: false
+      type: object
+      description: |
+        A playbook was created. Sent to every active non-guest user for a
+        shared playbook, and to the owner for a personal one.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-492662).
+      properties:
+        id:
+          $ref: "#/components/schemas/EventIdSchema"
+        type:
+          allOf:
+            - $ref: "#/components/schemas/EventTypeSchema"
+            - enum:
+                - playbook
+        op:
+          type: string
+          enum:
+            - add
+        playbook:
+          $ref: "#/components/schemas/Playbook"
+      required:
+        - id
+        - type
+        - op
+        - playbook
+      example:
+        {
+          "id": 0,
+          "type": "playbook",
+          "op": "add",
+          "playbook":
+            {
+              "id": 4,
+              "title": "Evaluasi 4 jam",
+              "slug": "evaluasi-4-jam",
+              "scope": "shared",
+              "owner_id": 10,
+              "archived": false,
+              "date_created": 1760000000,
+              "latest_revision":
+                {
+                  "number": 1,
+                  "author_id": 10,
+                  "date_created": 1760000000,
+                  "summary": "",
+                },
+            },
+        }
+    EventPlaybookUpdate:
+      additionalProperties: false
+      type: object
+      description: |
+        A playbook's title, newest revision, or archived state changed.
+        Sent to the same users as the `add` event.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-492662).
+      properties:
+        id:
+          $ref: "#/components/schemas/EventIdSchema"
+        type:
+          allOf:
+            - $ref: "#/components/schemas/EventTypeSchema"
+            - enum:
+                - playbook
+        op:
+          type: string
+          enum:
+            - update
+        playbook:
+          $ref: "#/components/schemas/Playbook"
+      required:
+        - id
+        - type
+        - op
+        - playbook
+      example:
+        {
+          "id": 0,
+          "type": "playbook",
+          "op": "update",
+          "playbook":
+            {
+              "id": 4,
+              "title": "Evaluasi 4 jam",
+              "slug": "evaluasi-4-jam",
+              "scope": "shared",
+              "owner_id": 10,
+              "archived": false,
+              "date_created": 1760000000,
+              "latest_revision":
+                {
+                  "number": 2,
+                  "author_id": 12,
+                  "date_created": 1760100000,
+                  "summary": "Add the blocked-card step",
+                },
+            },
+        }
+
+events:
+  - $ref: "#/components/schemas/EventPlaybookAdd"
+  - $ref: "#/components/schemas/EventPlaybookUpdate"

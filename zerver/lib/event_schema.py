@@ -56,6 +56,8 @@ from zerver.lib.event_types import (
     EventNavigationViewRemove,
     EventNavigationViewUpdate,
     EventOnboardingSteps,
+    EventPlaybookAdd,
+    EventPlaybookUpdate,
     EventReactionAdd,
     EventReactionRemove,
     EventRealmBotAdd,
@@ -217,6 +219,8 @@ check_navigation_view_add = make_checker(EventNavigationViewAdd)
 check_navigation_view_remove = make_checker(EventNavigationViewRemove)
 check_navigation_view_update = make_checker(EventNavigationViewUpdate)
 check_onboarding_steps = make_checker(EventOnboardingSteps)
+check_playbook_add = make_checker(EventPlaybookAdd)
+check_playbook_update = make_checker(EventPlaybookUpdate)
 check_reaction_add = make_checker(EventReactionAdd)
 check_reaction_remove = make_checker(EventReactionRemove)
 check_realm_bot_delete = make_checker(EventRealmBotDelete)

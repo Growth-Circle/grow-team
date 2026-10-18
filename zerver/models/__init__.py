@@ -79,6 +79,8 @@ from zerver.models.needs import NeedResolution as NeedResolution
 from zerver.models.needs import NeedSnooze as NeedSnooze
 from zerver.models.onboarding_steps import OnboardingStep as OnboardingStep
 from zerver.models.pins import ChannelPin as ChannelPin
+from zerver.models.playbooks import Playbook as Playbook
+from zerver.models.playbooks import PlaybookRevision as PlaybookRevision
 from zerver.models.prereg_users import EmailChangeStatus as EmailChangeStatus
 from zerver.models.prereg_users import MultiuseInvite as MultiuseInvite
 from zerver.models.prereg_users import PreregistrationRealm as PreregistrationRealm

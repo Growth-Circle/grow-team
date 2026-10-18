@@ -1047,6 +1047,7 @@ class OpenAPIAttributesTest(ZulipTestCase):
             "mcp",
             "models",
             "cloud_runners",
+            "playbooks",
         ]
         paths = OpenAPISpec(OPENAPI_SPEC_PATH).openapi()["paths"]
         for path, path_item in paths.items():
