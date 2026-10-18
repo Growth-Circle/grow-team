@@ -106,6 +106,8 @@ from zerver.models.role_permissions import RolePermission as RolePermission
 from zerver.models.rooms import RoomChannelLink as RoomChannelLink
 from zerver.models.rooms import RoomDigest as RoomDigest
 from zerver.models.rooms import RoomMeta as RoomMeta
+from zerver.models.routines import AgentRoutine as AgentRoutine
+from zerver.models.routines import AgentRoutineRun as AgentRoutineRun
 from zerver.models.saved_snippets import SavedSnippet as SavedSnippet
 from zerver.models.scheduled_jobs import AbstractScheduledJob as AbstractScheduledJob
 from zerver.models.scheduled_jobs import MissedMessageEmailAddress as MissedMessageEmailAddress

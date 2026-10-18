@@ -113,14 +113,16 @@ def _recent_message_ids(stream: Stream, since: datetime) -> list[int]:
     return ids
 
 
-def _post_kaki_message(
+def post_agent_message(
     bot: UserProfile, stream: Stream, topic_name: str, content: str, acting_user: UserProfile
 ) -> Message:
+    """Post  to a topic as the agent's bot, and add the bot to the
+    channel first when it cannot post there yet."""
     try:
         access_stream_for_send_message(bot, stream, forwarder_user_profile=None)
     except JsonableError:
-        # Kaki is not yet in a private room, or the room limits who can
-        # post: add Kaki to the room and try once more.
+        # The bot is not yet in a private room, or the room limits who can
+        # post: add the bot to the room and try once more.
         bulk_add_subscriptions(stream.realm, [stream], [bot], acting_user=acting_user)
         access_stream_for_send_message(bot, stream, forwarder_user_profile=None)
     message = check_message(
@@ -156,7 +158,7 @@ def create_room_digest_job(
             'JSON only, in this exact shape: {"decided": ["..."], "blocker": '
             '["..."], "waiting": ["..."], "summary": "..."}. Keep each item short.'
         )
-    source = _post_kaki_message(kaki.bot_user, stream, topic_name, title, actor)
+    source = post_agent_message(kaki.bot_user, stream, topic_name, title, actor)
     job = create_job(
         actor,
         profile=kaki,
