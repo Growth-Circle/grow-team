@@ -1,0 +1,15 @@
+{{! The notices at the top of the editor. They are drawn on their own,
+    so a notice that arrives while the person is typing does not take
+    the cursor out of the text box. }}
+{{#if conflict_text}}
+    <div class="playbook-conflict" role="alert">
+        <p class="playbook-conflict-text">{{conflict_text}}</p>
+        <button type="button" class="playbook-reload action-button action-button-subtle-neutral">{{t "Reload playbook"}}</button>
+    </div>
+{{/if}}
+{{#if error_text}}
+    <p class="playbook-form-error" role="alert">{{error_text}}</p>
+{{/if}}
+{{#if notice_text}}
+    <p class="playbook-notice" role="status">{{notice_text}}</p>
+{{/if}}

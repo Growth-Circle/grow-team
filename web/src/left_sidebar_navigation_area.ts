@@ -407,7 +407,7 @@ export function initialize(): void {
 }
 
 // The sidebar (map-mockup-a.md section 4.2): workspace switcher, search
-// button, the nine navigation entries, rooms, and the user card.
+// button, the navigation entries, rooms, and the user card.
 
 const NAV_COUNT_IDS: nav_counts.NavCountId[] = ["needs", "tasks", "mcp", "runners"];
 
@@ -417,6 +417,7 @@ const NAV_IDS: sidebar_targets.TargetId[] = [
     "tasks",
     "my_tasks",
     "agents",
+    "playbooks",
     "mcp",
     "runners",
     "drive",
@@ -441,10 +442,15 @@ export function update_sanji_nav_active_state(): void {
 // Shows each entry whose page is built (or has a fallback), points it at
 // that page, and keeps the Settings entry for Owner and Admin only.
 export function update_nav_targets(): void {
-    const can_manage = sidebar_targets.can_manage_workspace(sidebar_targets.role_of(current_user));
+    const role = sidebar_targets.role_of(current_user);
+    const can_manage = sidebar_targets.can_manage_workspace(role);
+    const can_use_playbooks = sidebar_targets.can_use_playbooks(role);
     for (const id of NAV_IDS) {
         const hash = sidebar_targets.get_hash(id, id === "settings" ? "general" : undefined);
-        const shown = hash !== undefined && (id !== "settings" || can_manage);
+        const shown =
+            hash !== undefined &&
+            (id !== "settings" || can_manage) &&
+            (id !== "playbooks" || can_use_playbooks);
         const $li = $(`.sanji-nav-item[data-nav-id="${id}"]`);
         $li.toggleClass("hidden", !shown);
         if (hash !== undefined) {

@@ -11,6 +11,7 @@ export type TargetId =
     | "tasks"
     | "my_tasks"
     | "agents"
+    | "playbooks"
     | "mcp"
     | "runners"
     | "drive"
@@ -31,6 +32,7 @@ const targets: Record<TargetId, Target> = {
     tasks: {hash: "#tasks", built: true, fallback_hash: null},
     my_tasks: {hash: "#tasks/mine/list", built: true, fallback_hash: null},
     agents: {hash: "#agents", built: false, fallback_hash: null},
+    playbooks: {hash: "#playbooks", built: true, fallback_hash: null},
     mcp: {hash: "#mcp", built: true, fallback_hash: null},
     runners: {hash: "#runners", built: false, fallback_hash: null},
     drive: {hash: "#drive", built: false, fallback_hash: null},
@@ -45,6 +47,7 @@ const TARGET_IDS: TargetId[] = [
     "my_tasks",
     "tasks",
     "agents",
+    "playbooks",
     "mcp",
     "runners",
     "drive",
@@ -113,6 +116,11 @@ export function role_of(user: RoleFlags): SidebarRole {
         return "moderator";
     }
     return user.is_guest ? "guest" : "member";
+}
+
+// A guest has no playbooks, so the entry is hidden for a guest.
+export function can_use_playbooks(role: SidebarRole): boolean {
+    return role !== "guest";
 }
 
 export function can_manage_workspace(role: SidebarRole): boolean {

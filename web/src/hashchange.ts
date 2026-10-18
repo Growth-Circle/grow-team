@@ -224,6 +224,9 @@ function do_hashchange_normal(from_reload: boolean, restore_selected_id: boolean
         case "#mcp":
             center_views.show("mcp", hash.slice(1));
             break;
+        case "#playbooks":
+            center_views.show("playbooks", hash.slice(1));
+            break;
         case "#workspace-settings":
             center_views.show("workspace-settings", hash.slice(1));
             break;

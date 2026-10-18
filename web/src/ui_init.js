@@ -102,6 +102,7 @@ import {page_params} from "./page_params.ts";
 import * as people from "./people.ts";
 import * as permissions from "./permissions.ts";
 import * as personal_menu_popover from "./personal_menu_popover.ts";
+import * as playbooks_ui from "./playbooks_ui.ts";
 import * as playground_links_popover from "./playground_links_popover.ts";
 import * as pm_conversations from "./pm_conversations.ts";
 import * as pm_list from "./pm_list.ts";
@@ -638,6 +639,7 @@ export async function initialize_everything(state_data) {
         ["runners", "runners", runners_ui],
         ["runner-add", "runners/new", runner_add_ui],
         ["mcp", "mcp", mcp_ui],
+        ["playbooks", "playbooks", playbooks_ui],
         ["workspace-settings", "workspace-settings", workspace_settings_ui],
     ]) {
         mod.initialize();

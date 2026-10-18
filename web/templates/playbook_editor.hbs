@@ -1,0 +1,59 @@
+{{! The form for a new playbook and for a change to one. The text box
+    stays in the page while the preview shows, so the cursor and the
+    scroll position stay where the person left them. }}
+<form class="playbook-editor" novalidate>
+    <div class="playbook-banners">
+        {{> playbook_editor_banners . }}
+    </div>
+    {{#if is_new}}
+        <fieldset class="playbook-scope">
+            <legend class="playbook-field-label">{{t "Who can open it"}}</legend>
+            {{#each scope_options}}
+                <label class="playbook-scope-option">
+                    <input type="radio" name="playbook-scope" value="{{this.value}}" {{#if this.checked}}checked{{/if}} />
+                    <span class="playbook-scope-text">
+                        <span class="playbook-scope-label">{{this.label}}</span>
+                        <span class="playbook-scope-hint">{{this.hint}}</span>
+                    </span>
+                </label>
+            {{/each}}
+        </fieldset>
+    {{/if}}
+    <label class="playbook-field">
+        <span class="playbook-field-label">{{t "Title"}}</span>
+        <input type="text" class="playbook-title-input" maxlength="{{max_title_length}}" value="{{draft_title}}" autocomplete="off" required />
+    </label>
+    <div class="playbook-field">
+        <div class="playbook-editor-head">
+            <label class="playbook-field-label" for="playbook-content-input">{{t "Steps"}}</label>
+            <div class="playbook-modes" role="group" aria-label="{{t 'Editor view'}}">
+                <button type="button" class="playbook-mode{{#unless previewing}} playbook-mode-active{{/unless}}" data-mode="write" aria-pressed="{{#if previewing}}false{{else}}true{{/if}}">{{t "Write"}}</button>
+                <button type="button" class="playbook-mode{{#if previewing}} playbook-mode-active{{/if}}" data-mode="preview" aria-pressed="{{#if previewing}}true{{else}}false{{/if}}">{{t "Preview"}}</button>
+            </div>
+        </div>
+        <textarea id="playbook-content-input" class="playbook-content-input" maxlength="{{max_content_length}}" spellcheck="true" placeholder="{{t 'Write the steps in Markdown. A heading and a numbered list work well.'}}" {{#if previewing}}hidden{{/if}}>{{content}}</textarea>
+        {{#if previewing}}
+            <div class="playbook-preview rendered_markdown" aria-live="polite" aria-busy="{{#if preview_loading}}true{{else}}false{{/if}}">
+                {{#if preview_failed}}
+                    <p class="playbook-form-error" role="alert">{{t "The preview did not load."}}</p>
+                {{else if preview_empty}}
+                    <p class="playbook-preview-empty">{{t "Nothing to preview yet."}}</p>
+                {{else}}
+                    {{{preview_html}}}
+                {{/if}}
+            </div>
+        {{/if}}
+    </div>
+    <div class="playbook-editor-bar">
+        <label class="playbook-field playbook-summary-field">
+            <span class="playbook-field-label">{{t "What changed? (optional)"}}</span>
+            <input type="text" class="playbook-summary-input" maxlength="{{max_summary_length}}" value="{{summary}}" autocomplete="off" />
+        </label>
+        <div class="playbook-editor-buttons">
+            <button type="button" class="playbook-cancel action-button action-button-subtle-neutral">{{t "Cancel"}}</button>
+            <button type="submit" class="playbook-save action-button action-button-solid-brand" {{#unless can_save}}disabled{{/unless}}>
+                <span class="action-button-label">{{save_label}}</span>
+            </button>
+        </div>
+    </div>
+</form>

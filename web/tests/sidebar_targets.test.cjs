@@ -9,7 +9,7 @@ const sidebar_targets = zrequire("sidebar_targets");
 
 // The pages that ship. When a page ships, its entry moves from the
 // second list to the first, in sidebar_targets.ts and here.
-const BUILT = ["tasks", "my_tasks", "needs", "mcp"];
+const BUILT = ["tasks", "my_tasks", "needs", "mcp", "playbooks"];
 const HIDDEN_OR_FALLBACK = ["search", "home", "agents", "runners", "drive", "settings"];
 
 run_test("built_pages", () => {
@@ -25,6 +25,7 @@ run_test("built_pages", () => {
 run_test("get_hash", () => {
     assert.equal(sidebar_targets.get_hash("tasks"), "#tasks");
     assert.equal(sidebar_targets.get_hash("mcp"), "#mcp");
+    assert.equal(sidebar_targets.get_hash("playbooks"), "#playbooks");
     assert.equal(sidebar_targets.get_hash("my_tasks"), "#tasks/mine/list");
     // A built page opens the section that the caller names.
     assert.equal(sidebar_targets.get_hash("tasks", "mine"), "#tasks/mine");
@@ -54,6 +55,9 @@ run_test("id_for_hash", () => {
     assert.equal(sidebar_targets.id_for_hash("#needs"), "needs");
     assert.equal(sidebar_targets.id_for_hash("#needs/approval:1/confirm"), "needs");
     assert.equal(sidebar_targets.id_for_hash("#tasksboard"), undefined);
+    assert.equal(sidebar_targets.id_for_hash("#playbooks"), "playbooks");
+    assert.equal(sidebar_targets.id_for_hash("#playbooks/12/history/3"), "playbooks");
+    assert.equal(sidebar_targets.id_for_hash("#playbooksx"), undefined);
     // The fallback of a page marks that page.
     assert.equal(sidebar_targets.id_for_hash("#inbox"), "home");
     assert.equal(sidebar_targets.id_for_hash("#organization/organization-profile"), "settings");
@@ -76,6 +80,13 @@ run_test("role_of", () => {
     for (const role of ["moderator", "member", "guest"]) {
         assert.equal(sidebar_targets.can_manage_workspace(role), false, role);
     }
+});
+
+run_test("can_use_playbooks", () => {
+    for (const role of ["owner", "admin", "moderator", "member"]) {
+        assert.equal(sidebar_targets.can_use_playbooks(role), true, role);
+    }
+    assert.equal(sidebar_targets.can_use_playbooks("guest"), false);
 });
 
 run_test("search_shortcut_hint", () => {

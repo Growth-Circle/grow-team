@@ -1,0 +1,37 @@
+{{! The Playbooks list: a search box, the Shared and Mine tabs, and the
+    playbooks in the tab. playbooks_list.hbs is the part that changes
+    while the person types, so the search box is not drawn again. }}
+<div class="playbooks-page">
+    {{#> components/page_header . title=(t "Playbooks") title_focusable=true description=(t "Steps the team follows, kept with their history.")}}
+        {{#unless is_guest}}
+        <label class="playbooks-search">
+            <span class="playbooks-visually-hidden">{{t "Search playbooks"}}</span>
+            <input type="search" class="playbooks-search-input" placeholder="{{t 'Search playbooks'}}" value="{{search}}" autocomplete="off" maxlength="100" />
+        </label>
+        <button type="button" class="playbooks-new action-button action-button-solid-brand">
+            <i class="zulip-icon zulip-icon-plus" aria-hidden="true"></i>
+            <span class="action-button-label">{{t "New playbook"}}</span>
+        </button>
+        {{/unless}}
+    {{/components/page_header}}
+
+    {{#unless is_guest}}
+    <div class="playbooks-filters">
+        <div class="playbooks-tabs" role="group" aria-label="{{t 'Kinds of playbook'}}">
+            {{#each tabs}}
+                <button
+                  type="button"
+                  class="playbooks-tab{{#if this.active}} playbooks-tab-active{{/if}}"
+                  data-tab="{{this.value}}"
+                  aria-pressed="{{#if this.active}}true{{else}}false{{/if}}"
+                  >{{this.label}} <span class="playbooks-tab-count">{{this.count}}</span></button>
+            {{/each}}
+        </div>
+        <button type="button" class="playbooks-archived-toggle" aria-pressed="{{#if show_archived}}true{{else}}false{{/if}}">{{t "Archived"}}</button>
+    </div>
+    {{/unless}}
+
+    <div class="playbooks-list-region">
+        {{> playbooks_list . }}
+    </div>
+</div>

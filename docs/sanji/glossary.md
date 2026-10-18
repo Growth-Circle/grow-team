@@ -13,34 +13,38 @@ this file does that, in review.
 
 ## Names
 
-| Feature | English (UI) | Indonesian (UI) | Do not write |
-| --- | --- | --- | --- |
-| A place to talk about one subject (sidebar) | Room(s) | Ruang | Saluran, Grup |
-| The same place, in create and settings dialogs | Channel | Channel | Stream |
-| A conversation inside a room | Topic | Topik | Utas, Thread |
-| One item on the task board | Card | Kartu | Card, Tiket |
-| Work that a card or an agent stands for | Task | Tugas | Pekerjaan (for one task) |
-| The board with columns | Task board | Papan tugas | Tugas, Kanban |
-| One column of the board | Column | Kolom | Lajur |
-| A person's open cards, by deadline | My tasks | Tugas saya | Tugasku |
-| The cards a person picked for today | Today plan | Rencana hari ini | Rencana harian |
-| Put a card in today's plan | Add to today | Tambah ke hari ini | Masukkan ke hari ini |
-| What waits on this person in every room | Needs you | Perlu kamu | Butuh kamu, Inbox |
-| An at-sign message to a person | Mention | Mention (noun and verb: "me-mention") | Sebutan, Disebut, Tag |
-| A request an agent makes before it acts | Approval | Persetujuan | Approval |
-| Say yes to an approval | Approve | Setujui | Approve |
-| A question an agent asks, with choices | Decision | Keputusan | Pilihan |
-| A message kept at the top of a channel | Pin | Pin ("Dipin", "Lepas pin") | Sematkan |
-| An AI team member | Agent | Agen | Agent, Bot |
-| A reusable set of steps for an agent | Playbook | Playbook | Skill, SOP |
-| A routine that runs on a schedule | Scheduled | Terjadwal | Otomatis, Rutin |
-| A message that comes back later | Reminder | Pengingat | Reminder |
-| The person a card is given to | Responsible | Penanggung jawab | PIC, Owner |
-| The person who checks a card | Reviewer | Peninjau | Reviewer |
-| A person in a room | Member | Anggota | Pelanggan, Subscriber |
-| The whole organisation's space | Workspace | Workspace | Organisasi |
-| The card has not got what it needs | Blocked | Terhambat | Diblokir |
-| Cancel the last action | Undo | Urungkan | Undo |
+| Feature                                                                            | English (UI)     | Indonesian (UI)                       | Do not write             |
+| ---------------------------------------------------------------------------------- | ---------------- | ------------------------------------- | ------------------------ |
+| A place to talk about one subject (sidebar)                                        | Room(s)          | Ruang                                 | Saluran, Grup            |
+| The same place, in create and settings dialogs                                     | Channel          | Channel                               | Stream                   |
+| A conversation inside a room                                                       | Topic            | Topik                                 | Utas, Thread             |
+| One item on the task board                                                         | Card             | Kartu                                 | Card, Tiket              |
+| Work that a card or an agent stands for                                            | Task             | Tugas                                 | Pekerjaan (for one task) |
+| The board with columns                                                             | Task board       | Papan tugas                           | Tugas, Kanban            |
+| One column of the board                                                            | Column           | Kolom                                 | Lajur                    |
+| A person's open cards, by deadline                                                 | My tasks         | Tugas saya                            | Tugasku                  |
+| The cards a person picked for today                                                | Today plan       | Rencana hari ini                      | Rencana harian           |
+| Put a card in today's plan                                                         | Add to today     | Tambah ke hari ini                    | Masukkan ke hari ini     |
+| What waits on this person in every room                                            | Needs you        | Perlu kamu                            | Butuh kamu, Inbox        |
+| An at-sign message to a person                                                     | Mention          | Mention (noun and verb: "me-mention") | Sebutan, Disebut, Tag    |
+| A request an agent makes before it acts                                            | Approval         | Persetujuan                           | Approval                 |
+| Say yes to an approval                                                             | Approve          | Setujui                               | Approve                  |
+| A question an agent asks, with choices                                             | Decision         | Keputusan                             | Pilihan                  |
+| A message kept at the top of a channel                                             | Pin              | Pin ("Dipin", "Lepas pin")            | Sematkan                 |
+| An AI team member                                                                  | Agent            | Agen                                  | Agent, Bot               |
+| A reusable document of steps that the team follows, and that an agent can be given | Playbook         | Playbook                              | Skill, SOP               |
+| One saved version of a playbook                                                    | Revision         | Revisi                                | Version, Versi           |
+| A playbook for the whole workspace, and the tab that lists them                    | Shared           | Bersama                               | Publik, Tim              |
+| A playbook that only its owner can open, and the tab that lists them               | Mine             | Milikku                               | Pribadi, Personal        |
+| Move a playbook out of the list, and bring it back                                 | Archive, Restore | Arsipkan, Pulihkan                    | Hapus, Delete            |
+| A routine that runs on a schedule                                                  | Scheduled        | Terjadwal                             | Otomatis, Rutin          |
+| A message that comes back later                                                    | Reminder         | Pengingat                             | Reminder                 |
+| The person a card is given to                                                      | Responsible      | Penanggung jawab                      | PIC, Owner               |
+| The person who checks a card                                                       | Reviewer         | Peninjau                              | Reviewer                 |
+| A person in a room                                                                 | Member           | Anggota                               | Pelanggan, Subscriber    |
+| The whole organization's space                                                     | Workspace        | Workspace                             | Organisasi               |
+| The card has not got what it needs                                                 | Blocked          | Terhambat                             | Diblokir                 |
+| Cancel the last action                                                             | Undo             | Urungkan                              | Undo                     |
 
 ## Rules
 
@@ -54,6 +58,11 @@ this file does that, in review.
 - **Mention is not translated.** The team already says "mention" as a
   noun and a verb. "Mentions" is the tab on Needs you and reads
   "Mention".
+- **Playbook is not translated.** The team says "playbook" in
+  Indonesian too. A playbook is never called a skill or an SOP, in the
+  page, in the API docs or in a message. "Mine" and "Shared" name the
+  two tabs and the two choices when a playbook is made; the API calls
+  them and .
 - **Numbers, money, dates, times.** Never format by hand. The web app
   uses `web/src/sanji_format.ts` and the server uses
   `zerver/lib/sanji_format.py`: "6,9 rb", "Rp 1.500.000", "14 Okt",

@@ -1,0 +1,53 @@
+{{! The revisions of a playbook, newest first, and what the selected
+    one changed. The first revision has nothing before it, so it shows
+    the playbook as it was first written. }}
+<div class="playbook-history">
+    <ol class="playbook-revision-list" aria-label="{{t 'Revisions'}}">
+        {{#each revisions}}
+            <li>
+                <a class="playbook-revision{{#if this.selected}} playbook-revision-selected{{/if}}" href="{{this.hash}}" {{#if this.selected}}aria-current="true"{{/if}}>
+                    <span class="playbook-revision-head">
+                        <span class="playbook-revision-number">{{this.label}}</span>
+                        {{#if this.is_latest}}
+                            <span class="playbook-row-tag">{{t "Latest"}}</span>
+                        {{/if}}
+                    </span>
+                    <span class="playbook-revision-meta">
+                        <span class="playbook-revision-author" title="{{this.author_name}}">{{this.author_name}}</span>
+                        <span class="playbook-revision-time" title="{{this.full_time}}">{{this.time}}</span>
+                    </span>
+                    {{#if this.summary}}
+                        <span class="playbook-revision-summary" title="{{this.summary}}">{{this.summary}}</span>
+                    {{/if}}
+                </a>
+            </li>
+        {{/each}}
+    </ol>
+    <section class="playbook-revision-detail" aria-labelledby="playbook-revision-heading">
+        <h2 id="playbook-revision-heading" class="playbook-revision-heading">{{detail_heading}}</h2>
+        {{#if detail_failed}}
+            {{> components/empty_state tone="warning" role="alert" title=(t "This revision did not load.") action_label=(t "Try again") action_classes="playbook-retry action-button action-button-subtle-neutral"}}
+        {{else if detail_loading}}
+            <div class="playbook-skeleton sj-skeleton" aria-busy="true"></div>
+        {{else if is_first}}
+            <article class="playbook-document rendered_markdown">{{{revision_rendered_content}}}</article>
+        {{else if no_changes}}
+            <p class="playbook-notice">{{t "The text is the same, apart from line endings."}}</p>
+        {{else}}
+            <div class="playbook-diff" role="group" aria-label="{{t 'Changes in this revision'}}">
+                {{#each diff_lines}}
+                    {{#if this.is_hunk}}
+                        <div class="playbook-diff-hunk" aria-hidden="true">{{this.text}}</div>
+                    {{else}}
+                        <div class="playbook-diff-line playbook-diff-{{this.kind}}">
+                            <span class="playbook-diff-sign" aria-hidden="true">{{this.sign}}</span>
+                            {{#if this.is_added}}<ins class="playbook-diff-text">{{this.text}}</ins>
+                            {{else if this.is_removed}}<del class="playbook-diff-text">{{this.text}}</del>
+                            {{else}}<span class="playbook-diff-text">{{this.text}}</span>{{/if}}
+                        </div>
+                    {{/if}}
+                {{/each}}
+            </div>
+        {{/if}}
+    </section>
+</div>

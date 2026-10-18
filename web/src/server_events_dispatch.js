@@ -827,7 +827,7 @@ export function dispatch_normal_event(event) {
         case "task_plan":
             task_board_ui.handle_task_plan_event(event);
             break;
-        // The six Sanji event types. live_updates.ts passes each
+        // The seven Sanji event types. live_updates.ts passes each
         // event to every module that called live_updates.on() for
         // its type.
         case "agent_job":
@@ -836,6 +836,7 @@ export function dispatch_normal_event(event) {
         case "realm_permissions":
         case "agent_realm_settings":
         case "task_notification":
+        case "playbook":
             live_updates.dispatch(event);
             break;
         case "submessage": {

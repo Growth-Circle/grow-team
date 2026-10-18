@@ -1,0 +1,45 @@
+{{! One playbook. The header always has the same three buttons in the
+    same places, whatever the page is showing, so that nothing moves
+    under the pointer when a state changes. A button the person cannot
+    use is dimmed, not removed. }}
+<div class="playbook-page">
+    <a class="playbook-back" href="#playbooks{{#if back_to_mine}}/mine{{/if}}">
+        <i class="zulip-icon zulip-icon-chevron-left" aria-hidden="true"></i>
+        <span>{{t "Playbooks"}}</span>
+    </a>
+    {{#> components/page_header . eyebrow=scope_label title=title title_focusable=true description=byline custom_classes="playbook-header"}}
+        <div class="playbook-actions" role="group" aria-label="{{t 'Playbook actions'}}">
+            <button type="button" class="playbook-action playbook-action-edit action-button action-button-subtle-neutral" aria-pressed="{{#if editing}}true{{else}}false{{/if}}" {{#unless can_edit}}disabled title="{{edit_disabled_hint}}"{{/unless}}>
+                <i class="zulip-icon zulip-icon-edit" aria-hidden="true"></i>
+                <span class="action-button-label">{{t "Edit"}}</span>
+            </button>
+            <button type="button" class="playbook-action playbook-action-history action-button action-button-subtle-neutral" aria-pressed="{{#if showing_history}}true{{else}}false{{/if}}" {{#unless can_open_history}}disabled{{/unless}}>
+                <i class="zulip-icon zulip-icon-past-time" aria-hidden="true"></i>
+                <span class="action-button-label">{{t "History"}}</span>
+            </button>
+            <button type="button" class="playbook-action playbook-action-archive action-button action-button-subtle-neutral" {{#unless can_archive}}disabled title="{{archive_disabled_hint}}"{{/unless}}>
+                <i class="zulip-icon zulip-icon-{{archive_icon}}" aria-hidden="true"></i>
+                <span class="action-button-label">{{archive_label}}</span>
+            </button>
+        </div>
+    {{/components/page_header}}
+
+    <div class="playbook-body">
+        {{#if load_failed}}
+            {{> components/empty_state tone="warning" role="alert" title=(t "This playbook did not load.") action_label=(t "Try again") action_classes="playbook-retry action-button action-button-subtle-neutral"}}
+        {{else if missing}}
+            {{> components/empty_state size="hero" title=(t "This playbook isn't available.") description=(t "It may have been removed, or it belongs to someone else.") secondary_label=(t "Back to playbooks") secondary_href="#playbooks"}}
+        {{else if loading}}
+            <div class="playbook-skeleton sj-skeleton" aria-busy="true"></div>
+        {{else if editing}}
+            {{> playbook_editor . }}
+        {{else if showing_history}}
+            {{> playbook_history . }}
+        {{else}}
+            {{#if archived}}
+                <p class="playbook-notice" role="status">{{t "This playbook is archived. Restore it to bring it back to the list."}}</p>
+            {{/if}}
+            <article class="playbook-document rendered_markdown">{{{rendered_content}}}</article>
+        {{/if}}
+    </div>
+</div>
