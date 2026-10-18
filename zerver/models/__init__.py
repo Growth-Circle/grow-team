@@ -51,6 +51,7 @@ from zerver.models.mcp import McpToolPolicy as McpToolPolicy
 from zerver.models.mcp_access import MCPAccessAudit as MCPAccessAudit
 from zerver.models.mcp_access import MCPAccessGrant as MCPAccessGrant
 from zerver.models.mcp_access import MCPAccessToken as MCPAccessToken
+from zerver.models.mcp_access import MCPAccessToolPolicy as MCPAccessToolPolicy
 from zerver.models.mcp_access import MCPAuthorizationCode as MCPAuthorizationCode
 from zerver.models.mcp_access import MCPClient as MCPClient
 from zerver.models.meetings import Meeting as Meeting

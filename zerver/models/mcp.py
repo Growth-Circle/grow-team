@@ -87,6 +87,8 @@ class McpConnection(models.Model):
     tool_manifest = models.JSONField(default=list)
     tool_manifest_hash = models.CharField(max_length=64, default="")
     rate_limit_per_minute = models.PositiveIntegerField(null=True, default=None)
+    # While set, only an administrator may change the tool policies.
+    policy_locked = models.BooleanField(default=False, db_default=False)
     # manage.py delete_realm removes UserProfile rows outright, and an old
     # image does not know this table exists, so this reference carries no
     # database-level constraint.
@@ -131,6 +133,10 @@ class McpToolPolicy(models.Model):
     hints = models.JSONField(default=dict, db_default={})
     reviewed_at = models.DateTimeField(null=True, default=None)
     updated_at = models.DateTimeField(default=timezone_now)
+    # See McpServer.added_by for why this reference has no constraint.
+    updated_by = models.ForeignKey(
+        UserProfile, on_delete=models.SET_NULL, null=True, db_constraint=False, related_name="+"
+    )
 
     class Meta:
         constraints = [

@@ -3,6 +3,7 @@
 import base64
 import binascii
 import json
+from collections.abc import Collection
 from copy import copy
 from typing import TYPE_CHECKING, Annotated, Any, cast
 
@@ -206,7 +207,17 @@ TOOLS: dict[str, tuple[type[Arguments], str, bool]] = {
 }
 
 
-def tool_list(scopes: list[str]) -> list[dict[str, object]]:
+# Tools that replace or remove something the account made; a client may
+# want to confirm them. Every other write tool only adds.
+DESTRUCTIVE_TOOLS = frozenset({"delete_task", "edit_message"})
+# Calling these again with the same arguments makes one more message, file
+# or card. The rest end in the same state however often they run.
+NON_IDEMPOTENT_TOOLS = frozenset(
+    {"send_message", "send_direct_message", "upload_file", "create_task"}
+)
+
+
+def tool_list(scopes: list[str], only: Collection[str] | None = None) -> list[dict[str, object]]:
     return [
         {
             "name": name,
@@ -220,13 +231,13 @@ def tool_list(scopes: list[str]) -> list[dict[str, object]]:
             ],
             "annotations": {
                 "readOnlyHint": not write,
-                "destructiveHint": False,
-                "idempotentHint": not write,
+                "destructiveHint": name in DESTRUCTIVE_TOOLS,
+                "idempotentHint": name not in NON_IDEMPOTENT_TOOLS,
                 "openWorldHint": False,
             },
         }
         for name, (model, description, write) in TOOLS.items()
-        if not write or "team:write" in scopes
+        if (not write or "team:write" in scopes) and (only is None or name in only)
     ]
 
 

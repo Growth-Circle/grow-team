@@ -131,6 +131,8 @@ class AgentRealmSettings(AgentRecord):
     mcp_default_mode = models.CharField(
         max_length=20, default="research_first", db_default="research_first"
     )
+    # Per-tool policies on the inbound MCP server apply only while this is on.
+    mcp_policy_enforced = models.BooleanField(default=False, db_default=False)
 
     class Meta:
         constraints = [
