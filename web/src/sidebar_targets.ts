@@ -11,6 +11,7 @@ export type TargetId =
     | "tasks"
     | "my_tasks"
     | "agents"
+    | "routines"
     | "playbooks"
     | "mcp"
     | "runners"
@@ -32,6 +33,7 @@ const targets: Record<TargetId, Target> = {
     tasks: {hash: "#tasks", built: true, fallback_hash: null},
     my_tasks: {hash: "#tasks/mine/list", built: true, fallback_hash: null},
     agents: {hash: "#agents", built: false, fallback_hash: null},
+    routines: {hash: "#routines", built: true, fallback_hash: null},
     playbooks: {hash: "#playbooks", built: true, fallback_hash: null},
     mcp: {hash: "#mcp", built: true, fallback_hash: null},
     runners: {hash: "#runners", built: false, fallback_hash: null},
@@ -47,6 +49,7 @@ const TARGET_IDS: TargetId[] = [
     "my_tasks",
     "tasks",
     "agents",
+    "routines",
     "playbooks",
     "mcp",
     "runners",
@@ -120,6 +123,11 @@ export function role_of(user: RoleFlags): SidebarRole {
 
 // A guest has no playbooks, so the entry is hidden for a guest.
 export function can_use_playbooks(role: SidebarRole): boolean {
+    return role !== "guest";
+}
+
+// A guest has no scheduled routines, so the entry is hidden for a guest.
+export function can_use_routines(role: SidebarRole): boolean {
     return role !== "guest";
 }
 

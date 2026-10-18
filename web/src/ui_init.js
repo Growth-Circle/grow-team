@@ -119,6 +119,7 @@ import * as recent_view_ui from "./recent_view_ui.ts";
 import * as reload_setup from "./reload_setup.ts";
 import * as reminders_overlay_ui from "./reminders_overlay_ui.ts";
 import * as resize_handler from "./resize_handler.ts";
+import * as routines_ui from "./routines_ui.ts";
 import * as runner_add_ui from "./runner_add_ui.ts";
 import * as runners_ui from "./runners_ui.ts";
 import * as saved_snippets from "./saved_snippets.ts";
@@ -640,6 +641,7 @@ export async function initialize_everything(state_data) {
         ["runner-add", "runners/new", runner_add_ui],
         ["mcp", "mcp", mcp_ui],
         ["playbooks", "playbooks", playbooks_ui],
+        ["routines", "routines", routines_ui],
         ["workspace-settings", "workspace-settings", workspace_settings_ui],
     ]) {
         mod.initialize();

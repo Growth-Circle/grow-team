@@ -67,6 +67,7 @@ import "../../styles/app_frame.css";
 import "../../styles/today.css";
 import "../../styles/needs.css";
 import "../../styles/playbooks.css";
+import "../../styles/routines.css";
 import "../../styles/room.css";
 import "../../styles/agents.css";
 import "../../styles/agent_create.css";

@@ -1,0 +1,99 @@
+{{! What the Scheduled list shows in its region: the week and the
+    routines, one message when there are none, or a way to try again. }}
+{{#if is_guest}}
+    {{> components/empty_state size="hero" title=(t "Scheduled routines are for members.") description=(t "Guests can't open them.")}}
+{{else if load_failed}}
+    {{> components/empty_state tone="warning" role="alert" title=(t "Scheduled routines did not load.") action_label=(t "Try again") action_classes="routines-retry action-button action-button-subtle-neutral"}}
+{{else if loading}}
+    <div class="routines-list" aria-busy="true">
+        <div class="routines-skeleton sj-skeleton"></div>
+        <div class="routines-skeleton sj-skeleton"></div>
+        <div class="routines-skeleton sj-skeleton"></div>
+    </div>
+{{else if is_empty}}
+    {{> components/empty_state size="hero" title=(t "Nothing is scheduled yet.") description=(t "Pick a template or set up work for an agent to do again and again.") secondary_label=(t "Start a routine") secondary_href="#routines/new"}}
+{{else}}
+    <section class="routines-week" aria-labelledby="routines-week-title">
+        <h2 class="routines-section-title" id="routines-week-title">{{t "Next 7 days"}}</h2>
+        <ol class="routines-week-days">
+            {{#each week}}
+                <li class="routines-week-day{{#if this.today}} routines-week-day-today{{/if}}" {{#if this.today}}aria-current="date"{{/if}}>
+                    <span class="routines-week-date">{{this.label}}</span>
+                    {{#if this.has_items}}
+                        <ul class="routines-week-items">
+                            {{#each this.items}}
+                                <li class="routines-week-item{{#if this.external}} routines-week-item-external{{/if}}" title="{{this.full_label}}">
+                                    {{#if this.time}}<span class="routines-week-time">{{this.time}}</span>{{/if}}
+                                    <span class="routines-week-name">{{this.title}}</span>
+                                </li>
+                            {{/each}}
+                        </ul>
+                    {{else}}
+                        <span class="routines-week-none" aria-label="{{t 'Nothing scheduled'}}">–</span>
+                    {{/if}}
+                </li>
+            {{/each}}
+        </ol>
+    </section>
+
+    <section aria-labelledby="routines-all-title">
+        <h2 class="routines-section-title" id="routines-all-title">{{t "All routines"}}</h2>
+        <ul class="routines-list">
+            {{#each rows}}
+                <li class="routine-row{{#if this.paused}} routine-row-paused{{/if}}" data-routine-id="{{this.id}}">
+                    <div class="routine-row-heading">
+                        <span class="routine-row-title" title="{{this.title}}">{{this.title}}</span>
+                        {{#if this.external}}
+                            <span class="routine-tag routine-tag-external">{{t "Runs outside Sanji"}}</span>
+                        {{/if}}
+                        {{#if this.paused}}
+                            <span class="routine-tag routine-tag-paused">{{this.paused_label}}</span>
+                        {{/if}}
+                    </div>
+                    <dl class="routine-facts">
+                        <div class="routine-fact">
+                            <dt>{{t "Agent"}}</dt>
+                            <dd title="{{this.agent_name}}">{{this.agent_name}}</dd>
+                        </div>
+                        <div class="routine-fact">
+                            <dt>{{t "Posts in"}}</dt>
+                            <dd title="{{this.where}}">{{this.where}}</dd>
+                        </div>
+                        <div class="routine-fact">
+                            <dt>{{t "When"}}</dt>
+                            <dd>{{this.pattern}}</dd>
+                        </div>
+                        <div class="routine-fact">
+                            <dt>{{t "Next run"}}</dt>
+                            <dd title="{{this.next_full_time}}">{{this.next_run}}</dd>
+                        </div>
+                        <div class="routine-fact">
+                            <dt>{{t "Last result"}}</dt>
+                            <dd>
+                                <span class="routine-status routine-status-{{this.status_tone}}">{{this.status_text}}</span>
+                                {{#if this.last_time}}<span class="routine-last-time" title="{{this.last_full_time}}">{{this.last_time}}</span>{{/if}}
+                                {{#if this.reason}}<span class="routine-reason">{{this.reason}}</span>{{/if}}
+                                {{#if this.result_url}}<a class="routine-result-link" href="{{this.result_url}}">{{t "Open the result"}}</a>{{/if}}
+                            </dd>
+                        </div>
+                    </dl>
+                    {{#if this.can_edit}}
+                        <div class="routine-actions" role="group" aria-label="{{t 'Routine actions'}}">
+                            <button type="button" class="routine-toggle action-button action-button-subtle-neutral" {{#if this.busy}}disabled{{/if}}>{{this.toggle_label}}</button>
+                            <button type="button" class="routine-run action-button action-button-subtle-neutral" {{#if this.busy}}disabled{{/if}}>{{t "Run now"}}</button>
+                            <a class="routine-history-link action-button action-button-subtle-neutral" href="{{this.history_hash}}">{{t "History"}}</a>
+                            <a class="routine-edit-link action-button action-button-subtle-neutral" href="{{this.edit_hash}}">{{t "Edit"}}</a>
+                            <button type="button" class="routine-delete action-button action-button-subtle-neutral" {{#if this.busy}}disabled{{/if}}>{{t "Delete"}}</button>
+                        </div>
+                    {{else if this.external}}
+                        <p class="routine-readonly">{{t "Sanji only shows this routine. It is changed where it runs."}}</p>
+                    {{else}}
+                        <div class="routine-actions" role="group" aria-label="{{t 'Routine actions'}}">
+                            <a class="routine-history-link action-button action-button-subtle-neutral" href="{{this.history_hash}}">{{t "History"}}</a>
+                        </div>
+                    {{/if}}
+                </li>
+            {{/each}}
+        </ul>
+    </section>
+{{/if}}

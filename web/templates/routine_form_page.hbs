@@ -1,0 +1,152 @@
+{{! The form of a new or a changed routine. A template fills it and
+    creates nothing: the routine exists once it is saved. }}
+<div class="routine-form-page">
+    <a class="routines-back" href="#routines">
+        <i class="zulip-icon zulip-icon-chevron-left" aria-hidden="true"></i>
+        <span>{{t "Scheduled"}}</span>
+    </a>
+    {{#> components/page_header . title=title title_focusable=true description=description}}{{/components/page_header}}
+
+    {{#if load_failed}}
+        {{> components/empty_state tone="warning" role="alert" title=(t "The form did not load.") action_label=(t "Try again") action_classes="routine-form-retry action-button action-button-subtle-neutral"}}
+    {{else if missing}}
+        {{> components/empty_state size="hero" title=(t "This routine isn't available.") description=(t "It may have been removed, or you can't change it.") secondary_label=(t "Back to Scheduled") secondary_href="#routines"}}
+    {{else if loading}}
+        <div class="routine-form-skeleton sj-skeleton" aria-busy="true"></div>
+    {{else}}
+        {{#if has_templates}}
+            <section class="routine-templates" aria-labelledby="routine-templates-title">
+                <h2 class="routines-section-title" id="routine-templates-title">{{t "Start from a template"}}</h2>
+                <ul class="routine-template-list">
+                    {{#each templates}}
+                        <li>
+                            <a class="routine-template{{#if this.active}} routine-template-active{{/if}}" href="{{this.hash}}" {{#if this.active}}aria-current="true"{{/if}}>
+                                <span class="routine-template-title">{{this.title}}</span>
+                                <span class="routine-template-pattern">{{this.pattern}}</span>
+                            </a>
+                        </li>
+                    {{/each}}
+                </ul>
+            </section>
+        {{/if}}
+
+        <form class="routine-form" novalidate>
+            <div class="routine-form-error" role="alert" {{#unless error_text}}hidden{{/unless}}>{{error_text}}</div>
+
+            <div class="routine-field">
+                <label for="routine-title">{{t "Title"}}</label>
+                <input id="routine-title" class="routine-input routine-title-input" type="text" value="{{draft.title}}" maxlength="{{max_title}}" autocomplete="off" aria-describedby="routine-title-error" />
+                <p class="routine-field-error" id="routine-title-error" data-field="title" hidden></p>
+            </div>
+
+            <div class="routine-field">
+                <label for="routine-instructions">{{t "Instructions"}}</label>
+                <textarea id="routine-instructions" class="routine-input routine-instructions-input" rows="6" maxlength="{{max_instructions}}" aria-describedby="routine-instructions-hint routine-instructions-error">{{draft.instructions}}</textarea>
+                <p class="routine-field-hint" id="routine-instructions-hint">{{t "Say what the agent shall do each time. It reads the latest messages of the channel and a summary of the task board."}}</p>
+                <p class="routine-field-error" id="routine-instructions-error" data-field="instructions" hidden></p>
+            </div>
+
+            <div class="routine-field">
+                <label for="routine-pattern">{{t "How often"}}</label>
+                <select id="routine-pattern" class="routine-input routine-pattern-input">
+                    {{#each pattern_options}}
+                        <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+                    {{/each}}
+                </select>
+            </div>
+
+            <div class="routine-field" data-pattern-group="interval">
+                <label for="routine-interval" class="routine-interval-label">{{interval_label}}</label>
+                <input id="routine-interval" class="routine-input routine-interval-input" type="number" inputmode="numeric" step="1" min="{{interval_min}}" max="{{interval_max}}" value="{{draft.interval}}" aria-describedby="routine-interval-hint routine-interval-error" />
+                <p class="routine-field-hint routine-interval-hint" id="routine-interval-hint">{{interval_hint}}</p>
+                <p class="routine-field-error" id="routine-interval-error" data-field="interval" hidden></p>
+            </div>
+
+            <fieldset class="routine-field" data-pattern-group="weekly">
+                <legend>{{t "On these days"}}</legend>
+                <div class="routine-weekdays">
+                    {{#each weekday_options}}
+                        <label class="routine-weekday">
+                            <input type="checkbox" class="routine-weekday-input" value="{{this.value}}" {{#if this.checked}}checked{{/if}} />
+                            <span>{{this.label}}</span>
+                        </label>
+                    {{/each}}
+                </div>
+                <p class="routine-field-error" data-field="weekdays" hidden></p>
+            </fieldset>
+
+            <div class="routine-field" data-pattern-group="monthly">
+                <label for="routine-month-day">{{t "On day of the month"}}</label>
+                <select id="routine-month-day" class="routine-input routine-month-day-input" aria-describedby="routine-month-day-hint">
+                    {{#each month_day_options}}
+                        <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+                    {{/each}}
+                </select>
+                <p class="routine-field-hint" id="routine-month-day-hint">{{t "A month without that day runs on its last day."}}</p>
+            </div>
+
+            <fieldset class="routine-field" data-pattern-group="time">
+                <legend>{{time_legend}}</legend>
+                <div class="routine-time">
+                    <label class="routine-visually-hidden" for="routine-hour">{{t "Hour"}}</label>
+                    <select id="routine-hour" class="routine-input routine-hour-input">
+                        {{#each hour_options}}
+                            <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+                        {{/each}}
+                    </select>
+                    <span class="routine-time-separator" aria-hidden="true">:</span>
+                    <label class="routine-visually-hidden" for="routine-minute">{{t "Minute"}}</label>
+                    <select id="routine-minute" class="routine-input routine-minute-input">
+                        {{#each minute_options}}
+                            <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+                        {{/each}}
+                    </select>
+                    <span class="routine-time-zone">{{zone}}</span>
+                </div>
+            </fieldset>
+
+            <div class="routine-field">
+                <label for="routine-stream">{{t "Channel"}}</label>
+                <select id="routine-stream" class="routine-input routine-stream-input" aria-describedby="routine-stream-error">
+                    <option value="" {{#unless draft.stream_id}}selected{{/unless}}>{{t "Choose a channel"}}</option>
+                    {{#each stream_options}}
+                        <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+                    {{/each}}
+                </select>
+                <p class="routine-field-error" id="routine-stream-error" data-field="stream" hidden></p>
+            </div>
+
+            <div class="routine-field">
+                <label for="routine-topic">{{t "Topic"}}</label>
+                <input id="routine-topic" class="routine-input routine-topic-input" type="text" value="{{draft.topic}}" maxlength="{{max_topic}}" autocomplete="off" aria-describedby="routine-topic-error" />
+                <p class="routine-field-error" id="routine-topic-error" data-field="topic" hidden></p>
+            </div>
+
+            <div class="routine-field">
+                <label for="routine-agent">{{t "Agent"}}</label>
+                <select id="routine-agent" class="routine-input routine-agent-input" aria-describedby="routine-agent-error">
+                    <option value="" {{#unless draft.agent_profile_id}}selected{{/unless}}>{{t "Choose an agent"}}</option>
+                    {{#each agent_options}}
+                        <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+                    {{/each}}
+                </select>
+                <p class="routine-field-error" id="routine-agent-error" data-field="agent" hidden></p>
+            </div>
+
+            <div class="routine-field">
+                <label for="routine-model">{{t "Model"}}</label>
+                <select id="routine-model" class="routine-input routine-model-input" aria-describedby="routine-model-hint">
+                    {{#each model_options}}
+                        <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+                    {{/each}}
+                </select>
+                <p class="routine-field-hint" id="routine-model-hint">{{t "For now a job uses the model of its agent. The choice is kept for when the model can be picked for each job."}}</p>
+            </div>
+
+            <div class="routine-form-actions">
+                <button type="submit" class="routine-save action-button action-button-solid-brand" {{#if saving}}disabled{{/if}}>{{save_label}}</button>
+                <button type="button" class="routine-cancel action-button action-button-subtle-neutral">{{t "Cancel"}}</button>
+            </div>
+        </form>
+    {{/if}}
+</div>

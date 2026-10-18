@@ -1,0 +1,17 @@
+{{! The Scheduled list: the header and its main button.
+    routines_list.hbs is the part that changes while a load ends or a
+    routine changes, so the header is not drawn again. }}
+<div class="routines-page">
+    {{#> components/page_header . title=(t "Scheduled") title_focusable=true description=(t "Work that agents do again on a schedule, and the agent that posts it.")}}
+        {{#unless is_guest}}
+        <a class="routines-new action-button action-button-solid-brand" href="#routines/new">
+            <i class="zulip-icon zulip-icon-plus" aria-hidden="true"></i>
+            <span class="action-button-label">{{t "New routine"}}</span>
+        </a>
+        {{/unless}}
+    {{/components/page_header}}
+
+    <div class="routines-list-region">
+        {{> routines_list . }}
+    </div>
+</div>

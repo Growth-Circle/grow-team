@@ -417,6 +417,7 @@ const NAV_IDS: sidebar_targets.TargetId[] = [
     "tasks",
     "my_tasks",
     "agents",
+    "routines",
     "playbooks",
     "mcp",
     "runners",
@@ -445,12 +446,14 @@ export function update_nav_targets(): void {
     const role = sidebar_targets.role_of(current_user);
     const can_manage = sidebar_targets.can_manage_workspace(role);
     const can_use_playbooks = sidebar_targets.can_use_playbooks(role);
+    const can_use_routines = sidebar_targets.can_use_routines(role);
     for (const id of NAV_IDS) {
         const hash = sidebar_targets.get_hash(id, id === "settings" ? "general" : undefined);
         const shown =
             hash !== undefined &&
             (id !== "settings" || can_manage) &&
-            (id !== "playbooks" || can_use_playbooks);
+            (id !== "playbooks" || can_use_playbooks) &&
+            (id !== "routines" || can_use_routines);
         const $li = $(`.sanji-nav-item[data-nav-id="${id}"]`);
         $li.toggleClass("hidden", !shown);
         if (hash !== undefined) {

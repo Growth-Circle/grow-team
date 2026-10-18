@@ -1,0 +1,42 @@
+{{! The runs of one routine, newest first. }}
+<div class="routine-history-page">
+    <a class="routines-back" href="#routines">
+        <i class="zulip-icon zulip-icon-chevron-left" aria-hidden="true"></i>
+        <span>{{t "Scheduled"}}</span>
+    </a>
+    {{#> components/page_header . title=title title_focusable=true description=description}}{{/components/page_header}}
+
+    {{#if load_failed}}
+        {{> components/empty_state tone="warning" role="alert" title=(t "The history did not load.") action_label=(t "Try again") action_classes="routine-history-retry action-button action-button-subtle-neutral"}}
+    {{else if missing}}
+        {{> components/empty_state size="hero" title=(t "This routine isn't available.") description=(t "It may have been removed, or you can't read its channel.") secondary_label=(t "Back to Scheduled") secondary_href="#routines"}}
+    {{else if loading}}
+        <div class="routine-history-skeleton sj-skeleton" aria-busy="true"></div>
+    {{else if is_empty}}
+        {{> components/empty_state size="hero" title=(t "This routine has not run yet.") description=(t "Each run shows up here, with how it went.")}}
+    {{else}}
+        <ul class="routine-runs">
+            {{#each runs}}
+                <li class="routine-run-row">
+                    <div class="routine-run-main">
+                        <span class="routine-status routine-status-{{this.tone}}">{{this.status_text}}</span>
+                        <span class="routine-run-time" title="{{this.full_time}}">{{this.time}}</span>
+                        <span class="routine-run-trigger">{{this.trigger}}</span>
+                    </div>
+                    <dl class="routine-run-facts">
+                        <div class="routine-fact">
+                            <dt>{{t "Took"}}</dt>
+                            <dd>{{this.duration}}</dd>
+                        </div>
+                        <div class="routine-fact">
+                            <dt>{{t "Cost"}}</dt>
+                            <dd>{{this.cost}}</dd>
+                        </div>
+                    </dl>
+                    {{#if this.reason}}<p class="routine-reason">{{this.reason}}</p>{{/if}}
+                    {{#if this.result_url}}<a class="routine-result-link" href="{{this.result_url}}">{{t "Open the result"}}</a>{{/if}}
+                </li>
+            {{/each}}
+        </ul>
+    {{/if}}
+</div>

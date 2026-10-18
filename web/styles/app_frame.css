@@ -96,6 +96,7 @@ body #compose-container {
 #runner-add-view,
 #mcp-view,
 #playbooks-view,
+#routines-view,
 #workspace-settings-view {
     display: none;
 }
@@ -111,6 +112,7 @@ body #compose-container {
 #runner-add-view,
 #mcp-view,
 #playbooks-view,
+#routines-view,
 #workspace-settings-view {
     padding-top: var(--navbar-fixed-height);
 }
