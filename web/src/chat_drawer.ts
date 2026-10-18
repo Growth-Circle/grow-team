@@ -13,10 +13,10 @@ import * as hash_util from "./hash_util.ts";
 import {$t, $t_html} from "./i18n.ts";
 import * as people from "./people.ts";
 import * as rendered_markdown from "./rendered_markdown.ts";
+import * as sanji_format from "./sanji_format.ts";
 import {web_mark_read_on_scroll_policy_values} from "./settings_config.ts";
 import * as stream_data from "./stream_data.ts";
 import * as sub_store from "./sub_store.ts";
-import * as timerender from "./timerender.ts";
 import * as ui_report from "./ui_report.ts";
 import * as unread_ops from "./unread_ops.ts";
 import {user_settings} from "./user_settings.ts";
@@ -57,14 +57,11 @@ type State = {
 let current: State | undefined;
 
 function time_label(timestamp: number): string {
-    return timerender.get_localized_date_or_time_for_format(new Date(timestamp * 1000), "time");
+    return sanji_format.format_time(new Date(timestamp * 1000));
 }
 
 function time_title(timestamp: number): string {
-    return timerender.get_localized_date_or_time_for_format(
-        new Date(timestamp * 1000),
-        "dayofyear_time",
-    );
+    return sanji_format.format_date_time(new Date(timestamp * 1000));
 }
 
 function conversation_label(conversation: Conversation): string {

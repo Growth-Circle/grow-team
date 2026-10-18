@@ -8,8 +8,8 @@ import * as drawer from "./drawer.ts";
 import * as hash_util from "./hash_util.ts";
 import {$t} from "./i18n.ts";
 import * as rendered_markdown from "./rendered_markdown.ts";
+import * as sanji_format from "./sanji_format.ts";
 import * as sub_store from "./sub_store.ts";
-import * as timerender from "./timerender.ts";
 import * as util from "./util.ts";
 
 /*
@@ -24,10 +24,7 @@ let open_stream_id: number | undefined;
 let load_failed = false;
 
 function time_label(timestamp: number): string {
-    return timerender.get_localized_date_or_time_for_format(
-        new Date(timestamp * 1000),
-        "dayofyear_time",
-    );
+    return sanji_format.format_date_time(new Date(timestamp * 1000));
 }
 
 function jump_url(stream_id: number, topic: string, message_id: number): string {

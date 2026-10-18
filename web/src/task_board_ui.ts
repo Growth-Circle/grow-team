@@ -23,6 +23,7 @@ import {$t, $t_html} from "./i18n.ts";
 import * as left_sidebar_navigation_area from "./left_sidebar_navigation_area.ts";
 import * as people from "./people.ts";
 import * as rendered_markdown from "./rendered_markdown.ts";
+import * as sanji_format from "./sanji_format.ts";
 import {current_user} from "./state_data.ts";
 import * as stream_data from "./stream_data.ts";
 import * as sub_store from "./sub_store.ts";
@@ -105,14 +106,11 @@ export function title(): string {
 }
 
 function day_label(timestamp: number): string {
-    return timerender.get_localized_date_or_time_for_format(
-        new Date(timestamp * 1000),
-        "dayofyear",
-    );
+    return sanji_format.format_date_short(new Date(timestamp * 1000));
 }
 
 function time_label(timestamp: number): string {
-    return timerender.get_localized_date_or_time_for_format(new Date(timestamp * 1000), "time");
+    return sanji_format.format_time(new Date(timestamp * 1000));
 }
 
 function origin_label(task: Task): string {

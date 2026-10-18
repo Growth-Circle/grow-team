@@ -16,9 +16,9 @@ import * as nav_counts from "./nav_counts.ts";
 import type {NeedGroup, NeedItem, NeedKind, NeedTab} from "./needs_data.ts";
 import * as needs_data from "./needs_data.ts";
 import {page_params} from "./page_params.ts";
+import * as sanji_format from "./sanji_format.ts";
 import {realm} from "./state_data.ts";
 import * as stream_data from "./stream_data.ts";
-import * as timerender from "./timerender.ts";
 import * as unread_ui from "./unread_ui.ts";
 import * as util from "./util.ts";
 import * as views_util from "./views_util.ts";
@@ -104,7 +104,7 @@ function avatar_color(actor: NeedItem["actor"]): string {
 
 function meta_text(item: NeedItem): string {
     const who = item.actor.name;
-    const time = timerender.relative_time_string_from_date(new Date(item.time));
+    const time = sanji_format.format_relative(new Date(item.time));
     if (needs_data.is_card_kind(item.kind)) {
         return item.task === null
             ? $t({defaultMessage: "{who} · {time}"}, {who, time})
@@ -267,7 +267,7 @@ function group_context(group: NeedGroup): Record<string, unknown> {
                       {defaultMessage: "Latest: {who} · {time}"},
                       {
                           who: newest.actor.name,
-                          time: timerender.relative_time_string_from_date(new Date(newest.time)),
+                          time: sanji_format.format_relative(new Date(newest.time)),
                       },
                   ),
         team_wide: group.items.every((item) => item.broadcast),
