@@ -1,4 +1,4 @@
-"""Create or archive sanji's three built-in agents: Kaki, Ayame, and Matcha.
+"""Create or archive sanji's four built-in agents: Kaki, Ayame, Matcha, and Sanji Agent.
 
 WP13 step 7 / §4.5: each one is an `answer` profile on the runner's
 endpoint harness with the given provider, described in §3.5. A rerun is
@@ -99,6 +99,22 @@ BUILTIN_AGENTS = [
             "pull requests."
         ),
     ),
+    BuiltinAgent(
+        name="Sanji Agent",
+        agent_role="custom",
+        avatar_shape="circle",
+        avatar_color="#4F8CFF",
+        description=gettext_lazy(
+            "Runs the scheduled routines of this workspace and posts their results under "
+            "its own name."
+        ),
+        instructions=gettext_lazy(
+            "You are Sanji Agent, the assistant that runs the scheduled routines in sanji. "
+            "Follow the instructions of the routine, and write in the language of the "
+            "channel. Keep it short, and never mention everyone in a channel. Do not "
+            "create tasks, do not choose a PIC, and do not open pull requests."
+        ),
+    ),
 ]
 
 
@@ -197,7 +213,7 @@ def realm_owner_actor(realm: Realm) -> UserProfile | None:
 
 
 class Command(ZulipBaseCommand):
-    help = "Create or archive sanji's built-in agents: Kaki, Ayame, and Matcha."
+    help = "Create or archive sanji's built-in agents: Kaki, Ayame, Matcha, and Sanji Agent."
 
     @override
     def add_arguments(self, parser: ArgumentParser) -> None:

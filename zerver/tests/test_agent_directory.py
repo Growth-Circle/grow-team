@@ -621,7 +621,7 @@ class EnsureBuiltinAgentsCommandTest(AgentDirectoryAPITestCase):
     def test_create_then_rerun_does_not_duplicate(self) -> None:
         output = self.ensure()
         self.assertIn("Kaki: readiness failed; not enabled.", output)
-        self.assertEqual(agents.AgentProfile.objects.filter(is_builtin=True).count(), 3)
+        self.assertEqual(agents.AgentProfile.objects.filter(is_builtin=True).count(), 4)
         for spec, profile in zip(BUILTIN_AGENTS, self.builtins(), strict=True):
             # A runner that never answers the probe leaves the agent
             # created, but not enabled.
@@ -638,19 +638,35 @@ class EnsureBuiltinAgentsCommandTest(AgentDirectoryAPITestCase):
         # A rerun starts a new probe for each agent that is not ready.
         setups = agents.AgentSetupOperation.objects.filter(profile__is_builtin=True).count()
         self.ensure()
-        self.assertEqual(agents.AgentProfile.objects.filter(is_builtin=True).count(), 3)
+        self.assertEqual(agents.AgentProfile.objects.filter(is_builtin=True).count(), 4)
         self.assertEqual(
             agents.AgentSetupOperation.objects.filter(profile__is_builtin=True).count(),
-            setups + 3,
+            setups + 4,
         )
 
         # A rename does not hide a built-in from the next run.
         kaki = self.builtins()[0]
         agents.AgentProfile.objects.filter(id=kaki.id).update(name="Kaki Baru")
         self.ensure(ready=True)
-        self.assertEqual(agents.AgentProfile.objects.filter(is_builtin=True).count(), 3)
+        self.assertEqual(agents.AgentProfile.objects.filter(is_builtin=True).count(), 4)
         for profile in self.builtins():
             self.assertEqual(profile.desired_state, "enabled")
+
+    def test_sanji_agent_is_the_routine_sender_and_its_name_is_reserved(self) -> None:
+        self.ensure("--share-group", "role:members", ready=True)
+
+        sanji_agent = live_builtin(self.owner.realm.id, "custom")
+        assert sanji_agent is not None
+        self.assertEqual(sanji_agent.name, "Sanji Agent")
+        self.assertTrue(sanji_agent.is_builtin)
+        self.assertEqual(sanji_agent.desired_state, "enabled")
+        self.assertTrue(sanji_agent.bot_user.is_bot)
+        agent_policy.check_agent_access(
+            self.example_user("cordelia"), sanji_agent, None, None, "profile.use"
+        )
+        self.assertFalse(
+            agent_name_available("sanji agent", self.owner.realm, allow_reserved=False)
+        )
 
     def test_ensure_archive_ensure(self) -> None:
         self.ensure(ready=True)

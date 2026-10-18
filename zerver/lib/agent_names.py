@@ -21,6 +21,7 @@ RESERVED_AGENT_NAMES: frozenset[str] = frozenset(
         "kaki",
         "ayame",
         "matcha",
+        "sanji agent",
         "admin",
         "sanji",
         "bot",
@@ -56,7 +57,7 @@ def agent_name_available(
     Pass `exclude_user_id` (a profile's own bot user) when checking a
     rename, so a profile keeping its current name never collides with
     itself. Pass `allow_reserved=True` only for ensure_builtin_agents,
-    which is the one caller allowed to create Kaki, Ayame, and Matcha
+    which is the one caller allowed to create Kaki, Ayame, Matcha, and Sanji Agent
     under their own reserved names; every other caller keeps the
     reserved-word check, so no one else can claim those names.
     """
