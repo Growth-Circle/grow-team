@@ -153,6 +153,15 @@ class MCPPolicyTest(ZulipTestCase):
             set_policies(grant, actor, {"get_me": "maybe"})
         self.assertFalse(grant.tool_policies.exists())
 
+    def test_a_read_tool_cannot_ask_first(self) -> None:
+        grant = self.make_grant(scopes=READ_WRITE)
+        actor = self.example_user("hamlet")
+        with self.assertRaises(ValueError):
+            set_policies(grant, actor, {"get_me": ASK_FIRST})
+        self.assertFalse(grant.tool_policies.exists())
+        set_policies(grant, actor, {"get_me": OFF, "send_message": ASK_FIRST})
+        self.assertEqual(evaluate_grant(grant, "get_me"), "deny")
+
     def test_effective_policy_for_display(self) -> None:
         legacy = self.make_grant(scopes=READ_WRITE, mode="legacy")
         managed = self.make_grant(scopes=READ_WRITE)

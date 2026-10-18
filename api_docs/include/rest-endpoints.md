@@ -312,4 +312,7 @@
 * [List your external MCP connections](/api/list-mcp-access)
 * [Create an external agent token](/api/create-mcp-access)
 * [Revoke an external MCP connection](/api/revoke-mcp-access)
+* [List the tools of your external MCP connection](/api/get-mcp-access-tools)
+* [Change the policies of your external MCP connection](/api/update-mcp-access-tools)
+* [List what happened to external MCP calls](/api/list-mcp-audit)
 * [Approve or reject a call that waits for you](/api/decide-mcp-call)

@@ -107,6 +107,10 @@ def set_policies(grant: MCPAccessGrant, actor: UserProfile, changes: Mapping[str
     for tool_name, policy in changes.items():
         if tool_name not in TOOLS or policy not in MCP_TOOL_POLICIES:
             raise ValueError("Unknown tool or policy.")
+        # A read has no preview to approve, and holding it would only stall
+        # the client.
+        if policy == ASK_FIRST and tool_kind(tool_name) == "read":
+            raise ValueError("A read tool cannot ask first.")
     with transaction.atomic():
         grant = MCPAccessGrant.objects.select_for_update(no_key=True).get(id=grant.id)
         if grant.policy_mode == "legacy":

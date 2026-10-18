@@ -13,14 +13,17 @@ from django.db.models import Q
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import render
 from django.utils.timezone import now
+from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
-from pydantic import StringConstraints
+from pydantic import Field, Json, StringConstraints
 
 from zerver.decorator import zulip_login_required
+from zerver.lib.exceptions import JsonableError, ResourceNotFoundError
 from zerver.lib.mcp_access import (
     SCOPES,
+    audit,
     digest,
     issue_pair,
     issue_token,
@@ -32,6 +35,16 @@ from zerver.lib.mcp_access import (
     valid_redirect,
 )
 from zerver.lib.mcp_pending import DIGEST_SHORT_LENGTH, decide
+from zerver.lib.mcp_policy import (
+    default_policy,
+    effective_policy,
+    policy_enforced,
+    scope_allows,
+    set_policies,
+    stored_policies,
+    tool_kind,
+)
+from zerver.lib.mcp_tools import TOOLS
 from zerver.lib.rate_limiter import rate_limit_request_by_ip
 from zerver.lib.response import json_success
 from zerver.lib.typed_endpoint import PathOnly, typed_endpoint
@@ -345,6 +358,7 @@ def list_access(request: HttpRequest, user_profile: UserProfile) -> HttpResponse
                     "id": str(grant.id),
                     "name": grant.name,
                     "method": "oauth" if grant.client_id else "token",
+                    "policy_mode": grant.policy_mode,
                     "scopes": grant.scopes,
                     "created_at": grant.created_at.isoformat(),
                     "expires_at": grant.expires_at.isoformat(),
@@ -424,5 +438,117 @@ def decide_pending_call(
             "id": str(call.id),
             "status": call.status,
             "digest": call.argument_digest[:DIGEST_SHORT_LENGTH],
+        },
+    )
+
+
+def _owned_grant(user_profile: UserProfile, grant_id: UUID) -> MCPAccessGrant:
+    grant = MCPAccessGrant.objects.filter(
+        id=grant_id, user=user_profile, realm=user_profile.realm, revoked_at__isnull=True
+    ).first()
+    if grant is None:
+        raise ResourceNotFoundError(_("Connection does not exist."))
+    return grant
+
+
+def _tools_data(grant: MCPAccessGrant) -> dict[str, object]:
+    stored = stored_policies(grant)
+    return {
+        "grant": {"id": str(grant.id), "name": grant.name, "policy_mode": grant.policy_mode},
+        # Until the workspace turns policies on, they are saved and not applied.
+        "enforced": policy_enforced(grant.realm) and grant.policy_mode == "managed",
+        "tools": [
+            {
+                "name": name,
+                "description": description,
+                "kind": tool_kind(name),
+                "policy": effective_policy(grant, name, stored),
+                "default_policy": default_policy(name),
+            }
+            for name, (_model, description, _write) in TOOLS.items()
+            if scope_allows(name, grant.scopes)
+        ],
+    }
+
+
+def get_access_tools(
+    request: HttpRequest, user_profile: UserProfile, grant_id: UUID
+) -> HttpResponse:
+    grant = _owned_grant(user_profile, grant_id)
+    return json_success(request, data=_tools_data(grant))
+
+
+@typed_endpoint
+def update_access_tools(
+    request: HttpRequest,
+    user_profile: UserProfile,
+    grant_id: PathOnly[UUID],
+    *,
+    policies: Json[dict[str, Literal["allow", "approve", "block"]]],
+) -> HttpResponse:
+    """Only the owner of a connection changes what it may do. An administrator
+    can revoke a connection but cannot loosen it."""
+    grant = _owned_grant(user_profile, grant_id)
+    before = effective_current(grant)
+    for tool_name, policy in policies.items():
+        if tool_name not in TOOLS:
+            raise JsonableError(_("Unknown tool."))
+        if policy == "approve" and tool_kind(tool_name) == "read":
+            raise JsonableError(_("A read tool can be Auto or Off, not Ask first."))
+    set_policies(grant, user_profile, policies)
+    for tool_name, policy in policies.items():
+        if before.get(tool_name) != policy:
+            audit(
+                grant,
+                tool_name,
+                "policy_changed",
+                actor=user_profile,
+                detail={"policy": policy, "was": before.get(tool_name)},
+            )
+    grant.refresh_from_db()
+    return json_success(request, data=_tools_data(grant))
+
+
+def effective_current(grant: MCPAccessGrant) -> dict[str, str]:
+    stored = stored_policies(grant)
+    return {name: effective_policy(grant, name, stored) for name in TOOLS}
+
+
+@typed_endpoint
+def list_audit(
+    request: HttpRequest,
+    user_profile: UserProfile,
+    *,
+    limit: Json[Annotated[int, Field(ge=1, le=100)]] = 50,
+    before: Json[int] | None = None,
+) -> HttpResponse:
+    """What happened to calls on the connections of the person asking, or on
+    all of them for an administrator. Names, never ids, and no content."""
+    entries = MCPAccessAudit.objects.filter(grant__realm=user_profile.realm)
+    if not user_profile.is_realm_admin:
+        entries = entries.filter(grant__user=user_profile)
+    if before is not None:
+        entries = entries.filter(id__lt=before)
+    rows = list(
+        entries.select_related("grant", "grant__user", "actor").order_by("-id")[: limit + 1]
+    )
+    return json_success(
+        request,
+        data={
+            "entries": [
+                {
+                    "id": entry.id,
+                    "created_at": entry.created_at.isoformat(),
+                    "connection": entry.grant.name,
+                    "owner": entry.grant.user.full_name,
+                    "tool": entry.tool_name,
+                    "outcome": entry.outcome,
+                    "digest": entry.argument_digest[:DIGEST_SHORT_LENGTH],
+                    "actor": entry.actor.full_name if entry.actor is not None else None,
+                    "policy": entry.detail.get("policy"),
+                }
+                for entry in rows[:limit]
+            ],
+            "has_more": len(rows) > limit,
         },
     )

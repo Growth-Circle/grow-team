@@ -36,6 +36,7 @@ paths:
                               name,
                               method,
                               scopes,
+                              policy_mode,
                               created_at,
                               expires_at,
                               last_used_at,
@@ -47,6 +48,16 @@ paths:
                             name: {type: string}
                             method: {type: string, enum: [oauth, token]}
                             scopes: {type: array, items: {type: string}}
+                            policy_mode:
+                              type: string
+                              enum: [managed, legacy]
+                              description: |
+                                `legacy` for a connection made before per-tool
+                                policies: it keeps the access its scopes give
+                                it until its owner changes a policy. A new
+                                connection is `managed`.
+
+                                **Changes**: New in Zulip 12.0 (feature level ZF-49a7c5).
                             created_at: {type: string}
                             expires_at: {type: string}
                             last_used_at: {type: string, nullable: true}
@@ -135,6 +146,218 @@ paths:
               example:
                 result: success
                 msg: ""
+  /mcp/access/{grant_id}/tools:
+    get:
+      operationId: get-mcp-access-tools
+      tags: ["users"]
+      summary: List the tools of your external MCP connection
+      description: |
+        Return the tools your connection can use, each with its policy:
+        `allow` (Auto), `approve` (Ask first) or `block` (Off). A tool that is
+        not shown needs write access the connection does not have.
+
+        `enforced` is `false` while the workspace has not turned policies on,
+        and for a `legacy` connection. Policies are saved either way.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-49a7c5).
+      parameters:
+        - name: grant_id
+          in: path
+          required: true
+          description: The connection ID. It must be your own, and not revoked.
+          schema: {type: string, format: uuid}
+          example: 00000000-0000-4000-8000-000000000001
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - $ref: "#/components/schemas/McpAccessTools"
+              example:
+                result: success
+                msg: ""
+                grant:
+                  id: 00000000-0000-4000-8000-000000000001
+                  name: Claude Cowork
+                  policy_mode: managed
+                enforced: true
+                tools:
+                  - name: get_me
+                    description: Read the profile of the account that approved this connection.
+                    kind: read
+                    policy: allow
+                    default_policy: allow
+                  - name: send_message
+                    description: Send a channel message as the approved account.
+                    kind: write
+                    policy: approve
+                    default_policy: approve
+    put:
+      operationId: update-mcp-access-tools
+      tags: ["users"]
+      summary: Change the policies of your external MCP connection
+      description: |
+        Set the policy of one or more tools. Only the owner of the connection
+        can change it; an administrator can revoke a connection but not loosen
+        it. A `legacy` connection becomes `managed`, with every tool it could
+        use kept on `allow`, so changing one tool changes no other.
+
+        A read tool (`kind` is `read`) cannot be `approve`: it has no preview
+        to approve.
+
+        Each change that alters a policy adds an audit entry with `outcome`
+        `policy_changed`.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-49a7c5).
+      parameters:
+        - name: grant_id
+          in: path
+          required: true
+          description: The connection ID. It must be your own, and not revoked.
+          schema: {type: string, format: uuid}
+          example: 00000000-0000-4000-8000-000000000001
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                policies:
+                  description: |
+                    A JSON-encoded object that maps a tool name to its new
+                    policy.
+                  type: object
+                  additionalProperties:
+                    type: string
+                    enum: [allow, approve, block]
+                  example: {send_message: approve, delete_task: block}
+              required:
+                - policies
+            encoding:
+              policies:
+                contentType: application/json
+      responses:
+        "200":
+          description: Success. The body is the same as `GET` returns.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - $ref: "#/components/schemas/McpAccessTools"
+              example:
+                result: success
+                msg: ""
+                grant:
+                  id: 00000000-0000-4000-8000-000000000001
+                  name: Claude Cowork
+                  policy_mode: managed
+                enforced: true
+                tools:
+                  - name: send_message
+                    description: Send a channel message as the approved account.
+                    kind: write
+                    policy: block
+                    default_policy: approve
+  /mcp/audit:
+    get:
+      operationId: list-mcp-audit
+      tags: ["users"]
+      summary: List what happened to external MCP calls
+      description: |
+        Return the newest entries first: calls that were blocked, asked for,
+        approved, declined, executed, rate limited or that failed, and
+        policy changes. You see the connections you own; an administrator
+        sees all of them. An entry never holds the content of a call or a
+        token: `digest` is the first 12 characters of a hash of its arguments.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-49a7c5).
+      parameters:
+        - name: limit
+          in: query
+          description: How many entries to return, from 1 to 100.
+          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+          example: 50
+        - name: before
+          in: query
+          description: Only entries with an `id` below this one, to read the next page.
+          schema: {type: integer}
+          example: 120
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - type: object
+                    additionalProperties: false
+                    required: [entries, has_more]
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      has_more: {type: boolean}
+                      entries:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: false
+                          required:
+                            [
+                              id,
+                              created_at,
+                              connection,
+                              owner,
+                              tool,
+                              outcome,
+                              digest,
+                              actor,
+                              policy,
+                            ]
+                          properties:
+                            id: {type: integer}
+                            created_at: {type: string, format: date-time}
+                            connection:
+                              {
+                                type: string,
+                                description: The connection's name.,
+                              }
+                            owner:
+                              {
+                                type: string,
+                                description: The owner's full name.,
+                              }
+                            tool: {type: string}
+                            outcome: {type: string}
+                            digest: {type: string}
+                            actor:
+                              type: string
+                              nullable: true
+                              description: Who decided, when a person did.
+                            policy:
+                              type: string
+                              nullable: true
+                              description: The new policy, for a `policy_changed` entry.
+              example:
+                result: success
+                msg: ""
+                has_more: false
+                entries:
+                  - id: 120
+                    created_at: "2026-10-18T09:00:00+00:00"
+                    connection: Claude Cowork
+                    owner: Ari Eko
+                    tool: send_message
+                    outcome: asked
+                    digest: 1f0c5a9e77b2
+                    actor: Ari Eko
+                    policy: null
   /mcp/calls/{call_id}/decision:
     post:
       operationId: decide-mcp-call
@@ -209,3 +432,43 @@ paths:
                 id: 00000000-0000-4000-8000-000000000002
                 status: executed
                 digest: 1f0c5a9e77b2
+components:
+  schemas:
+    McpAccessTools:
+      type: object
+      additionalProperties: false
+      required: [grant, enforced, tools]
+      properties:
+        result: {}
+        msg: {}
+        ignored_parameters_unsupported: {}
+        grant:
+          type: object
+          additionalProperties: false
+          required: [id, name, policy_mode]
+          properties:
+            id: {type: string}
+            name: {type: string}
+            policy_mode: {type: string, enum: [managed, legacy]}
+        enforced:
+          type: boolean
+          description: Whether the workspace applies these policies to this connection now.
+        tools:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, description, kind, policy, default_policy]
+            properties:
+              name: {type: string}
+              description: {type: string, description: Plain text.}
+              kind:
+                type: string
+                enum: [read, write, destructive]
+              policy:
+                type: string
+                enum: [allow, approve, block]
+              default_policy:
+                type: string
+                enum: [allow, approve, block]
+                description: The policy a new connection gets for this tool.

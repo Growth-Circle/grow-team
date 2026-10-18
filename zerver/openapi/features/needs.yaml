@@ -847,8 +847,11 @@ components:
         id:
           type: string
           description:
-            'One of "approval:<uuid>", "decision:<job id>", "mention:<message id>",
-            "card_mention:<notification id>", or "card_assigned:<notification id>".'
+            'One of "approval:<uuid>", "mcp_call:<uuid>", "decision:<job id>",
+            "mention:<message id>", "card_mention:<notification id>", or
+            "card_assigned:<notification id>". An "mcp_call" item is an
+            approval (`kind` is `approval`) for a call that an external MCP
+            client made to an Ask first tool.'
         kind:
           type: string
           enum:
@@ -912,7 +915,7 @@ components:
           items:
             type: string
           description:
-            For an approval, one action key (currently always "approve"). For a decision, the
+            For an approval, "approve", and also "reject" for an `mcp_call` item. For a decision, the
             agent's own option labels. Empty for a mention, whose two actions are fixed
             client-side.
         expires_at:
@@ -997,6 +1000,47 @@ components:
             older one, unless you reacted to the older one.
 
             **Changes**: New in Zulip 12.0 (feature level ZF-988a72).
+        mcp_call:
+          type: object
+          additionalProperties: false
+          description: |
+            Only on an approval for an external MCP client's call (its `id`
+            starts with "mcp_call:"). `text` is the first 600 characters of
+            `content`. To decide it, call `POST /mcp/calls/{call_id}/decision`
+            with `operation_hash` as `argument_digest`, and `nonce`.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-49a7c5).
+          required:
+            [call_id, grant_name, tool, target, content, mentions, digest]
+          properties:
+            call_id: {type: string}
+            grant_name:
+              type: string
+              description: The name of the connection that made the call.
+            tool: {type: string}
+            target:
+              type: object
+              additionalProperties: false
+              required: [type, name, topic, message_id]
+              properties:
+                type:
+                  type: string
+                  enum: [channel, direct, message, task, column, file]
+                name:
+                  type: string
+                  description: A channel, the people of a direct message, a task, a column or a file, by name.
+                topic: {type: string, nullable: true}
+                message_id: {type: integer, nullable: true}
+            content:
+              type: string
+              description: The whole content the call would send or change.
+            mentions:
+              type: array
+              items: {type: string}
+              description: The full names of the members the message would mention.
+            digest:
+              type: string
+              description: The first 12 characters of the call's argument hash.
       required:
         - id
         - kind

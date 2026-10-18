@@ -1,14 +1,17 @@
 import base64
 import hashlib
 import json
-from typing import Any
+from datetime import timedelta
+from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, urlsplit
 
 from django.db import connection
 from django.http import HttpResponse
 from django.test import Client
+from django.utils.timezone import now
 from typing_extensions import override
 
+from zerver.lib.mcp_access import audit
 from zerver.lib.mcp_pending import argument_digest
 from zerver.lib.mcp_policy import OFF, set_policies
 from zerver.lib.mcp_tools import TOOLS
@@ -18,10 +21,14 @@ from zerver.models import (
     AgentRealmSettings,
     MCPAccessAudit,
     MCPAccessGrant,
+    MCPAccessToolPolicy,
     MCPPendingCall,
     Message,
 )
 from zerver.models.streams import get_stream
+
+if TYPE_CHECKING:
+    from django.test.client import _MonkeyPatchedWSGIResponse as TestHttpResponse
 
 
 class MCPAccessTests(ZulipTestCase):
@@ -947,3 +954,161 @@ class MCPAccessTests(ZulipTestCase):
         )
         self.assertTrue(result["isError"])
         self.assertFalse(MCPPendingCall.objects.exists())
+
+    def put_tools(self, grant: MCPAccessGrant, policies: dict[str, str]) -> "TestHttpResponse":
+        return self.client_put(
+            f"/json/mcp/access/{grant.id}/tools", {"policies": json.dumps(policies)}
+        )
+
+    def test_tools_endpoint_lists_the_tools_a_connection_can_use(self) -> None:
+        self.manual(write=True)
+        grant = self.latest_grant()
+        MCPAccessGrant.objects.filter(id=grant.id).update(policy_mode="legacy")
+        result = self.assert_json_success(self.client_get(f"/json/mcp/access/{grant.id}/tools"))
+        self.assertEqual(result["grant"]["policy_mode"], "legacy")
+        self.assertFalse(result["enforced"])
+        tools = {tool["name"]: tool for tool in result["tools"]}
+        self.assertEqual(set(tools), set(TOOLS))
+        self.assertEqual({tool["policy"] for tool in tools.values()}, {"allow"})
+        self.assertEqual(tools["get_me"]["kind"], "read")
+        self.assertEqual(tools["get_me"]["default_policy"], "allow")
+        self.assertEqual(tools["send_message"]["default_policy"], "approve")
+        self.assertEqual(tools["add_reaction"]["default_policy"], "allow")
+        self.assertEqual(tools["send_message"]["kind"], "write")
+        self.assertEqual(tools["delete_task"]["kind"], "destructive")
+        self.assertNotIn("**", tools["send_message"]["description"])
+        self.manual()
+        read_only = self.latest_grant()
+        result = self.assert_json_success(self.client_get(f"/json/mcp/access/{read_only.id}/tools"))
+        self.assertEqual(result["grant"]["policy_mode"], "managed")
+        names = {tool["name"] for tool in result["tools"]}
+        self.assertNotIn("send_message", names)
+        self.assertIn("get_me", names)
+        defaults = {tool["name"]: tool["policy"] for tool in result["tools"]}
+        self.assertEqual(defaults["get_me"], "allow")
+
+    def test_changing_a_policy_is_saved_audited_and_shown(self) -> None:
+        # AC-V1-013
+        self.manual(write=True)
+        grant = self.latest_grant()
+        result = self.assert_json_success(
+            self.put_tools(grant, {"send_message": "block", "delete_task": "approve"})
+        )
+        policies = {tool["name"]: tool["policy"] for tool in result["tools"]}
+        self.assertEqual(policies["send_message"], "block")
+        self.assertEqual(policies["delete_task"], "approve")
+        self.assertEqual(policies["edit_message"], "approve")
+        self.assertEqual(policies["add_reaction"], "allow")
+        stored = {
+            row.tool_name: row.policy for row in MCPAccessToolPolicy.objects.filter(grant=grant)
+        }
+        self.assertEqual(stored["send_message"], "block")
+        entries = list(
+            MCPAccessAudit.objects.filter(outcome="policy_changed")
+            .order_by("id")
+            .values("tool_name", "actor_id", "detail")
+        )
+        self.assertEqual(
+            entries,
+            [
+                {
+                    "tool_name": "send_message",
+                    "actor_id": self.user.id,
+                    "detail": {"policy": "block", "was": "approve"},
+                },
+            ],
+        )
+        # Saving the same thing again changes nothing and adds no entry.
+        self.assert_json_success(self.put_tools(grant, {"send_message": "block"}))
+        self.assertEqual(MCPAccessAudit.objects.filter(outcome="policy_changed").count(), 1)
+
+    def test_changing_a_legacy_grant_keeps_its_other_tools_on_auto(self) -> None:
+        self.manual(write=True)
+        grant = self.latest_grant()
+        MCPAccessGrant.objects.filter(id=grant.id).update(policy_mode="legacy")
+        result = self.assert_json_success(self.put_tools(grant, {"send_message": "approve"}))
+        self.assertEqual(result["grant"]["policy_mode"], "managed")
+        policies = {tool["name"]: tool["policy"] for tool in result["tools"]}
+        self.assertEqual(
+            {name for name, policy in policies.items() if policy != "allow"}, {"send_message"}
+        )
+
+    def test_policy_changes_are_rejected_when_invalid_or_not_the_owners(self) -> None:
+        self.manual(write=True)
+        grant = self.latest_grant()
+        result = self.put_tools(grant, {"send_message": "maybe"})
+        self.assertEqual(result.status_code, 400)
+        result = self.put_tools(grant, {"no_such_tool": "block"})
+        self.assert_json_error(result, "Unknown tool.")
+        result = self.put_tools(grant, {"get_me": "approve"})
+        self.assert_json_error(result, "A read tool can be Auto or Off, not Ask first.")
+        self.assertFalse(MCPAccessToolPolicy.objects.exists())
+        for email in ("iago", "othello"):
+            self.login(email)
+            self.assertEqual(self.put_tools(grant, {"get_me": "block"}).status_code, 404)
+            self.assertEqual(self.client_get(f"/json/mcp/access/{grant.id}/tools").status_code, 404)
+        self.login_user(self.user)
+        MCPAccessGrant.objects.filter(id=grant.id).update(revoked_at=now())
+        self.assertEqual(self.put_tools(grant, {"get_me": "block"}).status_code, 404)
+        self.assertFalse(MCPAccessToolPolicy.objects.exists())
+
+    def test_audit_feed_shows_members_their_own_and_admins_all(self) -> None:
+        # AC-V1-020
+        self.manual(write=True)
+        mine = self.latest_grant()
+        other_user = self.example_user("othello")
+        theirs = MCPAccessGrant.objects.create(
+            realm=other_user.realm,
+            user=other_user,
+            name="Their agent",
+            scopes=["team:read"],
+            resource="http://zulip.testserver/mcp",
+            expires_at=now() + timedelta(days=1),
+        )
+        audit(theirs, "get_me", "success")
+        audit(mine, "send_message", "asked", argument_digest="a" * 64, actor=self.user)
+        result = self.assert_json_success(self.client_get("/json/mcp/audit"))
+        self.assertFalse(result["has_more"])
+        entries = result["entries"]
+        self.assertEqual({entry["connection"] for entry in entries}, {"Hermes"})
+        self.assertEqual({entry["owner"] for entry in entries}, {self.user.full_name})
+        asked = next(entry for entry in entries if entry["outcome"] == "asked")
+        self.assertEqual(asked["digest"], "a" * 12)
+        self.assertEqual(asked["actor"], self.user.full_name)
+        self.assertEqual(
+            set(asked),
+            {
+                "id",
+                "created_at",
+                "connection",
+                "owner",
+                "tool",
+                "outcome",
+                "digest",
+                "actor",
+                "policy",
+            },
+        )
+        self.assertNotIn(str(mine.id), json.dumps(result))
+        self.login("iago")
+        everything = self.assert_json_success(self.client_get("/json/mcp/audit"))["entries"]
+        self.assertEqual({entry["connection"] for entry in everything}, {"Hermes", "Their agent"})
+        self.login("othello")
+        own = self.assert_json_success(self.client_get("/json/mcp/audit"))["entries"]
+        self.assertEqual({entry["connection"] for entry in own}, {"Their agent"})
+
+    def test_audit_feed_pages_newest_first(self) -> None:
+        self.manual(write=True)
+        grant = self.latest_grant()
+        for index in range(5):
+            audit(grant, "get_me", f"outcome{index}")
+        page = self.assert_json_success(self.client_get("/json/mcp/audit", {"limit": "2"}))
+        self.assertEqual([entry["outcome"] for entry in page["entries"]], ["outcome4", "outcome3"])
+        self.assertTrue(page["has_more"])
+        older = self.assert_json_success(
+            self.client_get(
+                "/json/mcp/audit", {"limit": "2", "before": str(page["entries"][-1]["id"])}
+            )
+        )
+        self.assertEqual([entry["outcome"] for entry in older["entries"]], ["outcome2", "outcome1"])
+        self.assertEqual(self.client_get("/json/mcp/audit", {"limit": "0"}).status_code, 400)
