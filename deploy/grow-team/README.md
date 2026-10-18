@@ -291,6 +291,48 @@ sudo rm /etc/systemd/system/grow-team-task-reminders.service   /etc/systemd/syst
 sudo systemctl daemon-reload
 ```
 
+### Rutinitas terjadwal
+
+`grow-team-routines.timer` berjalan tiap menit dan menjalankan `run_scheduled_routines`.
+Perintah itu memulai job agen untuk setiap rutinitas yang aktif dan sudah jatuh tempo, lalu menutup run yang job-nya sudah selesai.
+Pesan pemicu dan hasilnya selalu diposting oleh bot agen rutinitas (default: agen bawaan Sanji Agent), tidak pernah atas nama orang.
+Satu kemunculan jadwal hanya punya satu run dan satu job, walau perintah jalan dua kali.
+Kalau host mati, hanya kemunculan terakhir yang masih dalam 2 jam yang dijalankan; sisanya dicatat sebagai terlewat.
+Run yang gagal mengirim satu DM dari Notification Bot ke pemilik, dan tiga kegagalan berturut-turut menjeda rutinitas.
+Skrip memakai `flock` dan `timeout` 50 detik di dalam container seperti pengingat tugas; kegagalannya tidak memengaruhi aplikasi.
+
+Pasang setelah rilis dengan migrasi `0848` berjalan. Pertama buat agen bawaan Sanji Agent. Perintah ini aman diulang: Kaki, Ayame, dan Matcha yang sudah ada tidak diganti.
+
+```bash
+sudo /opt/grow-team/deploy/compose.sh exec -T --user zulip zulip   /home/zulip/deployments/current/manage.py ensure_builtin_agents --realm SUBDOMAIN   --runner RUNNER_ID --provider PROVIDER_ID --share-group role:members
+```
+
+Lalu pasang timer:
+
+```bash
+sudo install -m 0755 deploy/grow-team/run-routines.sh /opt/grow-team/deploy/
+sudo install -m 0644 deploy/grow-team/systemd/grow-team-routines.service   deploy/grow-team/systemd/grow-team-routines.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+# Jalankan sekali dengan tangan dan lihat hasilnya sebelum timer hidup.
+sudo /opt/grow-team/deploy/run-routines.sh
+sudo systemctl enable --now grow-team-routines.timer
+systemctl list-timers grow-team-routines.timer
+```
+
+Rutinitas yang masih dijalankan di luar Sanji didaftarkan dari berkas JSON supaya tampil (hanya baca) di halaman Terjadwal; perintah ini tidak menjalankan apa pun dan tidak membuat daftar sendiri:
+
+```bash
+sudo /opt/grow-team/deploy/compose.sh exec -T --user zulip zulip   /home/zulip/deployments/current/manage.py import_external_routines --realm SUBDOMAIN --dry-run BERKAS.json
+```
+
+Rollback: matikan timer dan hapus berkasnya. Tabel `AgentRoutine` dan `AgentRoutineRun` boleh tetap ada, dan rutinitas luar tidak pernah dimatikan oleh timer ini.
+
+```bash
+sudo systemctl disable --now grow-team-routines.timer
+sudo rm /etc/systemd/system/grow-team-routines.service   /etc/systemd/system/grow-team-routines.timer   /opt/grow-team/deploy/run-routines.sh
+sudo systemctl daemon-reload
+```
+
 ### Rilis image dan penjaga disk
 
 `deploy-server.sh FULL_SHA TAG TARBALL` membangun image dari tarball `package_image.py`, menjalankan `check_image.py` dan `backup.sh`, menyimpan rollback, lalu mengganti image `zulip`.

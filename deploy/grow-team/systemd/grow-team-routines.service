@@ -1,0 +1,16 @@
+[Unit]
+Description=Start the Grow Team routines that are due and close the runs that ended
+Requisite=grow-team.service
+After=grow-team.service
+ConditionPathExists=/run/grow-team-docker/docker.sock
+
+[Service]
+Type=oneshot
+Slice=grow-team.slice
+Nice=15
+CPUWeight=10
+IOSchedulingClass=idle
+UMask=0077
+ExecStart=/opt/grow-team/deploy/run-routines.sh
+SuccessExitStatus=75
+TimeoutStartSec=70

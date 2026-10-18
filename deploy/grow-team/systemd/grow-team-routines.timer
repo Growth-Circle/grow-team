@@ -1,0 +1,13 @@
+[Unit]
+Description=Check for Grow Team routines that are due every minute
+
+[Timer]
+OnBootSec=2min
+OnCalendar=*-*-* *:*:00
+AccuracySec=10s
+RandomizedDelaySec=5s
+Persistent=false
+Unit=grow-team-routines.service
+
+[Install]
+WantedBy=timers.target
