@@ -29,6 +29,8 @@ import * as views_util from "./views_util.ts";
 // fields, so that the Today page shows the same card.
 
 const OPTION_LABEL_LIMIT = 40;
+// The data-choice of the Reject button of a call of an external client.
+const REJECT_CHOICE = "reject";
 
 let visible = false;
 // The open list is here once the first load ends, the done list once
@@ -41,6 +43,8 @@ let current_tab: NeedTab = "all";
 let show_team_wide = false;
 // The groups the person opened, by key.
 const expanded_groups = new Set<string>();
+// The calls of external clients whose whole content the person opened.
+const expanded_mcp_calls = new Set<string>();
 // Each group has an id in the page, for the button that opens it.
 const group_dom_ids = new Map<string, string>();
 let open_items: NeedItem[] = [];
@@ -136,6 +140,67 @@ function conversation_url(item: NeedItem): string {
     return `#narrow/dm/${item.actor.id}${near}`;
 }
 
+function mcp_tool_label(tool: string): string {
+    const labels: Record<string, string> = {
+        send_message: $t({defaultMessage: "Send a channel message"}),
+        send_direct_message: $t({defaultMessage: "Send a direct message"}),
+        edit_message: $t({defaultMessage: "Edit a message"}),
+        add_reaction: $t({defaultMessage: "Add a reaction"}),
+        remove_reaction: $t({defaultMessage: "Remove a reaction"}),
+        upload_file: $t({defaultMessage: "Upload a file"}),
+        create_task: $t({defaultMessage: "Create a card"}),
+        update_task: $t({defaultMessage: "Change a card"}),
+        delete_task: $t({defaultMessage: "Delete a card"}),
+    };
+    return labels[tool] ?? tool;
+}
+
+// Where the call goes, by name. Every part is plain text for the template.
+function mcp_target_text(target: needs_data.NeedMcpCall["target"]): string {
+    const topic = target.topic === null ? "" : util.get_final_topic_display_name(target.topic);
+    switch (target.type) {
+        case "channel":
+            return $t({defaultMessage: "# {room} › {topic}"}, {room: target.name, topic});
+        case "direct":
+            return $t({defaultMessage: "Direct message to {names}"}, {names: target.name});
+        case "message":
+            return target.topic === null
+                ? $t({defaultMessage: "A message in a direct conversation"})
+                : $t(
+                      {defaultMessage: "A message in # {room} › {topic}"},
+                      {room: target.name, topic},
+                  );
+        case "column":
+            return $t({defaultMessage: "Column {name}"}, {name: target.name});
+        default:
+            return target.name;
+    }
+}
+
+function mcp_call_context(item: NeedItem): Record<string, unknown> | undefined {
+    const call = item.mcp_call;
+    if (call === undefined) {
+        return undefined;
+    }
+    const expanded = expanded_mcp_calls.has(item.id);
+    const {text, can_expand} = needs_data.mcp_call_content(call, expanded);
+    return {
+        tool_label: mcp_tool_label(call.tool),
+        target: mcp_target_text(call.target),
+        has_mentions: call.mentions.length > 0,
+        mentions: call.mentions.join(", "),
+        content: text,
+        has_content: text !== "",
+        can_expand,
+        expand_label: expanded
+            ? $t({defaultMessage: "Show less"})
+            : $t({defaultMessage: "Show all"}),
+        expanded,
+        expires: sanji_format.format_date_time(new Date(item.expires_at)),
+        digest: call.digest,
+    };
+}
+
 type CardAction = {
     label: string;
     variant?: "primary" | "secondary";
@@ -185,7 +250,8 @@ function card_actions(item: NeedItem): CardAction[] {
         );
         return actions;
     }
-    if (item.kind === "approval" || expired) {
+    // A call of an external client has no conversation to open.
+    if ((item.kind === "approval" || expired) && !needs_data.is_mcp_call(item)) {
         actions.push(link($t({defaultMessage: "View"}), "secondary"));
     }
 
@@ -198,6 +264,13 @@ function card_actions(item: NeedItem): CardAction[] {
     }
 
     if (item.kind === "approval") {
+        if (needs_data.is_mcp_call(item)) {
+            actions.push({
+                label: $t({defaultMessage: "Reject"}),
+                variant: "secondary",
+                choice: REJECT_CHOICE,
+            });
+        }
         actions.push({label: $t({defaultMessage: "Approve"}), variant: "primary", choice: ""});
     } else {
         // The first choice is the main button. The other choices come
@@ -232,6 +305,7 @@ export function card_context(item: NeedItem): Record<string, unknown> {
         meta: meta_text(item),
         ...needs_data.card_text(item),
         attachment: item.attachment,
+        mcp_call: mcp_call_context(item),
         actions: card_actions(item),
     };
 }
@@ -365,6 +439,9 @@ function focus_selector(): string | undefined {
         return ".needs-mark-all";
     }
     const need_id = element.dataset["needId"];
+    if (need_id !== undefined && element.classList.contains("needs-mcp-more")) {
+        return `.needs-mcp-more[data-need-id="${CSS.escape(need_id)}"]`;
+    }
     if (need_id !== undefined && element.classList.contains("needs-card-snooze")) {
         return `.needs-card-snooze[data-need-id="${CSS.escape(need_id)}"]`;
     }
@@ -676,7 +753,21 @@ function short_option(option: string): string {
 
 function start_commit(item: NeedItem, choice: string): void {
     const who = item.actor.name;
-    if (item.kind === "approval") {
+    if (item.kind === "approval" && needs_data.is_mcp_call(item)) {
+        if (choice === REJECT_CHOICE) {
+            start_action(
+                item,
+                async () => needs_data.commit_reject(item),
+                $t({defaultMessage: "Rejected. Nothing was run."}),
+            );
+        } else {
+            start_action(
+                item,
+                async () => needs_data.commit_approve(item),
+                $t({defaultMessage: "Approved. {who} can retry now."}, {who}),
+            );
+        }
+    } else if (item.kind === "approval") {
         start_action(
             item,
             async () => needs_data.commit_approve(item),
@@ -850,6 +941,19 @@ function on_view_click(): void {
         load_failed = false;
         complete_rerender();
         refresh(true);
+    });
+
+    $view.on("click", ".needs-mcp-more", function (this: HTMLElement) {
+        const need_id = $(this).attr("data-need-id");
+        if (need_id === undefined) {
+            return;
+        }
+        if (expanded_mcp_calls.has(need_id)) {
+            expanded_mcp_calls.delete(need_id);
+        } else {
+            expanded_mcp_calls.add(need_id);
+        }
+        complete_rerender();
     });
 
     $view.on("click", ".needs-card-primary, .needs-card-secondary", function (this: HTMLElement) {

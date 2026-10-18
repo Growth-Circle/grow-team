@@ -34,6 +34,23 @@ export const need_task_schema = z.object({
     title: z.string(),
 });
 
+// The call an external MCP client made to an Ask first tool, with what the
+// person approves: the tool, where it goes, and the whole content.
+export const need_mcp_call_schema = z.object({
+    call_id: z.string(),
+    grant_name: z.string(),
+    tool: z.string(),
+    target: z.object({
+        type: z.enum(["channel", "direct", "message", "task", "column", "file"]),
+        name: z.string(),
+        topic: z.nullable(z.string()),
+        message_id: z.nullable(z.number()),
+    }),
+    content: z.string(),
+    mentions: z.array(z.string()),
+    digest: z.string(),
+});
+
 const NEED_KINDS = ["approval", "mention", "decision", "card_mention", "card_assigned"] as const;
 
 export const need_item_schema = z.object({
@@ -58,6 +75,8 @@ export const need_item_schema = z.object({
     task: z.nullable(need_task_schema),
     // A mention that names three people or more, or the whole channel.
     broadcast: z.boolean(),
+    // Only on an approval for an external MCP client's call.
+    mcp_call: z.optional(need_mcp_call_schema),
 });
 
 export const need_counts_schema = z.object({
@@ -77,6 +96,7 @@ const needs_result_schema = z.object({
 });
 
 export type NeedActor = z.infer<typeof need_actor_schema>;
+export type NeedMcpCall = z.infer<typeof need_mcp_call_schema>;
 export type NeedItem = z.infer<typeof need_item_schema>;
 export type NeedCounts = z.infer<typeof need_counts_schema>;
 export type NeedsResult = z.infer<typeof needs_result_schema>;
@@ -241,7 +261,46 @@ export function raw_id(need_id: string): string {
     return need_id.slice(need_id.indexOf(":") + 1);
 }
 
+// How much of a call's content the card shows before "Show all". The
+// server cuts the item's text at the same length.
+export const MCP_CALL_TEXT_LIMIT = 600;
+
+export function is_mcp_call(item: NeedItem): boolean {
+    return item.mcp_call !== undefined;
+}
+
+export function mcp_call_content(
+    call: NeedMcpCall,
+    expanded: boolean,
+): {text: string; can_expand: boolean} {
+    const can_expand = call.content.length > MCP_CALL_TEXT_LIMIT;
+    return {
+        text: can_expand && !expanded ? call.content.slice(0, MCP_CALL_TEXT_LIMIT) : call.content,
+        can_expand,
+    };
+}
+
+// An approval is bound to the digest and nonce the person saw, so a call
+// that changed in between is refused by the server.
+async function decide_mcp_call(item: NeedItem, decision: "approve" | "reject"): Promise<void> {
+    await channel.post({
+        url: `/json/mcp/calls/${raw_id(item.id)}/decision`,
+        data: {decision, argument_digest: item.operation_hash, nonce: item.nonce},
+    });
+}
+
+export async function commit_reject(item: NeedItem): Promise<void> {
+    if (!is_mcp_call(item)) {
+        throw new Error("Only a call of an external client can be rejected here.");
+    }
+    await decide_mcp_call(item, "reject");
+}
+
 export async function commit_approve(item: NeedItem): Promise<void> {
+    if (is_mcp_call(item)) {
+        await decide_mcp_call(item, "approve");
+        return;
+    }
     await agent_api.decide_approval(raw_id(item.id), {
         expected_version: item.approval_version,
         operation_hash: item.operation_hash,

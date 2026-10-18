@@ -1,0 +1,27 @@
+{
+    "frontend": {
+        "Goes to": "Tujuan",
+        "Expires": "Kedaluwarsa",
+        "Digest": "Digest",
+        "Reject": "Tolak",
+        "Show all": "Lihat semua",
+        "Show less": "Lihat lebih sedikit",
+        "Send a channel message": "Kirim pesan channel",
+        "Send a direct message": "Kirim pesan langsung",
+        "Edit a message": "Ubah pesan",
+        "Add a reaction": "Tambah reaksi",
+        "Remove a reaction": "Hapus reaksi",
+        "Upload a file": "Unggah file",
+        "Create a card": "Buat kartu",
+        "Change a card": "Ubah kartu",
+        "Delete a card": "Hapus kartu",
+        "# {room} › {topic}": "# {room} › {topic}",
+        "Direct message to {names}": "Pesan langsung ke {names}",
+        "A message in # {room} › {topic}": "Pesan di # {room} › {topic}",
+        "A message in a direct conversation": "Pesan di percakapan langsung",
+        "Column {name}": "Kolom {name}",
+        "Approved. {who} can retry now.": "Disetujui. {who} bisa mencoba lagi sekarang.",
+        "Rejected. Nothing was run.": "Ditolak. Tidak ada yang dijalankan."
+    },
+    "backend": {}
+}

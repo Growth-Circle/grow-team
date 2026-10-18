@@ -15,7 +15,40 @@ The Needs you page and the Today page both render it. }}
             {{/if}}
             <span class="needs-meta">{{meta}}</span>
         </div>
-        <p class="needs-text line-clamp">{{text}}</p>
+        {{#if mcp_call}}
+            <dl class="needs-mcp-details">
+                <div class="needs-mcp-detail">
+                    <dt>{{t "Action"}}</dt>
+                    <dd>{{mcp_call.tool_label}}</dd>
+                </div>
+                <div class="needs-mcp-detail">
+                    <dt>{{t "Goes to"}}</dt>
+                    <dd>{{mcp_call.target}}</dd>
+                </div>
+                {{#if mcp_call.has_mentions}}
+                    <div class="needs-mcp-detail">
+                        <dt>{{t "Mentions"}}</dt>
+                        <dd>{{mcp_call.mentions}}</dd>
+                    </div>
+                {{/if}}
+                <div class="needs-mcp-detail">
+                    <dt>{{t "Expires"}}</dt>
+                    <dd>{{mcp_call.expires}}</dd>
+                </div>
+                <div class="needs-mcp-detail">
+                    <dt>{{t "Digest"}}</dt>
+                    <dd><code>{{mcp_call.digest}}</code></dd>
+                </div>
+            </dl>
+            {{#if mcp_call.has_content}}
+                <p class="needs-mcp-content">{{mcp_call.content}}</p>
+            {{/if}}
+            {{#if mcp_call.can_expand}}
+                <button type="button" class="needs-mcp-more" data-need-id="{{id}}" aria-expanded="{{#if mcp_call.expanded}}true{{else}}false{{/if}}">{{mcp_call.expand_label}}</button>
+            {{/if}}
+        {{else}}
+            <p class="needs-text line-clamp">{{text}}</p>
+        {{/if}}
         {{#if excerpt}}
             <p class="needs-excerpt line-clamp">{{excerpt}}</p>
         {{/if}}

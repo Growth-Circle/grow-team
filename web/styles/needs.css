@@ -394,6 +394,61 @@
     overflow-wrap: anywhere;
 }
 
+/* What an external client asks to do: the action, where it goes, and its
+   whole content, so that the person approves exactly this. */
+.needs-mcp-details {
+    display: grid;
+    margin: 0;
+    /* 4px at 16px/1em */
+    gap: 0.25em;
+    font-size: 0.875em;
+}
+
+.needs-mcp-detail {
+    display: flex;
+    flex-wrap: wrap;
+    /* 4px 8px at 16px/1em */
+    gap: 0.25em 0.5em;
+    min-width: 0;
+
+    dt {
+        color: var(--sj-text-muted);
+        font-weight: 600;
+    }
+
+    dd {
+        margin: 0;
+        color: var(--sj-text);
+        font-weight: 700;
+        overflow-wrap: anywhere;
+    }
+}
+
+.needs-mcp-content {
+    margin: 0;
+    color: var(--sj-text);
+    /* 15px at 16px/1em */
+    font-size: 0.9375em;
+    font-weight: 500;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.needs-mcp-more {
+    align-self: flex-start;
+    border: 0;
+    background: none;
+    color: var(--sj-text);
+    cursor: pointer;
+    font-family: inherit;
+    /* 13px at 16px/1em */
+    font-size: 0.8125em;
+    font-weight: 700;
+    padding: 0;
+    text-decoration: underline;
+}
+
 .needs-actions {
     display: flex;
     flex-wrap: wrap;

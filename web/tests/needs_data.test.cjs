@@ -505,3 +505,92 @@ run_test("snoozing returns when the items list again, and can be undone", async 
     await needs_data.commit_unsnooze([item]);
     assert.equal(last_call.url, "/json/needs/unsnooze");
 });
+
+const mcp_call = {
+    call_id: "11111111-1111-4111-8111-111111111111",
+    grant_name: "Claude Cowork",
+    tool: "send_message",
+    target: {type: "channel", name: "Denmark", topic: "Release", message_id: null},
+    content: "Ship it tonight.",
+    mentions: ["Othello"],
+    digest: "1f0c5a9e77b2",
+};
+
+function make_mcp_item(overrides) {
+    return make_item({
+        id: "mcp_call:11111111-1111-4111-8111-111111111111",
+        job_id: null,
+        approval_version: null,
+        operation_hash: "f".repeat(64),
+        nonce: "nonce-9",
+        actions: ["approve", "reject"],
+        mcp_call,
+        ...overrides,
+    });
+}
+
+run_test("an approval of an external client's call keeps its exact action", async () => {
+    next_response = {
+        items: [make_mcp_item()],
+        counts: {approval: 1, mention: 0, decision: 0, card_mention: 0, card_assigned: 0, all: 1},
+        broadcast_counts: {
+            approval: 0,
+            mention: 0,
+            decision: 0,
+            card_mention: 0,
+            card_assigned: 0,
+            all: 0,
+        },
+    };
+    const result = await needs_data.fetch_open();
+    assert.deepEqual(result.items[0].mcp_call, mcp_call);
+    assert.ok(needs_data.is_mcp_call(result.items[0]));
+    assert.ok(!needs_data.is_mcp_call(make_item()));
+    assert.equal(needs_data.tab_for_kind(result.items[0].kind), "approval");
+});
+
+run_test(
+    "approving a call of an external client sends the digest and nonce it showed",
+    async () => {
+        next_response = {id: "x", status: "executed", digest: "1f0c5a9e77b2"};
+        await needs_data.commit_approve(make_mcp_item());
+        assert.equal(last_call.method, "POST");
+        assert.equal(
+            last_call.url,
+            "/json/mcp/calls/11111111-1111-4111-8111-111111111111/decision",
+        );
+        assert.deepEqual(last_call.data, {
+            decision: "approve",
+            argument_digest: "f".repeat(64),
+            nonce: "nonce-9",
+        });
+    },
+);
+
+run_test("rejecting a call of an external client sends the same binding", async () => {
+    next_response = {id: "x", status: "rejected", digest: "1f0c5a9e77b2"};
+    await needs_data.commit_reject(make_mcp_item());
+    assert.equal(last_call.url, "/json/mcp/calls/11111111-1111-4111-8111-111111111111/decision");
+    assert.equal(last_call.data.decision, "reject");
+    assert.equal(last_call.data.nonce, "nonce-9");
+});
+
+run_test("an agent approval cannot be rejected through the call endpoint", async () => {
+    await assert.rejects(async () => needs_data.commit_reject(make_item()), /external client/);
+});
+
+run_test("a long call shows its first 600 characters until the person asks for all", () => {
+    const short = needs_data.mcp_call_content(mcp_call, false);
+    assert.deepEqual(short, {text: "Ship it tonight.", can_expand: false});
+    const long_call = {...mcp_call, content: "a".repeat(601)};
+    const cut = needs_data.mcp_call_content(long_call, false);
+    assert.equal(cut.text.length, 600);
+    assert.ok(cut.can_expand);
+    const all = needs_data.mcp_call_content(long_call, true);
+    assert.equal(all.text.length, 601);
+    assert.ok(all.can_expand);
+    assert.equal(
+        needs_data.mcp_call_content({...mcp_call, content: "a".repeat(600)}, false).can_expand,
+        false,
+    );
+});
