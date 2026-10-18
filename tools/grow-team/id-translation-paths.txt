@@ -1,0 +1,32 @@
+# The files whose English strings must have Indonesian text
+# (tools/grow-team/check-id-translations). One fnmatch pattern per line,
+# relative to the repository root; `*` also matches `/`.
+web/src/task_board*.ts
+web/src/needs*.ts
+web/src/chat_drawer*.ts
+web/src/stream_create*.ts
+web/src/room_create_modal.ts
+web/src/channel_pins*.ts
+web/src/pins_drawer.ts
+web/src/today_ui.ts
+web/templates/task_board*.hbs
+web/templates/need_*.hbs
+web/templates/needs_view.hbs
+web/templates/chat_drawer*.hbs
+web/templates/room_create_modal.hbs
+web/templates/channel_pins_list.hbs
+web/templates/components/page_header.hbs
+web/templates/components/empty_state.hbs
+web/templates/components/settings_card.hbs
+zerver/lib/task_reminders.py
+zerver/lib/task_plans.py
+zerver/lib/pins.py
+zerver/lib/needs.py
+zerver/lib/tasks.py
+zerver/actions/task_plans.py
+zerver/actions/tasks.py
+zerver/actions/pins.py
+zerver/views/needs.py
+zerver/views/pins.py
+zerver/views/task_plans.py
+zerver/views/tasks.py

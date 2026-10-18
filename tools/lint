@@ -108,6 +108,12 @@ def run() -> None:
         fix_arg="--fix",
     )
     linter_config.external_linter(
+        "id-translations",
+        ["tools/grow-team/check-id-translations"],
+        ["hbs", "py", "ts"],
+        description="Fails when a string on a screen we own has no Indonesian translation (paths: tools/grow-team/id-translation-paths.txt)",
+    )
+    linter_config.external_linter(
         "openapi",
         ["node", "tools/check-openapi.ts"],
         ["yaml"],

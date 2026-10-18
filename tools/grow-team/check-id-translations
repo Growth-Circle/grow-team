@@ -1,0 +1,191 @@
+#!/usr/bin/env python3
+"""Fail when a screen we own has an English string with no Indonesian text.
+
+Usage: tools/grow-team/check-id-translations [--root DIR] [FILE ...]
+
+The strings are found the way `./manage.py makemessages` finds them:
+`{{t "..."}}` and `{{#tr}}` in .hbs templates, `$t`/`$t_html` calls in
+.ts files, and `gettext`/`ngettext` calls in .py files. A string counts
+as translated when `locale/id/translations.json` (frontend) or
+`locale/id/LC_MESSAGES/django.po` (backend) has a non-empty
+translation for it, or a file in `locale/id/pending/` does. Run
+`tools/grow-team/apply-pending-translations` to move pending strings
+into the catalogs.
+
+Only the files that match a pattern in
+`tools/grow-team/id-translation-paths.txt` are checked, whether they
+come from the command line (tools/lint passes the files that changed)
+or from the whole tree. Add a line to that file when a new screen is
+ours to translate.
+"""
+
+from __future__ import annotations
+
+import argparse
+import ast
+import re
+import subprocess
+import sys
+from fnmatch import fnmatch
+from pathlib import Path
+
+import orjson
+import polib
+
+ROOT = Path(__file__).resolve().parents[2]
+PATHS_FILE = "tools/grow-team/id-translation-paths.txt"
+
+# The same patterns `makemessages` uses to find strings in templates.
+HANDLEBARS_PATTERNS = [
+    re.compile(pattern)
+    for pattern in (
+        r"{{~?#tr}}([\s\S]*?)(?:~?{{/tr}}|{{~?#\*inline )",
+        r'{{~?\s*t "([\s\S]*?)"\W*~?}}',
+        r"{{~?\s*t '([\s\S]*?)'\W*~?}}",
+        r'\(t "([\s\S]*?)"\)',
+        r'=\(t "([\s\S]*?)"\)(?=[^{]*}})',
+        r"=\(t '([\s\S]*?)'\)(?=[^{]*}})",
+    )
+]
+
+GETTEXT_FUNCTIONS = {"_", "gettext", "gettext_lazy", "_lazy"}
+NGETTEXT_FUNCTIONS = {"ngettext", "ngettext_lazy"}
+
+
+def read_patterns(root: Path) -> list[str]:
+    patterns = []
+    for line in (root / PATHS_FILE).read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            patterns.append(line)
+    return patterns
+
+
+def is_checked(path: str, patterns: list[str]) -> bool:
+    return any(fnmatch(path, pattern) for pattern in patterns)
+
+
+def find_checked_files(root: Path, patterns: list[str]) -> list[str]:
+    tracked = subprocess.check_output(["git", "ls-files"], cwd=root, text=True).splitlines()
+    return [path for path in tracked if is_checked(path, patterns) and (root / path).exists()]
+
+
+def has_words(text: str) -> bool:
+    """A string made only of placeholders and symbols has nothing to translate."""
+    return bool(re.search(r"[^\W\d_]", re.sub(r"\{[^}]*\}", "", text)))
+
+
+def handlebars_strings(source: str) -> list[str]:
+    strings = []
+    for pattern in HANDLEBARS_PATTERNS:
+        for match in pattern.findall(source):
+            strings.append(" ".join(line.strip() for line in match.strip().splitlines()))
+    return strings
+
+
+def typescript_strings(root: Path, paths: list[str]) -> dict[str, list[str]]:
+    """The $t strings of each file. formatjs prints one id-to-string
+    object for all the files, so it runs once per file to tell them apart."""
+    found: dict[str, list[str]] = {}
+    for path in paths:
+        output = subprocess.check_output(
+            [
+                "node_modules/.bin/formatjs",
+                "extract",
+                "--additional-function-names=$t,$t_html",
+                "--format=simple",
+                path,
+            ],
+            cwd=root,
+        )
+        found[path] = list(orjson.loads(output).values())
+    return found
+
+
+def python_strings(source: str) -> list[str]:
+    strings = []
+    calls = [node for node in ast.walk(ast.parse(source)) if isinstance(node, ast.Call)]
+    for node in sorted(calls, key=lambda call: (call.lineno, call.col_offset)):
+        func = node.func
+        name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", None)
+        if name in GETTEXT_FUNCTIONS and node.args:
+            candidates = node.args[:1]
+        elif name in NGETTEXT_FUNCTIONS:
+            candidates = node.args[:2]
+        else:
+            continue
+        for argument in candidates:
+            if isinstance(argument, ast.Constant) and isinstance(argument.value, str):
+                strings.append(argument.value)
+    return strings
+
+
+def load_translated(root: Path) -> tuple[set[str], set[str]]:
+    """The English strings that have Indonesian text, as (frontend, backend)."""
+    locale_dir = root / "locale/id"
+    catalog = orjson.loads((locale_dir / "translations.json").read_bytes())
+    frontend = {english for english, indonesian in catalog.items() if indonesian}
+    backend = {
+        entry.msgid
+        for entry in polib.pofile(str(locale_dir / "LC_MESSAGES/django.po"))
+        if (entry.msgstr or any(entry.msgstr_plural.values())) and "fuzzy" not in entry.flags
+    }
+    for pending_path in sorted((locale_dir / "pending").glob("*.json")):
+        pending = orjson.loads(pending_path.read_bytes())
+        for kind, known in (("frontend", frontend), ("backend", backend)):
+            known.update(english for english, text in pending.get(kind, {}).items() if text)
+    return frontend, backend
+
+
+def untranslated_strings(root: Path, paths: list[str]) -> list[tuple[str, str]]:
+    """(path, English string) for every string with no Indonesian text."""
+    frontend, backend = load_translated(root)
+    typescript_paths = [path for path in paths if path.endswith(".ts")]
+    typescript = typescript_strings(root, typescript_paths)
+    missing = []
+    for path in paths:
+        if path.endswith(".hbs"):
+            strings = handlebars_strings((root / path).read_text(encoding="utf-8"))
+            known = frontend
+        elif path.endswith(".ts"):
+            strings = typescript[path]
+            known = frontend
+        elif path.endswith(".py"):
+            strings = python_strings((root / path).read_text(encoding="utf-8"))
+            known = backend
+        else:
+            continue
+        for string in dict.fromkeys(strings):
+            if has_words(string) and string not in known:
+                missing.append((path, string))
+    return missing
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n\n")[0])
+    parser.add_argument("--root", type=Path, default=ROOT, help="the repository to check")
+    parser.add_argument("files", nargs="*", help="check these files, not the whole tree")
+    args = parser.parse_args()
+    root = args.root.resolve()
+
+    patterns = read_patterns(root)
+    if args.files:
+        paths = [path for path in args.files if is_checked(path, patterns)]
+    else:
+        paths = find_checked_files(root, patterns)
+
+    missing = untranslated_strings(root, paths)
+    for path, string in missing:
+        print(f"{path}: no Indonesian translation for {string!r}")
+    if missing:
+        print(
+            f"\n{len(missing)} string(s) without Indonesian text. Add them to a file in "
+            "locale/id/pending/ and run tools/grow-team/apply-pending-translations.",
+            file=sys.stderr,
+        )
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
