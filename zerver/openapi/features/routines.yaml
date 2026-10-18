@@ -1,0 +1,1668 @@
+paths:
+  /routines:
+    get:
+      operationId: list-routines
+      tags: ["routines"]
+      summary: List routines
+      description: |
+        List the routines that the user can read: every routine of a channel the user can read,
+            and every routine that runs outside Sanji. A routine that runs outside Sanji is shown but
+            never run by Sanji, and cannot be changed through this API. Each item has the newest run,
+            or `null` when it never ran.
+
+            A guest cannot use routines, and gets an error.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      routines:
+                        type: array
+                        description: |
+                          The routines, ordered by title.
+                        items:
+                          $ref: "#/components/schemas/RoutineDetail"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "routines":
+                          [
+                            {
+                              "id": "6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34",
+                              "title": "Brief pagi",
+                              "instructions": "Rangkum yang perlu diperhatikan hari ini.",
+                              "agent_profile_id": "0b7f8a9e-8c53-4d63-a5c9-2f1a1c5e9a10",
+                              "agent_name": "Sanji Agent",
+                              "owner_id": 10,
+                              "stream_id": 12,
+                              "topic": "Brief",
+                              "pattern_kind": "daily",
+                              "interval": null,
+                              "time_of_day": "08:00",
+                              "weekdays": [],
+                              "month_day": null,
+                              "timezone": "Asia/Jakarta",
+                              "model_preset": "",
+                              "enabled": true,
+                              "paused_reason": "",
+                              "next_run_at": 1760577600,
+                              "last_run_at": 1760491200,
+                              "last_status": "succeeded",
+                              "executor": "agent",
+                              "can_edit": true,
+                              "last_run":
+                                {
+                                  "id": "a9d1e6c7-4b3c-4c07-8c7a-5b0d2f4a7e11",
+                                  "routine_id": "6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34",
+                                  "trigger": "schedule",
+                                  "scheduled_for": 1760491200,
+                                  "started_at": 1760491201,
+                                  "finished_at": 1760491260,
+                                  "status": "succeeded",
+                                  "error_code": "",
+                                  "result_message_id": 4521,
+                                  "cost_microunits": null,
+                                },
+                            },
+                          ],
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Scheduled routines are for members, not guests.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the user is a guest:
+    post:
+      operationId: create-routine
+      tags: ["routines"]
+      summary: Create a routine
+      description: |
+        Create a routine. Its next run is worked out at once, on the clock of its timezone. The
+            owner is the user who creates it.
+
+            A guest, a user who cannot read the channel, and a user who cannot use the agent get an
+            error, and nothing is saved.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: |
+                    The title, 1 to 100 characters once surrounding whitespace is removed. It is also
+                    the title of the agent's job card.
+                  example: Brief pagi
+                instructions:
+                  type: string
+                  description: |
+                    What the agent shall do, 1 to 4000 characters.
+                  example: Rangkum yang perlu diperhatikan hari ini.
+                agent_profile_id:
+                  type: string
+                  format: uuid
+                  description: |
+                    The agent that does the work and posts under its own name. Omit it to use the built-in
+                    Sanji Agent. The user must be able to use the agent.
+                  example: 0b7f8a9e-8c53-4d63-a5c9-2f1a1c5e9a10
+                stream_id:
+                  type: integer
+                  description: |
+                    The channel the routine posts in. The user must be able to read it.
+                  example: 12
+                topic:
+                  type: string
+                  description: |
+                    The topic the routine posts in, 1 to 60 characters.
+                  example: Brief
+                pattern_kind:
+                  type: string
+                  description: |
+                    How often the routine runs. `every_minutes` and `every_hours` use `interval`.
+                    `daily`, `weekdays` (Monday to Friday), `weekly` and `monthly` use `time_of_day`.
+                    `weekly` also uses `weekdays`, and `monthly` also uses `month_day`.
+                  enum:
+                    - every_minutes
+                    - every_hours
+                    - daily
+                    - weekdays
+                    - weekly
+                    - monthly
+                  example: daily
+                interval:
+                  type: integer
+                  description: |
+                    For `every_minutes`, the minutes between runs, from 15 to 59. For `every_hours`,
+                    the hours between runs, from 1 to 23. Runs count from midnight in the routine's
+                    timezone.
+                  example: 15
+                time_of_day:
+                  type: string
+                  description: |
+                    The time of day as 24-hour `HH:MM` in the routine's timezone.
+                  example: "08:00"
+                weekdays:
+                  type: array
+                  items:
+                    type: integer
+                  description: |
+                    For `weekly`, the days of the week, with Monday as 0 and Sunday as 6. Send it as a
+                    JSON-encoded list.
+                  example: [4]
+                month_day:
+                  type: integer
+                  description: |
+                    For `monthly`, the day of the month, from 1 to 31. A month without that day runs
+                    on its last day.
+                  example: 1
+                timezone:
+                  type: string
+                  description: |
+                    The IANA timezone of the schedule. Omit it to use the timezone of the organization's
+                    agent settings.
+                  example: Asia/Jakarta
+                model_preset:
+                  type: string
+                  description: |
+                    The model preset to show for the routine. Jobs use the model of the agent's
+                    profile.
+                  enum:
+                    - ""
+                    - fast
+                    - balanced
+                    - best
+                  default: ""
+                  example: balanced
+              required:
+                - title
+                - instructions
+                - stream_id
+                - topic
+                - pattern_kind
+            encoding:
+              weekdays:
+                contentType: application/json
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      routine:
+                        $ref: "#/components/schemas/RoutineDetail"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "routine":
+                          {
+                            "id": "6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34",
+                            "title": "Brief pagi",
+                            "instructions": "Rangkum yang perlu diperhatikan hari ini.",
+                            "agent_profile_id": "0b7f8a9e-8c53-4d63-a5c9-2f1a1c5e9a10",
+                            "agent_name": "Sanji Agent",
+                            "owner_id": 10,
+                            "stream_id": 12,
+                            "topic": "Brief",
+                            "pattern_kind": "daily",
+                            "interval": null,
+                            "time_of_day": "08:00",
+                            "weekdays": [],
+                            "month_day": null,
+                            "timezone": "Asia/Jakarta",
+                            "model_preset": "",
+                            "enabled": true,
+                            "paused_reason": "",
+                            "next_run_at": 1760577600,
+                            "last_run_at": 1760491200,
+                            "last_status": "succeeded",
+                            "executor": "agent",
+                            "can_edit": true,
+                            "last_run": null,
+                          },
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Minutes between runs must be from 15 to 59.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the schedule cannot run:
+  /routines/templates:
+    get:
+      operationId: list-routine-templates
+      tags: ["routines"]
+      summary: List routine templates
+      description: |
+        List the templates that fill the new-routine form: a title, the instructions, and when it
+            runs. A template creates nothing; the user saves the routine from the form. The text is in
+            the language of the user.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      templates:
+                        type: array
+                        description: |
+                          The templates.
+                        items:
+                          $ref: "#/components/schemas/RoutineTemplate"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "templates":
+                          [
+                            {
+                              "id": "morning_brief",
+                              "title": "Brief pagi",
+                              "instructions": "Rangkum yang perlu diperhatikan hari ini.",
+                              "pattern_kind": "daily",
+                              "time_of_day": "08:00",
+                              "weekdays": [],
+                            },
+                          ],
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Scheduled routines are for members, not guests.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the user is a guest:
+  /routines/agents:
+    get:
+      operationId: list-routine-agents
+      tags: ["routines"]
+      summary: List agents for a routine
+      description: |
+        List the agents that the user can give a routine to, the built-in agent that is used
+            when none is chosen, and the timezone that a new routine gets.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      agents:
+                        type: array
+                        description: |
+                          The agents the user can use.
+                        items:
+                          type: object
+                          additionalProperties: false
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                              description: |
+                                The ID of the agent profile.
+                            name:
+                              type: string
+                              description: |
+                                The name of the agent.
+                      default_agent_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                        description: |
+                          The ID of the built-in agent that posts a routine when none is chosen, or `null` when the
+                          organization has none.
+                      default_timezone:
+                        type: string
+                        description: |
+                          The IANA timezone that a new routine gets when none is chosen: the timezone of the
+                          organization's agent settings.
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "agents":
+                          [
+                            {
+                              "id": "0b7f8a9e-8c53-4d63-a5c9-2f1a1c5e9a10",
+                              "name": "Sanji Agent",
+                            },
+                          ],
+                        "default_agent_id": "0b7f8a9e-8c53-4d63-a5c9-2f1a1c5e9a10",
+                        "default_timezone": "Asia/Jakarta",
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Scheduled routines are for members, not guests.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the user is a guest:
+  /routines/{routine_id}:
+    get:
+      operationId: get-routine
+      tags: ["routines"]
+      summary: Get a routine
+      description: |
+        Get one routine with its newest run.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      parameters:
+        - name: routine_id
+          in: path
+          schema:
+            type: string
+            format: uuid
+          description: |
+            The ID of the routine.
+          required: true
+          example: 6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      routine:
+                        $ref: "#/components/schemas/RoutineDetail"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "routine":
+                          {
+                            "id": "6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34",
+                            "title": "Brief pagi",
+                            "instructions": "Rangkum yang perlu diperhatikan hari ini.",
+                            "agent_profile_id": "0b7f8a9e-8c53-4d63-a5c9-2f1a1c5e9a10",
+                            "agent_name": "Sanji Agent",
+                            "owner_id": 10,
+                            "stream_id": 12,
+                            "topic": "Brief",
+                            "pattern_kind": "daily",
+                            "interval": null,
+                            "time_of_day": "08:00",
+                            "weekdays": [],
+                            "month_day": null,
+                            "timezone": "Asia/Jakarta",
+                            "model_preset": "",
+                            "enabled": true,
+                            "paused_reason": "",
+                            "next_run_at": 1760577600,
+                            "last_run_at": 1760491200,
+                            "last_status": "succeeded",
+                            "executor": "agent",
+                            "can_edit": true,
+                            "last_run":
+                              {
+                                "id": "a9d1e6c7-4b3c-4c07-8c7a-5b0d2f4a7e11",
+                                "routine_id": "6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34",
+                                "trigger": "schedule",
+                                "scheduled_for": 1760491200,
+                                "started_at": 1760491201,
+                                "finished_at": 1760491260,
+                                "status": "succeeded",
+                                "error_code": "",
+                                "result_message_id": 4521,
+                                "cost_microunits": null,
+                              },
+                          },
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Routine does not exist.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the routine does not exist or its channel cannot be read:
+    patch:
+      operationId: update-routine
+      tags: ["routines"]
+      summary: Change a routine
+      description: |
+        Change the fields that are sent, and keep the others. A change of pattern clears the
+            fields that the new pattern does not use. A change to the schedule works out the next run
+            again; a change of title or instructions does not move it.
+
+            The owner of the routine, or an administrator, can change it. A routine that runs outside
+            Sanji cannot be changed. The routine runs for its owner, so the owner must be able to read
+            a new channel and use a new agent.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      parameters:
+        - name: routine_id
+          in: path
+          schema:
+            type: string
+            format: uuid
+          description: |
+            The ID of the routine.
+          required: true
+          example: 6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: |
+                    The title, 1 to 100 characters once surrounding whitespace is removed. It is also
+                    the title of the agent's job card.
+                  example: Brief pagi
+                instructions:
+                  type: string
+                  description: |
+                    What the agent shall do, 1 to 4000 characters.
+                  example: Rangkum yang perlu diperhatikan hari ini.
+                agent_profile_id:
+                  type: string
+                  format: uuid
+                  description: |
+                    The agent that does the work. The owner of the routine must be able to use it.
+                  example: 0b7f8a9e-8c53-4d63-a5c9-2f1a1c5e9a10
+                stream_id:
+                  type: integer
+                  description: |
+                    The channel the routine posts in. The owner of the routine and the user must be able to
+                    read it.
+                  example: 12
+                topic:
+                  type: string
+                  description: |
+                    The topic the routine posts in, 1 to 60 characters.
+                  example: Brief
+                pattern_kind:
+                  type: string
+                  description: |
+                    How often the routine runs. `every_minutes` and `every_hours` use `interval`.
+                    `daily`, `weekdays` (Monday to Friday), `weekly` and `monthly` use `time_of_day`.
+                    `weekly` also uses `weekdays`, and `monthly` also uses `month_day`.
+                  enum:
+                    - every_minutes
+                    - every_hours
+                    - daily
+                    - weekdays
+                    - weekly
+                    - monthly
+                  example: daily
+                interval:
+                  type: integer
+                  description: |
+                    For `every_minutes`, the minutes between runs, from 15 to 59. For `every_hours`,
+                    the hours between runs, from 1 to 23. Runs count from midnight in the routine's
+                    timezone.
+                  example: 15
+                time_of_day:
+                  type: string
+                  description: |
+                    The time of day as 24-hour `HH:MM` in the routine's timezone.
+                  example: "08:00"
+                weekdays:
+                  type: array
+                  items:
+                    type: integer
+                  description: |
+                    For `weekly`, the days of the week, with Monday as 0 and Sunday as 6. Send it as a
+                    JSON-encoded list.
+                  example: [4]
+                month_day:
+                  type: integer
+                  description: |
+                    For `monthly`, the day of the month, from 1 to 31. A month without that day runs
+                    on its last day.
+                  example: 1
+                timezone:
+                  type: string
+                  description: |
+                    The IANA timezone of the schedule.
+                  example: Asia/Jakarta
+                model_preset:
+                  type: string
+                  description: |
+                    The model preset to show for the routine. Jobs use the model of the agent's
+                    profile.
+                  enum:
+                    - ""
+                    - fast
+                    - balanced
+                    - best
+                  example: balanced
+            encoding:
+              weekdays:
+                contentType: application/json
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      routine:
+                        $ref: "#/components/schemas/RoutineDetail"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "routine":
+                          {
+                            "id": "6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34",
+                            "title": "Brief pagi",
+                            "instructions": "Rangkum yang perlu diperhatikan hari ini.",
+                            "agent_profile_id": "0b7f8a9e-8c53-4d63-a5c9-2f1a1c5e9a10",
+                            "agent_name": "Sanji Agent",
+                            "owner_id": 10,
+                            "stream_id": 12,
+                            "topic": "Brief",
+                            "pattern_kind": "daily",
+                            "interval": null,
+                            "time_of_day": "08:00",
+                            "weekdays": [],
+                            "month_day": null,
+                            "timezone": "Asia/Jakarta",
+                            "model_preset": "",
+                            "enabled": true,
+                            "paused_reason": "",
+                            "next_run_at": 1760577600,
+                            "last_run_at": 1760491200,
+                            "last_status": "succeeded",
+                            "executor": "agent",
+                            "can_edit": true,
+                            "last_run":
+                              {
+                                "id": "a9d1e6c7-4b3c-4c07-8c7a-5b0d2f4a7e11",
+                                "routine_id": "6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34",
+                                "trigger": "schedule",
+                                "scheduled_for": 1760491200,
+                                "started_at": 1760491201,
+                                "finished_at": 1760491260,
+                                "status": "succeeded",
+                                "error_code": "",
+                                "result_message_id": 4521,
+                                "cost_microunits": null,
+                              },
+                          },
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Only the owner of this routine or an administrator can change it.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the user is neither the owner nor an administrator:
+    delete:
+      operationId: delete-routine
+      tags: ["routines"]
+      summary: Delete a routine
+      description: |
+        Delete a routine and the history of its runs. The messages that it posted stay in the
+            channel.
+
+            The owner of the routine, or an administrator, can delete it.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      parameters:
+        - name: routine_id
+          in: path
+          schema:
+            type: string
+            format: uuid
+          description: |
+            The ID of the routine.
+          required: true
+          example: 6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34
+      responses:
+        "200":
+          $ref: "#/components/responses/SimpleSuccess"
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Only the owner of this routine or an administrator can change it.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the user is neither the owner nor an administrator:
+  /routines/{routine_id}/pause:
+    post:
+      operationId: pause-routine
+      tags: ["routines"]
+      summary: Pause a routine
+      description: |
+        Stop the routine from running. It keeps its schedule and its history. The owner of the
+            routine, or an administrator, can pause it.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      parameters:
+        - name: routine_id
+          in: path
+          schema:
+            type: string
+            format: uuid
+          description: |
+            The ID of the routine.
+          required: true
+          example: 6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      routine:
+                        $ref: "#/components/schemas/RoutineDetail"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "routine":
+                          {
+                            "id": "6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34",
+                            "title": "Brief pagi",
+                            "instructions": "Rangkum yang perlu diperhatikan hari ini.",
+                            "agent_profile_id": "0b7f8a9e-8c53-4d63-a5c9-2f1a1c5e9a10",
+                            "agent_name": "Sanji Agent",
+                            "owner_id": 10,
+                            "stream_id": 12,
+                            "topic": "Brief",
+                            "pattern_kind": "daily",
+                            "interval": null,
+                            "time_of_day": "08:00",
+                            "weekdays": [],
+                            "month_day": null,
+                            "timezone": "Asia/Jakarta",
+                            "model_preset": "",
+                            "enabled": false,
+                            "paused_reason": "user",
+                            "next_run_at": 1760577600,
+                            "last_run_at": 1760491200,
+                            "last_status": "succeeded",
+                            "executor": "agent",
+                            "can_edit": true,
+                            "last_run":
+                              {
+                                "id": "a9d1e6c7-4b3c-4c07-8c7a-5b0d2f4a7e11",
+                                "routine_id": "6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34",
+                                "trigger": "schedule",
+                                "scheduled_for": 1760491200,
+                                "started_at": 1760491201,
+                                "finished_at": 1760491260,
+                                "status": "succeeded",
+                                "error_code": "",
+                                "result_message_id": 4521,
+                                "cost_microunits": null,
+                              },
+                          },
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Only the owner of this routine or an administrator can change it.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the user is neither the owner nor an administrator:
+  /routines/{routine_id}/resume:
+    post:
+      operationId: resume-routine
+      tags: ["routines"]
+      summary: Resume a routine
+      description: |
+        Let a paused routine run again. The next run is counted from now, so the runs that it
+            missed while it was paused are not made up, and a streak of failed runs starts over. The
+            owner of the routine, or an administrator, can resume it.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      parameters:
+        - name: routine_id
+          in: path
+          schema:
+            type: string
+            format: uuid
+          description: |
+            The ID of the routine.
+          required: true
+          example: 6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      routine:
+                        $ref: "#/components/schemas/RoutineDetail"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "routine":
+                          {
+                            "id": "6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34",
+                            "title": "Brief pagi",
+                            "instructions": "Rangkum yang perlu diperhatikan hari ini.",
+                            "agent_profile_id": "0b7f8a9e-8c53-4d63-a5c9-2f1a1c5e9a10",
+                            "agent_name": "Sanji Agent",
+                            "owner_id": 10,
+                            "stream_id": 12,
+                            "topic": "Brief",
+                            "pattern_kind": "daily",
+                            "interval": null,
+                            "time_of_day": "08:00",
+                            "weekdays": [],
+                            "month_day": null,
+                            "timezone": "Asia/Jakarta",
+                            "model_preset": "",
+                            "enabled": true,
+                            "paused_reason": "",
+                            "next_run_at": 1760577600,
+                            "last_run_at": 1760491200,
+                            "last_status": "succeeded",
+                            "executor": "agent",
+                            "can_edit": true,
+                            "last_run":
+                              {
+                                "id": "a9d1e6c7-4b3c-4c07-8c7a-5b0d2f4a7e11",
+                                "routine_id": "6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34",
+                                "trigger": "schedule",
+                                "scheduled_for": 1760491200,
+                                "started_at": 1760491201,
+                                "finished_at": 1760491260,
+                                "status": "succeeded",
+                                "error_code": "",
+                                "result_message_id": 4521,
+                                "cost_microunits": null,
+                              },
+                          },
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Only the owner of this routine or an administrator can change it.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the user is neither the owner nor an administrator:
+  /routines/{routine_id}/run:
+    post:
+      operationId: run-routine
+      tags: ["routines"]
+      summary: Run a routine now
+      description: |
+        Start one run of the routine now, apart from its schedule. The routine's next run does
+            not change. A routine can run now once a minute. The owner of the routine, or an
+            administrator, can start it. A routine that runs outside Sanji cannot be started.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      parameters:
+        - name: routine_id
+          in: path
+          schema:
+            type: string
+            format: uuid
+          description: |
+            The ID of the routine.
+          required: true
+          example: 6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      run:
+                        $ref: "#/components/schemas/RoutineRun"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "run":
+                          {
+                            "id": "a9d1e6c7-4b3c-4c07-8c7a-5b0d2f4a7e11",
+                            "routine_id": "6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34",
+                            "trigger": "manual",
+                            "scheduled_for": 1760491200,
+                            "started_at": 1760491201,
+                            "finished_at": null,
+                            "status": "running",
+                            "error_code": "",
+                            "result_message_id": null,
+                            "cost_microunits": null,
+                          },
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "This routine ran a moment ago. Wait a minute to run it again.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the routine ran less than a minute ago:
+  /routines/{routine_id}/runs:
+    get:
+      operationId: list-routine-runs
+      tags: ["routines"]
+      summary: List the runs of a routine
+      description: |
+        List the newest runs of a routine, up to 50, newest first. A run whose job has not ended
+            is `running`. `cost_microunits` is `null` when nobody measured the cost, and is never zero
+            then.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      parameters:
+        - name: routine_id
+          in: path
+          schema:
+            type: string
+            format: uuid
+          description: |
+            The ID of the routine.
+          required: true
+          example: 6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      runs:
+                        type: array
+                        description: |
+                          The runs, newest first.
+                        items:
+                          $ref: "#/components/schemas/RoutineRun"
+                    example:
+                      {
+                        "result": "success",
+                        "msg": "",
+                        "runs":
+                          [
+                            {
+                              "id": "a9d1e6c7-4b3c-4c07-8c7a-5b0d2f4a7e11",
+                              "routine_id": "6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34",
+                              "trigger": "schedule",
+                              "scheduled_for": 1760491200,
+                              "started_at": 1760491201,
+                              "finished_at": 1760491260,
+                              "status": "succeeded",
+                              "error_code": "",
+                              "result_message_id": 4521,
+                              "cost_microunits": null,
+                            },
+                          ],
+                      }
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CodedError"
+                  - example:
+                      {
+                        "code": "BAD_REQUEST",
+                        "msg": "Routine does not exist.",
+                        "result": "error",
+                      }
+                    description: |
+                      A typical failed JSON response for when the routine does not exist or its channel cannot be read:
+
+components:
+  schemas:
+    Routine:
+      type: object
+      description: |
+        A routine as the `routine` events carry it.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: |
+            The ID of the routine.
+        title:
+          type: string
+          description: |
+            The title.
+        instructions:
+          type: string
+          description: |
+            What the agent shall do. Empty for a routine that runs
+            outside Sanji and has none.
+        agent_profile_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: |
+            The ID of the agent profile, or `null` for a routine that runs outside Sanji.
+        agent_name:
+          type: string
+          description: |
+            The name of the agent. For a routine that runs outside Sanji, the name it
+            was registered with.
+        owner_id:
+          type: integer
+          description: |
+            The ID of the user whose access the routine uses.
+        stream_id:
+          type: integer
+          nullable: true
+          description: |
+            The ID of the channel it posts in, or `null` for a routine that runs outside
+            Sanji and has none.
+        topic:
+          type: string
+          description: |
+            The topic it posts in.
+        pattern_kind:
+          type: string
+          enum:
+            - every_minutes
+            - every_hours
+            - daily
+            - weekdays
+            - weekly
+            - monthly
+          description: |
+            How often it runs.
+        interval:
+          type: integer
+          nullable: true
+          description: |
+            Minutes or hours between runs, for `every_minutes` and `every_hours`.
+        time_of_day:
+          type: string
+          nullable: true
+          description: |
+            The time of day as 24-hour `HH:MM` in `timezone`, for the patterns that use it.
+        weekdays:
+          type: array
+          items:
+            type: integer
+          description: |
+            For `weekly`, the days of the week, with Monday as 0.
+        month_day:
+          type: integer
+          nullable: true
+          description: |
+            For `monthly`, the day of the month.
+        timezone:
+          type: string
+          description: |
+            The IANA timezone of the schedule.
+        model_preset:
+          type: string
+          enum:
+            - ""
+            - fast
+            - balanced
+            - best
+          description: |
+            The model preset shown for the routine. An empty string means none.
+        enabled:
+          type: boolean
+          description: |
+            Whether the routine runs. A paused routine is `false`.
+        paused_reason:
+          type: string
+          enum:
+            - ""
+            - user
+            - failures
+            - budget
+            - unavailable
+          description: |
+            Why a routine that is not enabled stopped: a person paused it (`user`), three
+            runs in a row failed (`failures`), the budget ran out (`budget`), or the agent or
+            channel was no longer available (`unavailable`). Empty while it runs.
+        next_run_at:
+          type: integer
+          nullable: true
+          description: |
+            The UNIX timestamp of the next run, in UTC seconds.
+        last_run_at:
+          type: integer
+          nullable: true
+          description: |
+            The UNIX timestamp of the last time a run started.
+        last_status:
+          type: string
+          description: |
+            The status of the last run, or an empty string when it never ran.
+        executor:
+          type: string
+          enum:
+            - agent
+            - external
+          description: |
+            `agent` when Sanji runs it. `external` when something outside Sanji runs it, and
+            Sanji only shows it.
+      required:
+        - id
+        - title
+        - instructions
+        - agent_profile_id
+        - agent_name
+        - owner_id
+        - stream_id
+        - topic
+        - pattern_kind
+        - interval
+        - time_of_day
+        - weekdays
+        - month_day
+        - timezone
+        - model_preset
+        - enabled
+        - paused_reason
+        - next_run_at
+        - last_run_at
+        - last_status
+        - executor
+    RoutineDetail:
+      type: object
+      description: |
+        A routine with what the user may do with it, and its newest run.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: |
+            The ID of the routine.
+        title:
+          type: string
+          description: |
+            The title.
+        instructions:
+          type: string
+          description: |
+            What the agent shall do. Empty for a routine that runs
+            outside Sanji and has none.
+        agent_profile_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: |
+            The ID of the agent profile, or `null` for a routine that runs outside Sanji.
+        agent_name:
+          type: string
+          description: |
+            The name of the agent. For a routine that runs outside Sanji, the name it
+            was registered with.
+        owner_id:
+          type: integer
+          description: |
+            The ID of the user whose access the routine uses.
+        stream_id:
+          type: integer
+          nullable: true
+          description: |
+            The ID of the channel it posts in, or `null` for a routine that runs outside
+            Sanji and has none.
+        topic:
+          type: string
+          description: |
+            The topic it posts in.
+        pattern_kind:
+          type: string
+          enum:
+            - every_minutes
+            - every_hours
+            - daily
+            - weekdays
+            - weekly
+            - monthly
+          description: |
+            How often it runs.
+        interval:
+          type: integer
+          nullable: true
+          description: |
+            Minutes or hours between runs, for `every_minutes` and `every_hours`.
+        time_of_day:
+          type: string
+          nullable: true
+          description: |
+            The time of day as 24-hour `HH:MM` in `timezone`, for the patterns that use it.
+        weekdays:
+          type: array
+          items:
+            type: integer
+          description: |
+            For `weekly`, the days of the week, with Monday as 0.
+        month_day:
+          type: integer
+          nullable: true
+          description: |
+            For `monthly`, the day of the month.
+        timezone:
+          type: string
+          description: |
+            The IANA timezone of the schedule.
+        model_preset:
+          type: string
+          enum:
+            - ""
+            - fast
+            - balanced
+            - best
+          description: |
+            The model preset shown for the routine. An empty string means none.
+        enabled:
+          type: boolean
+          description: |
+            Whether the routine runs. A paused routine is `false`.
+        paused_reason:
+          type: string
+          enum:
+            - ""
+            - user
+            - failures
+            - budget
+            - unavailable
+          description: |
+            Why a routine that is not enabled stopped: a person paused it (`user`), three
+            runs in a row failed (`failures`), the budget ran out (`budget`), or the agent or
+            channel was no longer available (`unavailable`). Empty while it runs.
+        next_run_at:
+          type: integer
+          nullable: true
+          description: |
+            The UNIX timestamp of the next run, in UTC seconds.
+        last_run_at:
+          type: integer
+          nullable: true
+          description: |
+            The UNIX timestamp of the last time a run started.
+        last_status:
+          type: string
+          description: |
+            The status of the last run, or an empty string when it never ran.
+        executor:
+          type: string
+          enum:
+            - agent
+            - external
+          description: |
+            `agent` when Sanji runs it. `external` when something outside Sanji runs it, and
+            Sanji only shows it.
+        can_edit:
+          type: boolean
+          description: |
+            Whether the user can change, pause, delete and run the routine.
+        last_run:
+          anyOf:
+            - $ref: "#/components/schemas/RoutineRun"
+            - type: object
+              nullable: true
+              additionalProperties: false
+              enum:
+                - null
+          description: |
+            The newest run, or `null` when the routine never ran.
+      required:
+        - id
+        - title
+        - instructions
+        - agent_profile_id
+        - agent_name
+        - owner_id
+        - stream_id
+        - topic
+        - pattern_kind
+        - interval
+        - time_of_day
+        - weekdays
+        - month_day
+        - timezone
+        - model_preset
+        - enabled
+        - paused_reason
+        - next_run_at
+        - last_run_at
+        - last_status
+        - executor
+        - can_edit
+        - last_run
+    RoutineRun:
+      type: object
+      description: |
+        One run of a routine.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: |
+            The ID of the run.
+        routine_id:
+          type: string
+          format: uuid
+          description: |
+            The ID of the routine.
+        trigger:
+          type: string
+          enum:
+            - schedule
+            - manual
+          description: |
+            `schedule` for a run that its schedule started, `manual` for one that a user
+            started with Run now.
+        scheduled_for:
+          type: integer
+          description: |
+            The UNIX timestamp of the occurrence this run is for. For a manual run, the
+            moment it was asked for.
+        started_at:
+          type: integer
+          nullable: true
+          description: |
+            The UNIX timestamp for when the run started.
+        finished_at:
+          type: integer
+          nullable: true
+          description: |
+            The UNIX timestamp for when the run ended, or `null` while it runs.
+        status:
+          type: string
+          enum:
+            - running
+            - succeeded
+            - failed
+            - skipped_budget
+            - skipped_unavailable
+            - skipped_missed
+          description: |
+            The state of the run. `skipped_missed` is an occurrence that the host was down
+            for. The other `skipped` states did not start a job.
+        error_code:
+          type: string
+          description: |
+            Why a run failed or was skipped, such as `job_failed`, `agent_unavailable`,
+            `agent_access`, `channel_unavailable`, `budget_exceeded` or `job_not_created`.
+            Empty otherwise.
+        result_message_id:
+          type: integer
+          nullable: true
+          description: |
+            The ID of the message that holds the result, when there is one.
+        cost_microunits:
+          type: integer
+          nullable: true
+          description: |
+            The cost of the run in millionths of the billing unit, or `null` when nobody
+            measured it. It is never zero for a run that was not measured.
+      required:
+        - id
+        - routine_id
+        - trigger
+        - scheduled_for
+        - started_at
+        - finished_at
+        - status
+        - error_code
+        - result_message_id
+        - cost_microunits
+    RoutineTemplate:
+      type: object
+      description: |
+        A template for the new-routine form.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          description: |
+            A stable name of the template.
+        title:
+          type: string
+          description: |
+            The title to put in the form.
+        instructions:
+          type: string
+          description: |
+            The instructions to put in the form.
+        pattern_kind:
+          type: string
+          enum:
+            - daily
+            - weekdays
+            - weekly
+          description: |
+            The pattern to put in the form.
+        time_of_day:
+          type: string
+          description: |
+            The time of day as 24-hour `HH:MM`.
+        weekdays:
+          type: array
+          items:
+            type: integer
+          description: |
+            For `weekly`, the days of the week, with Monday as 0.
+      required:
+        - id
+        - title
+        - instructions
+        - pattern_kind
+        - time_of_day
+        - weekdays
+    EventRoutineAdd:
+      additionalProperties: false
+      type: object
+      description: |
+        A routine was created. Sent to the active members who can read its channel, and for a
+        routine that runs outside Sanji to every active member. A guest never gets it.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      properties:
+        id:
+          $ref: "#/components/schemas/EventIdSchema"
+        type:
+          allOf:
+            - $ref: "#/components/schemas/EventTypeSchema"
+            - enum:
+                - routine
+        op:
+          type: string
+          enum:
+            - add
+        routine:
+          $ref: "#/components/schemas/Routine"
+      required:
+        - id
+        - type
+        - op
+        - routine
+      example:
+        {
+          "id": 0,
+          "type": "routine",
+          "op": "add",
+          "routine":
+            {
+              "id": "6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34",
+              "title": "Brief pagi",
+              "instructions": "Rangkum yang perlu diperhatikan hari ini.",
+              "agent_profile_id": "0b7f8a9e-8c53-4d63-a5c9-2f1a1c5e9a10",
+              "agent_name": "Sanji Agent",
+              "owner_id": 10,
+              "stream_id": 12,
+              "topic": "Brief",
+              "pattern_kind": "daily",
+              "interval": null,
+              "time_of_day": "08:00",
+              "weekdays": [],
+              "month_day": null,
+              "timezone": "Asia/Jakarta",
+              "model_preset": "",
+              "enabled": true,
+              "paused_reason": "",
+              "next_run_at": 1760577600,
+              "last_run_at": 1760491200,
+              "last_status": "succeeded",
+              "executor": "agent",
+            },
+        }
+    EventRoutineUpdate:
+      additionalProperties: false
+      type: object
+      description: |
+        A routine changed: a user changed or paused it, or a run started or ended. Sent to the
+        same users as the `add` event.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      properties:
+        id:
+          $ref: "#/components/schemas/EventIdSchema"
+        type:
+          allOf:
+            - $ref: "#/components/schemas/EventTypeSchema"
+            - enum:
+                - routine
+        op:
+          type: string
+          enum:
+            - update
+        routine:
+          $ref: "#/components/schemas/Routine"
+      required:
+        - id
+        - type
+        - op
+        - routine
+      example:
+        {
+          "id": 0,
+          "type": "routine",
+          "op": "update",
+          "routine":
+            {
+              "id": "6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34",
+              "title": "Brief pagi",
+              "instructions": "Rangkum yang perlu diperhatikan hari ini.",
+              "agent_profile_id": "0b7f8a9e-8c53-4d63-a5c9-2f1a1c5e9a10",
+              "agent_name": "Sanji Agent",
+              "owner_id": 10,
+              "stream_id": 12,
+              "topic": "Brief",
+              "pattern_kind": "daily",
+              "interval": null,
+              "time_of_day": "08:00",
+              "weekdays": [],
+              "month_day": null,
+              "timezone": "Asia/Jakarta",
+              "model_preset": "",
+              "enabled": true,
+              "paused_reason": "",
+              "next_run_at": 1760577600,
+              "last_run_at": 1760491200,
+              "last_status": "succeeded",
+              "executor": "agent",
+            },
+        }
+    EventRoutineRemove:
+      additionalProperties: false
+      type: object
+      description: |
+        A routine was deleted. Sent to the same users as the `add` event.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-3ee9ff).
+      properties:
+        id:
+          $ref: "#/components/schemas/EventIdSchema"
+        type:
+          allOf:
+            - $ref: "#/components/schemas/EventTypeSchema"
+            - enum:
+                - routine
+        op:
+          type: string
+          enum:
+            - remove
+        routine_id:
+          type: string
+          format: uuid
+          description: |
+            The ID of the routine that was deleted.
+      required:
+        - id
+        - type
+        - op
+        - routine_id
+      example:
+        {
+          "id": 0,
+          "type": "routine",
+          "op": "remove",
+          "routine_id": "6f1c8a52-3a52-4d56-9f0a-0d7a8c1d2e34",
+        }
+
+events:
+  - $ref: "#/components/schemas/EventRoutineAdd"
+  - $ref: "#/components/schemas/EventRoutineUpdate"
+  - $ref: "#/components/schemas/EventRoutineRemove"

@@ -1115,6 +1115,48 @@ class EventPlaybookUpdate(BaseEvent):
     playbook: PlaybookFields
 
 
+class RoutineFields(BaseModel):
+    id: str
+    title: str
+    instructions: str
+    agent_profile_id: str | None
+    agent_name: str
+    owner_id: int
+    stream_id: int | None
+    topic: str
+    pattern_kind: str
+    interval: int | None
+    time_of_day: str | None
+    weekdays: list[int]
+    month_day: int | None
+    timezone: str
+    model_preset: str
+    enabled: bool
+    paused_reason: str
+    next_run_at: int | None
+    last_run_at: int | None
+    last_status: str
+    executor: str
+
+
+class EventRoutineAdd(BaseEvent):
+    type: Literal["routine"]
+    op: Literal["add"]
+    routine: RoutineFields
+
+
+class EventRoutineUpdate(BaseEvent):
+    type: Literal["routine"]
+    op: Literal["update"]
+    routine: RoutineFields
+
+
+class EventRoutineRemove(BaseEvent):
+    type: Literal["routine"]
+    op: Literal["remove"]
+    routine_id: str
+
+
 class EventAgentJobUpdate(BaseEvent):
     type: Literal["agent_job"]
     op: Literal["update"]

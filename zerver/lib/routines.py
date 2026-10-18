@@ -26,6 +26,7 @@ from zerver.lib.realm_clock import realm_local_now
 from zerver.lib.role_permissions import has_role_permission
 from zerver.lib.room_digests import CONTEXT_MESSAGE_LIMIT, post_agent_message
 from zerver.lib.routine_budget import gate
+from zerver.lib.routine_events import send_routine_event
 from zerver.lib.routine_schedule import Schedule, next_run_after
 from zerver.lib.sanji_format import format_date_short
 from zerver.lib.streams import access_stream_by_id
@@ -453,6 +454,7 @@ def run_due_routines(realm: Realm, now: datetime | None = None) -> int:
                 if routine is None:
                     continue
                 started += _run_due_routine(routine, now)
+                send_routine_event(routine, "update")
         except AgentBusy:
             # Another agent write holds the lock. The routine did not move,
             # so the next pass tries again.
@@ -488,6 +490,7 @@ def run_routine_now(routine: AgentRoutine, now: datetime | None = None) -> Agent
             status="running",
         )
         execute_routine_run(routine, run, idempotency_key=uuid4(), now=now)
+        send_routine_event(routine, "update")
     return run
 
 
@@ -525,5 +528,6 @@ def reconcile_routine_runs(realm: Realm, now: datetime | None = None) -> int:
                     _finish_run(run.routine, run, "failed", f"job_{job.status}", now)
             else:
                 continue
+            send_routine_event(run.routine, "update")
             closed += 1
     return closed

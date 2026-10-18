@@ -85,6 +85,20 @@
 * [Get one revision of a playbook](/api/get-playbook-revision)
 * [Compare two revisions of a playbook](/api/get-playbook-diff)
 
+## Routines
+
+* [List routines](/api/list-routines)
+* [Create a routine](/api/create-routine)
+* [List routine templates](/api/list-routine-templates)
+* [List agents for a routine](/api/list-routine-agents)
+* [Get a routine](/api/get-routine)
+* [Change a routine](/api/update-routine)
+* [Delete a routine](/api/delete-routine)
+* [Pause a routine](/api/pause-routine)
+* [Resume a routine](/api/resume-routine)
+* [Run a routine now](/api/run-routine)
+* [List the runs of a routine](/api/list-routine-runs)
+
 ## Agents
 
 * [Approve an agent runner pairing](/api/approve-agent-pairing)

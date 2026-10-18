@@ -85,6 +85,9 @@ from zerver.lib.event_types import (
     EventRemindersRemove,
     EventRestart,
     EventRoomMetaUpdate,
+    EventRoutineAdd,
+    EventRoutineRemove,
+    EventRoutineUpdate,
     EventSavedSnippetsAdd,
     EventSavedSnippetsRemove,
     EventSavedSnippetsUpdate,
@@ -238,6 +241,9 @@ check_realm_user_remove = make_checker(EventRealmUserRemove)
 check_reminder_add = make_checker(EventRemindersAdd)
 check_reminder_remove = make_checker(EventRemindersRemove)
 check_restart = make_checker(EventRestart)
+check_routine_add = make_checker(EventRoutineAdd)
+check_routine_remove = make_checker(EventRoutineRemove)
+check_routine_update = make_checker(EventRoutineUpdate)
 check_saved_snippets_add = make_checker(EventSavedSnippetsAdd)
 check_saved_snippets_remove = make_checker(EventSavedSnippetsRemove)
 check_saved_snippets_update = make_checker(EventSavedSnippetsUpdate)
