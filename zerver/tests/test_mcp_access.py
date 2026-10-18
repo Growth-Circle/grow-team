@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
 from django.db import connection
@@ -8,7 +9,19 @@ from django.http import HttpResponse
 from django.test import Client
 from typing_extensions import override
 
+from zerver.lib.mcp_pending import argument_digest
+from zerver.lib.mcp_policy import OFF, set_policies
+from zerver.lib.mcp_tools import TOOLS
 from zerver.lib.test_classes import ZulipTestCase
+from zerver.lib.test_helpers import ratelimit_rule
+from zerver.models import (
+    AgentRealmSettings,
+    MCPAccessAudit,
+    MCPAccessGrant,
+    MCPPendingCall,
+    Message,
+)
+from zerver.models.streams import get_stream
 
 
 class MCPAccessTests(ZulipTestCase):
@@ -574,7 +587,7 @@ class MCPAccessTests(ZulipTestCase):
     def test_update_task_lets_a_member_move_but_not_edit_a_card_they_see(self) -> None:
         from zerver.actions.tasks import do_create_task
         from zerver.lib.tasks import get_or_create_default_board
-        from zerver.models import Task, TaskHistory
+        from zerver.models import TaskHistory
 
         board = get_or_create_default_board(self.user.realm)
         columns = list(board.columns.order_by("order"))
@@ -731,3 +744,206 @@ class MCPAccessTests(ZulipTestCase):
         for field in ["code", "code_verifier", "refresh_token", "token"]:
             self.assertEqual(post[field], "**********")
         self.assertEqual(meta["HTTP_AUTHORIZATION"], "********************")
+
+    def enforce(self) -> None:
+        AgentRealmSettings.objects.update_or_create(
+            realm=self.user.realm, defaults={"mcp_policy_enforced": True}
+        )
+
+    def latest_grant(self) -> MCPAccessGrant:
+        return MCPAccessGrant.objects.latest("created_at")
+
+    def tool_names(self, token: str) -> set[str]:
+        return {
+            tool["name"]
+            for tool in json.loads(self.rpc(token, "tools/list").content)["result"]["tools"]
+        }
+
+    def rpc_result(self, token: str, name: str, arguments: dict[str, object]) -> dict[str, Any]:
+        return json.loads(
+            self.rpc(token, "tools/call", {"name": name, "arguments": arguments}).content
+        )["result"]
+
+    def test_policies_do_nothing_while_enforcement_is_off(self) -> None:
+        token = self.manual(write=True)
+        set_policies(self.latest_grant(), self.user, {"send_message": OFF, "get_me": OFF})
+        self.assertEqual(self.tool_names(token), set(TOOLS))
+        self.assertFalse(self.rpc_result(token, "get_me", {})["isError"])
+        self.subscribe(self.user, "Denmark")
+        args = {
+            "channel_id": get_stream("Denmark", self.user.realm).id,
+            "topic": "t",
+            "content": "Sent while the flag is off.",
+        }
+        self.assertFalse(self.rpc_result(token, "send_message", args)["isError"])
+        self.assertFalse(MCPPendingCall.objects.exists())
+
+    def test_off_tools_are_hidden_and_look_like_unknown_tools(self) -> None:
+        # AC-V1-004
+        self.enforce()
+        token = self.manual(write=True)
+        set_policies(self.latest_grant(), self.user, {"get_me": OFF, "delete_task": OFF})
+        names = self.tool_names(token)
+        self.assertNotIn("get_me", names)
+        self.assertNotIn("delete_task", names)
+        # Ask first stays visible: the client may ask.
+        self.assertIn("send_message", names)
+        unknown = self.rpc(token, "tools/call", {"name": "no_such_tool", "arguments": {}})
+        off = self.rpc(token, "tools/call", {"name": "get_me", "arguments": {}})
+        self.assertEqual(off.status_code, unknown.status_code)
+        self.assertEqual(off.content, unknown.content)
+        self.assertEqual(
+            list(
+                MCPAccessAudit.objects.filter(outcome="blocked").values_list("tool_name", flat=True)
+            ),
+            ["get_me"],
+        )
+
+    def test_tools_list_advertises_the_corrected_hints(self) -> None:
+        # AC-V1-005
+        token = self.manual(write=True)
+        tools = {
+            tool["name"]: tool["annotations"]
+            for tool in json.loads(self.rpc(token, "tools/list").content)["result"]["tools"]
+        }
+        for name, annotations in tools.items():
+            self.assertEqual(
+                annotations["destructiveHint"], name in {"delete_task", "edit_message"}
+            )
+        self.assertFalse(tools["send_message"]["idempotentHint"])
+        self.assertTrue(tools["add_reaction"]["idempotentHint"])
+        self.assertTrue(tools["get_me"]["idempotentHint"])
+
+    def test_write_calls_are_rate_limited_per_grant(self) -> None:
+        # AC-V1-006
+        self.enforce()
+        token = self.manual(write=True)
+        self.subscribe(self.user, "Denmark")
+        message_id = self.send_stream_message(self.user, "Denmark")
+        with ratelimit_rule(60, 2, domain="mcp_write_by_grant"):
+            for emoji in ("tada", "smile"):
+                result = self.rpc_result(
+                    token, "add_reaction", {"message_id": message_id, "emoji_name": emoji}
+                )
+                self.assertFalse(result["isError"])
+            limited = self.rpc_result(
+                token, "add_reaction", {"message_id": message_id, "emoji_name": "heart"}
+            )
+            self.assertTrue(limited["isError"])
+            self.assertIn("Too many write calls", limited["content"][0]["text"])
+            # Reads are not counted, and another grant has its own allowance.
+            self.assertFalse(self.rpc_result(token, "get_me", {})["isError"])
+            other = self.manual(write=True)
+            self.assertFalse(
+                self.rpc_result(
+                    other, "add_reaction", {"message_id": message_id, "emoji_name": "heart"}
+                )["isError"]
+            )
+        self.assertEqual(MCPAccessAudit.objects.filter(outcome="rate_limited").count(), 1)
+
+    def test_a_legacy_grant_is_not_rate_limited_or_asked(self) -> None:
+        # AC-V1-002 end to end
+        self.enforce()
+        token = self.manual(write=True)
+        MCPAccessGrant.objects.filter(id=self.latest_grant().id).update(policy_mode="legacy")
+        self.subscribe(self.user, "Denmark")
+        args = {
+            "channel_id": get_stream("Denmark", self.user.realm).id,
+            "topic": "t",
+            "content": "Legacy grants send at once.",
+        }
+        with ratelimit_rule(60, 1, domain="mcp_write_by_grant"):
+            for _index in range(3):
+                self.assertFalse(self.rpc_result(token, "send_message", args)["isError"])
+        self.assertEqual(self.tool_names(token), set(TOOLS))
+        self.assertFalse(MCPPendingCall.objects.exists())
+
+    def test_auto_calls_are_audited_with_a_digest_and_no_content(self) -> None:
+        # AC-V1-007
+        self.enforce()
+        token = self.manual(write=True)
+        self.subscribe(self.user, "Denmark")
+        message_id = self.send_stream_message(self.user, "Denmark", "private words")
+        args = {"message_id": message_id, "emoji_name": "tada"}
+        self.assertFalse(self.rpc_result(token, "add_reaction", args)["isError"])
+        self.assertTrue(self.rpc_result(token, "add_reaction", args)["isError"])
+        entries = list(
+            MCPAccessAudit.objects.filter(tool_name="add_reaction")
+            .order_by("id")
+            .values("outcome", "argument_digest")
+        )
+        digest = argument_digest("add_reaction", args)
+        self.assertEqual(
+            entries,
+            [
+                {"outcome": "success", "argument_digest": digest},
+                {"outcome": "rejected", "argument_digest": digest},
+            ],
+        )
+        self.assertNotIn(
+            "private words", json.dumps(list(MCPAccessAudit.objects.values()), default=str)
+        )
+
+    def test_a_read_only_grant_still_cannot_call_write_tools(self) -> None:
+        self.enforce()
+        token = self.manual()
+        result = self.rpc_result(token, "add_reaction", {"message_id": 1, "emoji_name": "tada"})
+        self.assertTrue(result["isError"])
+        self.assertEqual(
+            list(
+                MCPAccessAudit.objects.filter(tool_name="add_reaction").values_list(
+                    "outcome", flat=True
+                )
+            ),
+            ["rejected"],
+        )
+
+    def test_an_ask_first_call_waits_for_the_owner_and_then_returns_the_receipt(self) -> None:
+        # AC-V1-008, AC-V1-009, AC-V1-011 through the MCP endpoint
+        self.enforce()
+        token = self.manual(write=True)
+        self.subscribe(self.user, "Denmark")
+        args = {
+            "channel_id": get_stream("Denmark", self.user.realm).id,
+            "topic": "Release",
+            "content": "Please hold this until approved.",
+        }
+        first = self.rpc_result(token, "send_message", args)
+        self.assertTrue(first["isError"])
+        self.assertIn("waiting", first["content"][0]["text"])
+        self.assertEqual(self.rpc_result(token, "send_message", args), first)
+        self.assertEqual(MCPPendingCall.objects.count(), 1)
+        self.assertFalse(
+            Message.objects.filter(realm_id=self.user.realm_id, content=args["content"]).exists()
+        )
+        call = MCPPendingCall.objects.get()
+        result = self.client_post(
+            f"/json/mcp/calls/{call.id}/decision",
+            {
+                "decision": "approve",
+                "argument_digest": call.argument_digest,
+                "nonce": str(call.nonce),
+            },
+        )
+        self.assert_json_success(result)
+        receipt = self.rpc_result(token, "send_message", args)
+        self.assertFalse(receipt["isError"])
+        message = Message.objects.get(content=args["content"])
+        self.assertEqual(json.loads(receipt["content"][0]["text"])["id"], message.id)
+        self.assertEqual(MCPPendingCall.objects.count(), 1)
+        outcomes = list(
+            MCPAccessAudit.objects.filter(tool_name="send_message")
+            .order_by("id")
+            .values_list("outcome", flat=True)
+        )
+        self.assertEqual(outcomes, ["asked", "approved", "executed"])
+
+    def test_an_ask_first_call_with_an_unreachable_target_is_rejected_not_queued(self) -> None:
+        self.enforce()
+        token = self.manual(write=True)
+        stream = self.make_stream("hidden-room", invite_only=True)
+        result = self.rpc_result(
+            token, "send_message", {"channel_id": stream.id, "topic": "t", "content": "hi"}
+        )
+        self.assertTrue(result["isError"])
+        self.assertFalse(MCPPendingCall.objects.exists())

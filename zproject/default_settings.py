@@ -297,6 +297,12 @@ DEFAULT_RATE_LIMITING_RULES = {
         # 200 requests per minute
         (60, 200),
     ],
+    # Limits the write calls one MCP grant may make through the MCP server,
+    # so a client that loops cannot flood channels or the task board.
+    "mcp_write_by_grant": [
+        (60, 20),
+        (3600, 300),
+    ],
     # Limits total number of unauthenticated API requests (primarily
     # used by the public access option). Since these are
     # unauthenticated requests, each IPv4 address is a separate bucket.

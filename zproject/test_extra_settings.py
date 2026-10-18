@@ -286,6 +286,7 @@ RATE_LIMITING_RULES: dict[str, list[tuple[int, int]]] = {
     "api_by_user": [],
     "api_by_ip": [],
     "api_by_remote_server": [],
+    "mcp_write_by_grant": [],
     "authenticate_by_username": [],
     "sends_email_by_ip": [],
     "email_change_by_user": [],

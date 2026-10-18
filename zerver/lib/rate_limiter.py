@@ -5,6 +5,7 @@ from datetime import timedelta
 from ipaddress import IPv6Network, ip_network
 from pathlib import Path
 from typing import Optional
+from uuid import UUID
 
 import orjson
 import redis.commands.core
@@ -159,6 +160,21 @@ class RateLimitedIPAddr(RateLimitedObject):
 
         # The angle brackets are important since an IPv6 address contains :
         return f"{type(self).__name__}:<{ip_addr_key}>:{self.domain}"
+
+    @override
+    def rules(self) -> list[tuple[int, int]]:
+        return settings.RATE_LIMITING_RULES[self.domain]
+
+
+class RateLimitedMCPGrant(RateLimitedObject):
+    def __init__(self, grant_id: UUID, domain: str = "mcp_write_by_grant") -> None:
+        self.grant_id = grant_id
+        self.domain = domain
+        super().__init__()
+
+    @override
+    def key(self) -> str:
+        return f"{type(self).__name__}:{self.grant_id}:{self.domain}"
 
     @override
     def rules(self) -> list[tuple[int, int]]:
@@ -414,6 +430,15 @@ def rate_limit_request_by_ip(request: HttpRequest, domain: str) -> None:
         # service doesn't silently remove this functionality.
         logger.warning("Failed to fetch TOR exit node list: %s", err)
     RateLimitedIPAddr(ip_addr, domain=domain).rate_limit_request(request)
+
+
+def rate_limit_mcp_grant_write(request: HttpRequest, grant_id: UUID) -> float | None:
+    """Count one write call of an MCP grant. Returns None, or how many seconds
+    until the grant may write again when it is over its limit."""
+    if not should_rate_limit(request):
+        return None
+    ratelimited, secs_to_freedom = RateLimitedMCPGrant(grant_id).rate_limit()
+    return secs_to_freedom if ratelimited else None
 
 
 def rate_limit_endpoint_absolute(endpoint_name: str) -> None:

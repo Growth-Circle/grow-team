@@ -1,6 +1,7 @@
 """Stateless Streamable HTTP endpoint for external workspace agents."""
 
 import json
+import math
 from urllib.parse import urlsplit
 
 from django.contrib.staticfiles.storage import staticfiles_storage
@@ -11,22 +12,40 @@ from django.views.decorators.debug import sensitive_variables
 from pydantic import ValidationError
 
 from zerver.lib.exceptions import JsonableError
-from zerver.lib.mcp_access import VERSIONS, digest, resource_url, valid_grant
+from zerver.lib.mcp_access import VERSIONS, audit, digest, resource_url, valid_grant
+from zerver.lib.mcp_pending import argument_digest, call_result, request_approval
+from zerver.lib.mcp_policy import evaluate, policy_enforced, stored_policies
 from zerver.lib.mcp_tools import TOOLS, execute_tool, tool_list
-from zerver.lib.rate_limiter import rate_limit_request_by_ip, rate_limit_user
+from zerver.lib.rate_limiter import (
+    rate_limit_mcp_grant_write,
+    rate_limit_request_by_ip,
+    rate_limit_user,
+)
 from zerver.lib.request import RequestNotes
 from zerver.models.clients import get_client
-from zerver.models.mcp_access import MCPAccessAudit, MCPAccessGrant, MCPAccessToken
+from zerver.models.mcp_access import MCPAccessGrant, MCPAccessToken
 from zerver.views.mcp_access import oauth_json
-
 
 # Room for a 5 MiB file in base64 for upload_file.
 MAX_BODY_BYTES = 7_100_000
+
 
 def rpc_error(request_id: object, code: int, message: str, status: int = 200) -> HttpResponse:
     return oauth_json(
         {"jsonrpc": "2.0", "id": request_id, "error": {"code": code, "message": message}}, status
     )
+
+
+def _tool_error(text: str) -> dict[str, object]:
+    return {"content": [{"type": "text", "text": text}], "isError": True}
+
+
+def _finish(grant: MCPAccessGrant, request_id: object, result: dict[str, object]) -> HttpResponse:
+    grant.last_used_at = now()
+    grant.save(update_fields=["last_used_at"])
+    response = oauth_json({"jsonrpc": "2.0", "id": request_id, "result": result})
+    response["Access-Control-Expose-Headers"] = "WWW-Authenticate, MCP-Protocol-Version"
+    return response
 
 
 def _challenge(request: HttpRequest) -> HttpResponse:
@@ -97,6 +116,10 @@ def mcp(request: HttpRequest) -> HttpResponse:
     if not isinstance(params, dict):
         return rpc_error(request_id, -32602, "Invalid parameters.")
     method = data["method"]
+    # Per-tool policies bind a managed grant once the workspace turns them on.
+    # A legacy grant, and every grant while they are off, keeps the access its
+    # scopes give it.
+    managed = grant.policy_mode == "managed" and policy_enforced(grant.realm)
     if "id" not in data:
         if method not in {"notifications/initialized", "notifications/cancelled"}:
             return rpc_error(None, -32600, "Only supported notifications can omit the ID.", 400)
@@ -127,17 +150,55 @@ def mcp(request: HttpRequest) -> HttpResponse:
     elif method == "ping":
         result = {}
     elif method == "tools/list":
-        result = {"tools": tool_list(grant.scopes)}
+        only = None
+        if managed:
+            stored = stored_policies(grant)
+            only = {
+                name
+                for name in TOOLS
+                if evaluate(name, scopes=grant.scopes, mode=grant.policy_mode, stored=stored)
+                != "deny"
+            }
+        result = {"tools": tool_list(grant.scopes, only)}
     elif method == "tools/call":
         name = params.get("name")
         arguments = params.get("arguments", {})
         if not isinstance(name, str) or name not in TOOLS or not isinstance(arguments, dict):
             return rpc_error(request_id, -32602, "Unknown tool or invalid arguments.")
         model, _description, write = TOOLS[name]
+        decision = "allow"
+        # A write tool without write access is refused below, as it always was.
+        if managed and (not write or "team:write" in grant.scopes):
+            decision = evaluate(
+                name,
+                scopes=grant.scopes,
+                mode=grant.policy_mode,
+                stored=stored_policies(grant),
+            )
+            if decision == "deny":
+                audit(grant, name, "blocked")
+                return rpc_error(request_id, -32602, "Unknown tool or invalid arguments.")
+            if write:
+                wait = rate_limit_mcp_grant_write(request, grant.id)
+                if wait is not None:
+                    audit(grant, name, "rate_limited")
+                    seconds = math.ceil(wait)
+                    return _finish(
+                        grant,
+                        request_id,
+                        _tool_error(
+                            f"Too many write calls from this connection. Try again in {seconds} seconds."
+                        ),
+                    )
+        outcome = "rejected"
+        call_digest = ""
         try:
             if write and "team:write" not in grant.scopes:
                 raise ValueError("This connection has read access only.")
             args = model.model_validate(arguments).model_dump()
+            call_digest = argument_digest(name, args)
+            if decision == "ask":
+                return _finish(grant, request_id, call_result(request_approval(grant, name, args)))
             output = execute_tool(request, grant.user, name, args)
             result = {
                 "content": [{"type": "text", "text": json.dumps(output, ensure_ascii=False)}],
@@ -145,21 +206,8 @@ def mcp(request: HttpRequest) -> HttpResponse:
             }
             outcome = "success"
         except (JsonableError, ValueError, ValidationError):
-            result = {
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "The tool request is invalid or your account lacks permission.",
-                    }
-                ],
-                "isError": True,
-            }
-            outcome = "rejected"
-        MCPAccessAudit.objects.create(grant=grant, tool_name=name, outcome=outcome)
+            result = _tool_error("The tool request is invalid or your account lacks permission.")
+        audit(grant, name, outcome, argument_digest=call_digest)
     else:
         return rpc_error(request_id, -32601, "Method not found.")
-    grant.last_used_at = now()
-    grant.save(update_fields=["last_used_at"])
-    response = oauth_json({"jsonrpc": "2.0", "id": request_id, "result": result})
-    response["Access-Control-Expose-Headers"] = "WWW-Authenticate, MCP-Protocol-Version"
-    return response
+    return _finish(grant, request_id, result)
