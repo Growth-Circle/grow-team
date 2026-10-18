@@ -27,41 +27,6 @@
     }
 }
 
-.needs-header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    justify-content: space-between;
-    /* 16px at 16px/1em */
-    gap: 1em;
-}
-
-.needs-heading {
-    display: flex;
-    flex-direction: column;
-    /* 6px at 16px/1em */
-    gap: 0.375em;
-}
-
-.needs-eyebrow {
-    color: var(--sj-text-muted);
-    font-family: var(--sj-font-mono);
-    /* 12px at 16px/1em */
-    font-size: 0.75em;
-    letter-spacing: 0.08em;
-    /* The text has the right case already. The name of the workspace
-       in it must not be in capitals, so there is no text-transform. */
-}
-
-.needs-title {
-    margin: 0;
-    color: var(--sj-text);
-    font-size: var(--sj-font-size-page-title);
-    font-weight: 900;
-    line-height: 1;
-    letter-spacing: -0.045em;
-}
-
 .needs-tabs {
     display: flex;
     flex-wrap: wrap;
@@ -151,46 +116,6 @@
     /* 79px at 16px/1em, the height of one card */
     height: 4.9375em;
     border-radius: var(--sj-radius-18);
-}
-
-.needs-empty {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    /* 14px at 16px/1em */
-    gap: 0.875em;
-    border: var(--sj-border-strong);
-    border-radius: var(--sj-radius-18);
-    background: var(--sj-tint-matcha);
-    /* 22px at 16px/1em */
-    padding: 1.375em;
-}
-
-/* A list that did not load is a warning, not the green all-clear. */
-.needs-error {
-    background: var(--sj-tint-kaki);
-}
-
-.needs-empty-icon {
-    display: flex;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    /* 36px at 16px/1em */
-    width: 2.25em;
-    height: 2.25em;
-    border: var(--sj-border-strong);
-    border-radius: var(--sj-radius-10);
-    background: var(--sj-matcha);
-    color: var(--sj-tinta);
-    font-weight: 900;
-}
-
-.needs-empty-text {
-    color: var(--sj-text);
-    /* 17px at 16px/1em */
-    font-size: 1.0625em;
-    font-weight: 800;
 }
 
 .needs-card {

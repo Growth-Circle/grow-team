@@ -1,12 +1,6 @@
 {{! The board header and its columns. The card detail panel lives in
-    task_board_card_detail.hbs and is rendered on demand. }}
-<div class="task-board-header">
-    <div class="task-board-identity">
-        <h1 class="task-board-name" tabindex="-1">{{board_name}}</h1>
-        <button type="button" class="task-board-rename action-button action-button-text-neutral action-button-small" aria-label="{{t 'Rename board'}}">
-            <i class="zulip-icon zulip-icon-edit" aria-hidden="true"></i>
-        </button>
-    </div>
+task_board_card_detail.hbs and is rendered on demand. }}
+{{#> components/page_header . title=board_name title_focusable=true title_action_class="task-board-rename" title_action_label=(t "Rename board") title_action_icon="edit" description=summary}}
     {{> task_board_view_switch . }}
     <div class="task-board-header-actions">
         <label class="task-board-filter-label" for="task-board-filter">{{t "Filter"}}</label>
@@ -32,14 +26,13 @@
             <span class="action-button-label">{{t "New task"}}</span>
         </button>
     </div>
-    <p class="task-board-summary">{{summary}}</p>
-    {{#if card_unavailable}}
-        <p class="task-board-notice" role="status">{{t "This card isn't available."}}</p>
-    {{/if}}
-    {{#if is_empty}}
-        <p class="task-board-empty">{{t "No tasks yet. Use New task, or Add card in a column."}}</p>
-    {{/if}}
-</div>
+{{/components/page_header}}
+{{#if card_unavailable}}
+    <p class="task-board-notice" role="status">{{t "This card isn't available."}}</p>
+{{/if}}
+{{#if is_empty}}
+    {{> components/empty_state title=(t "No tasks yet.") description=(t "Use New task, or Add card in a column.")}}
+{{/if}}
 {{! Read out for a card its reader cannot drag. }}
 <p id="task-board-move-hint" hidden>{{move_hint}}</p>
 <div class="task-board-columns" role="list">

@@ -1,16 +1,14 @@
 {{! Today plan, above the list of My tasks: the cards the member chose for
-    today in their own order, then the ones that are overdue or due today
-    anyway. Yesterday's unfinished cards wait in a prompt until the member
-    adds them. }}
+today in their own order, then the ones that are overdue or due today
+anyway. Yesterday's unfinished cards wait in a prompt until the member
+adds them. }}
 <section class="task-board-plan" aria-labelledby="task-board-plan-heading">
     <h2 class="task-board-list-heading" id="task-board-plan-heading">
         <span>{{t "Today plan"}}</span>
         <span class="task-board-column-count">{{plan_count}}</span>
     </h2>
     {{#if has_carry_over}}
-        <div class="task-board-plan-carry" role="group" aria-labelledby="task-board-plan-carry-heading">
-            <p class="task-board-plan-carry-heading" id="task-board-plan-carry-heading">{{t "Carry over from yesterday?"}}</p>
-            <p class="task-board-plan-carry-hint">{{t "These cards were in yesterday's plan and are not done."}}</p>
+        {{#> components/settings_card . custom_classes="task-board-plan-carry" heading_id="task-board-plan-carry-heading" title=(t "Carry over from yesterday?") description=(t "These cards were in yesterday's plan and are not done.")}}
             <ul class="task-board-plan-carry-rows">
                 {{#each carry_over}}
                     <li class="task-board-plan-carry-row">
@@ -30,7 +28,7 @@
                     <span class="action-button-label">{{t "Not now"}}</span>
                 </button>
             </div>
-        </div>
+        {{/components/settings_card}}
     {{/if}}
     {{#if has_planned}}
         <ol class="task-board-list-rows task-board-plan-rows task-board-plan-sortable" aria-label="{{t 'Planned for today'}}">
@@ -67,6 +65,6 @@
         </ul>
     {{/if}}
     {{#if is_empty_plan}}
-        <p class="task-board-plan-empty">{{t "Nothing planned for today. Use Add to today on a card to plan it."}}</p>
+        {{> components/empty_state title=(t "Nothing planned for today.") description=(t "Use Add to today on a card to plan it.")}}
     {{/if}}
 </section>

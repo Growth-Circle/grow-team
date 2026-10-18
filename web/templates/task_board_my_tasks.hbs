@@ -1,20 +1,16 @@
 {{! My tasks: the reader's open cards, grouped by deadline. The card
 detail panel is shared with the board. }}
-<div class="task-board-header">
-    <div class="task-board-identity">
-        <h1 class="task-board-name" tabindex="-1">{{t "My tasks"}}</h1>
-    </div>
+{{#> components/page_header . title=(t "My tasks") title_focusable=true description=summary}}
     {{> task_board_view_switch . }}
-    <p class="task-board-summary">{{summary}}</p>
-    {{#if card_unavailable}}
-        <p class="task-board-notice" role="status">{{t "This card isn't available."}}</p>
-    {{/if}}
-</div>
+{{/components/page_header}}
+{{#if card_unavailable}}
+    <p class="task-board-notice" role="status">{{t "This card isn't available."}}</p>
+{{/if}}
 {{#if has_plan}}
     {{> task_board_today_plan . }}
 {{/if}}
 {{#if is_empty}}
-    <p class="task-board-empty task-board-list-empty">{{t "You have no open tasks. Cards assigned to you show up here."}}</p>
+    {{> components/empty_state size="hero" title=(t "You have no open tasks.") description=(t "Cards assigned to you show up here.") secondary_label=(t "Open the board") secondary_href="#tasks"}}
 {{else}}
     <div class="task-board-list">
         {{#each sections}}

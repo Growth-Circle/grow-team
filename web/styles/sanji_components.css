@@ -1,0 +1,196 @@
+/* Components shared by the screens we own: page_header.hbs,
+   empty_state.hbs and settings_card.hbs in web/templates/components.
+   Em values use a 16px/1em base. Border widths stay in px. */
+
+.sj-page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    /* 16px at 16px/1em */
+    gap: 1em;
+    min-width: 0;
+}
+
+.sj-page-header-heading {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    /* 6px at 16px/1em */
+    gap: 0.375em;
+}
+
+.sj-page-header-eyebrow {
+    color: var(--sj-text-muted);
+    font-family: var(--sj-font-mono);
+    /* 12px at 16px/1em */
+    font-size: 0.75em;
+    letter-spacing: 0.08em;
+    /* The text has the right case already. The name of the workspace
+       in it must not be in capitals, so there is no text-transform. */
+}
+
+.sj-page-header-title-row {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    /* 4px at 16px/1em */
+    gap: 0.25em;
+}
+
+.sj-page-header-title {
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: var(--sj-text);
+    font-size: var(--sj-font-size-page-title);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.045em;
+}
+
+.sj-page-header-description {
+    margin: 0;
+    color: var(--sj-text-muted);
+    /* 14px at 16px/1em */
+    font-size: 0.875em;
+}
+
+.sj-page-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    /* 8px at 16px/1em */
+    gap: 0.5em;
+
+    &:empty {
+        display: none;
+    }
+}
+
+.sj-empty-state {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    /* 14px at 16px/1em */
+    gap: 0.875em;
+    border: var(--sj-border-strong);
+    border-radius: var(--sj-radius-18);
+    /* 22px at 16px/1em */
+    padding: 1.375em;
+}
+
+.sj-empty-state-success {
+    background: var(--sj-tint-matcha);
+}
+
+.sj-empty-state-warning {
+    background: var(--sj-tint-kaki);
+}
+
+.sj-empty-state-neutral {
+    border: var(--sj-border);
+    border-style: dashed;
+    background: var(--sj-surface-muted);
+}
+
+.sj-empty-state-hero {
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    /* 40px 22px at 16px/1em */
+    padding: 2.5em 1.375em;
+}
+
+.sj-empty-state-icon {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    /* 36px at 16px/1em */
+    width: 2.25em;
+    height: 2.25em;
+    border: var(--sj-border-strong);
+    border-radius: var(--sj-radius-10);
+    background: var(--sj-surface);
+    color: var(--sj-tinta);
+    font-weight: 900;
+}
+
+.sj-empty-state-success .sj-empty-state-icon {
+    background: var(--sj-matcha);
+}
+
+.sj-empty-state-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    /* 4px at 16px/1em */
+    gap: 0.25em;
+}
+
+.sj-empty-state-title,
+.sj-empty-state-description {
+    margin: 0;
+}
+
+.sj-empty-state-title {
+    color: var(--sj-text);
+    /* 17px at 16px/1em */
+    font-size: 1.0625em;
+    font-weight: 800;
+}
+
+.sj-empty-state-description {
+    color: var(--sj-text-muted);
+    /* 14px at 16px/1em */
+    font-size: 0.875em;
+}
+
+.sj-empty-state-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    /* 8px 14px at 16px/1em */
+    gap: 0.5em 0.875em;
+}
+
+.sj-empty-state-link {
+    color: var(--sj-text);
+    font-weight: 700;
+    text-decoration: underline;
+}
+
+.sj-settings-card {
+    display: flex;
+    flex-direction: column;
+    border: var(--sj-border);
+    border-radius: 0.75em;
+    background: var(--sj-surface);
+    /* 14px at 16px/1em */
+    padding: 0.875em;
+    /* 8px at 16px/1em */
+    gap: 0.5em;
+}
+
+.sj-settings-card-title {
+    margin: 0;
+    color: var(--sj-text);
+    /* 15px at 16px/1em */
+    font-size: 0.9375em;
+    font-weight: 600;
+}
+
+.sj-settings-card-description {
+    margin: 0;
+    color: var(--sj-text-muted);
+    /* 13px at 16px/1em */
+    font-size: 0.8125em;
+}
+
+.sj-settings-card-body {
+    display: flex;
+    flex-direction: column;
+    /* 8px at 16px/1em */
+    gap: 0.5em;
+}

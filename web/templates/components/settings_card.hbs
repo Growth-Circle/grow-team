@@ -1,0 +1,12 @@
+{{! A titled box that groups one thing to read or change: a title, an
+    optional description under it, and the block as the body. Pass `.`
+    so the block sees the page's data. }}
+<section class="sj-settings-card{{#if custom_classes}} {{custom_classes}}{{/if}}" {{#if heading_id}}aria-labelledby="{{heading_id}}"{{/if}}>
+    <h2 class="sj-settings-card-title" {{#if heading_id}}id="{{heading_id}}"{{/if}}>{{title}}</h2>
+    {{#if description}}
+        <p class="sj-settings-card-description">{{description}}</p>
+    {{/if}}
+    <div class="sj-settings-card-body">
+        {{~> @partial-block .~}}
+    </div>
+</section>

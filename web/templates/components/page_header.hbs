@@ -1,0 +1,26 @@
+{{! The top of a page: an optional eyebrow, the title, an optional
+    description, and whatever the block holds on the right (tabs,
+    filters, the main button). An icon button can sit beside the title.
+    Call it with the block form of a partial, even when there is nothing
+    to put in the block, and pass `.` so the block sees the page's data. }}
+<header class="sj-page-header{{#if custom_classes}} {{custom_classes}}{{/if}}">
+    <div class="sj-page-header-heading">
+        {{#if eyebrow}}
+            <span class="sj-page-header-eyebrow">{{eyebrow}}</span>
+        {{/if}}
+        <div class="sj-page-header-title-row">
+            <h1 class="sj-page-header-title" {{#if title_focusable}}tabindex="-1"{{/if}}>{{title}}</h1>
+            {{#if title_action_label}}
+                <button type="button" class="{{title_action_class}} action-button action-button-text-neutral action-button-small" aria-label="{{title_action_label}}">
+                    <i class="zulip-icon zulip-icon-{{title_action_icon}}" aria-hidden="true"></i>
+                </button>
+            {{/if}}
+        </div>
+        {{#if description}}
+            <p class="sj-page-header-description">{{description}}</p>
+        {{/if}}
+    </div>
+    <div class="sj-page-header-actions">
+        {{~> @partial-block .~}}
+    </div>
+</header>

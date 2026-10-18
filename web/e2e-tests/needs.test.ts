@@ -565,20 +565,24 @@ async function test_measure_layout(page: Page): Promise<void> {
     const page_box = await box_of(page, ".needs-page");
     assert_near(page_box.width, 1024, 0.5, "page width (960 plus 32px on each side)");
 
-    assert.equal(await style_of(page, ".needs-title", "font-weight"), "900", "title weight");
+    assert.equal(
+        await style_of(page, ".sj-page-header-title", "font-weight"),
+        "900",
+        "title weight",
+    );
     assert_near(
-        Number.parseFloat(await style_of(page, ".needs-title", "font-size")),
+        Number.parseFloat(await style_of(page, ".sj-page-header-title", "font-size")),
         48,
         0.5,
         "title size in a wide window",
     );
     assert_near(
-        Number.parseFloat(await style_of(page, ".needs-eyebrow", "font-size")),
+        Number.parseFloat(await style_of(page, ".sj-page-header-eyebrow", "font-size")),
         12,
         0.1,
         "label size",
     );
-    assert_near((await box_of(page, ".needs-header")).height, 69, 3, "header height");
+    assert_near((await box_of(page, ".sj-page-header")).height, 69, 3, "header height");
 
     const tab_boxes = await Promise.all(
         ["all", "approval", "mention", "decision"].map(async (tab) =>
@@ -619,7 +623,7 @@ async function test_measure_layout(page: Page): Promise<void> {
     assert.equal(await style_of(page, plain, "border-radius"), "18px", "card radius");
 
     // The cards sit 20px apart, and the first is 20px below the header.
-    const header_box = await box_of(page, ".needs-header");
+    const header_box = await box_of(page, ".sj-page-header");
     const first_box = await box_of(page, card_selector("approval:a1"));
     const second_box = await box_of(page, card_selector("approval:a2"));
     assert_near(
@@ -757,8 +761,8 @@ async function set_theme(page: Page, scheme: string): Promise<void> {
 // a contrast of 4.5 or better (3 for the large title), in both themes.
 async function test_contrast(page: Page): Promise<void> {
     const parts: [string, number][] = [
-        [".needs-title", 3],
-        [".needs-eyebrow", 4.5],
+        [".sj-page-header-title", 3],
+        [".sj-page-header-eyebrow", 4.5],
         [".needs-tab-active", 4.5],
         ['.needs-tab[data-tab="approval"]', 4.5],
         [".needs-tag-approval", 4.5],
@@ -844,7 +848,7 @@ async function test_filters_and_states(page: Page, stream_id: number): Promise<v
     await page.waitForSelector('.sanji-nav-item-active[data-nav-id="needs"]', {visible: true});
     assert.equal(await sidebar_badge(page), "7", "sidebar count");
     assert.match(
-        await page.$eval(".needs-eyebrow", (node) => node.textContent ?? ""),
+        await page.$eval(".sj-page-header-eyebrow", (node) => node.textContent ?? ""),
         /^FROM ALL ROOMS IN \S/,
     );
     assert.equal(
@@ -972,18 +976,18 @@ async function test_actions(page: Page, server: FakeServer): Promise<void> {
 
     // The mention tab has nothing left: the empty state, 88 high.
     await click_tab(page, "mention");
-    await page.waitForSelector(".needs-empty");
+    await page.waitForSelector(".sj-empty-state");
     assert.equal(
-        await page.$eval(".needs-empty-text", (node) => node.textContent),
+        await page.$eval(".sj-empty-state-title", (node) => node.textContent),
         "Nothing is waiting in this category.",
     );
     await common.screenshot(page, "needs-empty");
-    const empty_box = await box_of(page, ".needs-empty");
+    const empty_box = await box_of(page, ".sj-empty-state");
     assert_near(empty_box.height, 88, 2, "empty state height");
     assert_near(empty_box.width, 960, 0.5, "empty state width");
-    assert.equal(await style_of(page, ".needs-empty", "background-color"), "rgb(210, 247, 229)");
+    assert.equal(await style_of(page, ".sj-empty-state", "background-color"), "rgb(210, 247, 229)");
     assert.equal(
-        await style_of(page, ".needs-empty-icon", "background-color"),
+        await style_of(page, ".sj-empty-state-icon", "background-color"),
         "rgb(22, 199, 132)",
     );
     await click_tab(page, "all");
@@ -1111,7 +1115,7 @@ async function test_loading_states(page: Page, server: FakeServer): Promise<void
     await page.waitForSelector(".needs-retry", {visible: true});
     await common.screenshot(page, "needs-load-error");
     assert.equal(
-        await page.$eval(".needs-empty-text", (node) => node.textContent),
+        await page.$eval(".sj-empty-state-title", (node) => node.textContent),
         "Your list did not load.",
     );
     server.fail_list = false;

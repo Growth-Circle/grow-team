@@ -1,0 +1,27 @@
+{{! What a list or page shows when it has nothing to show. `size` is
+    "inline" (a row, for a section of a page) or "hero" (centered, for a
+    page with nothing else on it). `tone` is "success", "warning" or
+    "neutral". `icon` is one character. A primary action is a button
+    (`action_label`, with `action_classes` for the code that listens to
+    it); the secondary action is a link. }}
+<div class="sj-empty-state sj-empty-state-{{#if size}}{{size}}{{else}}inline{{/if}} sj-empty-state-{{#if tone}}{{tone}}{{else}}neutral{{/if}}{{#if custom_classes}} {{custom_classes}}{{/if}}" {{#if role}}role="{{role}}"{{/if}}>
+    {{#if icon}}
+        <span class="sj-empty-state-icon" aria-hidden="true">{{icon}}</span>
+    {{/if}}
+    <div class="sj-empty-state-text">
+        <p class="sj-empty-state-title">{{title}}</p>
+        {{#if description}}
+            <p class="sj-empty-state-description">{{description}}</p>
+        {{/if}}
+    </div>
+    {{#if (or action_label secondary_label)}}
+        <div class="sj-empty-state-actions">
+            {{#if action_label}}
+                <button type="button" class="sj-empty-state-action {{action_classes}}">{{action_label}}</button>
+            {{/if}}
+            {{#if secondary_label}}
+                <a class="sj-empty-state-link" href="{{secondary_href}}">{{secondary_label}}</a>
+            {{/if}}
+        </div>
+    {{/if}}
+</div>
