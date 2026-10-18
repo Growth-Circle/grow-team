@@ -19,7 +19,7 @@ than add a fourth kind.
 
 import re
 from datetime import datetime, time, timedelta, timezone
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -32,6 +32,7 @@ from zerver.actions.agent_jobs import check_attempt_access
 from zerver.actions.tasks import do_resolve_task_notifications
 from zerver.lib.agent_context import agent_transaction, require_job_access
 from zerver.lib.exceptions import JsonableError
+from zerver.lib.mcp_preview import PreviewTarget
 from zerver.lib.message import access_message
 from zerver.lib.push_notifications import get_mobile_push_content
 from zerver.lib.realm_clock import realm_local_now
@@ -41,6 +42,7 @@ from zerver.lib.tasks import realm_task_id_prefix, user_can_access_task
 from zerver.lib.topic import messages_for_topic
 from zerver.models import (
     Attachment,
+    MCPPendingCall,
     Message,
     MutedUser,
     Reaction,
@@ -94,6 +96,14 @@ _EXCERPT_LIMIT = 400
 
 KINDS = ("approval", "mention", "decision", "card_mention", "card_assigned")
 
+# An approval for a call that an external client made to an Ask first tool has
+# this prefix in its id instead of "approval" (spec 03: no new kind).
+MCP_CALL_PREFIX = "mcp_call"
+# A call that waited past its expiry stays listed, marked expired, this long.
+MCP_CALL_EXPIRED_GRACE = timedelta(hours=24)
+# The card shows this much of the content, and the person can open the rest.
+MCP_CALL_TEXT_LIMIT = 600
+
 
 class NeedActor(TypedDict):
     type: str
@@ -115,6 +125,17 @@ class NeedTask(TypedDict):
     id: int
     display_id: str
     title: str
+
+
+class NeedMcpCall(TypedDict):
+    call_id: str
+    grant_name: str
+    tool: str
+    target: PreviewTarget
+    # The whole content; the item's text keeps only the start of it.
+    content: str
+    mentions: list[str]
+    digest: str
 
 
 class NeedItem(TypedDict):
@@ -147,6 +168,8 @@ class NeedItem(TypedDict):
     # A mention that names 3 or more people, or a wildcard, in a channel,
     # and is not addressed to this user alone. Always false for other kinds.
     broadcast: bool
+    # Only on an approval for an external client's call.
+    mcp_call: NotRequired[NeedMcpCall]
 
 
 class NeedCounts(TypedDict):
@@ -284,6 +307,64 @@ def _approval_item(
         "job_version": None,
         "task": None,
         "broadcast": False,
+    }
+
+
+def _mcp_call_actor(call: MCPPendingCall) -> NeedActor:
+    return {
+        "type": "agent",
+        "id": call.grant.user_id,
+        "name": call.grant.name,
+        "agent_role": None,
+        "shape": "box",
+        "color": None,
+        "initials": _initials(call.grant.name),
+    }
+
+
+def _mcp_call_item(
+    call: MCPPendingCall,
+    *,
+    resolved_at: datetime | None = None,
+    resolved_action: str | None = None,
+) -> NeedItem:
+    preview = call.preview
+    pending = call.status == "pending"
+    arguments = call.arguments
+    in_channel = call.tool_name == "send_message"
+    text = (preview["content"] or preview["target"]["name"])[:MCP_CALL_TEXT_LIMIT]
+    return {
+        "id": f"{MCP_CALL_PREFIX}:{call.id}",
+        "kind": "approval",
+        "actor": _mcp_call_actor(call),
+        "stream_id": arguments["channel_id"] if in_channel else None,
+        "topic": arguments["topic"] if in_channel else None,
+        "time": call.created_at.isoformat(),
+        "text": text,
+        "raw_text": text,
+        "attachment": None,
+        "actions": ["approve", "reject"],
+        "expires_at": call.expires_at.isoformat(),
+        "expired": pending and call.expires_at <= timezone_now(),
+        "resolved_at": resolved_at.isoformat() if resolved_at else None,
+        "resolved_action": resolved_action,
+        "job_id": None,
+        "approval_version": None,
+        "operation_hash": call.argument_digest,
+        # Give out the nonce only while it can be used.
+        "nonce": str(call.nonce) if pending else None,
+        "job_version": None,
+        "task": None,
+        "broadcast": False,
+        "mcp_call": {
+            "call_id": str(call.id),
+            "grant_name": call.grant.name,
+            "tool": call.tool_name,
+            "target": preview["target"],
+            "content": preview["content"],
+            "mentions": preview["mentions"],
+            "digest": call.argument_digest[:12],
+        },
     }
 
 
@@ -539,6 +620,24 @@ def _open_approvals(actor: UserProfile) -> list[NeedItem]:
     return items
 
 
+def _open_mcp_calls(actor: UserProfile) -> list[NeedItem]:
+    """The calls waiting on this person as the owner of a grant. Only the
+    owner decides, so nobody else sees them."""
+    calls = (
+        MCPPendingCall.objects.filter(
+            grant__user=actor,
+            grant__realm=actor.realm,
+            grant__revoked_at__isnull=True,
+            grant__expires_at__gt=timezone_now(),
+            status="pending",
+            expires_at__gt=timezone_now() - MCP_CALL_EXPIRED_GRACE,
+        )
+        .select_related("grant")
+        .order_by("-created_at")[:_ROW_LIMIT]
+    )
+    return [_mcp_call_item(call) for call in calls]
+
+
 def _latest_questions(job_ids: list[UUID]) -> dict[UUID, agents.AgentAuditEvent]:
     questions: dict[UUID, agents.AgentAuditEvent] = {}
     for event in agents.AgentAuditEvent.objects.filter(
@@ -705,6 +804,27 @@ def _resolved_approvals(actor: UserProfile, since: datetime) -> list[NeedItem]:
     ]
 
 
+def _resolved_mcp_calls(actor: UserProfile, since: datetime) -> list[NeedItem]:
+    calls = (
+        MCPPendingCall.objects.filter(
+            grant__user=actor,
+            grant__realm=actor.realm,
+            decided_at__gte=since,
+            status__in=["approved", "executed", "failed", "rejected"],
+        )
+        .select_related("grant")
+        .order_by("-decided_at")[:_ROW_LIMIT]
+    )
+    return [
+        _mcp_call_item(
+            call,
+            resolved_at=call.decided_at,
+            resolved_action="rejected" if call.status == "rejected" else "approved",
+        )
+        for call in calls
+    ]
+
+
 def _resolved_decisions(actor: UserProfile, since: datetime) -> list[NeedItem]:
     items: list[NeedItem] = []
     seen_job_ids: set[UUID] = set()
@@ -861,7 +981,7 @@ def list_needs(
         if status == "open":
             mentions, superseded_ids = _open_mentions(actor)
             buckets = {
-                "approval": _open_approvals(actor),
+                "approval": _open_approvals(actor) + _open_mcp_calls(actor),
                 "decision": _open_decisions(actor),
                 "mention": mentions,
                 **_card_items(actor, resolved_since=None),
@@ -869,7 +989,7 @@ def list_needs(
         else:
             start = _start_of_today(actor.realm)
             buckets = {
-                "approval": _resolved_approvals(actor, start),
+                "approval": _resolved_approvals(actor, start) + _resolved_mcp_calls(actor, start),
                 "decision": _resolved_decisions(actor, start),
                 "mention": _resolved_mentions(actor, start),
                 **_card_items(actor, resolved_since=start),
@@ -941,7 +1061,7 @@ def unresolve_mention(actor: UserProfile, message_id: int) -> None:
 
 def _split_need_id(need_id: str) -> tuple[str, str]:
     kind, _separator, raw_id = need_id.partition(":")
-    if kind not in KINDS or raw_id == "" or len(need_id) > 80:
+    if (kind not in KINDS and kind != MCP_CALL_PREFIX) or raw_id == "" or len(need_id) > 80:
         raise ValueError("Invalid need id.")
     return kind, raw_id
 

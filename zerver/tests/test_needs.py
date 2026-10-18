@@ -32,10 +32,13 @@ from zerver.lib import agent_protocol as p
 from zerver.lib import needs
 from zerver.lib.agent_policy import AgentAccessDenied
 from zerver.lib.agent_results import store_artifact
+from zerver.lib.mcp_pending import request_approval
 from zerver.lib.tasks import get_or_create_default_board
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.models import (
     Attachment,
+    MCPAccessGrant,
+    MCPPendingCall,
     Message,
     RolePermission,
     Task,
@@ -1489,3 +1492,148 @@ class CardNeedsTests(ZulipTestCase):
 
         self.assert_json_error(result, "Agent request rejected.")
         self.assertIsNone(TaskNotification.objects.get().resolved_at)
+
+
+class NeedsMcpCallTests(NeedsTestCase):
+    """An Ask first call from an external MCP client is an approval item
+    for the owner of the grant, with the exact action to approve."""
+
+    @override
+    def setUp(self) -> None:
+        super().setUp()
+        self.grant = MCPAccessGrant.objects.create(
+            realm=self.owner.realm,
+            user=self.owner,
+            name="Claude Cowork",
+            scopes=["team:read", "team:write"],
+            resource="http://zulip.testserver/mcp",
+            expires_at=now() + timedelta(days=7),
+        )
+        self.subscribe(self.owner, "Denmark")
+
+    def _ask(self, content: str = "Ship it tonight.") -> MCPPendingCall:
+        return request_approval(
+            self.grant,
+            "send_message",
+            {
+                "channel_id": self.get_stream_id("Denmark"),
+                "topic": "Release",
+                "content": content,
+                "mention_user_ids": [self.example_user("othello").id],
+            },
+        )
+
+    def _decide_call(self, call: MCPPendingCall, decision: str) -> "TestHttpResponse":
+        self.login_user(self.owner)
+        return self.client_post(
+            f"/json/mcp/calls/{call.id}/decision",
+            {
+                "decision": decision,
+                "argument_digest": call.argument_digest,
+                "nonce": str(call.nonce),
+            },
+        )
+
+    def test_item_shows_the_exact_action_for_the_grant_owner(self) -> None:
+        # AC-V1-012
+        call = self._ask()
+        result = needs.list_needs(self.owner, kind=None, status="open", since=None)
+        self.assertEqual(
+            result["counts"], {**NO_CARDS, "approval": 1, "mention": 0, "decision": 0, "all": 1}
+        )
+        [item] = result["items"]
+        self.assertEqual(item["id"], f"mcp_call:{call.id}")
+        self.assertEqual(item["kind"], "approval")
+        self.assertEqual(item["actor"]["name"], "Claude Cowork")
+        self.assertEqual(item["actor"]["type"], "agent")
+        self.assertEqual(item["stream_id"], self.get_stream_id("Denmark"))
+        self.assertEqual(item["topic"], "Release")
+        self.assertEqual(item["text"], "Ship it tonight.")
+        self.assertEqual(item["actions"], ["approve", "reject"])
+        self.assertEqual(item["expires_at"], call.expires_at.isoformat())
+        self.assertFalse(item["expired"])
+        self.assertEqual(item["nonce"], str(call.nonce))
+        self.assertEqual(item["operation_hash"], call.argument_digest)
+        self.assertIsNone(item["job_id"])
+        self.assertEqual(
+            item["mcp_call"],
+            {
+                "call_id": str(call.id),
+                "grant_name": "Claude Cowork",
+                "tool": "send_message",
+                "target": {
+                    "type": "channel",
+                    "name": "Denmark",
+                    "topic": "Release",
+                    "message_id": None,
+                },
+                "content": "Ship it tonight.",
+                "mentions": [self.example_user("othello").full_name],
+                "digest": call.argument_digest[:12],
+            },
+        )
+
+    def test_only_the_owner_sees_it_not_even_an_administrator(self) -> None:
+        self._ask()
+        for name in ("iago", "othello", "cordelia"):
+            self.assertEqual(self._open_ids(self.example_user(name)), [])
+
+    def test_the_text_is_cut_but_the_full_content_comes_with_it(self) -> None:
+        content = "word " * 400
+        self._ask(content)
+        [item] = needs.list_needs(self.owner, kind=None, status="open", since=None)["items"]
+        self.assertEqual(item["text"], content[:600])
+        self.assertEqual(item["mcp_call"]["content"], content)
+
+    def test_expired_call_stays_listed_for_a_day_then_leaves(self) -> None:
+        call = self._ask()
+        with time_machine.travel(call.expires_at + timedelta(minutes=1), tick=False):
+            [item] = needs.list_needs(self.owner, kind=None, status="open", since=None)["items"]
+            self.assertTrue(item["expired"])
+        with time_machine.travel(call.expires_at + timedelta(hours=25), tick=False):
+            self.assertEqual(self._open_ids(self.owner), [])
+
+    def test_revoked_grant_takes_its_calls_away(self) -> None:
+        self._ask()
+        MCPAccessGrant.objects.filter(id=self.grant.id).update(revoked_at=now())
+        self.assertEqual(self._open_ids(self.owner), [])
+
+    def test_approving_and_rejecting_move_the_item_to_done(self) -> None:
+        approved = self._ask("Approve me.")
+        rejected = self._ask("Reject me.")
+        self.assert_json_success(self._decide_call(approved, "approve"))
+        self.assert_json_success(self._decide_call(rejected, "reject"))
+        self.assertEqual(self._open_ids(self.owner), [])
+        done = needs.list_needs(self.owner, kind=None, status="resolved", since="today")["items"]
+        self.assertEqual(
+            {item["id"]: item["resolved_action"] for item in done},
+            {f"mcp_call:{approved.id}": "approved", f"mcp_call:{rejected.id}": "rejected"},
+        )
+        self.assertEqual(
+            Message.objects.filter(
+                realm_id=self.owner.realm_id, sender=self.owner, content__contains="Reject me."
+            ).count(),
+            0,
+        )
+        self.assertEqual(
+            Message.objects.filter(
+                realm_id=self.owner.realm_id, sender=self.owner, content__contains="Approve me."
+            ).count(),
+            1,
+        )
+
+    def test_the_item_can_be_snoozed_but_not_marked_done_in_bulk(self) -> None:
+        call = self._ask()
+        need_id = f"mcp_call:{call.id}"
+        needs.snooze_many(self.owner, [need_id])
+        self.assertEqual(self._open_ids(self.owner), [])
+        needs.unsnooze_many(self.owner, [need_id])
+        self.assertEqual(self._open_ids(self.owner), [need_id])
+        self.assertEqual(needs.resolve_many(self.owner, [need_id])["failed"], [need_id])
+        call.refresh_from_db()
+        self.assertEqual(call.status, "pending")
+
+    def test_kind_filter_returns_it_with_the_approvals(self) -> None:
+        call = self._ask()
+        self.assertEqual(self._open_ids(self.owner, "approval"), [f"mcp_call:{call.id}"])
+        self.assertEqual(self._open_ids(self.owner, "mention"), [])
