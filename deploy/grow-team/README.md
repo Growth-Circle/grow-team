@@ -291,6 +291,26 @@ sudo rm /etc/systemd/system/grow-team-task-reminders.service   /etc/systemd/syst
 sudo systemctl daemon-reload
 ```
 
+### Rilis image dan penjaga disk
+
+`deploy-server.sh FULL_SHA TAG TARBALL` membangun image dari tarball `package_image.py`, menjalankan `check_image.py` dan `backup.sh`, menyimpan rollback, lalu mengganti image `zulip`.
+Skrip berhenti dengan kode 3 bila sisa disk di bawah 20 GB sebelum build dan sebelum swap.
+Rollback: salin `compose.override.yaml.bak-<tag lama>` ke `compose.override.yaml`, lalu jalankan `compose.sh up -d --no-deps --no-build --wait --wait-timeout 300 zulip`.
+
+Disk `server-gteam` dipakai bersama tenant lain; cache build Go milik `hermesadmin` bisa tumbuh puluhan GB per hari.
+`grow-team-go-cache-trim.timer` setiap Senin 03:00 WIB menghapus entri cache yang tidak tersentuh lebih dari sehari.
+Jangan pakai `go clean -cache`, karena build tenant lain yang sedang jalan bisa gagal.
+`grow-team-disk-alert.timer` memeriksa disk tiap jam; pada 80% atau lebih, Notification Bot mengirim DM ke owner workspace, paling sering sekali per 12 jam.
+
+```bash
+sudo install -m 0755 deploy/grow-team/deploy-server.sh deploy/grow-team/disk-guard.sh /opt/grow-team/deploy/
+sudo install -m 0644 deploy/grow-team/systemd/grow-team-disk-alert.* deploy/grow-team/systemd/grow-team-go-cache-trim.* /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now grow-team-disk-alert.timer grow-team-go-cache-trim.timer
+```
+
+Rollback: `sudo systemctl disable --now grow-team-disk-alert.timer grow-team-go-cache-trim.timer`, lalu hapus keempat unit dan `disk-guard.sh`.
+
 ## Email Cloudflare
 
 Worker: `grow-team-email`, akun Prazze.

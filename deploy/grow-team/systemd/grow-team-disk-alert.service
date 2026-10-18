@@ -1,0 +1,12 @@
+[Unit]
+Description=DM Grow Team owners when the server disk is 80% full
+After=grow-team.service
+
+[Service]
+Type=oneshot
+Slice=grow-team.slice
+Nice=15
+CPUWeight=10
+IOSchedulingClass=idle
+ExecStart=/opt/grow-team/deploy/disk-guard.sh check
+TimeoutStartSec=120

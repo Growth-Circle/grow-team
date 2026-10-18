@@ -1,0 +1,12 @@
+[Unit]
+Description=Trim the shared Go build cache on server-gteam
+
+[Service]
+Type=oneshot
+User=hermesadmin
+Slice=grow-team.slice
+Nice=19
+CPUWeight=10
+IOSchedulingClass=idle
+ExecStart=/opt/grow-team/deploy/disk-guard.sh trim-go-cache
+TimeoutStartSec=3600

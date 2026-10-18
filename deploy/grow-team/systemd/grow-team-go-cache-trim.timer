@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly Go build cache trim, Monday 03:00 WIB
+
+[Timer]
+OnCalendar=Sun *-*-* 20:00:00 UTC
+RandomizedDelaySec=600
+Persistent=yes
+Unit=grow-team-go-cache-trim.service
+
+[Install]
+WantedBy=timers.target

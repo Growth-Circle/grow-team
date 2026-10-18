@@ -1,0 +1,12 @@
+[Unit]
+Description=Check the server-gteam disk every hour
+
+[Timer]
+OnBootSec=10min
+OnCalendar=hourly
+RandomizedDelaySec=120
+Persistent=false
+Unit=grow-team-disk-alert.service
+
+[Install]
+WantedBy=timers.target
