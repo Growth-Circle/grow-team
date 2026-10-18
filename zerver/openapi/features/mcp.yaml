@@ -135,3 +135,77 @@ paths:
               example:
                 result: success
                 msg: ""
+  /mcp/calls/{call_id}/decision:
+    post:
+      operationId: decide-mcp-call
+      tags: ["users"]
+      summary: Approve or reject a call that waits for you
+      description: |
+        Decide a call an external client made to an Ask first tool. Only the
+        owner of the connection can decide. Approving runs the stored
+        arguments once, as you, and keeps the result for the client's retry.
+        Nothing runs when the digest or nonce no longer match, the call
+        expired, or the connection or tool no longer allows it: the response
+        is 409, and 403 for anyone but the owner.
+
+        The call, its `digest` and its `nonce` come from the `mcp_call` item
+        of `GET /needs`.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-49a7c5).
+      parameters:
+        - name: call_id
+          in: path
+          required: true
+          description: The call's ID, from the `mcp_call` item.
+          schema: {type: string, format: uuid}
+          example: 00000000-0000-4000-8000-000000000002
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [decision, argument_digest, nonce]
+              properties:
+                decision:
+                  type: string
+                  enum: [approve, reject]
+                  description: Whether to run the call or turn it down.
+                  example: approve
+                argument_digest:
+                  type: string
+                  minLength: 64
+                  maxLength: 64
+                  description: The `operation_hash` of the item.
+                  example: 1f0c5a9e77b21f0c5a9e77b21f0c5a9e77b21f0c5a9e77b21f0c5a9e77b2aaaa
+                nonce:
+                  type: string
+                  description: The `nonce` of the item.
+                  example: 00000000-0000-4000-8000-000000000003
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - type: object
+                    additionalProperties: false
+                    required: [id, status, digest]
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      id: {type: string}
+                      status:
+                        type: string
+                        enum: [executed, failed, rejected]
+                      digest: {type: string}
+              example:
+                result: success
+                msg: ""
+                id: 00000000-0000-4000-8000-000000000002
+                status: executed
+                digest: 1f0c5a9e77b2

@@ -4,6 +4,7 @@ import base64
 import hashlib
 import re
 import secrets
+from collections.abc import Mapping
 from datetime import timedelta
 from urllib.parse import urlsplit
 
@@ -12,8 +13,9 @@ from django.utils.timezone import now
 from django.views.decorators.debug import sensitive_variables
 
 from zerver.lib.subdomains import get_subdomain
-from zerver.models.mcp_access import MCPAccessGrant, MCPAccessToken
+from zerver.models.mcp_access import MCPAccessAudit, MCPAccessGrant, MCPAccessToken
 from zerver.models.realms import Realm, get_realm
+from zerver.models.users import UserProfile
 
 SCOPES = ["team:read", "team:write"]
 VERSIONS = ["2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25"]
@@ -104,3 +106,24 @@ def pkce_matches(verifier: str, challenge: str) -> bool:
         base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
     )
     return secrets.compare_digest(calculated, challenge)
+
+
+def audit(
+    grant: MCPAccessGrant,
+    tool_name: str,
+    outcome: str,
+    *,
+    argument_digest: str = "",
+    actor: UserProfile | None = None,
+    detail: Mapping[str, object] | None = None,
+) -> None:
+    """Record that something happened to a call. Only facts go in: never the
+    arguments, the content, or a token."""
+    MCPAccessAudit.objects.create(
+        grant=grant,
+        tool_name=tool_name,
+        outcome=outcome,
+        argument_digest=argument_digest,
+        actor=actor,
+        detail=dict(detail or {}),
+    )

@@ -54,6 +54,7 @@ from zerver.models.mcp_access import MCPAccessToken as MCPAccessToken
 from zerver.models.mcp_access import MCPAccessToolPolicy as MCPAccessToolPolicy
 from zerver.models.mcp_access import MCPAuthorizationCode as MCPAuthorizationCode
 from zerver.models.mcp_access import MCPClient as MCPClient
+from zerver.models.mcp_access import MCPPendingCall as MCPPendingCall
 from zerver.models.meetings import Meeting as Meeting
 from zerver.models.messages import AbstractAttachment as AbstractAttachment
 from zerver.models.messages import AbstractEmoji as AbstractEmoji

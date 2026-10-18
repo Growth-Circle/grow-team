@@ -7,6 +7,7 @@ from zerver.views import mcp_access, mcp_server
 api_patterns: list[URLPattern] = [
     rest_path("mcp/access", GET=mcp_access.list_access, POST=mcp_access.create_access),
     rest_path("mcp/access/<uuid:grant_id>/revoke", POST=mcp_access.revoke_access),
+    rest_path("mcp/calls/<uuid:call_id>/decision", POST=mcp_access.decide_pending_call),
 ]
 page_patterns: list[URLPattern] = [
     path("mcp", mcp_server.mcp),

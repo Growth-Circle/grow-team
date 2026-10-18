@@ -11,6 +11,7 @@ from zerver.models.realms import Realm
 from zerver.models.users import UserProfile
 
 MCP_ACCESS_POLICY_MODES = ["managed", "legacy"]
+MCP_PENDING_CALL_STATUSES = ["pending", "approved", "executed", "failed", "rejected", "expired"]
 
 
 class MCPClient(models.Model):
@@ -105,3 +106,51 @@ class MCPAccessAudit(models.Model):
     tool_name = models.CharField(max_length=100)
     outcome = models.CharField(max_length=20)
     created_at = models.DateTimeField(default=now)
+    # A hash of the call's arguments, never the arguments themselves.
+    argument_digest = models.CharField(max_length=64, default="", db_default="")
+    # The person who decided, when a person did. See MCPAccessToolPolicy.updated_by
+    # for why this reference has no constraint.
+    actor = models.ForeignKey(
+        UserProfile, on_delete=models.SET_NULL, null=True, db_constraint=False, related_name="+"
+    )
+    # Facts about the entry that are not content, such as the pending call id.
+    detail = models.JSONField(default=dict, db_default={})
+
+
+class MCPPendingCall(models.Model):
+    """A call to an Ask first tool that waits for the grant's owner. It holds
+    the exact arguments, so what the owner approves is what runs."""
+
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    grant = models.ForeignKey(
+        MCPAccessGrant, on_delete=models.CASCADE, related_name="pending_calls"
+    )
+    tool_name = models.CharField(max_length=100)
+    arguments = models.JSONField()
+    argument_digest = models.CharField(max_length=64)
+    preview = models.JSONField(default=dict)
+    status = models.CharField(
+        max_length=20,
+        choices=[(value, value) for value in MCP_PENDING_CALL_STATUSES],
+        default="pending",
+    )
+    # What the tool returned, or {"error": true} when it failed. A client
+    # that retries the call gets this back instead of a second run.
+    result = models.JSONField(null=True, default=None)
+    nonce = models.UUIDField(default=uuid4, editable=False)
+    created_at = models.DateTimeField(default=now)
+    expires_at = models.DateTimeField()
+    decided_at = models.DateTimeField(null=True, default=None)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["grant", "argument_digest"],
+                condition=models.Q(status="pending"),
+                name="mcp_pending_call_one_open_per_digest",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status__in=MCP_PENDING_CALL_STATUSES),
+                name="mcp_pending_call_status_valid",
+            ),
+        ]

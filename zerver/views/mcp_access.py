@@ -31,9 +31,10 @@ from zerver.lib.mcp_access import (
     valid_grant,
     valid_redirect,
 )
+from zerver.lib.mcp_pending import DIGEST_SHORT_LENGTH, decide
 from zerver.lib.rate_limiter import rate_limit_request_by_ip
 from zerver.lib.response import json_success
-from zerver.lib.typed_endpoint import typed_endpoint
+from zerver.lib.typed_endpoint import PathOnly, typed_endpoint
 from zerver.models import UserProfile
 from zerver.models.mcp_access import (
     MCPAccessAudit,
@@ -402,3 +403,26 @@ def revoke_access(request: HttpRequest, user_profile: UserProfile, grant_id: UUI
         grant.save(update_fields=["revoked_at"])
         MCPAccessAudit.objects.create(grant=grant, tool_name="token.revoke", outcome="revoked")
     return json_success(request)
+
+
+@typed_endpoint
+def decide_pending_call(
+    request: HttpRequest,
+    user_profile: UserProfile,
+    call_id: PathOnly[UUID],
+    *,
+    decision: Literal["approve", "reject"],
+    argument_digest: Annotated[str, StringConstraints(min_length=64, max_length=64)],
+    nonce: Annotated[str, StringConstraints(min_length=1, max_length=64)],
+) -> HttpResponse:
+    call = decide(
+        request, user_profile, call_id, decision=decision, digest=argument_digest, nonce=nonce
+    )
+    return json_success(
+        request,
+        data={
+            "id": str(call.id),
+            "status": call.status,
+            "digest": call.argument_digest[:DIGEST_SHORT_LENGTH],
+        },
+    )
