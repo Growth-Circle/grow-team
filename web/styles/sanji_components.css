@@ -194,3 +194,174 @@
     /* 8px at 16px/1em */
     gap: 0.5em;
 }
+
+/* The bar above a 1:1 direct message with an agent
+   (agent_status_button.ts). It sits in #room-header. */
+.sj-agent-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75em; /* 12px at 16px/1em */
+    padding: 0.75em 1.75em; /* 12px 28px at 16px/1em */
+
+    @media (width < $shell_narrow_min) {
+        padding: 0.75em 0.875em; /* 12px 14px at 16px/1em */
+    }
+}
+
+.sj-agent-bar__name {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--sj-text);
+    font-size: 1.125em; /* 18px at 16px/1em */
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sj-agent-bar__status {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 0.5em; /* 8px at 16px/1em */
+    padding: 0.5385em 0.9231em; /* 7px 12px at 13px/1em */
+    border: var(--sj-border);
+    border-radius: var(--sj-radius-pill);
+    background: var(--sj-surface-raised);
+    color: var(--sj-text);
+    font-family: inherit;
+    font-size: 0.8125em; /* 13px at 16px/1em */
+    font-weight: 700;
+    line-height: 1.4;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--sj-tint-matcha);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--sj-ring-focus);
+    }
+
+    @media (width < $shell_narrow_min) {
+        /* A touch target is at least 36px tall. */
+        min-height: 2.7692em; /* 36px at 13px/1em */
+    }
+}
+
+.sj-agent-bar__count {
+    min-width: 1.6923em; /* 22px at 13px/1em */
+    padding: 0 0.4615em; /* 0 6px at 13px/1em */
+    border-radius: var(--sj-radius-pill);
+    background: var(--sj-kaki);
+    color: var(--sj-on-accent);
+    font-size: 0.9231em; /* 12px at 13px/1em */
+    line-height: 1.8333; /* 22px at 12px */
+    text-align: center;
+}
+
+/* The Status drawer (agent_status_drawer.ts): three sections, each a
+   list of rows that link to a job. */
+.sj-agent-status {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25em; /* 20px at 16px/1em */
+    min-width: 0;
+}
+
+.sj-agent-status__loading {
+    margin: 0;
+    color: var(--sj-text-muted);
+    font-size: 0.875em; /* 14px at 16px/1em */
+}
+
+.sj-agent-status__section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em; /* 8px at 16px/1em */
+    min-width: 0;
+}
+
+.sj-agent-status__heading {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5em; /* 8px at 16px/1em */
+    margin: 0;
+    color: var(--sj-text);
+    font-size: 0.9375em; /* 15px at 16px/1em */
+    font-weight: 800;
+}
+
+.sj-agent-status__count {
+    color: var(--sj-text-muted);
+    font-family: var(--sj-font-mono);
+    font-size: 0.8em; /* 12px at 15px/1em */
+    font-weight: 400;
+}
+
+.sj-agent-status__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em; /* 8px at 16px/1em */
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sj-agent-status__item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25em; /* 4px at 16px/1em */
+    min-width: 0;
+    padding: 0.75em; /* 12px at 16px/1em */
+    border: var(--sj-border);
+    border-radius: 0.5em; /* 8px at 16px/1em */
+    background: var(--sj-surface);
+}
+
+.sj-agent-status__link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125em; /* 2px at 16px/1em */
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+
+    &:hover .sj-agent-status__title {
+        text-decoration: underline;
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--sj-ring-focus);
+    }
+}
+
+.sj-agent-status__title {
+    color: var(--sj-text);
+    font-size: 0.875em; /* 14px at 16px/1em */
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.sj-agent-status__meta,
+.sj-agent-status__detail {
+    margin: 0;
+    color: var(--sj-text-muted);
+    font-size: 0.75em; /* 12px at 16px/1em */
+    overflow-wrap: anywhere;
+}
+
+.sj-agent-status__message-link {
+    align-self: flex-start;
+    color: var(--sj-text);
+    font-size: 0.75em; /* 12px at 16px/1em */
+    font-weight: 700;
+    text-decoration: underline;
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--sj-ring-focus);
+    }
+}

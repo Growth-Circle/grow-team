@@ -14,6 +14,7 @@ import * as activity from "./activity.ts";
 import * as activity_ui from "./activity_ui.ts";
 import * as add_stream_options_popover from "./add_stream_options_popover.ts";
 import * as agent_create_ui from "./agent_create_ui.ts";
+import * as agent_status_button from "./agent_status_button.ts";
 import * as agents_ui from "./agents_ui.ts";
 import * as alert_words from "./alert_words.ts";
 import * as app_frame from "./app_frame.ts";
@@ -648,6 +649,7 @@ export async function initialize_everything(state_data) {
         center_views.register({id, hash, show: mod.show, hide: mod.hide, title: mod.title});
     }
     app_frame.initialize();
+    agent_status_button.initialize();
     if (!page_params.is_spectator) {
         void permissions.initialize();
     }

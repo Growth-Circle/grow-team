@@ -1,0 +1,42 @@
+{{! The body of the Status drawer of an agent. agent_status_drawer.ts draws it. }}
+{{#if failed}}
+    {{> components/empty_state tone="warning" role="alert" title=(t "The status did not load.") action_label=(t "Try again") action_classes="sj-agent-status__retry"}}
+{{else if loading}}
+    <p class="sj-agent-status__loading">{{t "Loading…"}}</p>
+{{else}}
+    {{#each sections}}
+        <section class="sj-agent-status__section" aria-labelledby="sj-agent-status-{{this.key}}">
+            <h3 class="sj-agent-status__heading" id="sj-agent-status-{{this.key}}">
+                <span>{{this.title}}</span>
+                <span class="sj-agent-status__count">{{this.count}}</span>
+            </h3>
+            {{#if this.has_rows}}
+                <ul class="sj-agent-status__list">
+                    {{#each this.rows}}
+                        <li class="sj-agent-status__item">
+                            {{#if this.job_href}}
+                                <a class="sj-agent-status__link" href="{{this.job_href}}">
+                                    <span class="sj-agent-status__title">{{this.title}}</span>
+                                    <span class="sj-agent-status__meta">{{this.meta}}</span>
+                                </a>
+                            {{else}}
+                                <span class="sj-agent-status__link">
+                                    <span class="sj-agent-status__title">{{this.title}}</span>
+                                    <span class="sj-agent-status__meta">{{this.meta}}</span>
+                                </span>
+                            {{/if}}
+                            {{#if this.detail}}
+                                <p class="sj-agent-status__detail">{{this.detail}}</p>
+                            {{/if}}
+                            {{#if this.message_href}}
+                                <a class="sj-agent-status__message-link" href="{{this.message_href}}">{{t "Open message"}}</a>
+                            {{/if}}
+                        </li>
+                    {{/each}}
+                </ul>
+            {{else}}
+                {{> components/empty_state size="inline" title=this.empty_text}}
+            {{/if}}
+        </section>
+    {{/each}}
+{{/if}}

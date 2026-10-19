@@ -1,0 +1,9 @@
+{{! The bar above a 1:1 direct message with an agent. agent_status_button.ts
+    draws it into #room-header. }}
+<div class="sj-agent-bar">
+    <span class="sj-agent-bar__name">{{agent_name}}</span>
+    <button type="button" class="sj-agent-bar__status" aria-haspopup="dialog" aria-label="{{button_label}}">
+        <span>{{t "Status"}}</span>
+        <span class="sj-agent-bar__count{{#unless has_count}} hide{{/unless}}" aria-hidden="true">{{count}}</span>
+    </button>
+</div>

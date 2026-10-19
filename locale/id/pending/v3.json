@@ -1,0 +1,30 @@
+{
+    "frontend": {
+        "Status": "Status",
+        "STATUS · {agent_name}": "STATUS · {agent_name}",
+        "Status, {count, plural, one {# item} other {# items}} waiting on you": "Status, {count, plural, other {# item}} menunggu kamu",
+        "In progress": "Sedang berjalan",
+        "Waiting on you": "Menunggu kamu",
+        "Decided": "Sudah diputuskan",
+        "Nothing in progress.": "Tidak ada yang sedang berjalan.",
+        "Nothing is waiting on you.": "Tidak ada yang menunggu kamu.",
+        "You decided nothing in the last 7 days.": "Kamu belum memutuskan apa pun dalam 7 hari terakhir.",
+        "Approved": "Disetujui",
+        "Rejected": "Ditolak",
+        "Answered": "Dijawab",
+        "The status did not load.": "Status gagal dimuat.",
+        "Try again": "Coba lagi",
+        "Loading…": "Memuat…",
+        "Open message": "Buka pesan",
+        "Draft": "Draf",
+        "Waiting to start": "Menunggu dimulai",
+        "Waiting for your input": "Menunggu jawabanmu",
+        "Waiting for your approval": "Menunggu persetujuanmu",
+        "Running checks": "Menjalankan pemeriksaan",
+        "Stopping": "Menghentikan",
+        "Stopped": "Dihentikan",
+        "Interrupted": "Terputus",
+        "Finished": "Selesai"
+    },
+    "backend": {}
+}

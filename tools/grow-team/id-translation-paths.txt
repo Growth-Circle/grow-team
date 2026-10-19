@@ -3,6 +3,7 @@
 # relative to the repository root; `*` also matches `/`.
 web/src/task_board*.ts
 web/src/needs*.ts
+web/src/agent_status*.ts
 web/src/chat_drawer*.ts
 web/src/stream_create*.ts
 web/src/room_create_modal.ts
@@ -12,6 +13,7 @@ web/src/today_ui.ts
 web/templates/task_board*.hbs
 web/templates/need_*.hbs
 web/templates/needs_view.hbs
+web/templates/agent_status_*.hbs
 web/templates/chat_drawer*.hbs
 web/templates/room_create_modal.hbs
 web/templates/channel_pins_list.hbs

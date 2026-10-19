@@ -34,6 +34,7 @@ this file does that, in review.
 | A tool that the client cannot see or use                                           | Off                | Mati                                  | Nonaktif                 |
 | What happened to calls on an MCP connection                                        | Activity           | Aktivitas                             | Log, Audit               |
 | A question an agent asks, with choices                                             | Decision           | Keputusan                             | Pilihan                  |
+| The panel of what one agent is doing, what waits on you, and what you decided      | Status             | Status                                | Kondisi                  |
 | A message kept at the top of a channel                                             | Pin                | Pin ("Dipin", "Lepas pin")            | Sematkan                 |
 | An AI team member                                                                  | Agent              | Agen                                  | Agent, Bot               |
 | A reusable document of steps that the team follows, and that an agent can be given | Playbook           | Playbook                              | Skill, SOP               |

@@ -5,6 +5,7 @@ import assert from "minimalistic-assert";
 import * as z from "zod/mini";
 
 import * as activity_ui from "./activity_ui.ts";
+import * as agent_status_button from "./agent_status_button.ts";
 import * as blueslip from "./blueslip.ts";
 import * as browser_history from "./browser_history.ts";
 import * as center_views from "./center_views.ts";
@@ -703,11 +704,15 @@ export let show = (raw_terms: NarrowTerm[], show_opts: ShowMessageViewOpts): voi
                 : undefined;
         if (room_stream) {
             const topic = filter.terms_with_operator("topic")[0]?.operand;
+            agent_status_button.hide();
             room_header.show(room_stream, filter.terms());
             room_topics_column.show(room_stream.stream_id, topic, filter.terms().length === 1);
         } else {
             room_header.hide();
             room_topics_column.hide();
+            // A 1:1 direct message with an agent fills the header the
+            // room would have.
+            agent_status_button.show(page_params.is_spectator ? undefined : filter);
         }
 
         blueslip.debug("Narrowed", {
