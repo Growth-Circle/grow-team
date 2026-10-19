@@ -589,20 +589,29 @@ def _mention_is_open(user_message: UserMessage, actor: UserProfile) -> bool:
     return timezone_now() - message.date_sent >= MENTION_REPLY_GRACE
 
 
-def _open_approvals(actor: UserProfile) -> list[NeedItem]:
+def _open_approvals(
+    actor: UserProfile,
+    *,
+    profile: agents.AgentProfile | None = None,
+    scan_limit: int = _ROW_LIMIT,
+    stop_after: int | None = None,
+) -> list[NeedItem]:
     # 10-M13: a Guest never has the approve permission, and an administrator
     # can turn it off for a Member. decide_approval() rejects both.
     if not has_role_permission(actor, "approve"):
         return []
     items: list[NeedItem] = []
-    approvals = (
-        agents.AgentApproval.objects.filter(
-            job__realm=actor.realm, job__status="waiting_for_approval", decision="pending"
-        )
-        .select_related("job", "job__profile", "job__conversation", "operation", "attempt")
-        .order_by("-created_at")[:_ROW_LIMIT]
+    pending = agents.AgentApproval.objects.filter(
+        job__realm=actor.realm, job__status="waiting_for_approval", decision="pending"
     )
+    if profile is not None:
+        pending = pending.filter(job__profile=profile)
+    approvals = pending.select_related(
+        "job", "job__profile", "job__conversation", "operation", "attempt"
+    ).order_by("-created_at")[:scan_limit]
     for approval in approvals:
+        if stop_after is not None and len(items) >= stop_after:
+            break
         job = approval.job
         # The same rule as decide_approval(): only the requester decides a
         # team change.
@@ -647,14 +656,24 @@ def _latest_questions(job_ids: list[UUID]) -> dict[UUID, agents.AgentAuditEvent]
     return questions
 
 
-def _open_decisions(actor: UserProfile) -> list[NeedItem]:
-    jobs = [
-        job
-        for job in agents.AgentJob.objects.filter(realm=actor.realm, status="waiting_for_input")
-        .select_related("profile", "conversation")
-        .order_by("-created_at")[:_ROW_LIMIT]
-        if needs_my_action(actor, job)
-    ]
+def _open_decisions(
+    actor: UserProfile,
+    *,
+    profile: agents.AgentProfile | None = None,
+    scan_limit: int = _ROW_LIMIT,
+    stop_after: int | None = None,
+) -> list[NeedItem]:
+    waiting = agents.AgentJob.objects.filter(realm=actor.realm, status="waiting_for_input")
+    if profile is not None:
+        waiting = waiting.filter(profile=profile)
+    jobs: list[agents.AgentJob] = []
+    for job in waiting.select_related("profile", "conversation").order_by("-created_at")[
+        :scan_limit
+    ]:
+        if stop_after is not None and len(jobs) >= stop_after:
+            break
+        if needs_my_action(actor, job):
+            jobs.append(job)
     questions = _latest_questions([job.id for job in jobs])
     return [_decision_item(job, questions[job.id]) for job in jobs if job.id in questions]
 
@@ -782,17 +801,24 @@ def _card_items(
     return buckets
 
 
-def _resolved_approvals(actor: UserProfile, since: datetime) -> list[NeedItem]:
+def _resolved_approvals(
+    actor: UserProfile,
+    since: datetime,
+    *,
+    profile: agents.AgentProfile | None = None,
+    limit: int = _ROW_LIMIT,
+) -> list[NeedItem]:
     # Only decide_approval() sets approver and decided_at. Only an approved
     # approval moves on afterwards (to consumed, expired, or cancelled), so
     # every decision except "rejected" was an approval.
-    approvals = (
-        agents.AgentApproval.objects.filter(
-            job__realm=actor.realm, approver=actor, decided_at__gte=since
-        )
-        .select_related("job", "job__profile", "job__conversation", "operation")
-        .order_by("-decided_at")[:_ROW_LIMIT]
+    decided = agents.AgentApproval.objects.filter(
+        job__realm=actor.realm, approver=actor, decided_at__gte=since
     )
+    if profile is not None:
+        decided = decided.filter(job__profile=profile)
+    approvals = decided.select_related(
+        "job", "job__profile", "job__conversation", "operation"
+    ).order_by("-decided_at")[:limit]
     return [
         _approval_item(
             approval.job,
@@ -825,16 +851,23 @@ def _resolved_mcp_calls(actor: UserProfile, since: datetime) -> list[NeedItem]:
     ]
 
 
-def _resolved_decisions(actor: UserProfile, since: datetime) -> list[NeedItem]:
+def _resolved_decisions(
+    actor: UserProfile,
+    since: datetime,
+    *,
+    profile: agents.AgentProfile | None = None,
+    limit: int = _ROW_LIMIT,
+) -> list[NeedItem]:
     items: list[NeedItem] = []
     seen_job_ids: set[UUID] = set()
-    answers = (
-        agents.AgentInput.objects.filter(
-            job__realm=actor.realm, author=actor, input_type="answer", created_at__gte=since
-        )
-        .select_related("job", "job__profile", "job__conversation")
-        .order_by("-created_at")[:_ROW_LIMIT]
+    given = agents.AgentInput.objects.filter(
+        job__realm=actor.realm, author=actor, input_type="answer", created_at__gte=since
     )
+    if profile is not None:
+        given = given.filter(job__profile=profile)
+    answers = given.select_related("job", "job__profile", "job__conversation").order_by(
+        "-created_at"
+    )[:limit]
     for answer in answers:
         # A decision item's id names its job, so a job that asked more than
         # once shows only its newest answer.
@@ -1017,6 +1050,32 @@ def list_needs(
     else:
         items.sort(key=lambda item: item["resolved_at"] or "", reverse=True)
     return {"items": items, "counts": personal_counts, "broadcast_counts": broadcast_counts}
+
+
+def list_agent_needs(
+    actor: UserProfile,
+    profile: agents.AgentProfile,
+    *,
+    decided_since: datetime,
+    scan_limit: int,
+    item_limit: int,
+) -> tuple[list[NeedItem], list[NeedItem]]:
+    """The approvals and decisions of one agent: the ones waiting on this
+    user, and the ones this user decided since `decided_since`, both
+    newest first. Read-only, like list_needs, and it reads at most
+    `scan_limit` rows of each kind. The open items, which list_needs
+    shows with the same checks, stop at `item_limit`. The decided ones
+    are not checked against job access here: the caller does that."""
+    with agent_transaction(read_only=True):
+        waiting = _open_approvals(
+            actor, profile=profile, scan_limit=scan_limit, stop_after=item_limit
+        ) + _open_decisions(actor, profile=profile, scan_limit=scan_limit, stop_after=item_limit)
+        decided = _resolved_approvals(
+            actor, decided_since, profile=profile, limit=scan_limit
+        ) + _resolved_decisions(actor, decided_since, profile=profile, limit=scan_limit)
+    waiting.sort(key=lambda item: item["time"], reverse=True)
+    decided.sort(key=lambda item: item["resolved_at"] or "", reverse=True)
+    return waiting[:item_limit], decided
 
 
 def resolve_mention(actor: UserProfile, message_id: int) -> None:

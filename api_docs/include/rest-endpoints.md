@@ -129,6 +129,7 @@
 * [Get an agent profile](/api/get-agent-profile)
 * [Update an agent profile](/api/update-agent-profile)
 * [Get task and approval stats for every visible agent profile](/api/get-agent-profile-stats)
+* [Get the status of an agent](/api/get-agent-profile-status)
 * [Get the access-filtered agent audit feed](/api/get-agent-audit)
 * [List agent model providers](/api/list-agent-providers)
 * [Create an agent model provider](/api/create-agent-provider)

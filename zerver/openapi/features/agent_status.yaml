@@ -1,0 +1,251 @@
+paths:
+  /agent/profiles/{profile_id}/status:
+    get:
+      operationId: get-agent-profile-status
+      tags:
+        - agents
+      summary: Get the status of an agent
+      description: |
+        Returns what one agent is working on, what waits on you, and what you
+        decided in the last 7 days. Each list is newest first and has at
+        most 20 items. A job is listed only when you can open it, the same
+        rule as [listing agent jobs](/api/list-agent-jobs), and the
+        approvals and decisions are the ones the
+        [Perlu kamu list](/api/list-needs) shows you, narrowed to this agent.
+
+        An agent you cannot see answers like an ID that does not exist.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-4492ed).
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentStatusResponse"
+              example:
+                result: success
+                msg: ""
+                schema_version: 1
+                in_progress:
+                  - id: "job:00000000-0000-4000-8000-000000000041"
+                    kind: job
+                    title: Summarize the sprint
+                    status: running
+                    outcome: null
+                    detail: null
+                    time: "2026-09-25T09:00:00Z"
+                    job_id: "00000000-0000-4000-8000-000000000041"
+                    message_id: 101
+                    stream_id: 3
+                    topic: rilis-v2
+                waiting_on_you:
+                  - id: "decision:00000000-0000-4000-8000-000000000042"
+                    kind: decision
+                    title: Deploy to production?
+                    status: waiting_for_input
+                    outcome: null
+                    detail: null
+                    time: "2026-09-25T09:10:00Z"
+                    job_id: "00000000-0000-4000-8000-000000000042"
+                    message_id: 102
+                    stream_id: 3
+                    topic: rilis-v2
+                decided:
+                  - id: "approval:00000000-0000-4000-8000-000000000043"
+                    kind: approval
+                    title: Push the release branch
+                    status: null
+                    outcome: approved
+                    detail: null
+                    time: "2026-09-24T14:00:00Z"
+                    job_id: "00000000-0000-4000-8000-000000000044"
+                    message_id: 103
+                    stream_id: 3
+                    topic: rilis-v2
+        "400":
+          description: The agent wrapper rejected the request, for example for an unknown agent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent request rejected.
+                schema_version: 1
+        "401":
+          description:
+            Authentication can fail before the agent wrapper. Standard authentication errors
+            omit schema_version.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanFrameworkError"
+              example:
+                result: error
+                msg: "Not logged in: API authentication or user session required"
+                code: UNAUTHORIZED
+        "405":
+          description:
+            REST dispatch returns permitted methods in the body and Allow header. GET routes
+            also permit HEAD.
+          headers:
+            Allow:
+              schema:
+                type: string
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/AgentHumanMethodNotAllowedError"
+        "429":
+          description: Authentication-wrapper rate limiting returns a standard error envelope.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanRateLimitError"
+              example:
+                result: error
+                msg: API usage exceeded rate limit; see https://zulip.com/api/http-headers#rate-limiting-response-headers
+                code: RATE_LIMIT_HIT
+                retry-after: 30
+        "503":
+          description: Agent authority is busy. Retry after one second.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                enum:
+                  - "1"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHumanSafeError"
+              example:
+                result: error
+                msg: Agent authority is busy. Retry this request.
+                schema_version: 1
+      parameters:
+        - name: profile_id
+          in: path
+          description: The ID of the agent profile.
+          required: true
+          schema:
+            type: string
+            format: uuid
+components:
+  schemas:
+    AgentStatusItem:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          description: |
+            `job:<job id>` for a job, and the ID of the item in the Perlu kamu list for an
+            approval or a decision.
+        kind:
+          type: string
+          enum:
+            - job
+            - approval
+            - decision
+        title:
+          type: string
+          description: The first line of the request, or the question of a decision.
+        status:
+          type: string
+          nullable: true
+          description: |
+            The status of the job. `null` for something decided, which has an `outcome`.
+        outcome:
+          type: string
+          nullable: true
+          enum:
+            - approved
+            - rejected
+            - answered
+            - null
+          description: What you decided. `null` for an item that is not decided.
+        detail:
+          type: string
+          nullable: true
+          description: Your answer to a decision, cut to 400 characters. `null` otherwise.
+        time:
+          type: string
+          format: date-time
+          description: |
+            When the job was made, when the approval or question was asked, or, for something
+            decided, when you decided.
+        job_id:
+          type: string
+          nullable: true
+          format: uuid
+        message_id:
+          type: integer
+          nullable: true
+          description: The message that started the job, if there is one.
+        stream_id:
+          type: integer
+          nullable: true
+        topic:
+          type: string
+          nullable: true
+      required:
+        - id
+        - kind
+        - title
+        - status
+        - outcome
+        - detail
+        - time
+        - job_id
+        - message_id
+        - stream_id
+        - topic
+    AgentStatusResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        result:
+          type: string
+          enum:
+            - success
+        msg:
+          type: string
+          enum:
+            - ""
+        schema_version:
+          type: integer
+          enum:
+            - 1
+        in_progress:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentStatusItem"
+          description: |
+            Jobs of this agent that you can open and that are queued, running, verifying or
+            waiting. At most 20, newest first.
+        waiting_on_you:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentStatusItem"
+          description: |
+            Approvals and decisions of this agent that wait on you. At most 20, newest first.
+        decided:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentStatusItem"
+          description: |
+            Approvals you decided and decisions you answered in the last 7 days, for jobs you
+            can still open. At most 20, newest first.
+      required:
+        - result
+        - msg
+        - schema_version
+        - in_progress
+        - waiting_on_you
+        - decided
