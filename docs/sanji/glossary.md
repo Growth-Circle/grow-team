@@ -26,6 +26,7 @@ this file does that, in review.
 | The cards a person picked for today                                                | Today plan         | Rencana hari ini                      | Rencana harian           |
 | Put a card in today's plan                                                         | Add to today       | Tambah ke hari ini                    | Masukkan ke hari ini     |
 | What waits on this person in every room                                            | Needs you          | Perlu kamu                            | Butuh kamu, Inbox        |
+| New messages in a topic you follow, since you last wrote there                     | Replies            | Balasan                               | Utas, Thread             |
 | An at-sign message to a person                                                     | Mention            | Mention (noun and verb: "me-mention") | Sebutan, Disebut, Tag    |
 | A request an agent makes before it acts                                            | Approval           | Persetujuan                           | Approval                 |
 | Say yes to an approval                                                             | Approve            | Setujui                               | Approve                  |

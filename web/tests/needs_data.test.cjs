@@ -155,13 +155,22 @@ run_test("the raw id of an item is what follows its kind", () => {
 run_test("the open list is fetched from the needs endpoint", async () => {
     next_response = {
         items: [make_item()],
-        counts: {approval: 1, mention: 0, decision: 0, card_mention: 0, card_assigned: 0, all: 1},
+        counts: {
+            approval: 1,
+            mention: 0,
+            decision: 0,
+            card_mention: 0,
+            card_assigned: 0,
+            reply: 0,
+            all: 1,
+        },
         broadcast_counts: {
             approval: 0,
             mention: 2,
             decision: 0,
             card_mention: 0,
             card_assigned: 0,
+            reply: 0,
             all: 2,
         },
     };
@@ -176,13 +185,22 @@ run_test("the open list is fetched from the needs endpoint", async () => {
 run_test("today's done list asks for resolved items since today", async () => {
     next_response = {
         items: [],
-        counts: {approval: 0, mention: 0, decision: 0, card_mention: 0, card_assigned: 0, all: 0},
+        counts: {
+            approval: 0,
+            mention: 0,
+            decision: 0,
+            card_mention: 0,
+            card_assigned: 0,
+            reply: 0,
+            all: 0,
+        },
         broadcast_counts: {
             approval: 0,
             mention: 0,
             decision: 0,
             card_mention: 0,
             card_assigned: 0,
+            reply: 0,
             all: 0,
         },
     };
@@ -388,13 +406,22 @@ run_test("a notification about a card the person cannot see keeps its own text",
 run_test("the list parses card notifications and their card", async () => {
     next_response = {
         items: [make_item({id: "card_mention:2", kind: "card_mention", task: card})],
-        counts: {approval: 0, mention: 0, decision: 0, card_mention: 1, card_assigned: 0, all: 1},
+        counts: {
+            approval: 0,
+            mention: 0,
+            decision: 0,
+            card_mention: 1,
+            card_assigned: 0,
+            reply: 0,
+            all: 1,
+        },
         broadcast_counts: {
             approval: 0,
             mention: 2,
             decision: 0,
             card_mention: 0,
             card_assigned: 0,
+            reply: 0,
             all: 2,
         },
     };
@@ -532,13 +559,22 @@ function make_mcp_item(overrides) {
 run_test("an approval of an external client's call keeps its exact action", async () => {
     next_response = {
         items: [make_mcp_item()],
-        counts: {approval: 1, mention: 0, decision: 0, card_mention: 0, card_assigned: 0, all: 1},
+        counts: {
+            approval: 1,
+            mention: 0,
+            decision: 0,
+            card_mention: 0,
+            card_assigned: 0,
+            reply: 0,
+            all: 1,
+        },
         broadcast_counts: {
             approval: 0,
             mention: 0,
             decision: 0,
             card_mention: 0,
             card_assigned: 0,
+            reply: 0,
             all: 0,
         },
     };
@@ -593,4 +629,70 @@ run_test("a long call shows its first 600 characters until the person asks for a
         needs_data.mcp_call_content({...mcp_call, content: "a".repeat(600)}, false).can_expand,
         false,
     );
+});
+
+const reply = {count: 3, first_unread_message_id: 812, sender_names: ["Sulchan", "Nori"]};
+
+run_test("a reply has its own tab and counts in what waits on the person", () => {
+    const items = [
+        make_item({id: "mention:1", kind: "mention"}),
+        make_item({id: "reply:5:abc", kind: "reply", stream_id: 5, topic: "Video", reply}),
+        make_item({
+            id: "reply:5:def",
+            kind: "reply",
+            stream_id: 5,
+            topic: "Rekap",
+            reply,
+            broadcast: true,
+        }),
+    ];
+    assert.equal(needs_data.tab_for_kind("reply"), "replies");
+    assert.equal(needs_data.count_for_tab(items, "replies", {show_team_wide: false}), 1);
+    assert.equal(needs_data.count_for_tab(items, "replies", show_all), 2);
+    assert.equal(needs_data.count_for_tab(items, "mentions", show_all), 1);
+    // The badge counts the reply, and leaves the team-wide one out.
+    assert.equal(needs_data.personal_count(items), 2);
+    assert.equal(needs_data.tab_for_hash_arg("reply"), "replies");
+    assert.equal(needs_data.tab_for_hash_arg("replies"), "replies");
+});
+
+run_test("a reply is neither grouped like mentions nor marked done in bulk", () => {
+    const items = [
+        make_item({id: "reply:5:abc", kind: "reply", stream_id: 5, topic: "Video", reply}),
+        make_item({id: "reply:5:def", kind: "reply", stream_id: 5, topic: "Video", reply}),
+    ];
+    assert.deepEqual(
+        needs_data.rows_for_items(items).map((row) => "item" in row),
+        [true, true],
+    );
+    assert.ok(!needs_data.is_bulk_resolvable(items[0]));
+    assert.deepEqual(needs_data.resolvable_items_for_tab(items, "replies", show_all), []);
+});
+
+run_test("the list parses a reply and its counts", async () => {
+    next_response = {
+        items: [make_item({id: "reply:5:abc", kind: "reply", stream_id: 5, topic: "Video", reply})],
+        counts: {
+            approval: 0,
+            mention: 0,
+            decision: 0,
+            card_mention: 0,
+            card_assigned: 0,
+            reply: 1,
+            all: 1,
+        },
+        broadcast_counts: {
+            approval: 0,
+            mention: 0,
+            decision: 0,
+            card_mention: 0,
+            card_assigned: 0,
+            reply: 0,
+            all: 0,
+        },
+    };
+    const result = await needs_data.fetch_open();
+    assert.equal(result.items[0].reply.first_unread_message_id, 812);
+    assert.deepEqual(result.items[0].reply.sender_names, ["Sulchan", "Nori"]);
+    assert.equal(result.counts.reply, 1);
 });

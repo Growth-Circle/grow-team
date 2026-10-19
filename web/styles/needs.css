@@ -344,6 +344,10 @@
     background: var(--sj-tint-kaki);
 }
 
+.needs-tag-reply {
+    background: var(--sj-tint-matcha);
+}
+
 .needs-tag-team-wide {
     color: var(--sj-text-muted);
 }

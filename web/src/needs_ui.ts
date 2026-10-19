@@ -69,6 +69,7 @@ function tag_text(kind: NeedKind): string {
         decision: $t({defaultMessage: "Decision"}),
         card_mention: $t({defaultMessage: "Card note"}),
         card_assigned: $t({defaultMessage: "Assigned to you"}),
+        reply: $t({defaultMessage: "Replies"}),
     };
     return labels[kind];
 }
@@ -77,6 +78,7 @@ function tab_label(tab: NeedTab): string {
     const labels: Record<NeedTab, string> = {
         all: $t({defaultMessage: "All"}),
         mentions: $t({defaultMessage: "Mentions"}),
+        replies: $t({defaultMessage: "Replies"}),
         assigned: $t({defaultMessage: "Assigned to you"}),
         approval: $t({defaultMessage: "Approvals"}),
         decision: $t({defaultMessage: "Decisions"}),
@@ -90,6 +92,10 @@ function empty_tab_text(tab: NeedTab): string {
         all: $t({defaultMessage: "Nothing is waiting for you."}),
         mentions: $t({
             defaultMessage: "Mentions of you in chat and in card notes collect here.",
+        }),
+        replies: $t({
+            defaultMessage:
+                "New messages in topics you follow collect here, after you have written.",
         }),
         assigned: $t({defaultMessage: "Cards that are made yours collect here."}),
         approval: $t({defaultMessage: "Approvals that an agent asks from you collect here."}),
@@ -118,6 +124,18 @@ function meta_text(item: NeedItem): string {
               );
     }
     const room = item.stream_id === null ? "" : stream_data.get_stream_name_from_id(item.stream_id);
+    if (item.reply !== undefined && room !== "" && item.topic !== null) {
+        return $t(
+            {defaultMessage: "{count} new from {names} · # {room} › {topic} · {time}"},
+            {
+                count: item.reply.count,
+                names: item.reply.sender_names.join(", "),
+                room,
+                topic: util.get_final_topic_display_name(item.topic),
+                time,
+            },
+        );
+    }
     if (room === "") {
         return $t({defaultMessage: "{who} · {time}"}, {who, time});
     }
@@ -131,9 +149,15 @@ function meta_text(item: NeedItem): string {
 }
 
 // Where the person can see the item: the topic of a room, or the
-// direct messages with who asked. A mention opens at the message.
+// direct messages with who asked. A mention opens at the message, and a
+// reply at the first message the person has not read.
 function conversation_url(item: NeedItem): string {
-    const near = item.kind === "mention" ? `/near/${needs_data.raw_id(item.id)}` : "";
+    let near = "";
+    if (item.kind === "mention") {
+        near = `/near/${needs_data.raw_id(item.id)}`;
+    } else if (item.reply !== undefined) {
+        near = `/near/${item.reply.first_unread_message_id}`;
+    }
     if (item.stream_id !== null && item.topic !== null) {
         return hash_util.by_stream_topic_url(item.stream_id, item.topic) + near;
     }
@@ -248,6 +272,12 @@ function card_actions(item: NeedItem): CardAction[] {
             {label: $t({defaultMessage: "Mark done"}), variant: "secondary", choice: ""},
             link($t({defaultMessage: "Reply"}), "primary"),
         );
+        return actions;
+    }
+    // Reading the topic is what ends a reply, so it has no button to
+    // mark it done.
+    if (item.kind === "reply") {
+        actions.push(link($t({defaultMessage: "Open topic"}), "primary"));
         return actions;
     }
     // A call of an external client has no conversation to open.
@@ -983,11 +1013,12 @@ export function initialize(): void {
     // A note that mentions the person, a new responsibility, or opening
     // the card on another device changes the list.
     live_updates.on("task_notification", refresh_soon);
-    // Only a mention or a direct message starts or ends a need, so a
-    // message in a room that mentions no one does not load the list.
+    // Only a mention, a direct message, or a message in a followed topic
+    // starts or ends a need, so a message in a room that mentions no one
+    // does not load the list.
     let last_message_signal: string | undefined;
     unread_ui.register_update_unread_counts_hook((counts) => {
-        const signal = `${counts.mentioned_message_count}/${counts.direct_message_count}`;
+        const signal = `${counts.mentioned_message_count}/${counts.direct_message_count}/${counts.followed_topic_unread_messages_count}`;
         // The first call is the load of the page, which loads the list too.
         if (last_message_signal !== undefined && signal !== last_message_signal) {
             refresh_soon();

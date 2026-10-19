@@ -9,6 +9,11 @@ existing approval and input endpoints, never a path in this module (spec 03
 has a resolution this module writes itself, because Zulip has no "answer
 this mention" endpoint to defer to.
 
+A reply is the one kind that is not about a single message: it stands for
+the unread messages other people wrote in a topic the user follows since the
+user last wrote there, one item per topic. It is open-only; reading the topic
+or writing in it ends it, so it has no resolved form.
+
 One case never shows up here: a job "verifying" with blocked_reason
 "audience_changed" also waits on its requester (job_data()'s
 "deliver_privately" action, zerver/views/agent_jobs.py). It has no approval
@@ -17,6 +22,7 @@ enough (the audience changing mid-job) that this list leaves it out rather
 than add a fourth kind.
 """
 
+import hashlib
 import re
 from datetime import datetime, time, timedelta, timezone
 from typing import NotRequired, TypedDict
@@ -25,7 +31,8 @@ from zoneinfo import ZoneInfo
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.db.models import Q, QuerySet
+from django.db.models import Max, Q, QuerySet
+from django.db.models.functions import Upper
 from django.utils.timezone import now as timezone_now
 
 from zerver.actions.agent_jobs import check_attempt_access
@@ -51,6 +58,7 @@ from zerver.models import (
     TaskNotification,
     UserMessage,
     UserProfile,
+    UserTopic,
     agents,
 )
 from zerver.models.needs import NeedResolution, NeedSnooze
@@ -94,7 +102,17 @@ _LEADING_MENTIONS_RE = re.compile(
 _SENTENCE_END_RE = re.compile(r"([.!?])(?=\s|$)|\n")
 _EXCERPT_LIMIT = 400
 
-KINDS = ("approval", "mention", "decision", "card_mention", "card_assigned")
+# A reply is unread chat, so it ages out like a mention does.
+REPLY_TTL = MENTION_TTL
+# Reply items are built from at most this many followed topics and this many
+# unread messages, newest first, so a user who follows hundreds of busy
+# topics costs the same as one who follows a few.
+REPLY_TOPIC_LIMIT = 100
+REPLY_MESSAGE_LIMIT = 500
+# The item names this many of the people who wrote.
+REPLY_NAMES_LIMIT = 3
+
+KINDS = ("approval", "mention", "decision", "card_mention", "card_assigned", "reply")
 
 # An approval for a call that an external client made to an Ask first tool has
 # this prefix in its id instead of "approval" (spec 03: no new kind).
@@ -138,6 +156,14 @@ class NeedMcpCall(TypedDict):
     digest: str
 
 
+class NeedReply(TypedDict):
+    # The unread messages from other people since the user last wrote here.
+    count: int
+    # Where the topic opens, so the user lands on what is new.
+    first_unread_message_id: int
+    sender_names: list[str]
+
+
 class NeedItem(TypedDict):
     id: str
     kind: str
@@ -170,6 +196,8 @@ class NeedItem(TypedDict):
     broadcast: bool
     # Only on an approval for an external client's call.
     mcp_call: NotRequired[NeedMcpCall]
+    # Only on a reply item.
+    reply: NotRequired[NeedReply]
 
 
 class NeedCounts(TypedDict):
@@ -178,6 +206,7 @@ class NeedCounts(TypedDict):
     decision: int
     card_mention: int
     card_assigned: int
+    reply: int
     all: int
 
 
@@ -801,6 +830,142 @@ def _card_items(
     return buckets
 
 
+def _reply_id(recipient_id: int, topic_key: str) -> str:
+    # A topic name can be long and holds any character, and a need id is
+    # short and split on ":", so the topic is named by its hash.
+    digest = hashlib.sha1(topic_key.encode(), usedforsecurity=False).hexdigest()[:12]
+    return f"reply:{recipient_id}:{digest}"
+
+
+def _last_own_message_ids(
+    actor: UserProfile, topics: set[tuple[int, str]]
+) -> dict[tuple[int, str], int]:
+    """The id of the actor's newest message in each given (channel
+    recipient, upper-cased topic). A topic the actor never wrote in is left
+    out. Not limited by date: the reply window must not hide that the user
+    took part a long time ago."""
+    topic_filter = Q()
+    for recipient_id, topic_key in topics:
+        topic_filter |= Q(recipient_id=recipient_id, subject__iexact=topic_key)
+    rows = (
+        Message.objects.filter(
+            topic_filter, realm_id=actor.realm_id, sender=actor, is_channel_message=True
+        )
+        .annotate(topic_key=Upper("subject"))
+        .values("recipient_id", "topic_key")
+        .annotate(last_id=Max("id"))
+    )
+    return {(row["recipient_id"], row["topic_key"]): row["last_id"] for row in rows}
+
+
+def _reply_item(
+    stream_id: int,
+    recipient_id: int,
+    topic_key: str,
+    new_messages: list[Message],
+    *,
+    broadcast: bool,
+) -> NeedItem:
+    """`new_messages` is newest first."""
+    latest = new_messages[0]
+    expires_at = latest.date_sent + REPLY_TTL
+    sender_names = list(dict.fromkeys(message.sender.full_name for message in new_messages))
+    excerpt = _plain_excerpt(latest.rendered_content or "")
+    return {
+        "id": _reply_id(recipient_id, topic_key),
+        "kind": "reply",
+        "actor": _human_actor(latest.sender),
+        "stream_id": stream_id,
+        "topic": latest.topic_name(),
+        "time": latest.date_sent.isoformat(),
+        "text": excerpt,
+        "raw_text": excerpt,
+        "attachment": None,
+        "actions": [],
+        "expires_at": expires_at.isoformat(),
+        "expired": False,
+        "resolved_at": None,
+        "resolved_action": None,
+        "job_id": None,
+        "approval_version": None,
+        "operation_hash": None,
+        "nonce": None,
+        "job_version": None,
+        "task": None,
+        "broadcast": broadcast,
+        "reply": {
+            "count": len(new_messages),
+            "first_unread_message_id": new_messages[-1].id,
+            "sender_names": sender_names[:REPLY_NAMES_LIMIT],
+        },
+    }
+
+
+def _open_replies(actor: UserProfile) -> list[NeedItem]:
+    """One item per followed topic in which other people wrote, and the
+    actor did not read it, since the actor last wrote there. A bot, the
+    actor, and a muted user never count. A message that mentions the actor
+    is a mention item already, so it is left to that. The reads are bounded
+    by REPLY_TOPIC_LIMIT and REPLY_MESSAGE_LIMIT."""
+    followed = list(
+        UserTopic.objects.filter(
+            user_profile=actor, visibility_policy=UserTopic.VisibilityPolicy.FOLLOWED
+        )
+        .order_by("-last_updated")
+        .values_list("recipient_id", "stream_id", "topic_name")[:REPLY_TOPIC_LIMIT]
+    )
+    if not followed:
+        return []
+    stream_id_by_recipient = {recipient_id: stream_id for recipient_id, stream_id, _ in followed}
+    topic_filter = Q()
+    for recipient_id, _stream_id, topic_name in followed:
+        topic_filter |= Q(message__recipient_id=recipient_id, message__subject__iexact=topic_name)
+    muted_sender_ids = MutedUser.objects.filter(user_profile=actor).values("muted_user_id")
+    unread = (
+        UserMessage.objects.filter(
+            topic_filter,
+            user_profile=actor,
+            # The condition of the zerver_usermessage_unread_message_id index.
+            flags__andz=UserMessage.flags.read.mask,
+            message__date_sent__gt=timezone_now() - REPLY_TTL,
+            message__sender__is_bot=False,
+        )
+        .exclude(flags__andnz=UserMessage.flags.mentioned.mask)
+        .exclude(message__sender=actor)
+        .exclude(message__sender_id__in=muted_sender_ids)
+        .select_related("message", "message__sender")
+        .order_by("-message_id")[:REPLY_MESSAGE_LIMIT]
+    )
+    by_topic: dict[tuple[int, str], list[Message]] = {}
+    for user_message in unread:
+        message = user_message.message
+        by_topic.setdefault((message.recipient_id, message.topic_name().upper()), []).append(
+            message
+        )
+    if not by_topic:
+        return []
+    last_own = _last_own_message_ids(actor, set(by_topic))
+    new_by_topic = {
+        key: new_messages
+        for key, messages in by_topic.items()
+        if key in last_own
+        if (new_messages := [message for message in messages if message.id > last_own[key]])
+    }
+    team_wide_ids = _channel_message_team_wide_ids(
+        [message for messages in new_by_topic.values() for message in messages], actor
+    )
+    return [
+        _reply_item(
+            stream_id_by_recipient[recipient_id],
+            recipient_id,
+            topic_key,
+            messages,
+            broadcast=all(message.id in team_wide_ids for message in messages),
+        )
+        for (recipient_id, topic_key), messages in new_by_topic.items()
+    ]
+
+
 def _resolved_approvals(
     actor: UserProfile,
     since: datetime,
@@ -994,6 +1159,7 @@ def _count_items(buckets: dict[str, list[NeedItem]]) -> NeedCounts:
         "decision": len(buckets["decision"]),
         "card_mention": len(buckets["card_mention"]),
         "card_assigned": len(buckets["card_assigned"]),
+        "reply": len(buckets["reply"]),
         "all": sum(len(values) for values in buckets.values()),
     }
 
@@ -1017,6 +1183,7 @@ def list_needs(
                 "approval": _open_approvals(actor) + _open_mcp_calls(actor),
                 "decision": _open_decisions(actor),
                 "mention": mentions,
+                "reply": _open_replies(actor),
                 **_card_items(actor, resolved_since=None),
             }
         else:
@@ -1025,6 +1192,8 @@ def list_needs(
                 "approval": _resolved_approvals(actor, start) + _resolved_mcp_calls(actor, start),
                 "decision": _resolved_decisions(actor, start),
                 "mention": _resolved_mentions(actor, start),
+                # A reply has no resolved form: reading ends it.
+                "reply": [],
                 **_card_items(actor, resolved_since=start),
             }
     if status == "open":

@@ -7,6 +7,7 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from io import StringIO
 from typing import TYPE_CHECKING
+from unittest import mock
 from uuid import uuid4
 
 import orjson
@@ -25,8 +26,10 @@ from zerver.actions.agents import (
     record_readiness,
     register_repository,
 )
+from zerver.actions.muted_users import do_mute_user
 from zerver.actions.tasks import do_add_task_note, do_create_task, do_update_task
 from zerver.actions.user_groups import check_add_user_group
+from zerver.actions.user_topics import do_set_user_topic_visibility_policy
 from zerver.actions.users import do_change_user_role
 from zerver.lib import agent_protocol as p
 from zerver.lib import needs
@@ -48,12 +51,15 @@ from zerver.models import (
     agents,
 )
 from zerver.models.needs import NeedResolution, NeedSnooze
+from zerver.models.streams import get_stream
+from zerver.models.user_topics import UserTopic
 
 if TYPE_CHECKING:
     from django.test.client import _MonkeyPatchedWSGIResponse as TestHttpResponse
 
-# The counts of the task card kinds, for a test that creates no card item.
-NO_CARDS = {"card_mention": 0, "card_assigned": 0}
+# The counts of the task card and reply kinds, for a test that creates no
+# item of either.
+NO_CARDS_OR_REPLIES = {"card_mention": 0, "card_assigned": 0, "reply": 0}
 
 
 class NeedsTestCase(ZulipTestCase):
@@ -442,7 +448,8 @@ class NeedsApprovalTests(NeedsTestCase):
         job, attempt, approval = self._pending_approval()
         result = needs.list_needs(self.owner, kind=None, status="open", since=None)
         self.assertEqual(
-            result["counts"], {**NO_CARDS, "approval": 1, "mention": 0, "decision": 0, "all": 1}
+            result["counts"],
+            {**NO_CARDS_OR_REPLIES, "approval": 1, "mention": 0, "decision": 0, "all": 1},
         )
         [item] = result["items"]
         self.assertEqual(item["id"], f"approval:{approval.id}")
@@ -485,7 +492,8 @@ class NeedsApprovalTests(NeedsTestCase):
         self.owner.save(update_fields=["role"])
         result = needs.list_needs(self.owner, kind=None, status="open", since=None)
         self.assertEqual(
-            result["counts"], {**NO_CARDS, "approval": 0, "mention": 0, "decision": 0, "all": 0}
+            result["counts"],
+            {**NO_CARDS_OR_REPLIES, "approval": 0, "mention": 0, "decision": 0, "all": 0},
         )
 
     def test_user_without_agent_access_sees_no_approval_or_decision(self) -> None:
@@ -496,7 +504,8 @@ class NeedsApprovalTests(NeedsTestCase):
         self.subscribe(cordelia, "Denmark")
         result = needs.list_needs(cordelia, kind=None, status="open", since=None)
         self.assertEqual(
-            result["counts"], {**NO_CARDS, "approval": 0, "mention": 0, "decision": 0, "all": 0}
+            result["counts"],
+            {**NO_CARDS_OR_REPLIES, "approval": 0, "mention": 0, "decision": 0, "all": 0},
         )
 
     def test_only_the_requester_sees_a_team_change_approval(self) -> None:
@@ -788,11 +797,12 @@ class NeedsMentionTests(NeedsTestCase):
         result = needs.list_needs(cordelia, kind=None, status="open", since=None)
         self.assertEqual(len(result["items"]), 2)
         self.assertEqual(
-            result["counts"], {**NO_CARDS, "approval": 0, "mention": 1, "decision": 0, "all": 1}
+            result["counts"],
+            {**NO_CARDS_OR_REPLIES, "approval": 0, "mention": 1, "decision": 0, "all": 1},
         )
         self.assertEqual(
             result["broadcast_counts"],
-            {**NO_CARDS, "approval": 0, "mention": 1, "decision": 0, "all": 1},
+            {**NO_CARDS_OR_REPLIES, "approval": 0, "mention": 1, "decision": 0, "all": 1},
         )
 
     def test_direct_message_is_never_team_wide(self) -> None:
@@ -981,7 +991,8 @@ class NeedsViewTests(NeedsTestCase):
         self.login_user(self.owner)
         payload = self.assert_json_success(self.client_get("/json/needs"))
         self.assertEqual(
-            payload["counts"], {**NO_CARDS, "approval": 0, "mention": 1, "decision": 1, "all": 2}
+            payload["counts"],
+            {**NO_CARDS_OR_REPLIES, "approval": 0, "mention": 1, "decision": 1, "all": 2},
         )
         self.assertEqual({item["kind"] for item in payload["items"]}, {"decision", "mention"})
 
@@ -1539,7 +1550,8 @@ class NeedsMcpCallTests(NeedsTestCase):
         call = self._ask()
         result = needs.list_needs(self.owner, kind=None, status="open", since=None)
         self.assertEqual(
-            result["counts"], {**NO_CARDS, "approval": 1, "mention": 0, "decision": 0, "all": 1}
+            result["counts"],
+            {**NO_CARDS_OR_REPLIES, "approval": 1, "mention": 0, "decision": 0, "all": 1},
         )
         [item] = result["items"]
         self.assertEqual(item["id"], f"mcp_call:{call.id}")
@@ -1637,3 +1649,194 @@ class NeedsMcpCallTests(NeedsTestCase):
         call = self._ask()
         self.assertEqual(self._open_ids(self.owner, "approval"), [f"mcp_call:{call.id}"])
         self.assertEqual(self._open_ids(self.owner, "mention"), [])
+
+
+class NeedsReplyTests(NeedsTestCase):
+    """Unread messages from other people in a followed topic, after the
+    user's own last message there, one item per topic."""
+
+    @override
+    def setUp(self) -> None:
+        super().setUp()
+        self.cordelia = self.example_user("cordelia")
+        self.othello = self.example_user("othello")
+        for user in [self.owner, self.cordelia, self.othello]:
+            self.subscribe(user, "needs-small")
+
+    def _follow(self, user: UserProfile, topic: str) -> None:
+        do_set_user_topic_visibility_policy(
+            user,
+            get_stream("needs-small", user.realm),
+            topic,
+            visibility_policy=UserTopic.VisibilityPolicy.FOLLOWED,
+        )
+
+    def _say(self, sender: UserProfile, topic: str, text: str = "ok") -> int:
+        return self.send_stream_message(sender, "needs-small", text, topic_name=topic)
+
+    def _replies(self, user: UserProfile) -> list[needs.NeedItem]:
+        return needs.list_needs(user, kind="reply", status="open", since=None)["items"]
+
+    def test_replies_after_my_last_message_make_one_item_for_the_topic(self) -> None:
+        self._follow(self.cordelia, "Video dan Konten")
+        self._say(self.cordelia, "Video dan Konten", "ini ya")
+        first = self._say(self.owner, "Video dan Konten", "siap")
+        self._say(self.othello, "Video dan Konten", "<b>cek</b> dulu")
+
+        [item] = self._replies(self.cordelia)
+        self.assertEqual(item["kind"], "reply")
+        self.assertEqual(item["stream_id"], self.get_stream_id("needs-small"))
+        self.assertEqual(item["topic"], "Video dan Konten")
+        self.assertEqual(item["actor"]["id"], self.othello.id)
+        self.assertEqual(item["text"], "<b>cek</b> dulu")
+        self.assertEqual(item["actions"], [])
+        self.assertFalse(item["broadcast"])
+        self.assertEqual(
+            item["reply"],
+            {
+                "count": 2,
+                "first_unread_message_id": first,
+                "sender_names": [self.othello.full_name, self.owner.full_name],
+            },
+        )
+        counts = needs.list_needs(self.cordelia, kind=None, status="open", since=None)["counts"]
+        self.assertEqual(counts["reply"], 1)
+        self.assertEqual(counts["all"], 1)
+
+    def test_item_id_is_stable_per_topic_whatever_its_case(self) -> None:
+        self._follow(self.cordelia, "Rekap")
+        self._say(self.cordelia, "Rekap")
+        self._say(self.owner, "Rekap")
+        [before] = self._replies(self.cordelia)
+        self._say(self.othello, "rekap")
+        [after] = self._replies(self.cordelia)
+        self.assertEqual(before["id"], after["id"])
+        self.assertTrue(after["id"].startswith("reply:"))
+        self.assertLessEqual(len(after["id"]), 80)
+
+    def test_a_topic_the_user_never_wrote_in_has_no_item(self) -> None:
+        self._follow(self.cordelia, "Sepi")
+        self._say(self.owner, "Sepi")
+        self.assertEqual(self._replies(self.cordelia), [])
+
+    def test_my_own_message_ends_the_item(self) -> None:
+        self._follow(self.cordelia, "Sepi")
+        self._say(self.cordelia, "Sepi")
+        self._say(self.owner, "Sepi")
+        self.assertEqual(len(self._replies(self.cordelia)), 1)
+        self._say(self.cordelia, "Sepi", "sudah kubaca")
+        self.assertEqual(self._replies(self.cordelia), [])
+
+    def test_messages_from_before_my_last_message_do_not_count(self) -> None:
+        self._follow(self.cordelia, "Urut")
+        self._say(self.owner, "Urut", "dulu")
+        self._say(self.cordelia, "Urut", "jawab")
+        newer = self._say(self.othello, "Urut", "lalu")
+        [item] = self._replies(self.cordelia)
+        self.assertEqual(item["reply"]["count"], 1)
+        self.assertEqual(item["reply"]["first_unread_message_id"], newer)
+
+    def test_a_topic_that_is_not_followed_has_no_item(self) -> None:
+        self._say(self.cordelia, "Bebas")
+        self._say(self.owner, "Bebas")
+        self.assertEqual(self._replies(self.cordelia), [])
+
+    def test_reading_the_topic_removes_the_item(self) -> None:
+        self._follow(self.cordelia, "Baca")
+        self._say(self.cordelia, "Baca")
+        message_id = self._say(self.owner, "Baca")
+        self.assertEqual(len(self._replies(self.cordelia)), 1)
+        self._mark_read(self.cordelia, message_id)
+        self.assertEqual(self._replies(self.cordelia), [])
+
+    def test_bots_and_muted_people_do_not_count(self) -> None:
+        bot = self.example_user("default_bot")
+        self.subscribe(bot, "needs-small")
+        self._follow(self.cordelia, "Cek pagi")
+        self._say(self.cordelia, "Cek pagi")
+        self._say(bot, "Cek pagi", "Ringkasan pagi")
+        self.assertEqual(self._replies(self.cordelia), [])
+
+        do_mute_user(self.cordelia, self.othello)
+        self._say(self.othello, "Cek pagi", "halo")
+        self.assertEqual(self._replies(self.cordelia), [])
+
+    def test_a_mention_is_left_to_the_mention_item(self) -> None:
+        self._follow(self.cordelia, "Minta")
+        self._say(self.cordelia, "Minta")
+        self._say(self.owner, "Minta", f"@**{self.cordelia.full_name}** tolong lihat")
+        self.assertEqual(self._replies(self.cordelia), [])
+        self.assertEqual(len(self._open_ids(self.cordelia, "mention")), 1)
+
+    def test_a_wildcard_message_is_team_wide(self) -> None:
+        self._follow(self.cordelia, "Info")
+        self._say(self.cordelia, "Info")
+        self._say(self.owner, "Info", "@**all** rapat jam 3")
+        [item] = self._replies(self.cordelia)
+        self.assertTrue(item["broadcast"])
+        result = needs.list_needs(self.cordelia, kind=None, status="open", since=None)
+        self.assertEqual(result["counts"]["reply"], 0)
+        self.assertEqual(result["broadcast_counts"]["reply"], 1)
+
+    def test_messages_older_than_seven_days_do_not_count(self) -> None:
+        self._follow(self.cordelia, "Lama")
+        self._say(self.cordelia, "Lama")
+        message_id = self._say(self.owner, "Lama")
+        Message.objects.filter(id=message_id).update(
+            date_sent=now() - needs.REPLY_TTL - timedelta(minutes=1)
+        )
+        self.assertEqual(self._replies(self.cordelia), [])
+
+    def test_direct_messages_are_not_replies(self) -> None:
+        self.send_personal_message(self.cordelia, self.owner, "hai")
+        self.send_personal_message(self.owner, self.cordelia, "hai juga")
+        self.assertEqual(self._replies(self.cordelia), [])
+
+    def test_a_reply_has_no_resolved_form_and_can_be_snoozed(self) -> None:
+        self._follow(self.cordelia, "Tunda")
+        self._say(self.cordelia, "Tunda")
+        self._say(self.owner, "Tunda")
+        [item_id] = self._open_ids(self.cordelia, "reply")
+        resolved = needs.list_needs(self.cordelia, kind=None, status="resolved", since="today")
+        self.assertEqual(resolved["items"], [])
+        self.assertEqual(
+            needs.resolve_many(self.cordelia, [item_id]), {"done": [], "failed": [item_id]}
+        )
+
+        needs.snooze_many(self.cordelia, [item_id])
+        self.assertEqual(self._open_ids(self.cordelia, "reply"), [])
+
+    def test_endpoint_lists_replies_by_kind(self) -> None:
+        self._follow(self.cordelia, "Api")
+        self._say(self.cordelia, "Api")
+        self._say(self.owner, "Api")
+        self.login_user(self.cordelia)
+        payload = self.assert_json_success(self.client_get("/json/needs", {"kind": "reply"}))
+        self.assertEqual([item["kind"] for item in payload["items"]], ["reply"])
+        self.assertEqual(payload["items"][0]["reply"]["count"], 1)
+
+    def test_query_count_does_not_grow_with_the_number_of_topics(self) -> None:
+        def run() -> int:
+            with self.assert_database_query_count(3):
+                return len(needs._open_replies(self.cordelia))
+
+        self._follow(self.cordelia, "Satu")
+        self._say(self.cordelia, "Satu")
+        self._say(self.owner, "Satu")
+        self.assertEqual(run(), 1)
+
+        for index in range(2, 7):
+            topic = f"Topik {index}"
+            self._follow(self.cordelia, topic)
+            self._say(self.cordelia, topic)
+            self._say(self.owner, topic)
+        self.assertEqual(run(), 6)
+
+    def test_scan_is_bounded_by_the_followed_topic_limit(self) -> None:
+        for index in range(3):
+            topic = f"Batas {index}"
+            self._follow(self.cordelia, topic)
+            self._say(self.cordelia, topic)
+            self._say(self.owner, topic)
+        with mock.patch.object(needs, "REPLY_TOPIC_LIMIT", 2):
+            self.assertEqual(len(self._replies(self.cordelia)), 2)

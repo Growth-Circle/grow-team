@@ -1,0 +1,8 @@
+{
+    "frontend": {
+        "Replies": "Balasan",
+        "Open topic": "Buka topik",
+        "New messages in topics you follow collect here, after you have written.": "Pesan baru di topik yang kamu ikuti terkumpul di sini, setelah kamu menulis di sana.",
+        "{count} new from {names} · # {room} › {topic} · {time}": "{count} baru dari {names} · # {room} › {topic} · {time}"
+    }
+}

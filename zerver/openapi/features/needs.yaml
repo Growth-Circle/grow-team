@@ -32,6 +32,9 @@ paths:
 
         In Zulip 12.0 (feature level ZF-e9cd61), `counts` no longer counts
         team-wide items, which `broadcast_counts` counts instead.
+
+        In Zulip 12.0 (feature level ZF-ba6c93), added the `reply` kind, the
+        `reply` field of an item, and the `reply` counts.
       parameters:
         - name: kind
           in: query
@@ -40,7 +43,8 @@ paths:
             kinds together.
 
             **Changes**: In Zulip 12.0 (feature level ZF-d81c47), added the
-            `card_mention` and `card_assigned` kinds.
+            `card_mention` and `card_assigned` kinds. In Zulip 12.0 (feature
+            level ZF-ba6c93), added the `reply` kind.
           schema:
             type: string
             enum:
@@ -49,6 +53,7 @@ paths:
               - decision
               - card_mention
               - card_assigned
+              - reply
         - name: status
           in: query
           description: |
@@ -120,6 +125,7 @@ paths:
                   decision: 0
                   card_mention: 0
                   card_assigned: 0
+                  reply: 0
                   all: 1
                 broadcast_counts:
                   approval: 0
@@ -127,6 +133,7 @@ paths:
                   decision: 0
                   card_mention: 0
                   card_assigned: 0
+                  reply: 0
                   all: 0
         "400":
           description: The agent wrapper rejected a parsed request.
@@ -849,7 +856,8 @@ components:
           description:
             'One of "approval:<uuid>", "mcp_call:<uuid>", "decision:<job id>",
             "mention:<message id>", "card_mention:<notification id>", or
-            "card_assigned:<notification id>". An "mcp_call" item is an
+            "card_assigned:<notification id>", or "reply:<channel recipient
+            id>:<topic hash>". An "mcp_call" item is an
             approval (`kind` is `approval`) for a call that an external MCP
             client made to an Ask first tool.'
         kind:
@@ -860,6 +868,7 @@ components:
             - decision
             - card_mention
             - card_assigned
+            - reply
         actor:
           $ref: "#/components/schemas/NeedActor"
         stream_id:
@@ -1041,6 +1050,33 @@ components:
             digest:
               type: string
               description: The first 12 characters of the call's argument hash.
+        reply:
+          type: object
+          additionalProperties: false
+          description: |
+            Only on a `reply` item: the unread messages that other people
+            wrote in a topic you follow since you last wrote there. There is
+            one item per topic. Bots, your own messages, muted people, and
+            messages that mention you (a `mention` item already) do not
+            count. `actor` is who wrote the newest message, `text` is a
+            plain-text excerpt of it, and `topic` is how the newest message
+            spells the topic. A `reply` item is never listed with
+            `status=resolved`: reading the topic, or writing in it, ends it.
+
+            **Changes**: New in Zulip 12.0 (feature level ZF-ba6c93).
+          required: [count, first_unread_message_id, sender_names]
+          properties:
+            count:
+              type: integer
+              minimum: 1
+              description: How many unread messages the item stands for.
+            first_unread_message_id:
+              type: integer
+              description: The oldest of them; open the topic near this message.
+            sender_names:
+              type: array
+              items: {type: string}
+              description: The full names of up to 3 people who wrote, newest first.
       required:
         - id
         - kind
@@ -1082,6 +1118,9 @@ components:
         card_assigned:
           type: integer
           minimum: 0
+        reply:
+          type: integer
+          minimum: 0
         all:
           type: integer
           minimum: 0
@@ -1091,6 +1130,7 @@ components:
         - decision
         - card_mention
         - card_assigned
+        - reply
         - all
     NeedsListResponse:
       type: object

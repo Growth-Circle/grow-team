@@ -51,7 +51,22 @@ export const need_mcp_call_schema = z.object({
     digest: z.string(),
 });
 
-const NEED_KINDS = ["approval", "mention", "decision", "card_mention", "card_assigned"] as const;
+// The unread messages of a followed topic since the person last wrote
+// there. The first one is where the topic opens.
+export const need_reply_schema = z.object({
+    count: z.number(),
+    first_unread_message_id: z.number(),
+    sender_names: z.array(z.string()),
+});
+
+const NEED_KINDS = [
+    "approval",
+    "mention",
+    "decision",
+    "card_mention",
+    "card_assigned",
+    "reply",
+] as const;
 
 export const need_item_schema = z.object({
     id: z.string(),
@@ -77,6 +92,8 @@ export const need_item_schema = z.object({
     broadcast: z.boolean(),
     // Only on an approval for an external MCP client's call.
     mcp_call: z.optional(need_mcp_call_schema),
+    // Only on a reply.
+    reply: z.optional(need_reply_schema),
 });
 
 export const need_counts_schema = z.object({
@@ -85,6 +102,7 @@ export const need_counts_schema = z.object({
     decision: z.number(),
     card_mention: z.number(),
     card_assigned: z.number(),
+    reply: z.number(),
     all: z.number(),
 });
 
@@ -103,8 +121,15 @@ export type NeedsResult = z.infer<typeof needs_result_schema>;
 export type NeedKind = NeedItem["kind"];
 // A tab can hold more than one kind: a mention in a message and a
 // mention in a card note are both "mentions".
-export type NeedTab = "all" | "mentions" | "assigned" | "approval" | "decision";
-export const NEED_TABS: NeedTab[] = ["all", "mentions", "assigned", "approval", "decision"];
+export type NeedTab = "all" | "mentions" | "replies" | "assigned" | "approval" | "decision";
+export const NEED_TABS: NeedTab[] = [
+    "all",
+    "mentions",
+    "replies",
+    "assigned",
+    "approval",
+    "decision",
+];
 
 const TAB_FOR_KIND: Record<NeedKind, Exclude<NeedTab, "all">> = {
     approval: "approval",
@@ -112,6 +137,7 @@ const TAB_FOR_KIND: Record<NeedKind, Exclude<NeedTab, "all">> = {
     decision: "decision",
     card_mention: "mentions",
     card_assigned: "assigned",
+    reply: "replies",
 };
 
 export function tab_for_kind(kind: NeedKind): Exclude<NeedTab, "all"> {

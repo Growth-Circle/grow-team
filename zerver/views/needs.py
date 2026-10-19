@@ -18,7 +18,8 @@ def list_needs(
     request: HttpRequest,
     user_profile: UserProfile,
     *,
-    kind: Literal["approval", "mention", "decision", "card_mention", "card_assigned"] | None = None,
+    kind: Literal["approval", "mention", "decision", "card_mention", "card_assigned", "reply"]
+    | None = None,
     status: Literal["open", "resolved"] = "open",
     since: Literal["today"] | None = None,
 ) -> HttpResponse:
