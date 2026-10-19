@@ -1,0 +1,3 @@
+# Dipasang lewat `wrangler secret put`; file ini hanya contoh bentuk nilainya.
+RELAY_TOKEN=sama-dengan-secret-RELAY_TOKEN-grow-team-email
+ALERT_RECIPIENTS=rama.aditya@growthcircle.id,alamat-ari@example.com

@@ -394,6 +394,33 @@ Status `delivered` pada Cloudflare berarti server email penerima menerima pesan;
 Referensi: [Workers email API](https://developers.cloudflare.com/email-service/api/send-emails/workers-api/),
 [email logs](https://developers.cloudflare.com/email-service/observability/logs/).
 
+## Monitor uptime eksternal
+
+Worker `grow-team-uptime` (`uptime-worker/`) berjalan di Cloudflare, jadi tetap hidup saat server-gteam mati atau reboot.
+Cron tiap 2 menit mengambil `https://team.growc.id/login/` (timeout 10 detik, redirect tidak diikuti; hanya HTTP 200 yang dianggap hidup).
+
+- Dua kegagalan berturut-turut: satu email "DOWN" ke semua penerima.
+- Selama gangguan berlanjut tidak ada email lagi.
+- Cek pertama yang berhasil setelah alert: satu email "PULIH" berisi waktu mulai, waktu pulih (WIB), dan lama gangguan.
+- Bila pengiriman email gagal, status tidak maju; alert dicoba lagi pada cek berikutnya.
+
+Status insiden disimpan di Durable Object (SQLite), bukan KV: pembacaan DO konsisten kuat, sehingga cek berurutan tidak pernah sama-sama melihat "belum dialert" dan mengirim email ganda.
+Email dikirim lewat service binding `MAIL` ke Worker `grow-team-email` (pengirim `noreply@growc.id`), memakai `RELAY_TOKEN` yang sama dengan Worker tersebut.
+
+```bash
+cd deploy/grow-team/uptime-worker
+npm install
+npm test && npm run typecheck
+npx wrangler secret put RELAY_TOKEN        # nilai sama dengan RELAY_TOKEN grow-team-email
+npx wrangler secret put ALERT_RECIPIENTS   # dipisah koma, mis. rama.aditya@growthcircle.id,<email Ari>
+npx wrangler deploy
+npx wrangler tail grow-team-uptime         # lihat hasil cek berikutnya
+```
+
+`grow-team-email` harus sudah ter-deploy di akun yang sama. Isi `.dev.vars.example` hanya contoh bentuk; jangan commit nilai asli.
+Cara uji alert tanpa menjatuhkan situs: deploy sementara dengan `--var CHECK_URL:https://team.growc.id/tidak-ada/` (404 dianggap gagal), tunggu 4 menit sampai email DOWN datang, kembalikan `CHECK_URL`, lalu tunggu email PULIH.
+Rollback: `npx wrangler delete grow-team-uptime` (menghapus Worker, cron, dan statusnya).
+
 ## Credentials
 
 Jangan simpan credentials di Git atau dokumen proyek.
