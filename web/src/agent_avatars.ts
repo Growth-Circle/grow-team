@@ -28,6 +28,7 @@ export type AgentAvatarInfo = {
 const profiles_schema = z.object({
     profiles: z.array(
         z.object({
+            id: z.optional(z.string()),
             bot_user_id: z.number(),
             name: z.string(),
             avatar_shape: z.optional(z.string()),
@@ -37,6 +38,8 @@ const profiles_schema = z.object({
 });
 
 const by_bot_user_id = new Map<number, AgentAvatarInfo>();
+// The Status panel asks the server about a profile, not about its bot user.
+const profile_id_by_bot_user_id = new Map<number, string>();
 const loaded_callbacks: (() => void)[] = [];
 let load_promise: Promise<void> | undefined;
 
@@ -66,6 +69,9 @@ async function load(): Promise<void> {
                 shape: to_shape(profile.avatar_shape),
                 color: to_color(profile.avatar_color),
             });
+            if (profile.id !== undefined) {
+                profile_id_by_bot_user_id.set(profile.bot_user_id, profile.id);
+            }
         }
         if (profiles.length > 0) {
             message_live_update.rerender_messages_view();
@@ -98,6 +104,13 @@ function start_loading_once(): void {
 export function get_agent_for_bot_user_id(user_id: number): AgentAvatarInfo | undefined {
     start_loading_once();
     return by_bot_user_id.get(user_id);
+}
+
+// The id of the agent profile that a bot user belongs to, or undefined
+// for a person, a regular bot, or an agent not loaded yet.
+export function get_profile_id_for_bot_user_id(user_id: number): string | undefined {
+    start_loading_once();
+    return profile_id_by_bot_user_id.get(user_id);
 }
 
 // RM-51: up to 3 "@Name" mentions for the composer placeholder, such

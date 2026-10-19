@@ -34,7 +34,14 @@ mock_esm("../src/message_live_update", {
 const agent_avatars = zrequire("agent_avatars");
 
 function profile(overrides) {
-    return {bot_user_id: 1, name: "Kaki", avatar_shape: "circle", avatar_color: "", ...overrides};
+    return {
+        id: "p-1",
+        bot_user_id: 1,
+        name: "Kaki",
+        avatar_shape: "circle",
+        avatar_color: "",
+        ...overrides,
+    };
 }
 
 run_test("initials_for_name", () => {
@@ -56,7 +63,7 @@ run_test("a spectator does not read the agent directory", async () => {
 run_test("agents load once, an unknown shape falls back to a circle", async () => {
     next_response = {
         profiles: [
-            profile({bot_user_id: 10, name: "Kaki", avatar_color: "#FF6A3D"}),
+            profile({id: "p-10", bot_user_id: 10, name: "Kaki", avatar_color: "#FF6A3D"}),
             profile({bot_user_id: 11, name: "Odd", avatar_shape: "triangle"}),
             profile({
                 bot_user_id: 21,
@@ -88,6 +95,14 @@ run_test("agents load once, an unknown shape falls back to a circle", async () =
         color: "",
     });
     assert.equal(agent_avatars.get_agent_for_bot_user_id(999), undefined);
+
+    assert.equal(agent_avatars.get_profile_id_for_bot_user_id(10), "p-10");
+    assert.equal(
+        agent_avatars.get_profile_id_for_bot_user_id(23),
+        undefined,
+        "an old server sends no profile id",
+    );
+    assert.equal(agent_avatars.get_profile_id_for_bot_user_id(999), undefined);
 });
 
 run_test("compose_mention_hint names up to three agents of the room with 'or'", () => {
