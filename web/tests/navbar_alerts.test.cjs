@@ -29,6 +29,34 @@ function test(label, f) {
     });
 }
 
+test("should_show_denied_notifications_banner", ({override}) => {
+    const ls = localstorage();
+
+    // Explain how to turn notifications back on, once, when the browser blocks them.
+    ls.set("deniedNotificationsBannerDismissed", undefined);
+    page_params.is_spectator = false;
+    override(util, "is_mobile", () => false);
+    override(desktop_notifications, "permission_state", () => "denied");
+    assert.equal(navbar_alerts.should_show_denied_notifications_banner(ls), true);
+
+    // Not again once the person closed it.
+    ls.set("deniedNotificationsBannerDismissed", true);
+    assert.equal(navbar_alerts.should_show_denied_notifications_banner(ls), false);
+    ls.set("deniedNotificationsBannerDismissed", undefined);
+
+    // Not while the browser can still ask, or once it allows.
+    override(desktop_notifications, "permission_state", () => "default");
+    assert.equal(navbar_alerts.should_show_denied_notifications_banner(ls), false);
+    override(desktop_notifications, "permission_state", () => "granted");
+    assert.equal(navbar_alerts.should_show_denied_notifications_banner(ls), false);
+
+    // Nothing to re-enable on a phone browser, or for a spectator.
+    override(util, "is_mobile", () => true);
+    assert.equal(navbar_alerts.should_show_denied_notifications_banner(ls), false);
+    page_params.is_spectator = true;
+    assert.equal(navbar_alerts.should_show_denied_notifications_banner(ls), false);
+});
+
 test("should_show_desktop_notifications_banner", ({override}) => {
     const ls = localstorage();
 

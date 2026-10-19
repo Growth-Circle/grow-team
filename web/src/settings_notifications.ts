@@ -5,6 +5,7 @@ import * as z from "zod/mini";
 
 import render_confirm_disable_all_notifications from "../templates/confirm_dialog/confirm_disable_all_notifications.hbs";
 import render_confirm_reset_stream_notifications from "../templates/confirm_dialog/confirm_reset_stream_notifications.hbs";
+import render_notification_check_results from "../templates/settings/notification_check_results.hbs";
 import render_stream_specific_notification_row from "../templates/settings/stream_specific_notification_row.hbs";
 
 import * as banners from "./banners.ts";
@@ -13,7 +14,7 @@ import * as channel from "./channel.ts";
 import * as confirm_dialog from "./confirm_dialog.ts";
 import * as dropdown_widget from "./dropdown_widget.ts";
 import {$t, $t_html} from "./i18n.ts";
-import * as message_notifications from "./message_notifications.ts";
+import * as notification_check from "./notification_check.ts";
 import {page_params} from "./page_params.ts";
 import * as settings_banner from "./settings_banner.ts";
 import * as settings_components from "./settings_components.ts";
@@ -136,12 +137,8 @@ function update_desktop_notification_banner(): void {
     const $banner_container = $(".desktop-notification-settings-banners");
     if (permission === "granted") {
         banners.close($(".desktop-notification-settings-banners .desktop-setting-notifications"));
-        $(".send_test_notification").show();
-    } else {
-        if ($banner_container.find(".desktop-setting-notifications").length === 0) {
-            banners.append(DESKTOP_NOTIFICATIONS_BANNER, $banner_container);
-        }
-        $(".send_test_notification").hide();
+    } else if ($banner_container.find(".desktop-setting-notifications").length === 0) {
+        banners.append(DESKTOP_NOTIFICATIONS_BANNER, $banner_container);
     }
 }
 
@@ -532,10 +529,24 @@ export function set_up(settings_panel: SettingsPanel): void {
     // This final patch of settings are ones for which we
     // intentionally don't let organization administrators set
     // organization-level defaults.
-    $container.find(".send_test_notification").on("click", () => {
-        message_notifications.send_test_notification(
-            $t({defaultMessage: "This is a test notification from sanji."}),
-        );
+    $container.find(".send_test_notification").on("click", function (this: HTMLElement) {
+        const $button = $(this);
+        const $results = $container.find(".notification-check-results-container");
+        $button.prop("disabled", true);
+        void (async () => {
+            try {
+                const channels = await notification_check.run_check();
+                $results.html(render_notification_check_results({channels}));
+            } catch {
+                $results.html(
+                    render_notification_check_results({
+                        error: $t({defaultMessage: "Could not run the check. Try again."}),
+                    }),
+                );
+            } finally {
+                $button.prop("disabled", false);
+            }
+        })();
     });
 
     $("#settings_content").on("click", ".banner-close-button", (e) => {

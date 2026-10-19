@@ -1,0 +1,15 @@
+{{! What each way of being notified did when the person sent a test
+notification, or why the check itself failed. }}
+{{#if error}}
+    <p class="notification-check-error">{{error}}</p>
+{{else}}
+    <ul class="notification-check-results">
+        {{#each channels}}
+            <li class="notification-check-row {{#if this.ok}}notification-check-ok{{else}}notification-check-missing{{/if}}">
+                <span class="notification-check-name">{{this.name}}</span>
+                <span class="notification-check-state">{{this.state}}</span>
+                <span class="notification-check-text">{{this.text}}</span>
+            </li>
+        {{/each}}
+    </ul>
+{{/if}}

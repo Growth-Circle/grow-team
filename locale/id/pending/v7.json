@@ -1,0 +1,22 @@
+{
+    "frontend": {
+        "Working": "Berfungsi",
+        "Not set up": "Belum diatur",
+        "Browser": "Browser",
+        "A phone browser cannot show notifications. Use the Zulip app.": "Browser di HP tidak bisa menampilkan notifikasi. Pakai aplikasi Zulip.",
+        "A test notification was shown on this computer.": "Notifikasi uji sudah muncul di komputer ini.",
+        "Blocked. Allow notifications for this site in your browser's site settings, then reload the page.": "Diblokir. Izinkan notifikasi untuk situs ini di pengaturan situs browser kamu, lalu muat ulang halaman.",
+        "Not turned on. Choose Allow when your browser asks, then send the test again.": "Belum aktif. Pilih Izinkan saat browser bertanya, lalu kirim notifikasi uji lagi.",
+        "Phone": "HP",
+        "This server has no push service set up. Ask an administrator to set it up.": "Server ini belum punya layanan push. Minta admin untuk mengaturnya.",
+        "No phone is registered. Install the Zulip app and log in to this workspace.": "Belum ada HP yang terdaftar. Pasang aplikasi Zulip dan login ke workspace ini.",
+        "The test push could not be sent. {reason}": "Push uji tidak terkirim. {reason}",
+        "A test push was sent to your phone. It should arrive within a minute.": "Push uji sudah dikirim ke HP kamu. Seharusnya sampai dalam semenit.",
+        "This is a test notification from sanji.": "Ini notifikasi uji dari sanji.",
+        "Could not run the check. Try again.": "Pemeriksaan gagal dijalankan. Coba lagi.",
+        "Send a test notification": "Kirim notifikasi uji",
+        "Turn on notifications so replies in the topics you follow reach you.": "Aktifkan notifikasi supaya balasan di topik yang kamu ikuti sampai ke kamu.",
+        "Notifications are blocked in this browser, so replies will not reach you here. To turn them on, allow notifications for this site in your browser's site settings, then reload the page.": "Notifikasi diblokir di browser ini, jadi balasan tidak akan sampai ke kamu di sini. Untuk mengaktifkannya, izinkan notifikasi untuk situs ini di pengaturan situs browser kamu, lalu muat ulang halaman.",
+        "Check notification settings": "Cek pengaturan notifikasi"
+    }
+}

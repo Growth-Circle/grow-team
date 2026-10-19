@@ -66,6 +66,22 @@ export function should_show_desktop_notifications_banner(ls: LocalStorage): bool
     );
 }
 
+// The person blocked notifications in the browser, so the permission
+// prompt cannot be shown again and the way back is in the browser's
+// settings. The banner says so once; closing it is remembered.
+export function should_show_denied_notifications_banner(ls: LocalStorage): boolean {
+    if (localstorage.supported() && ls.get("deniedNotificationsBannerDismissed") === true) {
+        return false;
+    }
+
+    return (
+        !page_params.is_spectator &&
+        // A phone browser cannot show notifications, so there is nothing to re-enable.
+        !util.is_mobile() &&
+        desktop_notifications.permission_state() === "denied"
+    );
+}
+
 export function should_show_bankruptcy_banner(): boolean {
     // Until we've handled possibly declaring bankruptcy, don't show
     // unread counts since they only consider messages that are loaded
@@ -186,8 +202,7 @@ const DESKTOP_NOTIFICATIONS_BANNER: AlertBanner = {
     process: "desktop-notifications",
     intent: "brand",
     label: $t({
-        defaultMessage:
-            "sanji needs your permission to enable desktop notifications for important messages.",
+        defaultMessage: "Turn on notifications so replies in the topics you follow reach you.",
     }),
     buttons: [
         {
@@ -204,6 +219,24 @@ const DESKTOP_NOTIFICATIONS_BANNER: AlertBanner = {
             variant: "text",
             label: $t({defaultMessage: "Never ask on this computer"}),
             custom_classes: "reject-desktop-notifications",
+        },
+    ],
+    close_button: true,
+    custom_classes: "navbar-alert-banner",
+};
+
+const DENIED_NOTIFICATIONS_BANNER: AlertBanner = {
+    process: "desktop-notifications-denied",
+    intent: "warning",
+    label: $t({
+        defaultMessage:
+            "Notifications are blocked in this browser, so replies will not reach you here. To turn them on, allow notifications for this site in your browser's site settings, then reload the page.",
+    }),
+    buttons: [
+        {
+            variant: "subtle",
+            label: $t({defaultMessage: "Check notification settings"}),
+            custom_classes: "customize-desktop-notifications",
         },
     ],
     close_button: true,
@@ -543,6 +576,8 @@ export function initialize(): void {
         open_navbar_banner_and_resize(CONFIGURE_OUTGOING_MAIL_BANNER);
     } else if (should_show_desktop_notifications_banner(ls)) {
         open_navbar_banner_and_resize(DESKTOP_NOTIFICATIONS_BANNER);
+    } else if (should_show_denied_notifications_banner(ls)) {
+        open_navbar_banner_and_resize(DENIED_NOTIFICATIONS_BANNER);
     } else if (should_show_bankruptcy_banner()) {
         open_navbar_banner_and_resize(bankruptcy_banner());
     } else if (
@@ -568,6 +603,9 @@ export function initialize(): void {
             const $banner = $(this).closest(".banner");
             banners.close($banner);
             $(window).trigger("resize");
+            if ($banner.attr("data-process") === DENIED_NOTIFICATIONS_BANNER.process) {
+                ls.set("deniedNotificationsBannerDismissed", true);
+            }
         },
     );
 
