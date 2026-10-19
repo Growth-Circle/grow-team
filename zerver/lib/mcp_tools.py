@@ -3,6 +3,7 @@
 import base64
 import binascii
 import json
+import re
 from collections.abc import Collection
 from copy import copy
 from typing import TYPE_CHECKING, Annotated, Any, cast
@@ -28,8 +29,16 @@ if TYPE_CHECKING:
 
 PositiveId = Annotated[int, Field(strict=True, gt=0)]
 ShortText = Annotated[str, StringConstraints(min_length=1, max_length=200)]
-# Base64 of a 5 MiB file. The realm's own upload limit still applies.
-MAX_BASE64_LENGTH = 7_000_000
+# The largest file upload_file accepts. The realm's own upload limit applies
+# below it. The base64 form, with a data URL prefix and line breaks, must stay
+# inside both MAX_BODY_BYTES of the MCP view and DATA_UPLOAD_MAX_MEMORY_SIZE.
+MAX_FILE_MEBIBYTES = 15
+MAX_BASE64_LENGTH = 21_000_000
+DATA_URL_PREFIX = re.compile(r"^data:[^,;]*(;[^,;]*)*;base64,", re.IGNORECASE)
+
+
+class ToolInputError(ValueError):
+    """A rejection whose message is safe to show to the client."""
 
 
 class Arguments(BaseModel):
@@ -89,9 +98,9 @@ class Reaction(Arguments):
 class UploadFile(Arguments):
     filename: Annotated[str, StringConstraints(min_length=1, max_length=100)]
     content_base64: Annotated[str, StringConstraints(min_length=1, max_length=MAX_BASE64_LENGTH)]
-    content_type: Annotated[str, StringConstraints(min_length=3, max_length=100)] = (
-        "application/octet-stream"
-    )
+    content_type: Annotated[
+        str, StringConstraints(max_length=100, pattern=r"^[\w.+-]+/[\w.+-]+$")
+    ] = "application/octet-stream"
 
 
 class TaskId(Arguments):
@@ -190,7 +199,7 @@ TOOLS: dict[str, tuple[type[Arguments], str, bool]] = {
     ),
     "upload_file": (
         UploadFile,
-        "Upload a file (up to 5 MiB) as the approved account. Returns its url and a markdown link to paste into a message; images display inline.",
+        "Upload a file as the approved account, up to the smaller of the workspace's upload limit and 15 MiB. content_base64 is plain base64 of the file bytes; a data: URL prefix and line breaks are accepted. Returns its url and a markdown link to paste into a message; images display inline.",
         True,
     ),
     "delete_task": (TaskId, "Delete a task that the approved account can modify.", True),
@@ -287,6 +296,29 @@ def message_content(request: HttpRequest, user: UserProfile, args: dict[str, obj
     if len(content) > 10000:
         raise ValueError("The message exceeds its limit.")
     return content
+
+
+@sensitive_variables()
+def decode_upload(user: UserProfile, content_base64: str) -> bytes:
+    limit_mebibytes = min(user.realm.get_max_file_upload_size_mebibytes(), MAX_FILE_MEBIBYTES)
+    encoded = DATA_URL_PREFIX.sub("", content_base64.strip(), count=1)
+    encoded = "".join(encoded.split())
+    encoded = encoded.rstrip("=")
+    # Clients often drop the padding; the length without it still fixes the size.
+    if len(encoded) % 4 == 1:
+        raise ToolInputError(
+            "content_base64 is not valid base64: its length cannot come from any file."
+        )
+    if len(encoded) * 3 // 4 > limit_mebibytes * 1024 * 1024:
+        raise ToolInputError(
+            f"The file is larger than the upload limit of {limit_mebibytes} MiB for this connection."
+        )
+    try:
+        return base64.b64decode(encoded + "=" * (-len(encoded) % 4), validate=True)
+    except binascii.Error:
+        raise ToolInputError(
+            "content_base64 is not valid base64: send the file bytes as standard base64 text."
+        ) from None
 
 
 @sensitive_variables()
@@ -443,12 +475,12 @@ def execute_tool(
             message_id=args["message_id"],
         )
     if name == "upload_file":
-        try:
-            raw = base64.b64decode(str(args["content_base64"]), validate=True)
-        except binascii.Error:
-            raise ValueError("The file content is not valid base64.") from None
+        raw = decode_upload(user, str(args["content_base64"]))
         file = SimpleUploadedFile(str(args["filename"]), raw, str(args["content_type"]))
-        result = _view(request, user, upload.upload_file_backend, {}, {"file": file})
+        try:
+            result = _view(request, user, upload.upload_file_backend, {}, {"file": file})
+        except JsonableError as error:
+            raise ToolInputError(error.msg) from None
         return {
             "url": result["url"],
             "filename": result["filename"],

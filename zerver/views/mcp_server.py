@@ -15,7 +15,7 @@ from zerver.lib.exceptions import JsonableError
 from zerver.lib.mcp_access import VERSIONS, audit, digest, resource_url, valid_grant
 from zerver.lib.mcp_pending import argument_digest, call_result, request_approval
 from zerver.lib.mcp_policy import evaluate, policy_enforced, stored_policies
-from zerver.lib.mcp_tools import TOOLS, execute_tool, tool_list
+from zerver.lib.mcp_tools import TOOLS, ToolInputError, execute_tool, tool_list
 from zerver.lib.rate_limiter import (
     rate_limit_mcp_grant_write,
     rate_limit_request_by_ip,
@@ -26,8 +26,8 @@ from zerver.models.clients import get_client
 from zerver.models.mcp_access import MCPAccessGrant, MCPAccessToken
 from zerver.views.mcp_access import oauth_json
 
-# Room for a 5 MiB file in base64 for upload_file.
-MAX_BODY_BYTES = 7_100_000
+# Room for the largest base64 file of upload_file, below Django's own limit.
+MAX_BODY_BYTES = 21_100_000
 
 
 def rpc_error(request_id: object, code: int, message: str, status: int = 200) -> HttpResponse:
@@ -96,7 +96,12 @@ def mcp(request: HttpRequest) -> HttpResponse:
     if version is not None and version not in VERSIONS:
         return rpc_error(None, -32600, "Unsupported protocol version.", 400)
     if len(request.body) > MAX_BODY_BYTES:
-        return rpc_error(None, -32600, "Request exceeds its limit.", 413)
+        return rpc_error(
+            None,
+            -32600,
+            f"The request body exceeds the {MAX_BODY_BYTES // 1_000_000} MB limit of this endpoint.",
+            413,
+        )
     try:
         data = json.loads(request.body)
     except (ValueError, UnicodeDecodeError):
@@ -205,7 +210,15 @@ def mcp(request: HttpRequest) -> HttpResponse:
                 "isError": False,
             }
             outcome = "success"
-        except (JsonableError, ValueError, ValidationError):
+        except ToolInputError as error:
+            result = _tool_error(str(error))
+        except ValidationError as error:
+            problems = error.errors(include_input=False, include_url=False)
+            result = _tool_error(
+                "Invalid arguments: "
+                + "; ".join(f"{'.'.join(map(str, p['loc']))}: {p['msg']}" for p in problems)
+            )
+        except (JsonableError, ValueError):
             result = _tool_error("The tool request is invalid or your account lacks permission.")
         audit(grant, name, outcome, argument_digest=call_digest)
     else:

@@ -1,6 +1,9 @@
 import base64
 import hashlib
 import json
+import os
+import struct
+import zlib
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, urlsplit
@@ -14,7 +17,7 @@ from typing_extensions import override
 from zerver.lib.mcp_access import audit
 from zerver.lib.mcp_pending import argument_digest
 from zerver.lib.mcp_policy import OFF, set_policies
-from zerver.lib.mcp_tools import TOOLS
+from zerver.lib.mcp_tools import MAX_BASE64_LENGTH, TOOLS
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.lib.test_helpers import ratelimit_rule
 from zerver.models import (
@@ -26,6 +29,7 @@ from zerver.models import (
     Message,
 )
 from zerver.models.streams import get_stream
+from zerver.views.mcp_server import MAX_BODY_BYTES
 
 if TYPE_CHECKING:
     from django.test.client import _MonkeyPatchedWSGIResponse as TestHttpResponse
@@ -255,6 +259,105 @@ class MCPAccessTests(ZulipTestCase):
                 "isError"
             ]
         )
+
+    def chart_png(self, size: int) -> bytes:
+        def chunk(kind: bytes, body: bytes) -> bytes:
+            return (
+                struct.pack(">I", len(body))
+                + kind
+                + body
+                + struct.pack(">I", zlib.crc32(kind + body))
+            )
+
+        # Stored (uncompressed) rows of noise, so the file is about `size` bytes.
+        width = int((size / 3) ** 0.5)
+        rows = b"".join(b"\x00" + os.urandom(width * 3) for _ in range(width))
+        return (
+            b"\x89PNG\r\n\x1a\n"
+            + chunk(b"IHDR", struct.pack(">IIBBBBB", width, width, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(rows, 0))
+            + chunk(b"IEND", b"")
+        )
+
+    def upload_error(self, token: str, arguments: dict[str, object]) -> str:
+        response = self.rpc(token, "tools/call", {"name": "upload_file", "arguments": arguments})
+        result = json.loads(response.content)["result"]
+        self.assertTrue(result["isError"])
+        return str(result["content"][0]["text"])
+
+    def test_upload_file_accepts_report_charts(self) -> None:
+        from zerver.models import Attachment
+
+        token = self.manual(write=True)
+        for size in (19_000, 1_000_000):
+            png = self.chart_png(size)
+            encoded = base64.b64encode(png).decode()
+            wrapped = "\n".join(encoded[i : i + 76] for i in range(0, len(encoded), 76))
+            for content in (
+                encoded,
+                f"data:image/png;base64,{encoded}",
+                wrapped + "\n",
+                encoded.rstrip("="),
+            ):
+                output = self.call(
+                    token,
+                    "upload_file",
+                    {
+                        "filename": "chart.png",
+                        "content_base64": content,
+                        "content_type": "image/png",
+                    },
+                )
+                self.assertEqual(output["markdown"], f"[chart.png]({output['url']})")
+                attachment = Attachment.objects.get(
+                    path_id=str(output["url"]).removeprefix("/user_uploads/")
+                )
+                self.assertEqual(attachment.size, len(png))
+
+    def test_upload_file_rejections_name_the_limit(self) -> None:
+        token = self.manual(write=True)
+        encoded = base64.b64encode(self.chart_png(19_000)).decode()
+        png = {"filename": "chart.png", "content_type": "image/png"}
+
+        self.assertIn(
+            "not valid base64",
+            self.upload_error(token, {**png, "content_base64": "!!"}),
+        )
+        self.assertIn(
+            "not valid base64",
+            self.upload_error(token, {**png, "content_base64": "A"}),
+        )
+        self.assertIn(
+            "content_type",
+            self.upload_error(token, {**png, "content_base64": encoded, "content_type": "png"}),
+        )
+        self.assertIn(
+            "at most 100 characters",
+            self.upload_error(token, {**png, "content_base64": encoded, "filename": "a" * 101}),
+        )
+        with self.settings(MAX_FILE_UPLOAD_SIZE=1):
+            big = base64.b64encode(os.urandom(1024 * 1024 + 1)).decode()
+            self.assertIn(
+                "upload limit of 1 MiB",
+                self.upload_error(token, {**png, "content_base64": big}),
+            )
+        self.assertIn(
+            f"at most {MAX_BASE64_LENGTH} characters",
+            self.upload_error(token, {**png, "content_base64": "A" * (MAX_BASE64_LENGTH + 1)}),
+        )
+
+    def test_mcp_body_over_the_limit_names_it(self) -> None:
+        token = self.manual(write=True)
+        response = self.client_post(
+            "/mcp",
+            json.dumps(
+                {"jsonrpc": "2.0", "id": 1, "method": "ping", "params": {"x": "A" * MAX_BODY_BYTES}}
+            ),
+            content_type="application/json",
+            HTTP_AUTHORIZATION="Bearer " + token,
+        )
+        self.assertEqual(response.status_code, 413)
+        self.assertIn("exceeds the 21 MB limit", response.json()["error"]["message"])
 
     def test_profile_reactions_edit_and_direct_messages(self) -> None:
         from zerver.models import Message, Reaction
