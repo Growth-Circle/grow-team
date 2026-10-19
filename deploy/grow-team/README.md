@@ -354,6 +354,17 @@ sudo systemctl enable --now grow-team-disk-alert.timer grow-team-go-cache-trim.t
 
 Rollback: `sudo systemctl disable --now grow-team-disk-alert.timer grow-team-go-cache-trim.timer`, lalu hapus keempat unit dan `disk-guard.sh`.
 
+### Log Zulip persisten
+
+`/var/log/zulip` di container `zulip` berada di named volume `zulip-logs`, sehingga log tetap ada saat container dibuat ulang oleh `deploy-server.sh`.
+Sebelumnya log hilang tiap deploy, termasuk log saat insiden.
+Menambah mount berarti container dibuat ulang. Salin dulu `compose.yaml` (`sudo install -m 0644 deploy/grow-team/compose.yaml /opt/grow-team/deploy/`; `deploy-server.sh` hanya mengubah `compose.override.yaml`), lalu jalankan `deploy-server.sh` atau `compose.sh up -d --no-deps --no-build --wait --wait-timeout 300 zulip`.
+
+- Deploy pertama setelah perubahan ini memulai volume kosong. Docker menyalin isi `/var/log/zulip` dari image (pemilik `zulip:zulip`, mode `0750`) ke volume baru; log lama di container sebelumnya tidak ikut pindah.
+- Baca log: `sudo /opt/grow-team/deploy/compose.sh exec -T zulip ls -la /var/log/zulip`.
+- Rotasi: image memasang `/etc/logrotate.d/zulip` dari puppet Zulip, tetapi belum diverifikasi bahwa container menjalankan logrotate secara berkala (supervisor tidak menjalankan cron). Satu minggu setelah deploy, periksa ukuran dengan `compose.sh exec -T zulip du -sh /var/log/zulip`; bila terus tumbuh tanpa file `.1`/`.gz`, tambahkan rotasi sebelum disk mencapai batas `grow-team-disk-alert`.
+- Rollback: kembalikan `compose.yaml` lama dan buat ulang container; volume `zulip-logs` dibiarkan (hapus manual dengan `docker volume rm` hanya bila sudah tidak diperlukan).
+
 ## Email Cloudflare
 
 Worker: `grow-team-email`, akun Prazze.

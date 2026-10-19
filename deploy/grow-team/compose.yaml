@@ -96,6 +96,7 @@ services:
       SETTING_REDIS_HOST: "redis"
     volumes:
       - "zulip:/data:rw"
+      - "zulip-logs:/var/log/zulip:rw"
     ulimits:
       nofile:
         soft: 1000000
@@ -107,6 +108,7 @@ services:
       - redis
 volumes:
   zulip:
+  zulip-logs:
   postgresql-14:
   rabbitmq:
   redis:

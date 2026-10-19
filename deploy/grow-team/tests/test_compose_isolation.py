@@ -6,7 +6,9 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 
+import yaml
 from typing_extensions import override
 
 SCRIPT = Path(__file__).parents[1] / "compose.sh"
@@ -66,3 +68,39 @@ raise SystemExit(37)
         self.assertEqual(captured["argv"][0], f"--host={DEDICATED_SOCKET}")
         self.assertEqual(captured["argv"][1:4], ["compose", "--project-name", "grow-team"])
         self.assertEqual(captured["argv"][-2:], ["config", "--quiet"])
+
+
+class ComposeLoader(yaml.SafeLoader):
+    """Read Compose files, whose merge tags (!reset, !override) are not plain YAML."""
+
+
+def keep_tagged_value(loader: yaml.SafeLoader, tag_suffix: str, node: yaml.Node) -> object:
+    if isinstance(node, yaml.ScalarNode):
+        return loader.construct_scalar(node)
+    if isinstance(node, yaml.SequenceNode):
+        return loader.construct_sequence(node, deep=True)
+    assert isinstance(node, yaml.MappingNode)
+    return loader.construct_mapping(node, deep=True)
+
+
+ComposeLoader.add_multi_constructor("!", keep_tagged_value)
+
+
+class ComposeVolumesTest(unittest.TestCase):
+    def load(self, name: str) -> dict[str, Any]:
+        loader = ComposeLoader((SCRIPT.parent / name).read_text())
+        try:
+            return loader.get_single_data()
+        finally:
+            loader.dispose()
+
+    def test_zulip_logs_live_on_a_named_volume_that_survives_recreation(self) -> None:
+        base = self.load("compose.yaml")
+        override = self.load("compose.override.yaml")
+
+        mounts = base["services"]["zulip"]["volumes"]
+        self.assertIn("zulip-logs:/var/log/zulip:rw", mounts)
+        self.assertIn("zulip-logs", base["volumes"])
+        override_mounts = override["services"]["zulip"].get("volumes", [])
+        # An override that remounts the path would shadow the named volume.
+        self.assertEqual([mount for mount in override_mounts if "/var/log/zulip" in mount], [])
