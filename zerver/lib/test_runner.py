@@ -12,9 +12,11 @@ import orjson
 from django.conf import settings
 from django.core.signals import setting_changed
 from django.db import ProgrammingError, connections
+from django.db.backends.base.base import BaseDatabaseWrapper
 from django.test import runner as django_runner
 from django.test.runner import DiscoverRunner
 from django.test.signals import template_rendered
+from psycopg2.sql import SQL, Identifier
 from typing_extensions import override
 
 from scripts.lib.zulip_tools import (
@@ -191,6 +193,24 @@ def create_test_databases(worker_id: int) -> None:
         # to the default database instead of the appropriate clone.
         connection.settings_dict.update(settings_dict)
         connection.close()
+        disable_autovacuum_on_agent_acl_tables(connection)
+        connection.close()
+
+
+def disable_autovacuum_on_agent_acl_tables(connection: BaseDatabaseWrapper) -> None:
+    """Keep autovacuum off the tables that agent_transaction() locks.
+
+    The lock is NOWAIT, and a vacuum or analyze of any of these tables holds
+    a mode that conflicts with it, so an agent write made while one ran failed
+    as AgentBusy. The tests roll back everything they write, so there is
+    nothing worth vacuuming in a test database."""
+    from zerver.lib.agent_context import ACL_TABLES
+
+    with connection.cursor() as cursor:
+        for table in ACL_TABLES:
+            cursor.execute(
+                SQL("ALTER TABLE {} SET (autovacuum_enabled = false)").format(Identifier(table))
+            )
 
 
 def init_worker(

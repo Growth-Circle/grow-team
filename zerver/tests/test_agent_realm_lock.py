@@ -22,7 +22,7 @@ from typing_extensions import override
 from zerver.actions.agent_jobs import create_job
 from zerver.actions.agents import create_profile, enable_profile, record_readiness
 from zerver.actions.tasks import do_create_task
-from zerver.lib.agent_context import AgentBusy, agent_realm, agent_transaction
+from zerver.lib.agent_context import ACL_TABLES, AgentBusy, agent_realm, agent_transaction
 from zerver.lib.agent_secrets import hash_agent_credential
 from zerver.lib.tasks import get_or_create_default_board, running_agent_job_count, work_counts
 from zerver.lib.test_classes import ZulipTestCase, ZulipTransactionTestCase
@@ -387,9 +387,7 @@ class AgentRealmLockTests(ZulipTransactionTestCase):
             # ZulipTransactionTestCase commits for real (needed above so
             # the locking thread's own connection sees these rows); undo
             # them here instead of leaving them for the next test.
-            _cleanup_ready_profile(
-                runner, profile, settings_existed=settings_existed, jobs=[job]
-            )
+            _cleanup_ready_profile(runner, profile, settings_existed=settings_existed, jobs=[job])
             Client.objects.exclude(id__in=clients_before).delete()
 
     def test_endpoint_decorator_locks_the_runners_own_realm(self) -> None:
@@ -677,3 +675,16 @@ class AgentBadgeCountTests(ZulipTestCase):
         )
 
         self.assertEqual(work_counts(self.owner)["task_board"], 1)
+
+
+class AgentAclTableAutovacuumTest(ZulipTestCase):
+    def test_the_test_database_does_not_vacuum_the_locked_tables(self) -> None:
+        """A vacuum of one of these tables makes the NOWAIT lock of
+        agent_transaction() fail, so an agent test failed at random."""
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT relname FROM pg_class WHERE relname = ANY(%s)"
+                " AND reloptions @> ARRAY['autovacuum_enabled=false']",
+                [list(ACL_TABLES)],
+            )
+            self.assertEqual({row[0] for row in cursor.fetchall()}, set(ACL_TABLES))
