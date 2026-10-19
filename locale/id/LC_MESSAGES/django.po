@@ -7873,6 +7873,9 @@ msgstr ""
 " jangan pernah me-mention semua orang di channel. Jangan membuat tugas, "
 "jangan memilih PIC, dan jangan membuka pull request."
 
+msgid "The push service refused the request."
+msgstr "Layanan push menolak permintaan ini."
+
 #~ msgid "Avatar"
 #~ msgstr "Avatar"
 
