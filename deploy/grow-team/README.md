@@ -405,6 +405,96 @@ Status `delivered` pada Cloudflare berarti server email penerima menerima pesan;
 Referensi: [Workers email API](https://developers.cloudflare.com/email-service/api/send-emails/workers-api/),
 [email logs](https://developers.cloudflare.com/email-service/observability/logs/).
 
+## Push ke HP
+
+Push ke HP memakai Zulip Mobile Push Notification Service (`https://push.zulipchat.com`).
+Google dan Apple tidak mengizinkan server sendiri mengirim push ke aplikasi Zulip secara langsung, jadi push lewat layanan itu.
+Gratis untuk server dengan paling banyak 10 pengguna. Di atas itu perlu paket Zulip, atau push berhenti dan tes di Pengaturan Notifikasi menampilkan alasannya.
+
+Tanpa push, anggota hanya mendapat notifikasi di tab Sanji yang terbuka, email, dan tab **Balasan** di Perlu kamu.
+
+### Setting
+
+| Setting | Nilai | Keterangan |
+| --- | --- | --- |
+| `SETTING_ZULIP_SERVICE_PUSH_NOTIFICATIONS` | `"True"` | Di `compose.override.yaml`. Mengaktifkan layanan. |
+| `SETTING_ZULIP_SERVICE_SUBMIT_USAGE_STATISTICS` | `"False"` | Tetap mati. Pendaftaran push hanya membagikan metadata dasar (hostname, email `SETTING_ZULIP_ADMINISTRATOR`, dan data dasar organisasi), bukan statistik pemakaian. |
+| Setting organisasi **Require end-to-end encryption** | aktif | Di **Organization settings > Notifications security** (`require_e2ee_push_notifications`). |
+
+`PUSH_NOTIFICATION_REDACT_CONTENT` dan `PUSH_NOTIFICATION_BOUNCER_URL` tidak dipakai di Zulip 12.x. Jangan menambahkannya.
+Isi pesan disembunyikan lewat enkripsi ujung ke ujung: server mengenkripsi setiap push per perangkat, dan Zulip, Apple, serta Google hanya melihat teks sandi.
+Setting organisasi di atas menghentikan push versi lama yang tidak terenkripsi, jadi HP hanya menerima push terenkripsi.
+Konsekuensinya, aplikasi Zulip di HP harus versi terbaru. Aplikasi lama tidak menerima push.
+
+`zulip_org_id` dan `zulip_org_key` dibuat container dan ditulis `register_server` ke volume `zulip`. Keduanya tidak boleh masuk Git, `compose.override.yaml`, atau `/etc/grow-team/zulip-settings.env`.
+`manage.py backup` (dipakai `backup.sh`) ikut menyimpan keduanya.
+
+### Jaringan
+
+Container `zulip` tidak punya batasan egress dari Compose. Semua request keluar Zulip, termasuk ke layanan push, lewat Smokescreen di dalam container, yang menolak alamat privat dan mengizinkan host publik.
+`push.zulipchat.com` adalah host publik di port 443, jadi tidak perlu rule tambahan. Firewall server harus mengizinkan HTTPS keluar.
+Cek dari server, sebelum mendaftar. Kode HTTP apa pun berarti tersambung; error koneksi atau `403` dari proxy berarti diblokir.
+
+```bash
+sudo /opt/grow-team/deploy/compose.sh exec -T zulip curl -sS -o /dev/null -w '%{http_code}\n' -x http://localhost:4750 https://push.zulipchat.com/api/v1/server_settings
+```
+
+Pengecekan ini belum dijalankan dari server produksi pada saat dokumen ini ditulis.
+
+### Mendaftar
+
+Jalankan sebagai administrator di server. Daftarkan server hanya setelah Rama menyetujui [Terms of Service Zulip](https://zulip.com/policies/terms) dan alamat kontak yang akan dibagikan.
+
+1. Buat backup dengan `sudo /opt/grow-team/deploy/backup.sh`.
+2. `deploy-server.sh` hanya mengubah image di `/opt/grow-team/deploy/compose.override.yaml`. Ubah setting push di salinan server dengan tangan: `sudo sed -i 's/^\(\s*SETTING_ZULIP_SERVICE_PUSH_NOTIFICATIONS:\).*/\1 "True"/' /opt/grow-team/deploy/compose.override.yaml`, lalu `sudo grep -n SERVICE_PUSH /opt/grow-team/deploy/compose.override.yaml`.
+3. `sudo /opt/grow-team/deploy/compose.sh config --quiet`, lalu `sudo /opt/grow-team/deploy/compose.sh up -d --no-deps --no-build --wait --wait-timeout 300 zulip`.
+4. Daftarkan server. Perintah ini menampilkan data yang dikirim dan meminta persetujuan ToS. Flag `--agree-to-terms-of-service` melewati pertanyaan itu; pakai hanya bila persetujuan sudah ada.
+
+   ```bash
+   sudo /opt/grow-team/deploy/compose.sh exec --user zulip zulip /home/zulip/deployments/current/manage.py register_server
+   ```
+
+5. Wajibkan enkripsi ujung ke ujung untuk organisasi. Lewat UI (**Organization settings > Notifications security**) atau dari server:
+
+   ```bash
+   sudo /opt/grow-team/deploy/compose.sh exec -T --user zulip zulip /home/zulip/deployments/current/manage.py shell -c 'from zerver.actions.realm_settings import do_set_realm_property; from zerver.models.realms import get_realm; do_set_realm_property(get_realm(""), "require_e2ee_push_notifications", True, acting_user=None)'
+   ```
+
+### Verifikasi
+
+1. Konfigurasi aktif: harus menampilkan `True` dan `push_notifications_enabled` bernilai `True` untuk organisasi.
+
+   ```bash
+   sudo /opt/grow-team/deploy/compose.sh exec -T --user zulip zulip /home/zulip/deployments/current/manage.py shell -c 'from zerver.lib.push_notifications import push_notifications_configured; from zerver.models import Realm; print(push_notifications_configured(), list(Realm.objects.values_list("string_id", "push_notifications_enabled", "require_e2ee_push_notifications")))'
+   ```
+
+2. Buka **Pengaturan > Notifikasi** di <https://team.growc.id> dan klik **Kirim notifikasi uji**. Baris **HP** harus menunjukkan **Berfungsi** setelah ada HP terdaftar. Sebelum itu baris ini menunjukkan penyebabnya: layanan push belum diatur, atau belum ada HP terdaftar.
+3. Di aplikasi Zulip, buka pengaturan notifikasi dan kirim notifikasi uji dari sana. Push seharusnya sampai dalam semenit.
+4. Log: `sudo /opt/grow-team/deploy/compose.sh exec -T zulip grep -iE 'push|bouncer' /var/log/zulip/errors.log | tail`. Tidak boleh ada error baru.
+
+Kalau layanan push tidak terjangkau, email notifikasi tetap berjalan: antrean email dan antrean push terpisah, dan kegagalan push dicatat di log lalu dicoba lagi tanpa menahan email.
+
+### Anggota memasang aplikasi
+
+1. Pasang aplikasi **Zulip** versi terbaru dari App Store atau Google Play.
+2. Buka aplikasi, masukkan alamat server `https://team.growc.id`, lalu masuk dengan email dan password yang sama dengan di web.
+3. Izinkan notifikasi saat HP bertanya.
+4. Anggota yang sudah memasang aplikasi lebih dulu harus keluar lalu masuk lagi supaya HP terdaftar.
+5. Di web, **Pengaturan > Notifikasi > Kirim notifikasi uji** harus menunjukkan **HP** berfungsi.
+
+Aplikasi Zulip tidak punya fitur khusus Sanji (papan tugas, Perlu kamu, agen). Fitur itu tetap di web.
+Topik yang diikuti memicu push lewat setting **Notification triggers > Followed topics**; aktifkan kolom **Mobile** di sana.
+
+### Rollback
+
+1. Matikan layanan: `sudo sed -i 's/^\(\s*SETTING_ZULIP_SERVICE_PUSH_NOTIFICATIONS:\).*/\1 "False"/' /opt/grow-team/deploy/compose.override.yaml`.
+2. Batalkan pendaftaran lebih dulu, selagi setting masih `True`: `sudo /opt/grow-team/deploy/compose.sh exec --user zulip zulip /home/zulip/deployments/current/manage.py register_server --deactivate`.
+3. Buat ulang container dengan perintah `up -d` di langkah Mendaftar nomor 3.
+4. Matikan **Require end-to-end encryption** bila tidak lagi dibutuhkan.
+
+Urutan 2 sebelum 3 penting: `register_server` menolak berjalan setelah setting dimatikan.
+Tidak ada data yang hilang. Chat, email, dan tab **Balasan** tetap berjalan.
+
 ## Monitor uptime eksternal
 
 Worker `grow-team-uptime` (`uptime-worker/`) berjalan di Cloudflare, jadi tetap hidup saat server-gteam mati atau reboot.

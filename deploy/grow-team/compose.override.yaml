@@ -31,7 +31,7 @@ services:
       SETTING_NOREPLY_EMAIL_ADDRESS: noreply@growc.id
       SETTING_ADD_TOKENS_TO_NOREPLY_ADDRESS: "False"
       SETTING_EMAIL_BACKEND: grow_team.cloudflare_email_backend.EmailBackend
-      SETTING_ZULIP_SERVICE_PUSH_NOTIFICATIONS: "False"
+      SETTING_ZULIP_SERVICE_PUSH_NOTIFICATIONS: "True"
       SETTING_ZULIP_SERVICE_SUBMIT_USAGE_STATISTICS: "False"
       CONFIG_application_server__queue_workers_multiprocess: "False"
       TRUST_GATEWAY_IP: "True"
