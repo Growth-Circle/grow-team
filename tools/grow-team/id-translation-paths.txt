@@ -51,3 +51,6 @@ zerver/lib/routine_access.py
 zerver/lib/routine_templates.py
 zerver/actions/routines.py
 zerver/views/routines.py
+web/src/notification_check*.ts
+web/templates/settings/notification_check*.hbs
+zerver/views/notification_check.py

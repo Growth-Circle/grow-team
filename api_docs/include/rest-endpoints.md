@@ -312,6 +312,7 @@
 * [Register E2EE push device to bouncer](/api/register-remote-push-device)
 * [Mobile notifications](/api/mobile-notifications)
 * [Send a test notification to mobile device(s)](/api/test-notify)
+* [Check the push notifications of the current user](/api/check-mobile-push)
 * [Add an APNs device token](/api/add-apns-token)
 * [Remove an APNs device token](/api/remove-apns-token)
 * [Add an FCM registration token](/api/add-fcm-token)

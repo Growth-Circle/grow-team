@@ -31,6 +31,7 @@ UNTESTED_GENERATED_CURL_EXAMPLES = {
     # generated curl example for the following three endpoints.
     "e2ee-test-notify",
     "test-notify",
+    "check-mobile-push",
     "register-remote-push-device",
     # Having a message for a specific user available to test this endpoint
     # is tricky for testing.

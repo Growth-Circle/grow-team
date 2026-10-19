@@ -1,1 +1,70 @@
-paths: {}
+paths:
+  /mobile_push/check:
+    post:
+      operationId: check-mobile-push
+      summary: Check the push notifications of the current user
+      tags: ["mobile"]
+      description: |
+        Say whether push notifications can reach the user's phones, and send a
+        test push to every registered device. A server that has no push
+        service, or a user with no registered device, gets no test push, and
+        the response says which. This is what the "Send a test notification"
+        button of the notification settings calls.
+
+        The user's devices are those that registered a push token with
+        [`POST /users/me/android_gcm_reg_id`](/api/add-fcm-token) or
+        [`POST /users/me/apns_device_token`](/api/add-apns-token), and those
+        registered for end-to-end encrypted (E2EE) push notifications.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-5db718).
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      push_service_configured:
+                        type: boolean
+                        description: |
+                          Whether the server is set up to send push
+                          notifications, as in the `realm_push_notifications_enabled`
+                          field of the `/register` response.
+                      device_count:
+                        type: integer
+                        minimum: 0
+                        description: |
+                          How many devices of the user a push could go to.
+                      sent:
+                        type: boolean
+                        description: |
+                          Whether a test push was sent to every one of them.
+                          Always `false` if `push_service_configured` is
+                          `false` or `device_count` is 0.
+                      error:
+                        type: string
+                        nullable: true
+                        description: |
+                          Why the test push could not be sent, as a message
+                          fit to show the user; `null` if it was sent or was
+                          not tried.
+                    required:
+                      - push_service_configured
+                      - device_count
+                      - sent
+                      - error
+              example:
+                {
+                  "result": "success",
+                  "msg": "",
+                  "push_service_configured": true,
+                  "device_count": 1,
+                  "sent": true,
+                  "error": null,
+                }
