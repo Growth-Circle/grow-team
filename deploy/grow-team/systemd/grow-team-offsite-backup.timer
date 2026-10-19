@@ -1,0 +1,11 @@
+[Unit]
+Description=Upload the daily Grow Team backup off the server
+
+[Timer]
+OnCalendar=*-*-* 22:00:00 UTC
+RandomizedDelaySec=300
+Persistent=yes
+Unit=grow-team-offsite-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -448,8 +448,8 @@ Ganti password melalui reset email setelah masuk.
 `grow-team-backup.timer` membuat backup harian sekitar 04.15–04.20 WIB.
 `backup.sh` menyimpan database, uploads, pengaturan Zulip, konfigurasi host, dan checksum.
 Arsip mengandung credentials; direktori backup memakai mode `0700`.
-Backup harian tersimpan di VPS. Salinan di luar VPS perlu dijadwalkan terpisah.
-Tidak ada penghapusan backup otomatis; periksa kapasitas disk secara berkala.
+Backup harian tersimpan di VPS dan, setelah `grow-team-offsite-backup.timer` aktif, juga di Cloudflare R2 (lihat bawah).
+Tidak ada penghapusan backup lokal otomatis; periksa kapasitas disk secara berkala.
 
 ```bash
 sudo /opt/grow-team/deploy/backup.sh
@@ -462,6 +462,59 @@ Uji pemulihan pada database atau server terpisah sebelum mengganti data aktif.
 Gunakan versi Zulip, PostgreSQL, dan image yang sama dengan backup.
 Ikuti [prosedur pemulihan Zulip](https://zulip.readthedocs.io/en/stable/production/export-and-import.html#restoring-backups).
 Perintah restore upstream mengganti database target; jangan arahkan ke database aktif tanpa keputusan pemulihan yang jelas.
+
+### Backup terenkripsi di luar server
+
+`grow-team-offsite-backup.timer` jalan tiap hari 05.00 WIB (22:00 UTC), setelah backup harian selesai.
+`offsite-backup.sh` mengambil direktori `*-zulip.*` terbaru yang sudah punya `SHA256SUMS`, memeriksa checksum-nya, men-tar lalu mengenkripsi dengan `age` ke public key `AGE_RECIPIENT`, dan mengunggahnya ke bucket R2 lewat `rclone` (prefix `zulip/`).
+Setelah unggah, ukuran dan MD5 di R2 dibandingkan dengan salinan lokal (bila R2 tidak melaporkan MD5 untuk unggahan multipart, hanya ukuran yang diperiksa).
+File `<nama>.tar.age.sha256` ikut diunggah sebagai pembanding saat restore.
+Hanya 14 salinan terbaru yang disimpan; pemangkasan baru berjalan setelah unggahan terverifikasi.
+Backup lokal tidak pernah diubah atau dihapus oleh skrip ini.
+
+Skrip keluar dengan kode 1 dan pesan `offsite-backup: ...` di journal bila konfigurasi atau tool (`age`, `rclone`) tidak ada, mode file env bukan `0600`, enkripsi atau unggahan gagal, atau verifikasi tidak cocok.
+Kegagalan belum mengirim notifikasi sendiri; cek `systemctl list-timers grow-team-offsite-backup.timer` dan `journalctl -u grow-team-offsite-backup.service -n 50`.
+
+**Persiapan oleh Ari (sekali saja):**
+
+1. Cloudflare Dashboard, R2: buat bucket (mis. `grow-team-backups`). Biarkan privat.
+2. R2, Manage API tokens: buat token **Object Read & Write** yang dibatasi ke bucket itu. Catat Access Key ID, Secret Access Key, dan endpoint `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`.
+3. Di laptop (bukan server): `age-keygen -o grow-team-backup.agekey`. Baris `# public key: age1...` adalah `AGE_RECIPIENT`. File `.agekey` (private key) simpan di password manager atau tempat aman lain; tanpa file ini backup tidak bisa dibuka, dan jangan pernah menaruhnya di server.
+4. Di server, sebagai administrator:
+
+```bash
+sudo apt-get install -y age rclone
+sudo install -m 0755 deploy/grow-team/offsite-backup.sh /opt/grow-team/deploy/
+sudo install -m 0600 -o root -g root deploy/grow-team/offsite-backup.env.example /etc/grow-team/offsite-backup.env
+sudo nano /etc/grow-team/offsite-backup.env   # isi kelima nilai
+sudo install -m 0644 deploy/grow-team/systemd/grow-team-offsite-backup.* /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl start grow-team-offsite-backup.service   # uji sekali dengan tangan
+sudo journalctl -u grow-team-offsite-backup.service -n 20
+sudo systemctl enable --now grow-team-offsite-backup.timer
+```
+
+Jangan aktifkan timer sebelum uji manual berhasil. Bila `age`/`rclone` tidak ada di paket distro, pasang dari rilis resmi masing-masing; skrip hanya membutuhkan keduanya ada di `PATH`.
+
+**Restore dari R2** (di mesin yang memegang private key, bukan server aktif):
+
+```bash
+export RCLONE_CONFIG_R2_TYPE=s3 RCLONE_CONFIG_R2_PROVIDER=Cloudflare RCLONE_CONFIG_R2_REGION=auto RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true
+export RCLONE_CONFIG_R2_ENDPOINT=<endpoint> RCLONE_CONFIG_R2_ACCESS_KEY_ID=<id> RCLONE_CONFIG_R2_SECRET_ACCESS_KEY=<secret>
+rclone lsf r2:<bucket>/zulip/ --files-only            # pilih salinan
+rclone copy r2:<bucket>/zulip/<nama>.tar.age .
+rclone copy r2:<bucket>/zulip/<nama>.tar.age.sha256 .
+sha256sum --check <nama>.tar.age.sha256                # file .age tidak rusak
+age -d -i grow-team-backup.agekey <nama>.tar.age | tar -x
+cd <nama> && sha256sum --check SHA256SUMS              # isi backup utuh
+```
+
+Hasilnya direktori backup biasa (`zulip.tar.gz`, `operations.tar.gz`, `SHA256SUMS`); lanjutkan dengan prosedur pemulihan Zulip di atas.
+Dashboard R2 juga bisa dipakai untuk mengunduh file.
+
+Rollback: `sudo systemctl disable --now grow-team-offsite-backup.timer`, hapus kedua unit, `offsite-backup.sh`, dan `/etc/grow-team/offsite-backup.env`; cabut token R2 dari dashboard. Salinan yang sudah ada di bucket dibiarkan atau dihapus manual.
+
+### Arsip Buzz
 
 Arsip Buzz sebelum migrasi berada di `/var/backups/grow-team/20260921T114027Z-buzz-retired`.
 Arsip itu mencakup dump PostgreSQL, volume, konfigurasi, dan unit sebelumnya.

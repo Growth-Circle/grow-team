@@ -1,0 +1,14 @@
+[Unit]
+Description=Grow Team encrypted off-host backup to Cloudflare R2
+Requisite=grow-team.service
+After=grow-team.service grow-team-backup.service
+
+[Service]
+Type=oneshot
+Slice=grow-team.slice
+Nice=15
+CPUWeight=10
+IOSchedulingClass=idle
+UMask=0077
+ExecStart=/opt/grow-team/deploy/offsite-backup.sh
+TimeoutStartSec=3600
