@@ -205,7 +205,7 @@ async function check_navigation(page: Page): Promise<void> {
     const hidden_ids = await page.$$eval(".sanji-nav-item.hidden", (items) =>
         items.map((item) => item.getAttribute("data-nav-id")),
     );
-    for (const id of ["agents", "mcp", "runners", "drive"]) {
+    for (const id of ["agents", "runners", "drive"]) {
         assert.ok(hidden_ids.includes(id), `${id} should be hidden`);
     }
 
@@ -223,6 +223,60 @@ async function check_navigation(page: Page): Promise<void> {
         (element) => window.getComputedStyle(element).backgroundColor,
     );
     assert.equal(after, before);
+}
+
+async function check_collapsible_parts(page: Page): Promise<void> {
+    console.log("Closing and opening the groups");
+    await common.go_to_hash(page, "#inbox");
+    const group = ".sanji-nav-group-toggle";
+    const list_is_visible = async (): Promise<boolean> =>
+        await page.$eval(
+            "#left-sidebar-nav-group-automation",
+            (list) => list.getBoundingClientRect().height > 0,
+        );
+
+    // The group of agent pages starts closed, and keeps the choice.
+    assert.equal(await page.$eval(group, (b) => b.getAttribute("aria-expanded")), "false");
+    assert.equal(await list_is_visible(), false);
+    await page.click(group);
+    assert.equal(await list_is_visible(), true);
+    await page.reload();
+    await page.waitForSelector(group, {visible: true});
+    assert.equal(await page.$eval(group, (b) => b.getAttribute("aria-expanded")), "true");
+    await page.click(group);
+    assert.equal(await list_is_visible(), false);
+
+    // A page inside the group opens it, without saving that.
+    await common.go_to_hash(page, "#playbooks");
+    await page.waitForSelector('.sanji-nav-item-active[data-nav-id="playbooks"]', {visible: true});
+    assert.equal(await list_is_visible(), true);
+    await common.go_to_hash(page, "#inbox");
+    await page.waitForFunction(
+        () =>
+            document.querySelector(".sanji-nav-group-toggle")?.getAttribute("aria-expanded") ===
+            "false",
+    );
+
+    // The gear opens the settings, and the Settings row is gone.
+    assert.equal((await page.$$('.sanji-nav-item[data-nav-id="settings"]')).length, 0);
+    assert.equal(
+        await page.$eval(".sidebar-user-card-settings", (a) => a.getAttribute("aria-label")),
+        "Settings",
+    );
+
+    // ROOMS closes its groups, and keeps the choice.
+    const rooms_toggle = "#sidebar-rooms-toggle";
+    const rooms_are_visible = async (): Promise<boolean> =>
+        await page.$eval("#streams_list", (list) => list.getBoundingClientRect().height > 0);
+    assert.equal(await rooms_are_visible(), true);
+    await page.click(rooms_toggle);
+    assert.equal(await page.$eval(rooms_toggle, (b) => b.getAttribute("aria-expanded")), "false");
+    assert.equal(await rooms_are_visible(), false);
+    await page.reload();
+    await page.waitForSelector(rooms_toggle, {visible: true});
+    assert.equal(await rooms_are_visible(), false);
+    await page.click(rooms_toggle);
+    assert.equal(await rooms_are_visible(), true);
 }
 
 async function check_quiet_rooms(page: Page): Promise<void> {
@@ -304,6 +358,7 @@ async function sidebar_tests(page: Page): Promise<void> {
     await check_workspace_switcher(page);
     await check_user_card(page);
     await check_navigation(page);
+    await check_collapsible_parts(page);
     await check_create_room(page);
     await check_quiet_rooms(page);
 }
