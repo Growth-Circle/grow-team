@@ -27,6 +27,7 @@ paths:
                         description: The canonical MCP endpoint.
                       connections:
                         type: array
+                        description: "Your active connections and up to 100 recent ones."
                         items:
                           type: object
                           additionalProperties: false
@@ -44,10 +45,21 @@ paths:
                               expired,
                             ]
                           properties:
-                            id: {type: string}
-                            name: {type: string}
-                            method: {type: string, enum: [oauth, token]}
-                            scopes: {type: array, items: {type: string}}
+                            id:
+                              {type: string, description: "The connection ID."}
+                            name:
+                              {
+                                type: string,
+                                description: "The name of the connection.",
+                              }
+                            method:
+                              type: string
+                              enum: [oauth, token]
+                              description: "`oauth` for a connection made by signing in, `token` for a personal token."
+                            scopes:
+                              type: array
+                              items: {type: string}
+                              description: "What the connection may do. `team:read` always, and `team:write` when it may also change things."
                             policy_mode:
                               type: string
                               enum: [managed, legacy]
@@ -58,11 +70,22 @@ paths:
                                 connection is `managed`.
 
                                 **Changes**: New in Zulip 12.0 (feature level ZF-49a7c5).
-                            created_at: {type: string}
-                            expires_at: {type: string}
-                            last_used_at: {type: string, nullable: true}
-                            revoked: {type: boolean}
-                            expired: {type: boolean}
+                            created_at:
+                              type: string
+                              description: "When the connection was made, as an ISO 8601 timestamp."
+                            expires_at:
+                              type: string
+                              description: "When the connection stops working, as an ISO 8601 timestamp."
+                            last_used_at:
+                              type: string
+                              nullable: true
+                              description: "When a call last used the connection, or `null` if none has."
+                            revoked:
+                              type: boolean
+                              description: "Whether you revoked the connection."
+                            expired:
+                              type: boolean
+                              description: "Whether the connection has passed its `expires_at`."
               example:
                 result: success
                 msg: ""
@@ -112,9 +135,17 @@ paths:
                       result: {}
                       msg: {}
                       ignored_parameters_unsupported: {}
-                      id: {type: string}
-                      token: {type: string}
-                      expires_at: {type: string}
+                      id:
+                        {
+                          type: string,
+                          description: "The ID of the new connection.",
+                        }
+                      token:
+                        type: string
+                        description: "The token. It is shown once and cannot be read again."
+                      expires_at:
+                        type: string
+                        description: "When the token expires, 90 days after creation, as an ISO 8601 timestamp."
               example:
                 result: success
                 msg: ""
@@ -302,9 +333,12 @@ paths:
                       result: {}
                       msg: {}
                       ignored_parameters_unsupported: {}
-                      has_more: {type: boolean}
+                      has_more:
+                        type: boolean
+                        description: "Whether older entries exist. Pass the last `id` as `before` to read them."
                       entries:
                         type: array
+                        description: "The entries, newest first."
                         items:
                           type: object
                           additionalProperties: false
@@ -321,8 +355,15 @@ paths:
                               policy,
                             ]
                           properties:
-                            id: {type: integer}
-                            created_at: {type: string, format: date-time}
+                            id:
+                              {
+                                type: integer,
+                                description: "The ID of the entry.",
+                              }
+                            created_at:
+                              type: string
+                              format: date-time
+                              description: "When it happened."
                             connection:
                               {
                                 type: string,
@@ -333,9 +374,17 @@ paths:
                                 type: string,
                                 description: The owner's full name.,
                               }
-                            tool: {type: string}
-                            outcome: {type: string}
-                            digest: {type: string}
+                            tool:
+                              {
+                                type: string,
+                                description: "The tool the call used, or `token.revoke` when you revoked a connection.",
+                              }
+                            outcome:
+                              type: string
+                              description: "What happened to the call, such as `success`, `rejected`, `blocked`, `asked`, `executed`, `rate_limited` or `policy_changed`."
+                            digest:
+                              type: string
+                              description: "The first 12 characters of a hash of the call arguments. Empty when the entry is not about a call with arguments."
                             actor:
                               type: string
                               nullable: true
@@ -421,11 +470,14 @@ paths:
                       result: {}
                       msg: {}
                       ignored_parameters_unsupported: {}
-                      id: {type: string}
+                      id: {type: string, description: "The ID of the call."}
                       status:
                         type: string
                         enum: [executed, failed, rejected]
-                      digest: {type: string}
+                        description: "What became of the call. `executed` when it ran, `failed` when it ran and failed, `rejected` when you declined it."
+                      digest:
+                        type: string
+                        description: "The first 12 characters of a hash of the call arguments."
               example:
                 result: success
                 msg: ""
@@ -445,29 +497,36 @@ components:
         grant:
           type: object
           additionalProperties: false
+          description: "The connection these tools belong to."
           required: [id, name, policy_mode]
           properties:
-            id: {type: string}
-            name: {type: string}
-            policy_mode: {type: string, enum: [managed, legacy]}
+            id: {type: string, description: "The connection ID."}
+            name: {type: string, description: "The name of the connection."}
+            policy_mode:
+              type: string
+              enum: [managed, legacy]
+              description: "`legacy` for a connection made before per-tool policies, `managed` otherwise."
         enforced:
           type: boolean
           description: Whether the workspace applies these policies to this connection now.
         tools:
           type: array
+          description: "The tools the connection can use, with the policy each has now."
           items:
             type: object
             additionalProperties: false
             required: [name, description, kind, policy, default_policy]
             properties:
-              name: {type: string}
+              name: {type: string, description: "The name of the tool."}
               description: {type: string, description: Plain text.}
               kind:
                 type: string
                 enum: [read, write, destructive]
+                description: "What the tool does to the workspace. A `read` tool cannot be set to `approve`."
               policy:
                 type: string
                 enum: [allow, approve, block]
+                description: "What happens when the connection calls the tool. `allow` runs it, `approve` waits for you, `block` refuses it."
               default_policy:
                 type: string
                 enum: [allow, approve, block]

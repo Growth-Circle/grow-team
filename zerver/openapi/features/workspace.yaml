@@ -547,24 +547,34 @@ components:
       properties:
         drive:
           type: boolean
+          description: Whether the server is set up to connect Google Drive.
         calendar:
           type: boolean
+          description: Whether the server is set up to connect Google Calendar.
         github:
           type: boolean
+          description: Whether the server is set up as a GitHub app.
         whatsapp:
           type: boolean
+          description: Whether the server is set up to send and receive WhatsApp messages.
         fathom:
           type: boolean
+          description: Whether this workspace has an active Fathom bot to record and summarize meetings.
         fathom_join:
           type: boolean
+          description: Whether the server can send the Fathom bot into a meeting on request.
         openrouter:
           type: boolean
+          description: Whether the server holds the OpenRouter key needed to manage model usage.
         web_push:
           type: boolean
+          description: Whether the server is set up to send Web Push notifications.
         cloud_runner:
           type: boolean
+          description: Whether the server has a cloud runner provider for agent jobs.
         docker_runner_image:
           type: boolean
+          description: Whether the server has a Docker image for agent runners.
         vapid_public_key:
           type: string
           description: The public key a client needs to create a Web Push subscription, or an empty string when Web Push is not configured.
@@ -801,11 +811,14 @@ components:
             kind:
               type: string
               enum: [human, agent]
+              description: |
+                `agent` when the actor is a bot user, `human` otherwise.
             id:
               type: integer
               description: The user's ID (the agent's own bot user, for an agent actor).
             name:
               type: string
+              description: The actor's full name.
           required: [kind, id, name]
         parameter:
           type: object
@@ -823,6 +836,7 @@ components:
             ignored_parameters_unsupported: {}
             events:
               type: array
+              description: The events of this page, newest first.
               items:
                 $ref: "#/components/schemas/WorkspaceAuditEvent"
           required: [events]
@@ -865,6 +879,7 @@ components:
             ignored_parameters_unsupported: {}
             workspaces:
               type: array
+              description: The workspaces the requester belongs to.
               items:
                 $ref: "#/components/schemas/WorkspaceListEntry"
           required: [workspaces]

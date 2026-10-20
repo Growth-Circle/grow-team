@@ -26,6 +26,7 @@ from zerver.openapi.openapi import (
     SchemaError,
     find_openapi_endpoint,
     generate_openapi_fixture,
+    get_fragment_paths,
     get_openapi_fixture,
     get_openapi_parameters,
     get_openapi_paths,
@@ -1210,6 +1211,71 @@ class OpenAPIAttributesTest(ZulipTestCase):
                             assert validate_against_openapi_schema(
                                 examples[example]["value"], path, method, status_code
                             )
+
+    def test_fragment_response_fields_have_descriptions(self) -> None:
+        """
+        Every field of a response documented in zerver/openapi/features/
+        needs a `description`, since the API doc page lists it and a
+        reader cannot learn what it means from its name and type.
+        """
+        # These schemas are generated from pydantic models, which document
+        # most fields by type only. Describing hundreds of generated fields
+        # by hand would drift from the models, so they are exempt.
+        generated_from_pydantic = {"agent_devices.yaml", "agent_jobs.yaml", "agent_profiles.yaml"}
+        components: dict[str, Any] = {}
+        responses: list[tuple[str, str, Any]] = []
+        for fragment_path in get_fragment_paths(OPENAPI_SPEC_PATH):
+            name = os.path.basename(fragment_path)
+            if name in generated_from_pydantic:
+                continue
+            with open(fragment_path) as f:
+                fragment = yaml.safe_load(f)
+            components.update(fragment.get("components", {}).get("schemas", {}))
+            for path, path_item in fragment.get("paths", {}).items():
+                for method, operation in path_item.items():
+                    for status_code, response in operation["responses"].items():
+                        schema = (
+                            response.get("content", {}).get("application/json", {}).get("schema")
+                        )
+                        if schema is not None:
+                            responses.append((f"{method} {path} {status_code}", name, schema))
+
+        missing: list[str] = []
+
+        def check(node: object, where: str, seen: set[str]) -> None:
+            if isinstance(node, list):
+                for item in node:
+                    check(item, where, seen)
+            elif isinstance(node, dict):
+                ref = node.get("$ref")
+                if ref is not None:
+                    # Schemas of the core spec, such as JsonSuccessBase, are
+                    # not in the fragments and are described there.
+                    schema_name = ref.rsplit("/", 1)[-1]
+                    if schema_name in components and schema_name not in seen:
+                        check(components[schema_name], where, seen | {schema_name})
+                    return
+                for key, value in node.items():
+                    if key in ("example", "examples"):
+                        continue
+                    if key != "properties":
+                        check(value, where, seen)
+                        continue
+                    for field, field_schema in value.items():
+                        # `field: {}` only narrows a field that an allOf
+                        # branch already defines and describes, and a field
+                        # that is a $ref or an allOf takes its description
+                        # from there.
+                        inherits = (
+                            not field_schema or "$ref" in field_schema or "allOf" in field_schema
+                        )
+                        if not inherits and "description" not in field_schema:
+                            missing.append(f"{where}: {field}")
+                        check(field_schema, where, seen)
+
+        for where, _name, schema in responses:
+            check(schema, where, set())
+        assert not missing, "Response fields without a description:\n" + "\n".join(missing)
 
 
 class OpenAPIRegexTest(ZulipTestCase):

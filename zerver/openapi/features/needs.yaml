@@ -1180,10 +1180,12 @@ components:
           type: string
           enum:
             - success
+          description: Always `success` for a response that is not an error.
         msg:
           type: string
           enum:
             - ""
+          description: Always empty for a response that is not an error.
         schema_version:
           type: integer
           enum:
@@ -1226,10 +1228,12 @@ components:
           type: string
           enum:
             - success
+          description: Always `success` for a response that is not an error.
         msg:
           type: string
           enum:
             - ""
+          description: Always empty for a response that is not an error.
         schema_version:
           type: integer
           enum:
@@ -1247,10 +1251,12 @@ components:
           type: string
           enum:
             - success
+          description: Always `success` for a response that is not an error.
         msg:
           type: string
           enum:
             - ""
+          description: Always empty for a response that is not an error.
         schema_version:
           type: integer
           enum:
@@ -1283,10 +1289,12 @@ components:
           type: string
           enum:
             - success
+          description: Always `success` for a response that is not an error.
         msg:
           type: string
           enum:
             - ""
+          description: Always empty for a response that is not an error.
         schema_version:
           type: integer
           enum:

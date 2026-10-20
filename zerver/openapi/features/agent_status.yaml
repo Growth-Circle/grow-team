@@ -154,6 +154,9 @@ components:
             - job
             - approval
             - decision
+          description: |
+            What the item is. A `job` is work the agent is doing, an `approval`
+            asks you to allow something, and a `decision` asks you a question.
         title:
           type: string
           description: The first line of the request, or the question of a decision.
@@ -185,6 +188,7 @@ components:
           type: string
           nullable: true
           format: uuid
+          description: The ID of the job the item is about. `null` if it has none.
         message_id:
           type: integer
           nullable: true
@@ -192,9 +196,11 @@ components:
         stream_id:
           type: integer
           nullable: true
+          description: The ID of the channel the item is in. `null` when it is not in a channel.
         topic:
           type: string
           nullable: true
+          description: The topic the item is in. `null` when it is not in a topic.
       required:
         - id
         - kind
@@ -215,14 +221,17 @@ components:
           type: string
           enum:
             - success
+          description: Always `success` for a response that is not an error.
         msg:
           type: string
           enum:
             - ""
+          description: Always empty for a response that is not an error.
         schema_version:
           type: integer
           enum:
             - 1
+          description: The version of the response format. Always `1`.
         in_progress:
           type: array
           items:
