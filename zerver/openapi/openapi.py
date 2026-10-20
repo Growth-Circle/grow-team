@@ -508,7 +508,11 @@ def get_openapi_parameters(
 
 def get_openapi_return_values(endpoint: str, method: str) -> dict[str, Any]:
     operation = openapi_spec.openapi()["paths"][endpoint][method.lower()]
-    schema = operation["responses"]["200"]["content"]["application/json"]["schema"]
+    content = operation["responses"]["200"].get("content", {})
+    if "application/json" not in content:
+        # File downloads (e.g. CSV exports) have no JSON object to describe.
+        return {}
+    schema = content["application/json"]["schema"]
     # We do not currently have documented endpoints that have multiple schemas
     # ("oneOf", "anyOf", "allOf") for success ("200") responses. If this changes,
     # then the assertion below will need to be removed, and this function updated

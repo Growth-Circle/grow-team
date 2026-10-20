@@ -109,6 +109,19 @@ class APIReturnValuesTablePreprocessor(Preprocessor):
         self, description: str, spacing: int, data_type: str, return_value: str | None = None
     ) -> str:
         description = description.replace("\n", "\n" + ((spacing + 4) * " "))
+        if not description:
+            # Fields of the Sanji agent APIs that are documented by type only.
+            if return_value is None:
+                return (spacing * " ") + "* " + data_type
+            return (
+                (spacing * " ")
+                + "* `"
+                + return_value
+                + "`: "
+                + '<span class="api-field-type">'
+                + data_type
+                + "</span>"
+            )
         if return_value is None:
             # HACK: It's not clear how to use OpenAPI data to identify
             # the `key` fields for objects where e.g. the keys are
@@ -203,21 +216,23 @@ class APIReturnValuesTablePreprocessor(Preprocessor):
                 # right below is the main description.
                 data_type = generate_data_type(schema)
                 ans.append(
-                    self.render_desc(schema["description"], spacing, data_type, return_value)
+                    self.render_desc(
+                        schema.get("description", ""), spacing, data_type, return_value
+                    )
                 )
                 ans += self.render_oneof_block(schema, spacing + 4)
                 continue
-            description = schema["description"]
+            description = schema.get("description", "")
             data_type = generate_data_type(schema)
             check_deprecated_consistency(schema.get("deprecated", False), description)
             ans.append(self.render_desc(description, spacing, data_type, return_value))
             if "properties" in schema:
                 ans += self.render_table(schema["properties"], spacing + 4)
-            if schema.get("additionalProperties", False):
+            if isinstance(schema.get("additionalProperties"), dict):
                 data_type = generate_data_type(schema["additionalProperties"])
                 ans.append(
                     self.render_desc(
-                        schema["additionalProperties"]["description"],
+                        schema["additionalProperties"].get("description", ""),
                         spacing + 4,
                         data_type,
                     )

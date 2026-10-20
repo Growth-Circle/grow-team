@@ -305,8 +305,16 @@ def makeExtension(*args: Any, **kwargs: str) -> MarkdownArgumentsTableGenerator:
 
 def generate_data_type(schema: Mapping[str, Any]) -> str:
     data_type = ""
-    if "oneOf" in schema:
-        data_type = " | ".join(generate_data_type(item) for item in schema["oneOf"])
+    # A branch that only adds constraints (e.g. `required`) to its parent
+    # object has no type of its own to contribute.
+    typed_branches = [
+        branch
+        for keyword in ("oneOf", "anyOf")
+        for branch in schema.get(keyword, [])
+        if {"type", "items", "oneOf", "anyOf"} & branch.keys()
+    ]
+    if typed_branches:
+        data_type = " | ".join(generate_data_type(branch) for branch in typed_branches)
     elif "items" in schema:
         data_type = "(" + generate_data_type(schema["items"]) + ")[]"
     else:

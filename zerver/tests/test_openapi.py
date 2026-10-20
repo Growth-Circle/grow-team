@@ -3,12 +3,15 @@ from collections.abc import Callable, Mapping
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import markdown
 import yaml
 from django.http import HttpResponse
 from django.urls import URLPattern
 from django.utils import regex_helper
 from pydantic import TypeAdapter
 
+from zerver.lib.markdown.api_arguments_table_generator import generate_data_type
+from zerver.lib.markdown.api_return_values_table_generator import APIReturnValuesTablePreprocessor
 from zerver.lib.request import arguments_map
 from zerver.lib.rest import rest_dispatch
 from zerver.lib.test_classes import ZulipTestCase
@@ -25,6 +28,7 @@ from zerver.openapi.openapi import (
     get_openapi_fixture,
     get_openapi_parameters,
     get_openapi_paths,
+    get_openapi_return_values,
     openapi_spec,
     validate_against_openapi_schema,
     validate_request,
@@ -697,6 +701,46 @@ so maybe we shouldn't include it in pending_endpoints.
                     self.check_openapi_arguments_for_view(p, function_name, function, method, tags)
 
         self.check_for_non_existent_openapi_endpoints()
+
+
+class ReturnValuesTableTest(ZulipTestCase):
+    def render_table(self, return_values: dict[str, Any]) -> list[str]:
+        return APIReturnValuesTablePreprocessor(markdown.Markdown(), {}).render_table(
+            return_values, 0
+        )
+
+    def test_generate_data_type_with_any_of(self) -> None:
+        schema = {"anyOf": [{"type": "object"}, {"type": "null"}]}
+        self.assertEqual(generate_data_type(schema), "object | null")
+
+    def test_generate_data_type_skips_constraint_only_branches(self) -> None:
+        schema = {"type": "object", "oneOf": [{"required": ["a"]}, {"required": ["b"]}]}
+        self.assertEqual(generate_data_type(schema), "object")
+
+    def test_render_table_field_without_description(self) -> None:
+        lines = self.render_table({"count": {"type": "integer"}})
+        self.assertEqual(lines, ['* `count`: <span class="api-field-type">integer</span>'])
+
+    def test_render_table_with_open_additional_properties(self) -> None:
+        lines = self.render_table(
+            {
+                "capabilities": {
+                    "type": "object",
+                    "description": "What the runner can do.",
+                    "additionalProperties": True,
+                }
+            }
+        )
+        self.assertEqual(
+            lines,
+            [
+                '* `capabilities`: <span class="api-field-type">object</span>\n\n'
+                "    What the runner can do."
+            ],
+        )
+
+    def test_return_values_of_file_download_are_empty(self) -> None:
+        self.assertEqual(get_openapi_return_values("/realm/audit.csv", "get"), {})
 
 
 class TestCurlExampleGeneration(ZulipTestCase):
