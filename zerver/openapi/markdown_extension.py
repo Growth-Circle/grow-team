@@ -270,12 +270,26 @@ INSECURE_OPERATIONS = [
     "/fetch_api_key:post",
     "/jwt/fetch_api_key:post",
     "/dev_list_users:get",
+    "/agent/pairings:post",
+    "/agent/pairings/status:post",
+    "/agent/pairings/exchange:post",
+    "/agent/runner/token/refresh:post",
 ]
+
+# Agent runner device endpoints reject Basic authentication and take the
+# runner credential as a bearer token instead.
+AGENT_RUNNER_BEARER_SECURITY: list[dict[str, list[str]]] = [{"AgentRunnerBearer": []}]
+AGENT_RUNNER_BEARER_PLACEHOLDER = "RUNNER_ACCESS_TOKEN"
+
+
+def uses_agent_runner_bearer(endpoint: str, method: str) -> bool:
+    operation_entry = openapi_spec.openapi()["paths"][endpoint][method.lower()]
+    return operation_entry.get("security") == AGENT_RUNNER_BEARER_SECURITY
 
 
 def add_curl_auth_credentials_note(endpoint: str, method: str) -> bool:
     operation = endpoint + ":" + method.lower()
-    return operation not in INSECURE_OPERATIONS
+    return operation not in INSECURE_OPERATIONS and not uses_agent_runner_bearer(endpoint, method)
 
 
 def generate_curl_example(
@@ -328,6 +342,11 @@ def generate_curl_example(
             raise AssertionError(
                 "Unknown operation without a securityScheme. Please update insecure_operations."
             )
+    elif operation_security == AGENT_RUNNER_BEARER_SECURITY:
+        authentication_required = False
+        lines.append(
+            "    -H " + shlex.quote(f"Authorization: Bearer {AGENT_RUNNER_BEARER_PLACEHOLDER}")
+        )
     else:
         raise AssertionError(
             "Unhandled securityScheme. Please update the code to handle this scheme."

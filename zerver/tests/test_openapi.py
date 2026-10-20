@@ -878,6 +878,30 @@ class TestCurlExampleGeneration(ZulipTestCase):
         ]
         self.assertEqual(generated_curl_example, expected_curl_example)
 
+    def test_generate_and_render_curl_with_runner_bearer_auth(self) -> None:
+        generated_curl_example = self.curl_example("/agent/runner/heartbeat", "POST")
+        expected_curl_example = [
+            "```curl",
+            "curl -sSX POST http://localhost:9991/api/v1/agent/runner/heartbeat \\",
+            "    -H 'Authorization: Bearer RUNNER_ACCESS_TOKEN'",
+            "```",
+        ]
+        self.assertEqual(generated_curl_example, expected_curl_example)
+
+        rendered_curl_example = render_curl_example(
+            "/agent/runner/heartbeat:post", "http://localhost:9991/api"
+        )
+        self.assertNotIn("{!curl-auth-credentials.md!}\n\n", rendered_curl_example)
+
+    def test_generate_and_render_curl_for_unauthenticated_pairing(self) -> None:
+        generated_curl_example = self.curl_example("/agent/pairings/status", "POST")
+        expected_curl_example = [
+            "```curl",
+            "curl -sSX POST http://localhost:9991/api/v1/agent/pairings/status",
+            "```",
+        ]
+        self.assertEqual(generated_curl_example, expected_curl_example)
+
     @patch("zerver.openapi.openapi.OpenAPISpec.openapi")
     def test_generate_and_render_curl_with_default_examples(self, spec_mock: MagicMock) -> None:
         spec_mock.return_value = self.spec_mock_without_examples
