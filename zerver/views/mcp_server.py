@@ -15,7 +15,13 @@ from zerver.lib.exceptions import JsonableError
 from zerver.lib.mcp_access import VERSIONS, audit, digest, resource_url, valid_grant
 from zerver.lib.mcp_pending import argument_digest, call_result, request_approval
 from zerver.lib.mcp_policy import evaluate, policy_enforced, stored_policies
-from zerver.lib.mcp_tools import TOOLS, ToolInputError, execute_tool, tool_list
+from zerver.lib.mcp_tools import (
+    TOOLS,
+    ReadOnlyConnectionError,
+    ToolInputError,
+    execute_tool,
+    tool_list,
+)
 from zerver.lib.rate_limiter import (
     rate_limit_mcp_grant_write,
     rate_limit_request_by_ip,
@@ -196,10 +202,12 @@ def mcp(request: HttpRequest) -> HttpResponse:
                         ),
                     )
         outcome = "rejected"
+        # A short code saying why, never the message or anything it names.
+        reason = ""
         call_digest = ""
         try:
             if write and "team:write" not in grant.scopes:
-                raise ValueError("This connection has read access only.")
+                raise ReadOnlyConnectionError("This connection has read access only.")
             args = model.model_validate(arguments).model_dump()
             call_digest = argument_digest(name, args)
             if decision == "ask":
@@ -211,16 +219,29 @@ def mcp(request: HttpRequest) -> HttpResponse:
             }
             outcome = "success"
         except ToolInputError as error:
+            reason = error.reason
             result = _tool_error(str(error))
         except ValidationError as error:
+            reason = "validation"
             problems = error.errors(include_input=False, include_url=False)
             result = _tool_error(
                 "Invalid arguments: "
                 + "; ".join(f"{'.'.join(map(str, p['loc']))}: {p['msg']}" for p in problems)
             )
-        except (JsonableError, ValueError):
-            result = _tool_error("The tool request is invalid or your account lacks permission.")
-        audit(grant, name, outcome, argument_digest=call_digest)
+        except JsonableError as error:
+            # Zulip's own API messages, which the user would see in the app too.
+            reason = "api_error"
+            result = _tool_error(error.msg)
+        except ValueError:
+            reason = "invalid_request"
+            result = _tool_error("The tool request is invalid.")
+        audit(
+            grant,
+            name,
+            outcome,
+            argument_digest=call_digest,
+            detail={"reason": reason} if reason else None,
+        )
     else:
         return rpc_error(request_id, -32601, "Method not found.")
     return _finish(grant, request_id, result)

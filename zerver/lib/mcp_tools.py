@@ -40,6 +40,18 @@ DATA_URL_PREFIX = re.compile(r"^data:[^,;]*(;[^,;]*)*;base64,", re.IGNORECASE)
 class ToolInputError(ValueError):
     """A rejection whose message is safe to show to the client."""
 
+    reason = "tool_input"
+
+
+class ReadOnlyConnectionError(ToolInputError):
+    reason = "read_only"
+
+
+class NotAccessibleError(ToolInputError):
+    """The item is missing or the user may not read it; the two are not told apart."""
+
+    reason = "not_accessible"
+
 
 class Arguments(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
@@ -374,7 +386,10 @@ def execute_tool(
         kind, raw_id = str(args["id"]).split(":")
         item_id = int(raw_id)
         if kind == "task":
-            task = access_task_by_id(user, item_id)
+            try:
+                task = access_task_by_id(user, item_id)
+            except JsonableError as error:
+                raise NotAccessibleError(error.msg) from None
             return {
                 "id": args["id"],
                 "title": task.title,
@@ -382,7 +397,10 @@ def execute_tool(
                 "url": user.realm.url + f"/#tasks/{task.id}",
                 "metadata": task.to_api_dict(),
             }
-        access_message(user, item_id, is_modifying_message=False)
+        try:
+            access_message(user, item_id, is_modifying_message=False)
+        except JsonableError as error:
+            raise NotAccessibleError(error.msg) from None
         result = _view(
             request, user, get_messages_backend, {"message_ids": [item_id], "apply_markdown": False}
         )

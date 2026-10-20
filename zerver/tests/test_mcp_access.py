@@ -484,6 +484,64 @@ class MCPAccessTests(ZulipTestCase):
         self.assertTrue(response.json()["result"]["isError"])
         self.assertNotIn("Hidden MCP message", response.content.decode())
 
+    def error_and_reason(
+        self, token: str, name: str, arguments: dict[str, object]
+    ) -> tuple[str, object]:
+        result = json.loads(
+            self.rpc(token, "tools/call", {"name": name, "arguments": arguments}).content
+        )["result"]
+        self.assertTrue(result["isError"])
+        entry = MCPAccessAudit.objects.filter(tool_name=name).latest("id")
+        self.assertEqual(entry.outcome, "rejected")
+        return result["content"][0]["text"], entry.detail.get("reason")
+
+    def test_rejected_calls_say_why_without_revealing_what_exists(self) -> None:
+        token = self.manual()
+        text, reason = self.error_and_reason(token, "fetch", {"id": "message:abc"})
+        self.assertIn("id: String should match pattern", text)
+        self.assertEqual(reason, "validation")
+        _text, reason = self.error_and_reason(token, "fetch", {"id": "123"})
+        self.assertEqual(reason, "validation")
+
+        unknown_text, reason = self.error_and_reason(token, "fetch", {"id": "message:999999999"})
+        self.assertEqual(unknown_text, "Invalid message(s)")
+        self.assertEqual(reason, "not_accessible")
+
+        self.make_stream("secret-mcp", invite_only=True)
+        self.subscribe(self.example_user("othello"), "secret-mcp")
+        secret_id = self.send_stream_message(
+            self.example_user("othello"), "secret-mcp", "Secret MCP words"
+        )
+        private_text, reason = self.error_and_reason(token, "fetch", {"id": f"message:{secret_id}"})
+        self.assertEqual(private_text, unknown_text)
+        self.assertEqual(reason, "not_accessible")
+
+        unknown_task, reason = self.error_and_reason(token, "fetch", {"id": "task:999999999"})
+        self.assertEqual(unknown_task, "Task does not exist.")
+        self.assertEqual(reason, "not_accessible")
+
+        text, reason = self.error_and_reason(
+            token, "add_reaction", {"message_id": 1, "emoji_name": "tada"}
+        )
+        self.assertEqual(text, "This connection has read access only.")
+        self.assertEqual(reason, "read_only")
+
+        write_token = self.manual(write=True)
+        text, reason = self.error_and_reason(
+            write_token, "edit_message", {"message_id": secret_id, "content": "x"}
+        )
+        self.assertEqual(text, "Invalid message(s)")
+        self.assertEqual(reason, "api_error")
+
+        audit_dump = json.dumps(list(MCPAccessAudit.objects.values()), default=str)
+        self.assertNotIn("Secret MCP words", audit_dump)
+
+    def test_successful_calls_record_no_reason(self) -> None:
+        token = self.manual()
+        self.assertNotIn("isError", self.call(token, "get_me", {}))
+        entry = MCPAccessAudit.objects.filter(tool_name="get_me").latest("id")
+        self.assertEqual((entry.outcome, entry.detail), ("success", {}))
+
     def test_redirect_resource_and_scope_validation(self) -> None:
         client = self.register()
         params = {
