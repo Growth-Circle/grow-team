@@ -7,6 +7,7 @@ from unittest import mock, skipUnless
 from urllib.parse import urlsplit
 
 import orjson
+import yaml
 from django.conf import settings
 from django.test import override_settings
 from django.utils.timezone import now as timezone_now
@@ -21,6 +22,7 @@ from zerver.lib.test_helpers import HostRequestMock
 from zerver.lib.url_redirects import INTEGRATION_CATEGORY_SLUGS
 from zerver.models import Realm
 from zerver.models.realms import get_realm
+from zerver.openapi.openapi import OPENAPI_SPEC_PATH, get_fragment_paths
 from zerver.views.documentation import add_api_url_context
 
 
@@ -229,6 +231,37 @@ class DocPageTest(ZulipTestCase):
 
         # Make sure we exercised all content checks.
         self.assert_length(content, 0)
+
+    def test_api_doc_pages_for_fragment_operations(self) -> None:
+        # Sanji documents its endpoints in zerver/openapi/features/*.yaml;
+        # a malformed schema there only breaks that endpoint's page, so
+        # check every page rather than a sample.
+        operation_ids: list[str] = []
+        for fragment_path in get_fragment_paths(OPENAPI_SPEC_PATH):
+            with open(fragment_path) as f:
+                fragment = yaml.safe_load(f)
+            for path_item in (fragment.get("paths") or {}).values():
+                operation_ids.extend(
+                    operation["operationId"]
+                    for operation in path_item.values()
+                    if isinstance(operation, dict)
+                )
+        self.assertGreater(len(operation_ids), 100)
+
+        failed_pages = []
+        for operation_id in sorted(operation_ids):
+            url = f"/api/{operation_id}"
+            try:
+                result = self.client_get(url)
+            except Exception as e:
+                # The test client re-raises server errors; collect every
+                # broken page instead of stopping at the first.
+                failed_pages.append(f"{url}: {type(e).__name__}: {e}")
+                continue
+            if result.status_code != 200:
+                failed_pages.append(f"{url}: HTTP {result.status_code}")
+        if failed_pages:
+            self.fail("\n".join(failed_pages))
 
     def test_api_doc_404_status_codes(self) -> None:
         result = self.client_get(

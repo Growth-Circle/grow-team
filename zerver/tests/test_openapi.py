@@ -19,6 +19,7 @@ from zerver.lib.typed_endpoint import parse_view_func_signature
 from zerver.lib.utils import assert_is_not_none
 from zerver.openapi.markdown_extension import generate_curl_example, render_curl_example
 from zerver.openapi.openapi import (
+    NO_EXAMPLE,
     OPENAPI_SPEC_PATH,
     OpenAPISpec,
     Parameter,
@@ -1080,6 +1081,9 @@ class OpenAPIAttributesTest(ZulipTestCase):
         """
         Checks:
         * All endpoints have `operationId` and `tag` attributes.
+        * All endpoints have a `description`, and every path or query
+          parameter has an example, since the API doc page can't render
+          without them.
         * All example responses match their schema.
         * All example events in `/get-events` match an event schema.
         * That no opaque object exists.
@@ -1127,6 +1131,13 @@ class OpenAPIAttributesTest(ZulipTestCase):
                 assert "tags" in operation
                 tag = operation["tags"][0]
                 assert tag in VALID_TAGS
+                assert "description" in operation, (
+                    f"{method} {path} ({operation['operationId']}) is missing a description"
+                )
+                for parameter in get_openapi_parameters(path, method):
+                    assert parameter.example is not NO_EXAMPLE, (
+                        f"Parameter {parameter.name} of {method} {path} is missing an example"
+                    )
                 for status_code, response in operation["responses"].items():
                     if "application/json" not in response.get("content", {}):
                         # A response can be undocumented in detail (e.g. a
