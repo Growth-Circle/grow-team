@@ -14,6 +14,8 @@ const {Filter} = zrequire("../src/filter");
 const left_sidebar_navigation_area = zrequire("left_sidebar_navigation_area");
 const scheduled_messages = zrequire("scheduled_messages");
 const message_reminder = zrequire("message_reminder");
+const nav_counts = zrequire("nav_counts");
+const {set_current_user} = zrequire("state_data");
 
 run_test("narrowing", ({override_rewire}) => {
     override_rewire(
@@ -156,4 +158,89 @@ run_test("update_count_in_dom", () => {
     assert.ok($(".top_left_starred_messages").hasClass("hide_starred_message_count"));
     assert.ok($(".top_left_scheduled_messages").hasClass("hidden-by-filters"));
     assert.ok($(".top_left_reminders").hasClass("hidden-by-filters"));
+});
+
+const GROUP_ITEMS = ["agents", "routines", "playbooks", "mcp", "runners"];
+
+run_test("get_nav_group_state", () => {
+    const state = (opts) =>
+        left_sidebar_navigation_area.get_nav_group_state({
+            item_ids: GROUP_ITEMS,
+            shown_ids: new Set(["routines", "mcp"]),
+            active_id: undefined,
+            saved_expanded: false,
+            attention_count: 0,
+            ...opts,
+        });
+
+    // AC-S1-001: the saved choice opens and closes the group.
+    assert.deepEqual(state({}), {visible: true, expanded: false, attention_count: 0});
+    assert.equal(state({saved_expanded: true}).expanded, true);
+
+    // AC-S1-002: a page inside the group keeps it open, saved or not.
+    assert.equal(state({active_id: "mcp"}).expanded, true);
+    // A page outside the group, or a hidden item of it, does not.
+    assert.equal(state({active_id: "tasks"}).expanded, false);
+    assert.equal(state({active_id: "runners"}).expanded, false);
+
+    // AC-S1-004: no item shown, no group, whatever the saved choice is.
+    const hidden = state({shown_ids: new Set(["tasks"]), saved_expanded: true});
+    assert.equal(hidden.visible, false);
+    assert.equal(hidden.expanded, false);
+});
+
+run_test("automation_group_in_dom", () => {
+    const win = {location: {hash: "#inbox"}};
+    set_global("window", win);
+    set_current_user({is_owner: false, is_admin: false, is_guest: false});
+
+    for (const id of [...GROUP_ITEMS, "home", "needs", "tasks", "my_tasks", "drive", "settings"]) {
+        $(`.sanji-nav-item[data-nav-id="${id}"]`).set_find_results("a", $(`<a-${id}>`));
+    }
+    const $group = $('.sanji-nav-group[data-nav-group="automation"]');
+    const $toggle = $("<group-toggle>");
+    const $list = $("<group-list>");
+    const $dot = $("<group-dot>");
+    $group.set_find_results(".sanji-nav-group-toggle", $toggle);
+    $group.set_find_results(".sanji-nav-group-list", $list);
+    $group.set_find_results(".sanji-nav-group-attention", $dot);
+    $dot.addClass("hide");
+    $list.prop("hidden", true);
+
+    left_sidebar_navigation_area.update_nav_targets();
+    // Agents and Runners have no page yet, so three items are shown.
+    assert.ok(!$group.hasClass("hidden"));
+    assert.ok($(`.sanji-nav-item[data-nav-id="agents"]`).hasClass("hidden"));
+    assert.ok(!$(`.sanji-nav-item[data-nav-id="mcp"]`).hasClass("hidden"));
+    assert.equal($toggle.attr("aria-expanded"), "false");
+    assert.equal($list.prop("hidden"), true);
+    assert.ok($dot.hasClass("hide"));
+
+    // AC-S1-003: a count in a closed group shows as a labelled dot.
+    nav_counts.set_count("mcp", 2);
+    left_sidebar_navigation_area.update_automation_group();
+    assert.ok(!$dot.hasClass("hide"));
+    assert.equal($dot.attr("aria-label"), "translated: Needs attention (2)");
+
+    // AC-S1-002: opening a page inside the group shows it, and the dot goes.
+    win.location.hash = "#mcp";
+    left_sidebar_navigation_area.update_sanji_nav_active_state();
+    assert.equal($toggle.attr("aria-expanded"), "true");
+    assert.equal($list.prop("hidden"), false);
+    assert.ok($dot.hasClass("hide"));
+    assert.equal(localStorage.getItem("ls__1__left_sidebar_automation_group_expanded"), undefined);
+
+    // AC-S1-001: a click saves the choice, and the group follows it.
+    win.location.hash = "#inbox";
+    left_sidebar_navigation_area.update_automation_group();
+    assert.equal($toggle.attr("aria-expanded"), "false");
+    left_sidebar_navigation_area.toggle_automation_group();
+    assert.equal($toggle.attr("aria-expanded"), "true");
+    assert.equal($list.prop("hidden"), false);
+    left_sidebar_navigation_area.toggle_automation_group();
+    assert.equal($toggle.attr("aria-expanded"), "false");
+    assert.equal($list.prop("hidden"), true);
+    assert.ok(!$dot.hasClass("hide"));
+
+    nav_counts.set_count("mcp", 0);
 });

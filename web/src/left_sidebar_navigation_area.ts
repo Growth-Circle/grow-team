@@ -5,6 +5,7 @@ import * as command_palette from "./command_palette.ts";
 import * as common from "./common.ts";
 import * as drafts from "./drafts.ts";
 import type {Filter} from "./filter.ts";
+import {$t} from "./i18n.ts";
 import * as live_updates from "./live_updates.ts";
 import {localstorage} from "./localstorage.ts";
 import * as message_reminder from "./message_reminder.ts";
@@ -425,9 +426,87 @@ const NAV_IDS: sidebar_targets.TargetId[] = [
     "settings",
 ];
 
+// The pages for setting up agents and what they do on their own. They
+// sit in one group that stays closed until the person opens it.
+const AUTOMATION_GROUP_ITEM_IDS: sidebar_targets.TargetId[] = [
+    "agents",
+    "routines",
+    "playbooks",
+    "mcp",
+    "runners",
+];
+const AUTOMATION_GROUP_COUNT_IDS: nav_counts.NavCountId[] = ["mcp", "runners"];
+const automation_group_ls_key = "left_sidebar_automation_group_expanded";
+
+let shown_nav_ids = new Set<sidebar_targets.TargetId>();
+
+export type NavGroupState = {
+    visible: boolean;
+    expanded: boolean;
+    // The count of what waits in the items, for the dot on a closed group.
+    attention_count: number;
+};
+
+// The group is hidden when none of its items is shown. A page inside the
+// group keeps it open, whatever the saved choice is, so the highlighted
+// entry is never out of sight.
+export function get_nav_group_state(opts: {
+    item_ids: readonly sidebar_targets.TargetId[];
+    shown_ids: ReadonlySet<sidebar_targets.TargetId>;
+    active_id: sidebar_targets.TargetId | undefined;
+    saved_expanded: boolean;
+    attention_count: number;
+}): NavGroupState {
+    const visible = opts.item_ids.some((id) => opts.shown_ids.has(id));
+    const has_active_page =
+        opts.active_id !== undefined &&
+        opts.item_ids.includes(opts.active_id) &&
+        opts.shown_ids.has(opts.active_id);
+    return {
+        visible,
+        expanded: visible && (has_active_page || opts.saved_expanded),
+        attention_count: opts.attention_count,
+    };
+}
+
 function update_nav_badge(id: nav_counts.NavCountId): void {
     const $li = $(`.sanji-nav-item[data-nav-id="${id}"]`);
     ui_util.update_unread_count_in_dom($li, nav_counts.get_count(id));
+}
+
+export function update_automation_group(): void {
+    const active_id = sidebar_targets.id_for_hash(window.location.hash);
+    const attention_count = AUTOMATION_GROUP_COUNT_IDS.filter((id) => shown_nav_ids.has(id))
+        .map((id) => nav_counts.get_count(id))
+        .reduce((total, count) => total + count, 0);
+    const state = get_nav_group_state({
+        item_ids: AUTOMATION_GROUP_ITEM_IDS,
+        shown_ids: shown_nav_ids,
+        active_id,
+        saved_expanded: ls.get(automation_group_ls_key) === true,
+        attention_count,
+    });
+    const $group = $('.sanji-nav-group[data-nav-group="automation"]');
+    const show_dot = state.visible && !state.expanded && state.attention_count > 0;
+    $group.toggleClass("hidden", !state.visible);
+    $group.find(".sanji-nav-group-toggle").attr("aria-expanded", String(state.expanded));
+    $group.find(".sanji-nav-group-list").prop("hidden", !state.expanded);
+    $group
+        .find(".sanji-nav-group-attention")
+        .toggleClass("hide", !show_dot)
+        .attr(
+            "aria-label",
+            show_dot
+                ? $t({defaultMessage: "Needs attention ({count})"}, {count: state.attention_count})
+                : "",
+        );
+}
+
+// A click saves the choice for the next time the group is closed or
+// open by hand. While the page is inside the group, it stays open.
+export function toggle_automation_group(): void {
+    ls.set(automation_group_ls_key, ls.get(automation_group_ls_key) !== true);
+    update_automation_group();
 }
 
 export function update_sanji_nav_active_state(): void {
@@ -438,6 +517,7 @@ export function update_sanji_nav_active_state(): void {
             .addClass("sanji-nav-item-active")
             .attr("aria-current", "page");
     }
+    update_automation_group();
 }
 
 // Shows each entry whose page is built (or has a fallback), points it at
@@ -447,6 +527,7 @@ export function update_nav_targets(): void {
     const can_manage = sidebar_targets.can_manage_workspace(role);
     const can_use_playbooks = sidebar_targets.can_use_playbooks(role);
     const can_use_routines = sidebar_targets.can_use_routines(role);
+    shown_nav_ids = new Set();
     for (const id of NAV_IDS) {
         const hash = sidebar_targets.get_hash(id, id === "settings" ? "general" : undefined);
         const shown =
@@ -456,6 +537,9 @@ export function update_nav_targets(): void {
             (id !== "routines" || can_use_routines);
         const $li = $(`.sanji-nav-item[data-nav-id="${id}"]`);
         $li.toggleClass("hidden", !shown);
+        if (shown) {
+            shown_nav_ids.add(id);
+        }
         if (hash !== undefined) {
             $li.find("a").attr("href", hash);
         }
@@ -485,6 +569,7 @@ function initialize_sanji_sidebar(): void {
     }
     nav_counts.on_change((id) => {
         update_nav_badge(id);
+        update_automation_group();
     });
 
     window.addEventListener("hashchange", update_sanji_nav_active_state);
@@ -495,4 +580,5 @@ function initialize_sanji_sidebar(): void {
     $("body").on("click", "#left-sidebar-command-search", () => {
         command_palette.open();
     });
+    $("body").on("click", ".sanji-nav-group-toggle", toggle_automation_group);
 }

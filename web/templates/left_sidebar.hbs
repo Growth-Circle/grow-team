@@ -56,48 +56,6 @@
                     </span>
                 </a>
             </li>
-            <li class="sanji-nav-item" data-nav-id="agents">
-                <a href="#agents" class="sanji-nav-link">
-                    <span class="sanji-nav-label">
-                        <span class="sanji-nav-dot" aria-hidden="true"></span>
-                        <span>{{t "Agents"}}</span>
-                    </span>
-                </a>
-            </li>
-            <li class="sanji-nav-item" data-nav-id="routines">
-                <a href="#routines" class="sanji-nav-link">
-                    <span class="sanji-nav-label">
-                        <span class="sanji-nav-dot" aria-hidden="true"></span>
-                        <span>{{t "Scheduled"}}</span>
-                    </span>
-                </a>
-            </li>
-            <li class="sanji-nav-item" data-nav-id="playbooks">
-                <a href="#playbooks" class="sanji-nav-link">
-                    <span class="sanji-nav-label">
-                        <span class="sanji-nav-dot" aria-hidden="true"></span>
-                        <span>{{t "Playbooks"}}</span>
-                    </span>
-                </a>
-            </li>
-            <li class="sanji-nav-item" data-nav-id="mcp">
-                <a href="#mcp" class="sanji-nav-link">
-                    <span class="sanji-nav-label">
-                        <span class="sanji-nav-dot" aria-hidden="true"></span>
-                        <span>{{t "MCP connections"}}</span>
-                    </span>
-                    <span class="unread_count sanji-nav-badge hide"></span>
-                </a>
-            </li>
-            <li class="sanji-nav-item" data-nav-id="runners">
-                <a href="#runners" class="sanji-nav-link">
-                    <span class="sanji-nav-label">
-                        <span class="sanji-nav-dot" aria-hidden="true"></span>
-                        <span>{{t "Runners"}}</span>
-                    </span>
-                    <span class="unread_count sanji-nav-badge hide"></span>
-                </a>
-            </li>
             <li class="sanji-nav-item" data-nav-id="drive">
                 <a href="#drive" class="sanji-nav-link">
                     <span class="sanji-nav-label">
@@ -105,6 +63,56 @@
                         <span>{{t "Drive"}}</span>
                     </span>
                 </a>
+            </li>
+            <li class="sanji-nav-group" data-nav-group="automation">
+                <button type="button" class="sanji-nav-group-toggle" aria-expanded="false" aria-controls="left-sidebar-nav-group-automation">
+                    <span class="sanji-nav-group-label">{{t "Agents & automation"}}</span>
+                    <span class="sanji-nav-group-attention hide" role="img"></span>
+                </button>
+                <ul id="left-sidebar-nav-group-automation" class="sanji-nav-group-list" hidden>
+                    <li class="sanji-nav-item" data-nav-id="agents">
+                        <a href="#agents" class="sanji-nav-link">
+                            <span class="sanji-nav-label">
+                                <span class="sanji-nav-dot" aria-hidden="true"></span>
+                                <span>{{t "Agents"}}</span>
+                            </span>
+                        </a>
+                    </li>
+                    <li class="sanji-nav-item" data-nav-id="routines">
+                        <a href="#routines" class="sanji-nav-link">
+                            <span class="sanji-nav-label">
+                                <span class="sanji-nav-dot" aria-hidden="true"></span>
+                                <span>{{t "Scheduled"}}</span>
+                            </span>
+                        </a>
+                    </li>
+                    <li class="sanji-nav-item" data-nav-id="playbooks">
+                        <a href="#playbooks" class="sanji-nav-link">
+                            <span class="sanji-nav-label">
+                                <span class="sanji-nav-dot" aria-hidden="true"></span>
+                                <span>{{t "Playbooks"}}</span>
+                            </span>
+                        </a>
+                    </li>
+                    <li class="sanji-nav-item" data-nav-id="mcp">
+                        <a href="#mcp" class="sanji-nav-link">
+                            <span class="sanji-nav-label">
+                                <span class="sanji-nav-dot" aria-hidden="true"></span>
+                                <span>{{t "MCP connections"}}</span>
+                            </span>
+                            <span class="unread_count sanji-nav-badge hide"></span>
+                        </a>
+                    </li>
+                    <li class="sanji-nav-item" data-nav-id="runners">
+                        <a href="#runners" class="sanji-nav-link">
+                            <span class="sanji-nav-label">
+                                <span class="sanji-nav-dot" aria-hidden="true"></span>
+                                <span>{{t "Runners"}}</span>
+                            </span>
+                            <span class="unread_count sanji-nav-badge hide"></span>
+                        </a>
+                    </li>
+                </ul>
             </li>
             <li class="sanji-nav-item" data-nav-id="settings">
                 <a href="#workspace-settings/general" class="sanji-nav-link">

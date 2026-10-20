@@ -3320,7 +3320,7 @@ body:not(.spectator-view)
     }
 }
 
-/* The eight navigation entries. */
+/* The navigation entries. */
 
 #left-sidebar-navigation-area {
     flex: none;
@@ -3429,6 +3429,96 @@ body:not(.spectator-view)
 
 #left-sidebar .sanji-nav-item-active .sanji-nav-badge {
     font-weight: 500;
+}
+
+/* The group of agent pages. It is closed until the person opens it. */
+
+#left-sidebar .sanji-nav-group {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+#left-sidebar .sanji-nav-group-toggle {
+    display: flex;
+    align-items: center;
+    /* 10px at 16px/1em */
+    gap: 0.625em;
+    box-sizing: border-box;
+    width: 100%;
+    /* 32px at 16px/1em */
+    height: 2em;
+    /* 12px at 16px/1em */
+    padding: 0 0.75em;
+    border: 0;
+    /* 10px at 16px/1em */
+    border-radius: 0.625em;
+    background: transparent;
+    color: var(--sj-sidebar-label);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    /* The arrow takes the width of a row's dot, so both labels line up. */
+    &::before {
+        content: "▸";
+        flex: none;
+        /* 8px at 12px */
+        width: calc(8em / 12);
+        /* 12px at 16px/1em */
+        font-size: 0.75em;
+        line-height: 1;
+        text-align: center;
+    }
+
+    &[aria-expanded="true"]::before {
+        content: "▾";
+    }
+
+    &:hover {
+        background: var(--sj-sidebar-hover);
+        color: var(--sj-sidebar-text);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--sj-ring-focus);
+    }
+}
+
+#left-sidebar .sanji-nav-group-label {
+    min-width: 0;
+    /* 13px at 16px/1em */
+    font-size: 0.8125em;
+    font-weight: 700;
+}
+
+#left-sidebar .sanji-nav-group-attention {
+    flex: none;
+    /* 8px at 16px/1em */
+    width: 0.5em;
+    height: 0.5em;
+    margin-left: auto;
+    border-radius: 50%;
+    background: var(--sj-kaki);
+
+    &.hide {
+        display: none;
+    }
+}
+
+#left-sidebar .sanji-nav-group-list {
+    display: flex;
+    flex-direction: column;
+    /* 2px at 16px/1em */
+    gap: 0.125em;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    &[hidden] {
+        display: none;
+    }
 }
 
 /* The rooms. */
