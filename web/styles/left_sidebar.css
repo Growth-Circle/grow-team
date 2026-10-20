@@ -3394,7 +3394,8 @@ body:not(.spectator-view)
     border-radius: 50%;
 }
 
-#left-sidebar .sanji-nav-badge {
+#left-sidebar .sanji-nav-badge,
+#left-sidebar .sanji-header-unread {
     display: inline-block;
     box-sizing: content-box;
     /* 16px tall at 11px; 7px on the sides */
@@ -3410,6 +3411,13 @@ body:not(.spectator-view)
     font-weight: 400;
     line-height: calc(16em / 11);
     text-align: center;
+}
+
+#left-sidebar .sanji-header-unread {
+    &.hide,
+    &:empty {
+        display: none;
+    }
 }
 
 #left-sidebar .sanji-nav-item-active .sanji-nav-link,
@@ -3544,6 +3552,10 @@ body:not(.spectator-view)
 }
 
 #sidebar-rooms-header .sidebar-rooms-title {
+    display: flex;
+    flex: 1;
+    align-self: stretch;
+    min-width: 0;
     margin: 0;
     color: var(--sj-sidebar-text-muted);
     font-family: var(--sj-font-mono);
@@ -3552,6 +3564,46 @@ body:not(.spectator-view)
     font-weight: 400;
     letter-spacing: 0.08em;
     text-transform: none;
+}
+
+#sidebar-rooms-header .sidebar-rooms-toggle {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    /* 6px at 11px */
+    gap: calc(6em / 11);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    cursor: pointer;
+
+    &::before {
+        content: "▾";
+    }
+
+    &[aria-expanded="false"]::before {
+        content: "▸";
+    }
+
+    &:hover {
+        color: var(--sj-sidebar-text-strong);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--sj-ring-focus);
+    }
+}
+
+/* A closed block keeps the unread count in the header. */
+#left_sidebar_scroll_container.rooms-collapsed {
+    #streams_list,
+    #sidebar-quiet-rooms {
+        display: none;
+    }
 }
 
 #sidebar-rooms-header .left-sidebar-new-room-button {
@@ -3645,6 +3697,24 @@ body:not(.spectator-view)
 #left-sidebar #direct-messages-section-header > i,
 #left-sidebar #direct-messages-section-header .heading-markers-and-unreads {
     display: none;
+}
+
+/* The arrow and the unread count show whether the section is open, and
+   what a closed one hides. */
+#left-sidebar #direct-messages-section-header .left-sidebar-title::before {
+    content: "▾";
+    /* 6px at 12px */
+    margin-right: 0.5em;
+}
+
+#left-sidebar #direct-messages-section-header:has(> i.rotate-icon-right) {
+    .left-sidebar-title::before {
+        content: "▸";
+    }
+
+    .heading-markers-and-unreads {
+        display: flex;
+    }
 }
 
 #left-sidebar.no-direct-messages .direct-messages-container {

@@ -140,6 +140,7 @@ import * as settings_preferences from "./settings_preferences.ts";
 import * as settings_realm_user_settings_defaults from "./settings_realm_user_settings_defaults.ts";
 import * as settings_sections from "./settings_sections.ts";
 import * as settings_toggle from "./settings_toggle.ts";
+import * as sidebar_rooms from "./sidebar_rooms.ts";
 import * as sidebar_ui from "./sidebar_ui.ts";
 import * as spoilers from "./spoilers.ts";
 import * as starred_messages from "./starred_messages.ts";
@@ -432,6 +433,9 @@ function initialize_unread_ui() {
     );
     unread_ui.register_update_unread_counts_hook((counts, skip_animations) =>
         pm_list.update_dom_with_unread_counts(counts, skip_animations),
+    );
+    unread_ui.register_update_unread_counts_hook((counts) =>
+        sidebar_rooms.update_rooms_unread_count(counts.stream_unread_messages),
     );
     unread_ui.register_update_unread_counts_hook(() => topic_list.update());
     unread_ui.register_update_unread_counts_hook((counts) =>

@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 
 const {zrequire} = require("./lib/namespace.cjs");
 const {run_test} = require("./lib/test.cjs");
+const $ = require("./lib/zjquery.cjs");
 
 const sidebar_rooms = zrequire("sidebar_rooms");
 
@@ -52,4 +53,70 @@ run_test("quiet_room_rows", () => {
         sidebar_rooms.quiet_room_rows([], () => undefined, now),
         [],
     );
+});
+
+run_test("get_rooms_header_state", () => {
+    const state = (opts) =>
+        sidebar_rooms.get_rooms_header_state({
+            saved_collapsed: true,
+            search_active: false,
+            unread_count: 3,
+            ...opts,
+        });
+
+    // AC-S4-001: a closed block shows what it hides.
+    assert.deepEqual(state({}), {collapsed: true, show_unread: true});
+    assert.deepEqual(state({unread_count: 0}), {collapsed: true, show_unread: false});
+    // An open block has the counts in its own rows.
+    assert.deepEqual(state({saved_collapsed: false}), {collapsed: false, show_unread: false});
+    // A search opens the block, so the rooms that match are in sight.
+    assert.deepEqual(state({search_active: true}), {collapsed: false, show_unread: false});
+});
+
+run_test("rooms_header_in_dom", () => {
+    const $search = $("input.left-sidebar-search-input");
+    $search.val("");
+    const $container = $("#left_sidebar_scroll_container");
+    const $toggle = $("#sidebar-rooms-toggle");
+    const $unread = $("#sidebar-rooms-header .sidebar-rooms-unread");
+    $unread.addClass("hide");
+
+    sidebar_rooms.update_rooms_unread_count(5);
+    assert.ok(!$container.hasClass("rooms-collapsed"));
+    assert.equal($toggle.attr("aria-expanded"), "true");
+    assert.ok($unread.hasClass("hide"));
+
+    // AC-S4-001: closing keeps the count on the header, and the choice is saved.
+    sidebar_rooms.toggle_rooms_section();
+    assert.ok($container.hasClass("rooms-collapsed"));
+    assert.equal($toggle.attr("aria-expanded"), "false");
+    assert.ok(!$unread.hasClass("hide"));
+    assert.equal($unread.text(), "5");
+    assert.equal(
+        localStorage.getItem("ls__1__left_sidebar_rooms_collapsed"),
+        JSON.stringify({data: true, __valid: true}),
+    );
+
+    // The count follows new messages, and goes when nothing is unread.
+    sidebar_rooms.update_rooms_unread_count(7);
+    assert.equal($unread.text(), "7");
+    sidebar_rooms.update_rooms_unread_count(0);
+    assert.ok($unread.hasClass("hide"));
+    assert.equal($unread.text(), "");
+    sidebar_rooms.update_rooms_unread_count(7);
+
+    // A search opens the block without changing the saved choice.
+    $search.val("ver");
+    sidebar_rooms.update_rooms_collapsed_state();
+    assert.ok(!$container.hasClass("rooms-collapsed"));
+    assert.equal($toggle.attr("aria-expanded"), "true");
+    $search.val("");
+    sidebar_rooms.update_rooms_collapsed_state();
+    assert.ok($container.hasClass("rooms-collapsed"));
+
+    // Opening again saves that choice too.
+    sidebar_rooms.toggle_rooms_section();
+    assert.ok(!$container.hasClass("rooms-collapsed"));
+    assert.equal($toggle.attr("aria-expanded"), "true");
+    assert.ok($unread.hasClass("hide"));
 });

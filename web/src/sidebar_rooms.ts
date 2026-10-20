@@ -6,16 +6,18 @@ import * as app_actions from "./app_actions.ts";
 import * as channel_folders from "./channel_folders.ts";
 import {$t} from "./i18n.ts";
 import * as live_updates from "./live_updates.ts";
+import {localstorage} from "./localstorage.ts";
 import * as quiet_rooms from "./quiet_rooms.ts";
 import * as room_create_modal from "./room_create_modal.ts";
 import {current_user} from "./state_data.ts";
 import * as stream_data from "./stream_data.ts";
 import type {StreamListSection} from "./stream_list_sort.ts";
 import * as sub_store from "./sub_store.ts";
+import * as ui_util from "./ui_util.ts";
 
 // The ROOMS block: the "+" button, the color of each group's dot, the
-// one call to action for a workspace with no rooms, and the list of
-// quiet rooms below the groups.
+// one call to action for a workspace with no rooms, the list of
+// quiet rooms below the groups, and the button that closes the block.
 
 // The folders that the workspace setup creates, and the dot color of each.
 const FOLDER_ACCENTS = new Map([
@@ -76,6 +78,44 @@ export function quiet_room_rows(
     return rows;
 }
 
+const ls = localstorage();
+const rooms_collapsed_ls_key = "left_sidebar_rooms_collapsed";
+let rooms_unread_count = 0;
+
+// A closed block shows the unread count of the rooms it hides. A search
+// opens it, so the rooms that match are in sight.
+export function get_rooms_header_state(opts: {
+    saved_collapsed: boolean;
+    search_active: boolean;
+    unread_count: number;
+}): {collapsed: boolean; show_unread: boolean} {
+    const collapsed = opts.saved_collapsed && !opts.search_active;
+    return {collapsed, show_unread: collapsed && opts.unread_count > 0};
+}
+
+export function update_rooms_collapsed_state(): void {
+    const state = get_rooms_header_state({
+        saved_collapsed: ls.get(rooms_collapsed_ls_key) === true,
+        search_active: ui_util.get_left_sidebar_search_term() !== "",
+        unread_count: rooms_unread_count,
+    });
+    $("#left_sidebar_scroll_container").toggleClass("rooms-collapsed", state.collapsed);
+    $("#sidebar-rooms-toggle").attr("aria-expanded", String(!state.collapsed));
+    $("#sidebar-rooms-header .sidebar-rooms-unread")
+        .toggleClass("hide", !state.show_unread)
+        .text(state.show_unread ? String(rooms_unread_count) : "");
+}
+
+export function toggle_rooms_section(): void {
+    ls.set(rooms_collapsed_ls_key, ls.get(rooms_collapsed_ls_key) !== true);
+    update_rooms_collapsed_state();
+}
+
+export function update_rooms_unread_count(count: number): void {
+    rooms_unread_count = count;
+    update_rooms_collapsed_state();
+}
+
 let is_expanded = false;
 
 function render_quiet_rooms(): void {
@@ -113,6 +153,8 @@ export function initialize(): void {
         render_quiet_rooms();
     });
     update_no_rooms_cta();
+    $("#sidebar-rooms-toggle").on("click", toggle_rooms_section);
+    update_rooms_collapsed_state();
 
     quiet_rooms.on_change(render_quiet_rooms);
     quiet_rooms.refresh();

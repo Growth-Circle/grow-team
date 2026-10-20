@@ -28,6 +28,7 @@ import * as scroll_util from "./scroll_util.ts";
 import * as settings_config from "./settings_config.ts";
 import * as settings_data from "./settings_data.ts";
 import * as settings_preferences from "./settings_preferences.ts";
+import * as sidebar_rooms from "./sidebar_rooms.ts";
 import * as spectators from "./spectators.ts";
 import {current_user} from "./state_data.ts";
 import * as stream_list from "./stream_list.ts";
@@ -641,6 +642,7 @@ function actually_update_left_sidebar_for_search(): void {
 
     // Update left sidebar channel list.
     stream_list.update_streams_sidebar();
+    sidebar_rooms.update_rooms_collapsed_state();
 
     resize.resize_page_components();
     left_sidebar_cursor.reset();

@@ -111,7 +111,12 @@
     {{~!-- squash whitespace --~}}
     <div id="left_sidebar_scroll_container" class="scrolling_list" data-simplebar data-simplebar-tab-index="-1">
         <div id="sidebar-rooms-header" class="sidebar-rooms-header">
-            <h4 class="sidebar-rooms-title">{{t "ROOMS"}}</h4>
+            <h4 class="sidebar-rooms-title">
+                <button type="button" id="sidebar-rooms-toggle" class="sidebar-rooms-toggle" aria-expanded="true" aria-controls="streams_list">
+                    <span>{{t "ROOMS"}}</span>
+                    <span class="sidebar-rooms-unread sanji-header-unread hide"></span>
+                </button>
+            </h4>
             <button type="button" id="left-sidebar-new-room-button" class="left-sidebar-new-room-button" aria-label="{{t 'New room'}}">+</button>
         </div>
         <div id="streams_list">
@@ -144,7 +149,7 @@
                 </span>
             </div>
             <div class="heading-markers-and-unreads">
-                <span class="unread_count"></span>
+                <span class="unread_count sanji-header-unread"></span>
             </div>
         </div>
         <div class="direct-messages-container zoomed-out hidden-for-spectators">
