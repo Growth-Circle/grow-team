@@ -86,6 +86,18 @@ run_test("role_of", () => {
     }
 });
 
+run_test("settings_hash", () => {
+    // AC-S3-001: the people who manage the workspace open its settings.
+    // Until that page is built, they open its fallback.
+    for (const role of ["owner", "admin"]) {
+        assert.equal(sidebar_targets.settings_hash(role), "#organization", role);
+    }
+    // Everyone else opens their own profile.
+    for (const role of ["moderator", "member", "guest"]) {
+        assert.equal(sidebar_targets.settings_hash(role), "#settings/profile", role);
+    }
+});
+
 run_test("can_use_playbooks", () => {
     for (const role of ["owner", "admin", "moderator", "member"]) {
         assert.equal(sidebar_targets.can_use_playbooks(role), true, role);

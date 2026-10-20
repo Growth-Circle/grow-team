@@ -422,7 +422,6 @@ const NAV_IDS: sidebar_targets.TargetId[] = [
     "mcp",
     "runners",
     "drive",
-    "settings",
 ];
 
 // The pages for setting up agents and what they do on their own. They
@@ -523,19 +522,17 @@ export function update_sanji_nav_active_state(): void {
     update_automation_group();
 }
 
-// Shows each entry whose page is built (or has a fallback), points it at
-// that page, and keeps the Settings entry for Owner and Admin only.
+// Shows each entry whose page is built (or has a fallback), and points it
+// at that page.
 export function update_nav_targets(): void {
     const role = sidebar_targets.role_of(current_user);
-    const can_manage = sidebar_targets.can_manage_workspace(role);
     const can_use_playbooks = sidebar_targets.can_use_playbooks(role);
     const can_use_routines = sidebar_targets.can_use_routines(role);
     shown_nav_ids = new Set();
     for (const id of NAV_IDS) {
-        const hash = sidebar_targets.get_hash(id, id === "settings" ? "general" : undefined);
+        const hash = sidebar_targets.get_hash(id);
         const shown =
             hash !== undefined &&
-            (id !== "settings" || can_manage) &&
             (id !== "playbooks" || can_use_playbooks) &&
             (id !== "routines" || can_use_routines);
         const $li = $(`.sanji-nav-item[data-nav-id="${id}"]`);

@@ -67,7 +67,6 @@ run_test("build_view_before_the_list_arrives", () => {
     assert.deepEqual(view.rows, []);
     assert.equal(view.is_loading, true);
     assert.equal(view.load_failed, false);
-    // An admin can open the settings, but the server has not allowed creating a workspace.
-    assert.equal(view.can_manage_workspace, true);
+    // The server has not allowed creating a workspace.
     assert.equal(view.can_create_workspace, false);
 });

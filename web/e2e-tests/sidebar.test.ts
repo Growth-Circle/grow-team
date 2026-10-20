@@ -128,8 +128,13 @@ async function check_sizes(page: Page): Promise<void> {
     );
     assert_box(
         await get_box(page, "#sidebar-user-card-button"),
-        {x: 0, y: 942, width: 260, height: 58},
+        {x: 0, y: 942, width: 216, height: 58},
         "user card",
+    );
+    assert_box(
+        await get_box(page, ".sidebar-user-card-settings"),
+        {x: 216, y: 942, width: 44, height: 58},
+        "user card gear",
     );
     await common.screenshot(page, "sidebar-1600x1000");
     assert.deepEqual(size_errors, []);

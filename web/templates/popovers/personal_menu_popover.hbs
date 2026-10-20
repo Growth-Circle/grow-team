@@ -1,10 +1,15 @@
-<button type="button" id="sidebar-user-card-button" class="sidebar-user-card-button" aria-haspopup="true" aria-expanded="false">
-    <img class="sidebar-user-card-avatar" src="{{avatar_url}}" alt="" />
-    <span class="sidebar-user-card-text">
-        <span class="sidebar-user-card-name">{{full_name}}</span>
-        <span class="sidebar-user-card-sub">{{role_label}} · {{workspace_name}}</span>
-    </span>
-</button>
+<div class="sidebar-user-card-row">
+    <button type="button" id="sidebar-user-card-button" class="sidebar-user-card-button" aria-haspopup="true" aria-expanded="false">
+        <img class="sidebar-user-card-avatar" src="{{avatar_url}}" alt="" />
+        <span class="sidebar-user-card-text">
+            <span class="sidebar-user-card-name">{{full_name}}</span>
+            <span class="sidebar-user-card-sub">{{role_label}} · {{workspace_name}}</span>
+        </span>
+    </button>
+    <a class="sidebar-user-card-settings" href="{{settings_hash}}" aria-label="{{t 'Settings'}}" title="{{t 'Settings'}}">
+        <i class="zulip-icon zulip-icon-gear" aria-hidden="true"></i>
+    </a>
+</div>
 <div class="sidebar-user-card-dropdown" role="menu">
     <div class="sidebar-user-card-dropdown-head">
         <span class="sidebar-user-card-dropdown-name">{{full_name}}</span>

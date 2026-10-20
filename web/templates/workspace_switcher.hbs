@@ -30,12 +30,10 @@
         <div class="workspace-switcher-divider"></div>
         <button type="button" class="workspace-switcher-action workspace-switcher-create">{{t "+ Create new workspace" }}</button>
     {{/if}}
-    {{#if can_manage_workspace}}
-        {{#unless can_create_workspace}}
-            <div class="workspace-switcher-divider"></div>
-        {{/unless}}
-        <button type="button" class="workspace-switcher-action workspace-switcher-settings">{{t "Workspace settings" }}</button>
-    {{/if}}
+    {{#unless can_create_workspace}}
+        <div class="workspace-switcher-divider"></div>
+    {{/unless}}
+    <button type="button" class="workspace-switcher-action workspace-switcher-settings">{{t "Settings" }}</button>
     <div class="workspace-switcher-brand">
         <svg viewBox="0 0 48 48" width="14" height="14" aria-hidden="true">
             <path d="M34 5H15.5a9.5 9.5 0 0 0 0 19H34z" fill="#FF6A3D"></path>

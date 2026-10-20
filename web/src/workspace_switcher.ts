@@ -107,18 +107,13 @@ export function build_view(): {
     is_loading: boolean;
     load_failed: boolean;
     can_create_workspace: boolean;
-    can_manage_workspace: boolean;
 } {
-    const role = sidebar_targets.role_of(current_user);
     return {
         current: current_row(),
         rows: workspaces === undefined ? [] : workspaces.map((workspace) => to_row(workspace)),
         is_loading: workspaces === undefined && !load_failed,
         load_failed,
         can_create_workspace,
-        can_manage_workspace:
-            sidebar_targets.can_manage_workspace(role) &&
-            sidebar_targets.get_hash("settings", "general") !== undefined,
     };
 }
 
@@ -242,10 +237,9 @@ export function initialize(): void {
     $container.on("click", ".workspace-switcher-create", open_create_modal);
     $container.on("click", ".workspace-switcher-settings", () => {
         close_dropdown();
-        const hash = sidebar_targets.get_hash("settings", "general");
-        if (hash !== undefined) {
-            window.location.hash = hash.slice(1);
-        }
+        window.location.hash = sidebar_targets
+            .settings_hash(sidebar_targets.role_of(current_user))
+            .slice(1);
     });
 
     $(document).on("sidebar_overlay_opened", (_event, source: string) => {

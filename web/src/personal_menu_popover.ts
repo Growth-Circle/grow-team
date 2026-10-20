@@ -211,6 +211,7 @@ function render_user_card(): void {
             avatar_url: people.small_avatar_url_for_person(current_user),
             role_label: workspace_switcher.role_label(role),
             workspace_name: realm.realm_name,
+            settings_hash: sidebar_targets.settings_hash(role),
             can_manage_workspace:
                 sidebar_targets.can_manage_workspace(role) &&
                 sidebar_targets.get_hash("settings", "members") !== undefined,

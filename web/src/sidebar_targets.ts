@@ -134,3 +134,13 @@ export function can_use_routines(role: SidebarRole): boolean {
 export function can_manage_workspace(role: SidebarRole): boolean {
     return role === "owner" || role === "admin";
 }
+
+// The settings that the sidebar's gear and workspace menu open: the
+// workspace settings for those who manage the workspace, and the
+// person's own profile for everyone else.
+export function settings_hash(role: SidebarRole): string {
+    if (can_manage_workspace(role)) {
+        return get_hash("settings", "general") ?? "#settings/profile";
+    }
+    return "#settings/profile";
+}

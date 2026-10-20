@@ -3891,13 +3891,18 @@ body:not(.spectator-view)
     margin-top: auto;
 }
 
+#sidebar-user-card .sidebar-user-card-row {
+    display: flex;
+}
+
 #sidebar-user-card .sidebar-user-card-button {
     display: flex;
+    flex: 1;
     align-items: center;
     /* 10px at 16px/1em */
     gap: 0.625em;
     box-sizing: border-box;
-    width: 100%;
+    min-width: 0;
     /* 58px at 16px/1em */
     height: 3.625em;
     /* 12px 14px at 16px/1em */
@@ -3912,6 +3917,35 @@ body:not(.spectator-view)
 
     &:hover {
         background: var(--sj-sidebar-hover-card);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: inset var(--sj-ring-focus);
+    }
+}
+
+#sidebar-user-card .sidebar-user-card-settings {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    /* 44px wide and 58px tall at 16px/1em */
+    width: 2.75em;
+    height: 3.625em;
+    border-top: 1px solid var(--sj-sidebar-border);
+    color: var(--sj-sidebar-text-muted);
+    text-decoration: none;
+
+    .zulip-icon {
+        /* 18px at 16px/1em */
+        font-size: 1.125em;
+    }
+
+    &:hover {
+        background: var(--sj-sidebar-hover-card);
+        color: var(--sj-sidebar-text-strong);
     }
 
     &:focus-visible {
