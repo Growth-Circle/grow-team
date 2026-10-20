@@ -175,7 +175,7 @@ class DocPageTest(ZulipTestCase):
         assert "" in endpoint_list
 
         content = {
-            "/api/": "The Zulip API",
+            "/api/": "The sanji API",
             "/api/api-keys": "be careful with it",
             "/api/create-user": "zuliprc-admin",
             "/api/delete-queue": "Delete a previously registered queue",
@@ -320,8 +320,8 @@ class DocPageTest(ZulipTestCase):
         )
 
         # Root /help and /help/ is a special case without subpath.
-        self._test("/help/?raw", ["---", "title: Zulip help center"])
-        self._test("/help?raw", ["---", "title: Zulip help center"])
+        self._test("/help/?raw", ["---", "title: sanji help center"])
+        self._test("/help?raw", ["---", "title: sanji help center"])
 
         with (
             mock.patch("builtins.open", side_effect=OSError("File read error")),
