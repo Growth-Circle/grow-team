@@ -416,7 +416,6 @@ const NAV_IDS: sidebar_targets.TargetId[] = [
     "home",
     "needs",
     "tasks",
-    "my_tasks",
     "agents",
     "routines",
     "playbooks",
@@ -510,7 +509,11 @@ export function toggle_automation_group(): void {
 }
 
 export function update_sanji_nav_active_state(): void {
-    const active_id = sidebar_targets.id_for_hash(window.location.hash);
+    let active_id = sidebar_targets.id_for_hash(window.location.hash);
+    // "My tasks" is a tab of the Tasks page, with no row of its own.
+    if (active_id === "my_tasks") {
+        active_id = "tasks";
+    }
     $(".sanji-nav-item").removeClass("sanji-nav-item-active").removeAttr("aria-current");
     if (active_id !== undefined) {
         $(`.sanji-nav-item[data-nav-id="${active_id}"]`)

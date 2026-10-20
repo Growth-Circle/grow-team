@@ -244,3 +244,41 @@ run_test("automation_group_in_dom", () => {
 
     nav_counts.set_count("mcp", 0);
 });
+
+run_test("tasks_row_covers_my_tasks_tab", () => {
+    const win = {location: {hash: "#tasks"}};
+    set_global("window", win);
+    const $tasks = $('.sanji-nav-item[data-nav-id="tasks"]');
+    const $needs = $('.sanji-nav-item[data-nav-id="needs"]');
+    // The group reads the hash too, so it needs its parts.
+    const $group = $('.sanji-nav-group[data-nav-group="automation"]');
+    $group.set_find_results(".sanji-nav-group-toggle", $("<group-toggle>"));
+    $group.set_find_results(".sanji-nav-group-list", $("<group-list>"));
+    $group.set_find_results(".sanji-nav-group-attention", $("<group-dot>"));
+
+    // The stub of ".sanji-nav-item" is not the rows, so the test clears them.
+    const clear = () => {
+        $tasks.removeClass("sanji-nav-item-active");
+        $needs.removeClass("sanji-nav-item-active");
+    };
+
+    left_sidebar_navigation_area.update_sanji_nav_active_state();
+    assert.ok($tasks.hasClass("sanji-nav-item-active"));
+    assert.equal($tasks.attr("aria-current"), "page");
+
+    // AC-S2-001, AC-S2-002: the old My tasks link and a link to its list
+    // mark the same Tasks row.
+    for (const hash of ["#tasks/mine/list", "#tasks/mine", "#tasks/42"]) {
+        clear();
+        win.location.hash = "#needs";
+        left_sidebar_navigation_area.update_sanji_nav_active_state();
+        assert.ok(!$tasks.hasClass("sanji-nav-item-active"));
+        assert.ok($needs.hasClass("sanji-nav-item-active"));
+
+        clear();
+        win.location.hash = hash;
+        left_sidebar_navigation_area.update_sanji_nav_active_state();
+        assert.ok($tasks.hasClass("sanji-nav-item-active"), hash);
+        assert.ok(!$needs.hasClass("sanji-nav-item-active"), hash);
+    }
+});
