@@ -827,11 +827,13 @@ components:
           enum:
             - human
             - agent
+          description: Whether the actor is a human or an agent.
         id:
           type: integer
           description: A user ID (the actor's own account, bot or human).
         name:
           type: string
+          description: The actor's full name.
         agent_role:
           type: string
           nullable: true
@@ -843,8 +845,10 @@ components:
         color:
           type: string
           nullable: true
+          description: The color of the actor's avatar, as a hex string. null when the actor has none.
         initials:
           type: string
+          description: The initials shown in the actor's avatar.
       required:
         - type
         - id
@@ -875,17 +879,21 @@ components:
             - card_mention
             - card_assigned
             - reply
+          description: What kind of item this is.
         actor:
           $ref: "#/components/schemas/NeedActor"
         stream_id:
           type: integer
           nullable: true
+          description: The ID of the channel the item is in. null when it is not in a channel.
         topic:
           type: string
           nullable: true
+          description: The topic the item is in. null when it is not in a topic.
         time:
           type: string
           format: date-time
+          description: When the item was created.
         text:
           type: string
           description: |
@@ -911,16 +919,20 @@ components:
           type: object
           nullable: true
           additionalProperties: false
+          description: The file or diff the item is about. null when there is none.
           properties:
             kind:
               type: string
               enum:
                 - diff
                 - file
+              description: Whether the attachment is a diff or a file.
             id:
               type: string
+              description: The ID of the attachment.
             filename:
               type: string
+              description: The file name of the attachment.
           required:
             - kind
             - id
@@ -936,8 +948,10 @@ components:
         expires_at:
           type: string
           format: date-time
+          description: When the item expires.
         expired:
           type: boolean
+          description: Whether the item has already expired.
         resolved_at:
           type: string
           format: date-time
@@ -996,6 +1010,7 @@ components:
               description: The short card ID, such as `GT-37`.
             title:
               type: string
+              description: The task card's title.
           required:
             - id
             - display_id
@@ -1028,24 +1043,36 @@ components:
           required:
             [call_id, grant_name, tool, target, content, mentions, digest]
           properties:
-            call_id: {type: string}
+            call_id:
+              type: string
+              description: The ID of the call.
             grant_name:
               type: string
               description: The name of the connection that made the call.
-            tool: {type: string}
+            tool:
+              type: string
+              description: The name of the tool the call uses.
             target:
               type: object
               additionalProperties: false
               required: [type, name, topic, message_id]
+              description: What the call would send to or change.
               properties:
                 type:
                   type: string
                   enum: [channel, direct, message, task, column, file]
+                  description: What kind of target it is.
                 name:
                   type: string
                   description: A channel, the people of a direct message, a task, a column or a file, by name.
-                topic: {type: string, nullable: true}
-                message_id: {type: integer, nullable: true}
+                topic:
+                  type: string
+                  nullable: true
+                  description: The topic of the target. null when it has none.
+                message_id:
+                  type: integer
+                  nullable: true
+                  description: The ID of the target message. null when the target is not a message.
             content:
               type: string
               description: The whole content the call would send or change.
@@ -1112,24 +1139,31 @@ components:
         approval:
           type: integer
           minimum: 0
+          description: How many `approval` items there are.
         mention:
           type: integer
           minimum: 0
+          description: How many `mention` items there are.
         decision:
           type: integer
           minimum: 0
+          description: How many `decision` items there are.
         card_mention:
           type: integer
           minimum: 0
+          description: How many `card_mention` items there are.
         card_assigned:
           type: integer
           minimum: 0
+          description: How many `card_assigned` items there are.
         reply:
           type: integer
           minimum: 0
+          description: How many `reply` items there are.
         all:
           type: integer
           minimum: 0
+          description: How many items there are of every kind together.
       required:
         - approval
         - mention
@@ -1154,10 +1188,12 @@ components:
           type: integer
           enum:
             - 1
+          description: The version of the response format. Always `1`.
         items:
           type: array
           items:
             $ref: "#/components/schemas/NeedItem"
+          description: The items that match the request.
         counts:
           allOf:
             - $ref: "#/components/schemas/NeedCounts"
@@ -1198,6 +1234,7 @@ components:
           type: integer
           enum:
             - 1
+          description: The version of the response format. Always `1`.
       required:
         - result
         - msg
@@ -1218,6 +1255,7 @@ components:
           type: integer
           enum:
             - 1
+          description: The version of the response format. Always `1`.
         done:
           type: array
           items:
@@ -1253,6 +1291,7 @@ components:
           type: integer
           enum:
             - 1
+          description: The version of the response format. Always `1`.
         until:
           type: string
           format: date-time
