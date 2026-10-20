@@ -131,6 +131,7 @@ paths:
       parameters:
         - name: profile_id
           in: path
+          example: 00000000-0000-4000-8000-000000000001
           description: The ID of the agent profile.
           required: true
           schema:

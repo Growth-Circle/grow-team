@@ -38,6 +38,7 @@ paths:
       parameters:
         - name: kind
           in: query
+          example: approval
           description: |
             Narrows the list to one kind of item. Omit it to return all
             kinds together.
@@ -56,6 +57,7 @@ paths:
               - reply
         - name: status
           in: query
+          example: open
           description: |
             `open` lists what still needs you. `resolved` lists what you
             already handled, going back to `since`.
@@ -67,6 +69,7 @@ paths:
             default: open
         - name: since
           in: query
+          example: today
           description: |
             With `status=resolved`, how far back to list. The only
             supported value is `today`, resolved in the workspace's own
@@ -273,6 +276,7 @@ paths:
       parameters:
         - name: message_id
           in: path
+          example: 1
           description: The ID of the message that mentioned you.
           required: true
           schema:
@@ -348,6 +352,7 @@ paths:
       parameters:
         - name: message_id
           in: path
+          example: 1
           description: The ID of the message that mentioned you.
           required: true
           schema:
@@ -425,6 +430,7 @@ paths:
       parameters:
         - name: notification_id
           in: path
+          example: 1
           description: The number after the colon in the item's `id`.
           required: true
           schema:
