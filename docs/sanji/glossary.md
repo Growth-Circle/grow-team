@@ -23,6 +23,7 @@ this file does that, in review.
 | The board with columns                                                             | Task board         | Papan tugas                           | Tugas, Kanban            |
 | One column of the board                                                            | Column             | Kolom                                 | Lajur                    |
 | A person's open cards, by deadline                                                 | My tasks           | Tugas saya                            | Tugasku                  |
+| The sidebar entry of the board and of My tasks                                     | Tasks              | Tugas                                 | Papan tugas              |
 | The cards a person picked for today                                                | Today plan         | Rencana hari ini                      | Rencana harian           |
 | Put a card in today's plan                                                         | Add to today       | Tambah ke hari ini                    | Masukkan ke hari ini     |
 | What waits on this person in every room                                            | Needs you          | Perlu kamu                            | Butuh kamu, Inbox        |
@@ -72,6 +73,9 @@ this file does that, in review.
   page, in the API docs or in a message. "Mine" and "Shared" name the
   two tabs and the two choices when a playbook is made; the API calls
   them and .
+- **Agents & automation.** The sidebar group of Agents, Scheduled,
+  Playbooks, MCP connections and Runners. Indonesian writes "Agen &
+  otomasi", with the ampersand, not "Agen dan otomasi".
 - **Auto is not translated.** The three choices of a tool read Auto,
   Tanya dulu and Mati in Indonesian. The task board chip for a card that
   was added by itself reads Auto as well.
