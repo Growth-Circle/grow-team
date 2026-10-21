@@ -55,12 +55,17 @@ Akun atau workspace yang dinonaktifkan tidak dapat menggunakan token.
 | `get_task_board` | Baca board dan tugas yang terlihat | Baca |
 | `get_me` | Baca profil akun pemilik koneksi | Baca |
 | `get_direct_messages` | Baca pesan langsung dengan satu atau beberapa anggota | Baca |
+| `get_needs` | Daftar item Perlu kamu milik akun; persetujuan dan pertanyaan agen tetap dijawab di aplikasi | Baca |
 | `send_message` | Kirim pesan ke channel, dengan mention opsional | Tulis |
 | `send_direct_message` | Kirim pesan langsung ke satu atau beberapa anggota | Tulis |
 | `edit_message` | Ubah isi pesan yang dikirim akun pemilik koneksi | Tulis |
 | `add_reaction` | Tambah reaksi emoji ke pesan | Tulis |
 | `remove_reaction` | Hapus reaksi emoji milik akun pemilik koneksi | Tulis |
 | `upload_file` | Unggah file hingga 15 MiB, atau batas unggah workspace bila lebih kecil; hasil berisi `url` dan `markdown` siap tempel | Tulis |
+| `resolve_needs` | Tandai mention dan item kartu sebagai selesai; jenis lain gagal | Tulis |
+| `reopen_needs` | Batalkan `resolve_needs`; item kartu hanya dibuka lagi dalam beberapa menit | Tulis |
+| `snooze_needs` | Sembunyikan item sampai pukul 07:00 berikutnya di jam workspace | Tulis |
+| `unsnooze_needs` | Tampilkan lagi item yang ditunda | Tulis |
 | `delete_task` | Hapus tugas yang dapat diubah akun | Tulis |
 | `create_task` | Buat tugas | Tulis |
 | `update_task` | Ubah tugas yang dapat diakses | Tulis |

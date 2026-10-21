@@ -368,3 +368,17 @@ class MCPApprovalTest(ZulipTestCase):
         self.assertEqual(create.preview["content"], "Plan the launch\nDraft the steps.")
         with self.assertRaises(JsonableError):
             request_approval(self.grant, "create_task", {"title": "x", "column_id": 999999999})
+
+    def test_preview_of_a_needs_tool_lists_the_ids(self) -> None:
+        call = request_approval(
+            self.grant, "resolve_needs", {"need_ids": ["mention:5", "card_mention:7"]}
+        )
+        self.assertEqual(
+            call.preview,
+            {
+                "tool": "resolve_needs",
+                "target": {"type": "needs", "name": "Needs you", "topic": None, "message_id": None},
+                "content": "mention:5\ncard_mention:7",
+                "mentions": [],
+            },
+        )

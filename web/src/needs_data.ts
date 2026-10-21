@@ -41,7 +41,7 @@ export const need_mcp_call_schema = z.object({
     grant_name: z.string(),
     tool: z.string(),
     target: z.object({
-        type: z.enum(["channel", "direct", "message", "task", "column", "file"]),
+        type: z.enum(["channel", "direct", "message", "task", "column", "file", "needs"]),
         name: z.string(),
         topic: z.nullable(z.string()),
         message_id: z.nullable(z.number()),

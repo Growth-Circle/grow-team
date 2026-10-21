@@ -7691,6 +7691,9 @@ msgstr "Koneksi tidak ditemukan."
 msgid "Unknown tool."
 msgstr "Tool tidak dikenal."
 
+msgid "Needs you"
+msgstr "Perlu kamu"
+
 msgid "A read tool can be Auto or Off, not Ask first."
 msgstr "Tool baca hanya bisa Auto atau Mati, bukan Tanya dulu."
 

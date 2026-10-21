@@ -175,6 +175,10 @@ function mcp_tool_label(tool: string): string {
         create_task: $t({defaultMessage: "Create a card"}),
         update_task: $t({defaultMessage: "Change a card"}),
         delete_task: $t({defaultMessage: "Delete a card"}),
+        resolve_needs: $t({defaultMessage: "Mark items done"}),
+        reopen_needs: $t({defaultMessage: "Reopen items"}),
+        snooze_needs: $t({defaultMessage: "Snooze items"}),
+        unsnooze_needs: $t({defaultMessage: "Unsnooze items"}),
     };
     return labels[tool] ?? tool;
 }

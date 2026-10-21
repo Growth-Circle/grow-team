@@ -16,7 +16,7 @@ from typing_extensions import override
 
 from zerver.lib.mcp_access import audit
 from zerver.lib.mcp_pending import argument_digest
-from zerver.lib.mcp_policy import OFF, set_policies
+from zerver.lib.mcp_policy import ASK_FIRST, OFF, set_policies
 from zerver.lib.mcp_tools import MAX_BASE64_LENGTH, TOOLS
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.lib.test_helpers import ratelimit_rule
@@ -28,6 +28,7 @@ from zerver.models import (
     MCPPendingCall,
     Message,
 )
+from zerver.models.needs import NeedResolution, NeedSnooze
 from zerver.models.streams import get_stream
 from zerver.views.mcp_server import MAX_BODY_BYTES
 
@@ -1273,3 +1274,140 @@ class MCPAccessTests(ZulipTestCase):
         )
         self.assertEqual([entry["outcome"] for entry in older["entries"]], ["outcome2", "outcome1"])
         self.assertEqual(self.client_get("/json/mcp/audit", {"limit": "0"}).status_code, 400)
+
+    def mention_of_user(self, text: str = "please look") -> int:
+        self.subscribe(self.user, "Denmark")
+        sender = self.example_user("othello")
+        self.subscribe(sender, "Denmark")
+        return self.send_stream_message(
+            sender, "Denmark", f"@**{self.user.full_name}** {text}", topic_name="needs"
+        )
+
+    def test_get_needs_lists_a_mention_without_approval_values(self) -> None:
+        token = self.manual()
+        message_id = self.mention_of_user()
+
+        output = self.call(token, "get_needs", {})
+
+        [item] = output["items"]
+        self.assertEqual(item["id"], f"mention:{message_id}")
+        self.assertEqual(item["kind"], "mention")
+        self.assertEqual(item["from"], self.example_user("othello").full_name)
+        self.assertEqual(item["channel_id"], get_stream("Denmark", self.user.realm).id)
+        self.assertEqual(item["topic"], "needs")
+        self.assertEqual(item["text"], f"@{self.user.full_name} please look")
+        self.assertEqual(item["url"], self.user.realm.url + f"/#narrow/id/{message_id}")
+        self.assertTrue(item["can_mark_done"])
+        self.assertFalse(item["team_wide"])
+        self.assertEqual(output["counts"]["mention"], 1)
+        self.assertFalse(output["has_more"])
+        for hidden in ("nonce", "operation_hash", "approval_version", "job_version", "mcp_call"):
+            self.assertNotIn(hidden, item)
+            self.assertNotIn(hidden, json.dumps(output))
+
+    def test_get_needs_limit_and_kind_filter(self) -> None:
+        token = self.manual()
+        for index in range(3):
+            self.mention_of_user(f"ping {index}")
+        output = self.call(token, "get_needs", {"limit": 2})
+        self.assertEqual(len(output["items"]), 2)
+        self.assertTrue(output["has_more"])
+        self.assertEqual(self.call(token, "get_needs", {"kind": "approval"})["items"], [])
+        self.assertTrue(self.call(token, "get_needs", {"kind": "other"})["isError"])
+
+    def test_resolve_and_reopen_needs(self) -> None:
+        token = self.manual(write=True)
+        need_id = f"mention:{self.mention_of_user()}"
+
+        self.assertEqual(
+            self.call(token, "resolve_needs", {"need_ids": [need_id]}),
+            {"done": [need_id], "failed": []},
+        )
+        self.assertEqual(self.call(token, "get_needs", {})["items"], [])
+        [resolved] = self.call(token, "get_needs", {"status": "resolved"})["items"]
+        self.assertEqual(resolved["id"], need_id)
+        self.assertFalse(resolved["can_mark_done"])
+        self.assertIsNotNone(resolved["resolved_at"])
+
+        self.assertEqual(
+            self.call(token, "reopen_needs", {"need_ids": [need_id]}),
+            {"done": [need_id], "failed": []},
+        )
+        self.assertEqual(
+            [item["id"] for item in self.call(token, "get_needs", {})["items"]], [need_id]
+        )
+
+    def test_resolve_needs_reports_the_items_that_fail(self) -> None:
+        token = self.manual(write=True)
+        output = self.call(token, "resolve_needs", {"need_ids": ["mention:999999"]})
+        self.assertEqual(output, {"done": [], "failed": ["mention:999999"]})
+
+    def test_snooze_and_unsnooze_needs(self) -> None:
+        token = self.manual(write=True)
+        need_id = f"mention:{self.mention_of_user()}"
+
+        output = self.call(token, "snooze_needs", {"need_ids": [need_id]})
+
+        self.assertIn("until", output)
+        self.assertEqual(self.call(token, "get_needs", {})["items"], [])
+        self.assertEqual(
+            self.call(token, "unsnooze_needs", {"need_ids": [need_id]}),
+            {"unsnoozed": [need_id]},
+        )
+        self.assertEqual(
+            [item["id"] for item in self.call(token, "get_needs", {})["items"]], [need_id]
+        )
+
+    def test_need_tools_leave_approvals_and_questions_to_the_app(self) -> None:
+        token = self.manual(write=True)
+        mention_id = f"mention:{self.mention_of_user()}"
+        for name in ("resolve_needs", "reopen_needs", "snooze_needs", "unsnooze_needs"):
+            for other in ("approval:abc", "mcp_call:abc", "decision:abc"):
+                self.assertTrue(self.call(token, name, {"need_ids": [other]})["isError"])
+                # One item of another kind fails the whole call.
+                self.assertTrue(
+                    self.call(token, name, {"need_ids": [mention_id, other]})["isError"]
+                )
+        self.assertFalse(NeedSnooze.objects.exists())
+        self.assertFalse(NeedResolution.objects.exists())
+        self.assertEqual(len(self.call(token, "get_needs", {})["items"]), 1)
+
+    def test_an_ask_first_need_tool_holds_no_call_for_another_kind(self) -> None:
+        self.enforce()
+        token = self.manual(write=True)
+        set_policies(self.latest_grant(), self.user, {"snooze_needs": ASK_FIRST})
+        self.assertTrue(self.call(token, "snooze_needs", {"need_ids": ["mcp_call:abc"]})["isError"])
+        self.assertFalse(MCPPendingCall.objects.exists())
+
+    def test_a_read_only_connection_reads_needs_but_cannot_change_them(self) -> None:
+        token = self.manual()
+        need_id = f"mention:{self.mention_of_user()}"
+        self.assertEqual(len(self.call(token, "get_needs", {})["items"]), 1)
+        for name in ("resolve_needs", "reopen_needs", "snooze_needs", "unsnooze_needs"):
+            self.assertTrue(self.call(token, name, {"need_ids": [need_id]})["isError"])
+        self.assertEqual(len(self.call(token, "get_needs", {})["items"]), 1)
+
+    def test_need_ids_must_have_the_shape_of_an_id(self) -> None:
+        token = self.manual(write=True)
+        for bad in ([], ["mention"], ["has space:1"], ["x" * 90 + ":1"], ["mention:1"] * 201):
+            self.assertTrue(self.call(token, "resolve_needs", {"need_ids": bad})["isError"])
+
+    def test_team_wide_items_need_include_team_wide(self) -> None:
+        token = self.manual()
+        sender = self.example_user("othello")
+        others = [self.example_user("cordelia"), self.example_user("iago")]
+        for member in [self.user, sender, *others]:
+            self.subscribe(member, "Denmark")
+        mentions = " ".join(f"@**{member.full_name}**" for member in [self.user, *others])
+        message_id = self.send_stream_message(
+            sender, "Denmark", f"{mentions} daily summary", topic_name="summary"
+        )
+
+        hidden = self.call(token, "get_needs", {})
+        shown = self.call(token, "get_needs", {"include_team_wide": True})
+
+        self.assertEqual(hidden["items"], [])
+        self.assertEqual(hidden["team_wide_counts"]["mention"], 1)
+        [item] = shown["items"]
+        self.assertEqual(item["id"], f"mention:{message_id}")
+        self.assertTrue(item["team_wide"])

@@ -6,20 +6,20 @@ import json
 import re
 from collections.abc import Collection
 from copy import copy
-from typing import TYPE_CHECKING, Annotated, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpRequest, QueryDict
 from django.utils.datastructures import MultiValueDict
 from django.views.decorators.debug import sensitive_variables
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
 
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.message import access_message
 from zerver.lib.request import RequestNotes
 from zerver.lib.tasks import access_task_by_id
 from zerver.models import UserProfile
-from zerver.views import reactions, streams, tasks, upload, users
+from zerver.views import needs, reactions, streams, tasks, upload, users
 from zerver.views.message_edit import update_message_backend
 from zerver.views.message_fetch import get_messages_backend
 from zerver.views.message_send import send_message_backend
@@ -115,6 +115,42 @@ class UploadFile(Arguments):
     ] = "application/octet-stream"
 
 
+class GetNeeds(Arguments):
+    kind: (
+        Literal["approval", "mention", "decision", "card_mention", "card_assigned", "reply"] | None
+    ) = None
+    # "resolved" lists the items that the account handled today.
+    status: Literal["open", "resolved"] = "open"
+    include_team_wide: bool = False
+    limit: Annotated[int, Field(ge=1, le=100)] = 30
+
+
+# Approvals, held calls and agent questions stay visible to the person until
+# they answer them in the app, so no tool hides or closes them.
+MCP_HANDLED_NEED_KINDS = frozenset({"mention", "card_mention", "card_assigned", "reply"})
+
+
+def check_need_kind(need_id: str) -> str:
+    # Checked with the arguments, so an Ask first call for another kind is
+    # never held for the owner to approve.
+    if need_id.partition(":")[0] not in MCP_HANDLED_NEED_KINDS:
+        raise ValueError(
+            "Only mentions, card items and replies can be handled here. Answer approvals and agent questions in the app."
+        )
+    return need_id
+
+
+NeedId = Annotated[
+    str,
+    StringConstraints(min_length=3, max_length=80, pattern=r"^[a-z_]+:\S+$"),
+    AfterValidator(check_need_kind),
+]
+
+
+class NeedIds(Arguments):
+    need_ids: Annotated[list[NeedId], Field(min_length=1, max_length=200)]
+
+
 class TaskId(Arguments):
     task_id: PositiveId
 
@@ -184,6 +220,11 @@ TOOLS: dict[str, tuple[type[Arguments], str, bool]] = {
         "Read recent direct messages with the given members. Use list_users for member IDs.",
         False,
     ),
+    "get_needs": (
+        GetNeeds,
+        "List the Needs you items of this account. Approvals and agent questions are answered in the app, and a reply item ends when its topic is read.",
+        False,
+    ),
     "send_message": (
         Send,
         "Send a channel message as the approved account. Use mention_user_ids to notify members. Content supports workspace Markdown.",
@@ -214,6 +255,22 @@ TOOLS: dict[str, tuple[type[Arguments], str, bool]] = {
         "Upload a file as the approved account, up to the smaller of the workspace's upload limit and 15 MiB. content_base64 is plain base64 of the file bytes; a data: URL prefix and line breaks are accepted. Returns its url and a markdown link to paste into a message; images display inline.",
         True,
     ),
+    "resolve_needs": (
+        NeedIds,
+        "Mark mentions and card items as done, like the Mark done and Mark as seen buttons. Other kinds of item fail.",
+        True,
+    ),
+    "reopen_needs": (
+        NeedIds,
+        "Undo resolve_needs for the given items. A card item reopens only within a few minutes.",
+        True,
+    ),
+    "snooze_needs": (
+        NeedIds,
+        "Hide the given mentions, card items and replies until the next 07:00 on the workspace clock.",
+        True,
+    ),
+    "unsnooze_needs": (NeedIds, "Show snoozed mentions, card items and replies again.", True),
     "delete_task": (TaskId, "Delete a task that the approved account can modify.", True),
     "create_task": (
         CreateTask,
@@ -308,6 +365,42 @@ def message_content(request: HttpRequest, user: UserProfile, args: dict[str, obj
     if len(content) > 10000:
         raise ValueError("The message exceeds its limit.")
     return content
+
+
+def _need_url(user: UserProfile, item: dict[str, Any]) -> str:
+    raw_id = item["id"].partition(":")[2]
+    if item["kind"] == "mention":
+        return user.realm.url + f"/#narrow/id/{raw_id}"
+    if item["kind"] == "reply" and item.get("reply") is not None:
+        return user.realm.url + f"/#narrow/id/{item['reply']['first_unread_message_id']}"
+    if item["task"] is not None:
+        return user.realm.url + f"/#tasks/{item['task']['id']}"
+    return user.realm.url + "/#needs"
+
+
+def _need_summary(user: UserProfile, item: dict[str, Any]) -> dict[str, Any]:
+    """The part of a Needs you item that a client needs. It leaves out the
+    values that approve or reject, which only the app uses."""
+    reply = item.get("reply")
+    return {
+        "id": item["id"],
+        "kind": item["kind"],
+        "time": item["time"],
+        "from": item["actor"]["name"],
+        "channel_id": item["stream_id"],
+        "topic": item["topic"],
+        "text": item["raw_text"],
+        "url": _need_url(user, item),
+        "task": item["task"],
+        "reply": reply,
+        "team_wide": item["broadcast"],
+        "expired": item["expired"],
+        "expires_at": item["expires_at"],
+        "resolved_at": item["resolved_at"],
+        "resolved_action": item["resolved_action"],
+        "can_mark_done": item["resolved_at"] is None
+        and item["kind"] in {"mention", "card_mention", "card_assigned"},
+    }
 
 
 @sensitive_variables()
@@ -431,6 +524,33 @@ def execute_tool(
                 "narrow": narrow,
             },
         )
+    if name == "get_needs":
+        result = _view(
+            request, user, needs.list_needs, {"kind": args["kind"], "status": args["status"]}
+        )
+        items = [
+            item for item in result["items"] if args["include_team_wide"] or not item["broadcast"]
+        ]
+        limit = cast(int, args["limit"])
+        return {
+            "items": [_need_summary(user, item) for item in items[:limit]],
+            "counts": result["counts"],
+            "team_wide_counts": result["broadcast_counts"],
+            "has_more": len(items) > limit,
+        }
+    if name in {"resolve_needs", "reopen_needs", "snooze_needs", "unsnooze_needs"}:
+        needs_view = {
+            "resolve_needs": needs.resolve_needs,
+            "reopen_needs": needs.unresolve_needs,
+            "snooze_needs": needs.snooze_needs,
+            "unsnooze_needs": needs.unsnooze_needs,
+        }[name]
+        result = _view(request, user, needs_view, {"need_ids": args["need_ids"]})
+        if name == "unsnooze_needs":
+            return {"unsnoozed": args["need_ids"]}
+        if name == "snooze_needs":
+            return {"until": result["until"]}
+        return {"done": result["done"], "failed": result["failed"]}
     if name == "send_message":
         return _view(
             request,

@@ -1,0 +1,11 @@
+{
+  "frontend": {
+    "Mark items done": "Tandai item selesai",
+    "Reopen items": "Buka lagi item",
+    "Snooze items": "Tunda item",
+    "Unsnooze items": "Batalkan tunda item"
+  },
+  "backend": {
+    "Needs you": "Perlu kamu"
+  }
+}

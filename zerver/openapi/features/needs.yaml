@@ -1060,7 +1060,7 @@ components:
               properties:
                 type:
                   type: string
-                  enum: [channel, direct, message, task, column, file]
+                  enum: [channel, direct, message, task, column, file, needs]
                   description: What kind of target it is.
                 name:
                   type: string

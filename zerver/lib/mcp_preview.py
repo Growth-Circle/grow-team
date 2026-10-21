@@ -19,7 +19,7 @@ from zerver.models.tasks import TaskBoardColumn
 
 
 class PreviewTarget(TypedDict):
-    # "channel", "direct", "message", "task", "column" or "file".
+    # "channel", "direct", "message", "task", "column", "file" or "needs".
     type: str
     name: str
     topic: str | None
@@ -127,6 +127,9 @@ def build_preview(user: UserProfile, tool_name: str, args: dict[str, object]) ->
         encoded = cast(str, args["content_base64"])
         size = len(encoded) * 3 // 4 - (len(encoded) - len(encoded.rstrip("=")))
         content = f"{args['content_type']}, {size} bytes"
+    elif tool_name in {"resolve_needs", "reopen_needs", "snooze_needs", "unsnooze_needs"}:
+        target = _target("needs", _("Needs you"))
+        content = "\n".join(cast(list[str], args["need_ids"]))
     else:
         raise ValueError("Unknown tool.")
     return {"tool": tool_name, "target": target, "content": content, "mentions": mentions}
