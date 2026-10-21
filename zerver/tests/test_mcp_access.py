@@ -1072,6 +1072,7 @@ class MCPAccessTests(ZulipTestCase):
         # AC-V1-008, AC-V1-009, AC-V1-011 through the MCP endpoint
         self.enforce()
         token = self.manual(write=True)
+        set_policies(self.latest_grant(), self.user, {"send_message": ASK_FIRST})
         self.subscribe(self.user, "Denmark")
         args = {
             "channel_id": get_stream("Denmark", self.user.realm).id,
@@ -1108,6 +1109,25 @@ class MCPAccessTests(ZulipTestCase):
         )
         self.assertEqual(outcomes, ["asked", "approved", "executed"])
 
+    def test_a_new_grant_sends_a_direct_message_without_asking(self) -> None:
+        self.enforce()
+        token = self.manual(write=True)
+        other = self.example_user("othello")
+        result = self.rpc_result(
+            token,
+            "send_direct_message",
+            {"recipient_user_ids": [other.id], "content": "No approval needed."},
+        )
+        self.assertFalse(result["isError"])
+        self.assertTrue(Message.objects.filter(content="No approval needed.").exists())
+        self.assertFalse(MCPPendingCall.objects.exists())
+        outcomes = list(
+            MCPAccessAudit.objects.filter(tool_name="send_direct_message").values_list(
+                "outcome", flat=True
+            )
+        )
+        self.assertEqual(outcomes, ["success"])
+
     def test_an_ask_first_call_with_an_unreachable_target_is_rejected_not_queued(self) -> None:
         self.enforce()
         token = self.manual(write=True)
@@ -1135,7 +1155,7 @@ class MCPAccessTests(ZulipTestCase):
         self.assertEqual({tool["policy"] for tool in tools.values()}, {"allow"})
         self.assertEqual(tools["get_me"]["kind"], "read")
         self.assertEqual(tools["get_me"]["default_policy"], "allow")
-        self.assertEqual(tools["send_message"]["default_policy"], "approve")
+        self.assertEqual(tools["send_message"]["default_policy"], "allow")
         self.assertEqual(tools["add_reaction"]["default_policy"], "allow")
         self.assertEqual(tools["send_message"]["kind"], "write")
         self.assertEqual(tools["delete_task"]["kind"], "destructive")
@@ -1155,12 +1175,12 @@ class MCPAccessTests(ZulipTestCase):
         self.manual(write=True)
         grant = self.latest_grant()
         result = self.assert_json_success(
-            self.put_tools(grant, {"send_message": "block", "delete_task": "approve"})
+            self.put_tools(grant, {"send_message": "block", "delete_task": "allow"})
         )
         policies = {tool["name"]: tool["policy"] for tool in result["tools"]}
         self.assertEqual(policies["send_message"], "block")
-        self.assertEqual(policies["delete_task"], "approve")
-        self.assertEqual(policies["edit_message"], "approve")
+        self.assertEqual(policies["delete_task"], "allow")
+        self.assertEqual(policies["edit_message"], "allow")
         self.assertEqual(policies["add_reaction"], "allow")
         stored = {
             row.tool_name: row.policy for row in MCPAccessToolPolicy.objects.filter(grant=grant)
@@ -1177,7 +1197,7 @@ class MCPAccessTests(ZulipTestCase):
                 {
                     "tool_name": "send_message",
                     "actor_id": self.user.id,
-                    "detail": {"policy": "block", "was": "approve"},
+                    "detail": {"policy": "block", "was": "allow"},
                 },
             ],
         )

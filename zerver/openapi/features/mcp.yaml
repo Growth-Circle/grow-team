@@ -224,8 +224,8 @@ paths:
                   - name: send_message
                     description: Send a channel message as the approved account.
                     kind: write
-                    policy: approve
-                    default_policy: approve
+                    policy: allow
+                    default_policy: allow
     put:
       operationId: update-mcp-access-tools
       tags: ["users"]
@@ -293,7 +293,7 @@ paths:
                     description: Send a channel message as the approved account.
                     kind: write
                     policy: block
-                    default_policy: approve
+                    default_policy: allow
   /mcp/audit:
     get:
       operationId: list-mcp-audit

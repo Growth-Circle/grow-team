@@ -29,12 +29,6 @@ AUTO = "allow"
 ASK_FIRST = "approve"
 OFF = "block"
 
-# These write tools say something to other people, or change or remove what
-# was said or planned, so a new grant asks before they run.
-ASK_FIRST_BY_DEFAULT = frozenset(
-    {"send_message", "send_direct_message", "edit_message", "delete_task"}
-)
-
 _DECISIONS: dict[str, Decision] = {AUTO: "allow", ASK_FIRST: "ask", OFF: "deny"}
 
 
@@ -46,7 +40,10 @@ def tool_kind(tool_name: str) -> ToolKind:
 
 
 def default_policy(tool_name: str) -> str:
-    return ASK_FIRST if tool_name in ASK_FIRST_BY_DEFAULT else AUTO
+    # Instructions come from the owner of the connection, through their own
+    # agent, so a new grant runs every tool it has the scope for. Ask first
+    # stays available as a per-tool choice.
+    return AUTO
 
 
 def scope_allows(tool_name: str, scopes: Collection[str]) -> bool:
@@ -65,7 +62,7 @@ def evaluate(
     """The decision for one tool. A tool that does not exist, or that a
     connection has not yet had reviewed, is denied. A legacy grant has the
     access its scopes give it. A managed grant also needs the scope, then
-    follows the stored policy, or the class default when none is stored."""
+    follows the stored policy, or Auto when none is stored."""
     if tool_name not in TOOLS or unreviewed_new_tool:
         return "deny"
     if not scope_allows(tool_name, scopes):

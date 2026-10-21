@@ -5,7 +5,6 @@ from django.utils.timezone import now
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.mcp_policy import (
     ASK_FIRST,
-    ASK_FIRST_BY_DEFAULT,
     AUTO,
     OFF,
     check_connection_policy_editable,
@@ -48,14 +47,10 @@ class MCPPolicyTest(ZulipTestCase):
                 evaluate(tool_name, scopes=READ_WRITE, mode="managed", stored={}), "allow"
             )
         for tool_name in WRITE_TOOLS:
-            expected = "ask" if tool_name in ASK_FIRST_BY_DEFAULT else "allow"
             self.assertEqual(
-                evaluate(tool_name, scopes=READ_WRITE, mode="managed", stored={}), expected
+                evaluate(tool_name, scopes=READ_WRITE, mode="managed", stored={}), "allow"
             )
-        self.assertEqual(
-            {name for name in WRITE_TOOLS if default_policy(name) == ASK_FIRST},
-            {"send_message", "send_direct_message", "edit_message", "delete_task"},
-        )
+        self.assertEqual({default_policy(name) for name in READ_TOOLS + WRITE_TOOLS}, {AUTO})
 
     def test_managed_grant_returns_the_stored_policy(self) -> None:
         # AC-V1-001: scope x stored policy
@@ -116,8 +111,12 @@ class MCPPolicyTest(ZulipTestCase):
 
     def test_evaluate_grant_reads_stored_rows(self) -> None:
         grant = self.make_grant(scopes=READ_WRITE)
+        self.assertEqual(evaluate_grant(grant, "send_message"), "allow")
+        MCPAccessToolPolicy.objects.create(grant=grant, tool_name="send_message", policy=ASK_FIRST)
         self.assertEqual(evaluate_grant(grant, "send_message"), "ask")
-        MCPAccessToolPolicy.objects.create(grant=grant, tool_name="send_message", policy=AUTO)
+        MCPAccessToolPolicy.objects.filter(grant=grant, tool_name="send_message").update(
+            policy=AUTO
+        )
         MCPAccessToolPolicy.objects.create(grant=grant, tool_name="get_me", policy=OFF)
         self.assertEqual(evaluate_grant(grant, "send_message"), "allow")
         self.assertEqual(evaluate_grant(grant, "get_me"), "deny")
@@ -166,7 +165,7 @@ class MCPPolicyTest(ZulipTestCase):
         legacy = self.make_grant(scopes=READ_WRITE, mode="legacy")
         managed = self.make_grant(scopes=READ_WRITE)
         self.assertEqual(effective_policy(legacy, "send_message", {}), AUTO)
-        self.assertEqual(effective_policy(managed, "send_message", {}), ASK_FIRST)
+        self.assertEqual(effective_policy(managed, "send_message", {}), AUTO)
         self.assertEqual(effective_policy(managed, "send_message", {"send_message": OFF}), OFF)
 
     def test_tool_kind_and_hints(self) -> None:
