@@ -179,6 +179,7 @@ function mcp_tool_label(tool: string): string {
         reopen_needs: $t({defaultMessage: "Reopen items"}),
         snooze_needs: $t({defaultMessage: "Snooze items"}),
         unsnooze_needs: $t({defaultMessage: "Unsnooze items"}),
+        mark_read: $t({defaultMessage: "Mark messages as read"}),
     };
     return labels[tool] ?? tool;
 }

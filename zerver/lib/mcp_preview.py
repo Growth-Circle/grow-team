@@ -127,6 +127,13 @@ def build_preview(user: UserProfile, tool_name: str, args: dict[str, object]) ->
         encoded = cast(str, args["content_base64"])
         size = len(encoded) * 3 // 4 - (len(encoded) - len(encoded.rstrip("=")))
         content = f"{args['content_type']}, {size} bytes"
+    elif tool_name == "mark_read":
+        if args.get("user_ids") is not None:
+            target = _target("direct", ", ".join(_names(user, cast(list[int], args["user_ids"]))))
+        else:
+            stream, _subscription = access_stream_by_id(user, cast(int, args["channel_id"]))
+            target = _target("channel", stream.name, topic=cast("str | None", args.get("topic")))
+        content = ""
     elif tool_name in {"resolve_needs", "reopen_needs", "snooze_needs", "unsnooze_needs"}:
         target = _target("needs", _("Needs you"))
         content = "\n".join(cast(list[str], args["need_ids"]))

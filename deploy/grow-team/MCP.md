@@ -64,8 +64,9 @@ Akun atau workspace yang dinonaktifkan tidak dapat menggunakan token.
 | `upload_file` | Unggah file hingga 15 MiB, atau batas unggah workspace bila lebih kecil; hasil berisi `url` dan `markdown` siap tempel | Tulis |
 | `resolve_needs` | Tandai mention dan item kartu sebagai selesai; jenis lain gagal | Tulis |
 | `reopen_needs` | Batalkan `resolve_needs`; item kartu hanya dibuka lagi dalam beberapa menit | Tulis |
-| `snooze_needs` | Sembunyikan item sampai pukul 07:00 berikutnya di jam workspace | Tulis |
-| `unsnooze_needs` | Tampilkan lagi item yang ditunda | Tulis |
+| `snooze_needs` | Sembunyikan mention, item kartu, dan balasan sampai pukul 07:00 berikutnya di jam workspace | Tulis |
+| `unsnooze_needs` | Tampilkan lagi mention, item kartu, dan balasan yang ditunda | Tulis |
+| `mark_read` | Tandai satu channel, satu topik, atau satu percakapan langsung sebagai sudah dibaca | Tulis |
 | `delete_task` | Hapus tugas yang dapat diubah akun | Tulis |
 | `create_task` | Buat tugas | Tulis |
 | `update_task` | Ubah tugas yang dapat diakses | Tulis |
@@ -82,6 +83,7 @@ Panduan produk: [konektor Claude](https://support.claude.com/en/articles/1117516
 
 Panduan ChatGPT: [koneksi MCP](https://developers.openai.com/plugins/build/app-quickstart) dan [OAuth](https://developers.openai.com/plugins/build/auth).
 
+Tool baca `get_messages`, `get_direct_messages`, dan `fetch` menandai pesan yang mereka kembalikan sebagai sudah dibaca, hanya bila koneksi punya akses tulis dan tool `mark_read` bernilai Auto, dan kecuali argumen `mark_read` bernilai `false`. Persetujuan dan pertanyaan agen tetap dijawab di aplikasi.
 Gunakan `mention_user_ids` untuk mention anggota pada tool pengiriman pesan.
 Gunakan `recipient_user_ids` untuk penerima pesan langsung. Cari ID melalui `list_users`.
 Gunakan `upload_file` untuk mengunggah gambar atau file, lalu tempel `markdown` hasilnya ke isi pesan. Gambar tampil langsung di pesan.

@@ -6,20 +6,27 @@ import json
 import re
 from collections.abc import Collection
 from copy import copy
-from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Self, cast
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpRequest, QueryDict
 from django.utils.datastructures import MultiValueDict
 from django.views.decorators.debug import sensitive_variables
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.message import access_message
 from zerver.lib.request import RequestNotes
 from zerver.lib.tasks import access_task_by_id
 from zerver.models import UserProfile
-from zerver.views import needs, reactions, streams, tasks, upload, users
+from zerver.views import message_flags, needs, reactions, streams, tasks, upload, users
 from zerver.views.message_edit import update_message_backend
 from zerver.views.message_fetch import get_messages_backend
 from zerver.views.message_send import send_message_backend
@@ -63,6 +70,7 @@ class Search(Arguments):
 
 class Fetch(Arguments):
     id: Annotated[str, StringConstraints(pattern=r"^(message|task):[1-9][0-9]{0,17}$")]
+    mark_read: bool = True
 
 
 class Channel(Arguments):
@@ -73,6 +81,7 @@ class Messages(Channel):
     topic: Annotated[str, StringConstraints(max_length=60)] | None = None
     limit: Annotated[int, Field(ge=1, le=100)] = 30
     before: PositiveId | None = None
+    mark_read: bool = True
 
 
 class Send(Channel):
@@ -95,6 +104,22 @@ class DirectMessages(Arguments):
     user_ids: Annotated[list[PositiveId], Field(min_length=1, max_length=10)]
     limit: Annotated[int, Field(ge=1, le=100)] = 30
     before: PositiveId | None = None
+    mark_read: bool = True
+
+
+class MarkRead(Arguments):
+    channel_id: PositiveId | None = None
+    # An empty topic would mark the whole channel, so it is not accepted.
+    topic: Annotated[str, StringConstraints(min_length=1, max_length=60)] | None = None
+    user_ids: Annotated[list[PositiveId], Field(min_length=1, max_length=10)] | None = None
+
+    @model_validator(mode="after")
+    def check_target(self) -> Self:
+        if (self.channel_id is None) == (self.user_ids is None):
+            raise ValueError("Give either channel_id or user_ids.")
+        if self.topic is not None and self.channel_id is None:
+            raise ValueError("topic needs channel_id.")
+        return self
 
 
 class EditMessage(Arguments):
@@ -124,6 +149,9 @@ class GetNeeds(Arguments):
     include_team_wide: bool = False
     limit: Annotated[int, Field(ge=1, le=100)] = 30
 
+
+# The read tools that mark what they return as read.
+READ_MARKING_TOOLS = frozenset({"get_messages", "get_direct_messages", "fetch"})
 
 # Approvals, held calls and agent questions stay visible to the person until
 # they answer them in the app, so no tool hides or closes them.
@@ -196,7 +224,11 @@ TOOLS: dict[str, tuple[type[Arguments], str, bool]] = {
         "Search messages that your workspace account can read. Returns message IDs for fetch.",
         False,
     ),
-    "fetch": (Fetch, "Read a message or task by its ID, such as message:123 or task:45.", False),
+    "fetch": (
+        Fetch,
+        "Read a message or task by its ID, such as message:123 or task:45. With write access and mark_read on Auto, it marks a message as read unless mark_read is false.",
+        False,
+    ),
     "list_channels": (Arguments, "List channels that your workspace account can access.", False),
     "list_users": (
         Members,
@@ -206,7 +238,7 @@ TOOLS: dict[str, tuple[type[Arguments], str, bool]] = {
     "list_topics": (Channel, "List topics in a channel that your account can read.", False),
     "get_messages": (
         Messages,
-        "Read recent messages in a channel, with an optional topic and older-message anchor.",
+        "Read recent messages in a channel, with an optional topic and older-message anchor. With write access and mark_read on Auto, it marks the returned messages as read unless mark_read is false.",
         False,
     ),
     "get_task_board": (
@@ -217,7 +249,7 @@ TOOLS: dict[str, tuple[type[Arguments], str, bool]] = {
     "get_me": (Arguments, "Read the profile of the account that approved this connection.", False),
     "get_direct_messages": (
         DirectMessages,
-        "Read recent direct messages with the given members. Use list_users for member IDs.",
+        "Read recent direct messages with the given members. Use list_users for member IDs. With write access and mark_read on Auto, it marks the returned messages as read unless mark_read is false.",
         False,
     ),
     "get_needs": (
@@ -271,6 +303,11 @@ TOOLS: dict[str, tuple[type[Arguments], str, bool]] = {
         True,
     ),
     "unsnooze_needs": (NeedIds, "Show snoozed mentions, card items and replies again.", True),
+    "mark_read": (
+        MarkRead,
+        "Mark a whole channel, a topic, or a direct message conversation as read. Use it to end a reply item without reading every message.",
+        True,
+    ),
     "delete_task": (TaskId, "Delete a task that the approved account can modify.", True),
     "create_task": (
         CreateTask,
@@ -403,6 +440,22 @@ def _need_summary(user: UserProfile, item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _mark_returned_read(
+    request: HttpRequest, user: UserProfile, messages: list[dict[str, Any]]
+) -> int:
+    """Mark the unread messages of a read tool's result as read, as the
+    account would by reading them. Returns how many it marked."""
+    unread_ids = [message["id"] for message in messages if "read" not in message["flags"]]
+    if unread_ids:
+        _view(
+            request,
+            user,
+            message_flags.update_message_flags,
+            {"op": "add", "flag": "read", "messages": unread_ids},
+        )
+    return len(unread_ids)
+
+
 @sensitive_variables()
 def decode_upload(user: UserProfile, content_base64: str) -> bytes:
     limit_mebibytes = min(user.realm.get_max_file_upload_size_mebibytes(), MAX_FILE_MEBIBYTES)
@@ -428,7 +481,12 @@ def decode_upload(user: UserProfile, content_base64: str) -> bytes:
 
 @sensitive_variables()
 def execute_tool(
-    request: HttpRequest, user: UserProfile, name: str, args: dict[str, object]
+    request: HttpRequest,
+    user: UserProfile,
+    name: str,
+    args: dict[str, object],
+    *,
+    marks_read: bool = False,
 ) -> dict[str, Any]:
     if name == "list_channels":
         return _view(request, user, streams.get_streams_backend, {"include_web_public": False})
@@ -500,18 +558,25 @@ def execute_tool(
         if not result["messages"]:
             raise JsonableError("Message is not available.")
         message = result["messages"][0]
+        marked_read_count = (
+            _mark_returned_read(request, user, [message]) if args["mark_read"] and marks_read else 0
+        )
         return {
             "id": args["id"],
             "title": f"{message['sender_full_name']} · {message['subject']}",
             "text": message["content"],
             "url": user.realm.url + f"/#narrow/id/{item_id}",
-            "metadata": {"sender_id": message["sender_id"], "timestamp": message["timestamp"]},
+            "metadata": {
+                "sender_id": message["sender_id"],
+                "timestamp": message["timestamp"],
+                "marked_read_count": marked_read_count,
+            },
         }
     if name == "get_messages":
         narrow = [{"operator": "channel", "operand": args["channel_id"]}]
         if args.get("topic") is not None:
             narrow.append({"operator": "topic", "operand": str(args["topic"])})
-        return _view(
+        result = _view(
             request,
             user,
             get_messages_backend,
@@ -524,6 +589,12 @@ def execute_tool(
                 "narrow": narrow,
             },
         )
+        result["marked_read_count"] = (
+            _mark_returned_read(request, user, result["messages"])
+            if args["mark_read"] and marks_read
+            else 0
+        )
+        return result
     if name == "get_needs":
         result = _view(
             request, user, needs.list_needs, {"kind": args["kind"], "status": args["status"]}
@@ -582,7 +653,7 @@ def execute_tool(
             if key in result
         }
     if name == "get_direct_messages":
-        return _view(
+        result = _view(
             request,
             user,
             get_messages_backend,
@@ -595,6 +666,44 @@ def execute_tool(
                 "narrow": [{"operator": "dm", "operand": args["user_ids"]}],
             },
         )
+        result["marked_read_count"] = (
+            _mark_returned_read(request, user, result["messages"])
+            if args["mark_read"] and marks_read
+            else 0
+        )
+        return result
+    if name == "mark_read":
+        if args.get("user_ids") is not None:
+            result = _view(
+                request,
+                user,
+                message_flags.update_message_flags_for_narrow,
+                {
+                    "narrow": [
+                        {"operator": "dm", "operand": args["user_ids"]},
+                        {"operator": "is", "operand": "unread"},
+                    ],
+                    "anchor": "oldest",
+                    "num_before": 0,
+                    "num_after": message_flags.MAX_MESSAGES_PER_UPDATE,
+                    "op": "add",
+                    "flag": "read",
+                },
+            )
+            # More unread messages than one call handles stay unread: call again.
+            return {"marked_read": True, "more_unread": not result["found_newest"]}
+        if args.get("topic") is not None:
+            _view(
+                request,
+                user,
+                message_flags.mark_topic_as_read,
+                {"stream_id": args["channel_id"], "topic_name": args["topic"]},
+            )
+        else:
+            _view(
+                request, user, message_flags.mark_stream_as_read, {"stream_id": args["channel_id"]}
+            )
+        return {"marked_read": True}
     if name == "edit_message":
         return _view(
             request,

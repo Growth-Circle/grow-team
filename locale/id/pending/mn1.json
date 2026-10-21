@@ -1,6 +1,7 @@
 {
   "frontend": {
     "Mark items done": "Tandai item selesai",
+    "Mark messages as read": "Tandai pesan sudah dibaca",
     "Reopen items": "Buka lagi item",
     "Snooze items": "Tunda item",
     "Unsnooze items": "Batalkan tunda item"

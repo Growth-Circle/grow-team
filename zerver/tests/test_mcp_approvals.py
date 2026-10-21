@@ -382,3 +382,19 @@ class MCPApprovalTest(ZulipTestCase):
                 "mentions": [],
             },
         )
+
+    def test_preview_of_mark_read_names_the_channel_topic_or_people(self) -> None:
+        channel = request_approval(
+            self.grant, "mark_read", {"channel_id": self.stream.id, "topic": "Release"}
+        )
+        self.assertEqual(
+            channel.preview["target"],
+            {"type": "channel", "name": "Denmark", "topic": "Release", "message_id": None},
+        )
+        self.assertEqual(channel.preview["content"], "")
+        other = self.example_user("othello")
+        direct = request_approval(self.grant, "mark_read", {"user_ids": [other.id]})
+        self.assertEqual(
+            direct.preview["target"],
+            {"type": "direct", "name": other.full_name, "topic": None, "message_id": None},
+        )

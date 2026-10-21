@@ -16,7 +16,7 @@ from typing_extensions import override
 
 from zerver.lib.mcp_access import audit
 from zerver.lib.mcp_pending import argument_digest
-from zerver.lib.mcp_policy import ASK_FIRST, OFF, set_policies
+from zerver.lib.mcp_policy import ASK_FIRST, AUTO, OFF, set_policies
 from zerver.lib.mcp_tools import MAX_BASE64_LENGTH, TOOLS
 from zerver.lib.test_classes import ZulipTestCase
 from zerver.lib.test_helpers import ratelimit_rule
@@ -27,6 +27,7 @@ from zerver.models import (
     MCPAccessToolPolicy,
     MCPPendingCall,
     Message,
+    UserMessage,
 )
 from zerver.models.needs import NeedResolution, NeedSnooze
 from zerver.models.streams import get_stream
@@ -229,7 +230,7 @@ class MCPAccessTests(ZulipTestCase):
             HTTP_AUTHORIZATION="Bearer " + token,
         )
 
-    def call(self, token: str, name: str, arguments: dict[str, object]) -> dict[str, object]:
+    def call(self, token: str, name: str, arguments: dict[str, object]) -> dict[str, Any]:
         result = self.rpc(token, "tools/call", {"name": name, "arguments": arguments}).json()[
             "result"
         ]
@@ -1411,3 +1412,167 @@ class MCPAccessTests(ZulipTestCase):
         [item] = shown["items"]
         self.assertEqual(item["id"], f"mention:{message_id}")
         self.assertTrue(item["team_wide"])
+
+    def is_read(self, message_id: int) -> bool:
+        return UserMessage.objects.get(
+            user_profile=self.user, message_id=message_id
+        ).flags.read.is_set
+
+    def unread_channel_message(self, topic: str = "reading") -> int:
+        sender = self.example_user("othello")
+        self.subscribe(self.user, "Denmark")
+        self.subscribe(sender, "Denmark")
+        return self.send_stream_message(sender, "Denmark", "Unread text.", topic_name=topic)
+
+    def test_get_messages_marks_the_returned_messages_as_read(self) -> None:
+        token = self.manual(write=True)
+        message_id = self.unread_channel_message()
+        channel_id = get_stream("Denmark", self.user.realm).id
+        self.assertFalse(self.is_read(message_id))
+
+        output = self.call(token, "get_messages", {"channel_id": channel_id, "topic": "reading"})
+
+        self.assertEqual(output["marked_read_count"], 1)
+        self.assertTrue(self.is_read(message_id))
+        again = self.call(token, "get_messages", {"channel_id": channel_id, "topic": "reading"})
+        self.assertEqual(again["marked_read_count"], 0)
+
+    def test_get_messages_keeps_messages_unread_when_mark_read_is_false(self) -> None:
+        token = self.manual(write=True)
+        message_id = self.unread_channel_message()
+        channel_id = get_stream("Denmark", self.user.realm).id
+
+        output = self.call(
+            token,
+            "get_messages",
+            {"channel_id": channel_id, "topic": "reading", "mark_read": False},
+        )
+
+        self.assertEqual(output["marked_read_count"], 0)
+        self.assertFalse(self.is_read(message_id))
+
+    def test_get_direct_messages_marks_the_conversation_read(self) -> None:
+        token = self.manual(write=True)
+        sender = self.example_user("othello")
+        message_id = self.send_personal_message(sender, self.user, "Hello")
+        self.assertFalse(self.is_read(message_id))
+
+        kept = self.call(
+            token, "get_direct_messages", {"user_ids": [sender.id], "mark_read": False}
+        )
+        self.assertEqual(kept["marked_read_count"], 0)
+        self.assertFalse(self.is_read(message_id))
+
+        output = self.call(token, "get_direct_messages", {"user_ids": [sender.id]})
+
+        self.assertEqual(output["marked_read_count"], 1)
+        self.assertTrue(self.is_read(message_id))
+
+    def test_fetch_marks_a_message_read_but_search_does_not(self) -> None:
+        token = self.manual(write=True)
+        first = self.unread_channel_message("fetching")
+        second = self.unread_channel_message("fetching")
+
+        self.call(token, "search", {"query": "Unread"})
+        self.assertFalse(self.is_read(first))
+        self.assertFalse(self.is_read(second))
+
+        kept = self.call(token, "fetch", {"id": f"message:{first}", "mark_read": False})
+        self.assertEqual(kept["metadata"]["marked_read_count"], 0)
+        self.assertFalse(self.is_read(first))
+
+        output = self.call(token, "fetch", {"id": f"message:{first}"})
+        self.assertEqual(output["metadata"]["marked_read_count"], 1)
+        self.assertTrue(self.is_read(first))
+        self.assertFalse(self.is_read(second))
+
+    def test_mark_read_for_a_channel_a_topic_and_a_conversation(self) -> None:
+        token = self.manual(write=True)
+        channel_id = get_stream("Denmark", self.user.realm).id
+        sender = self.example_user("othello")
+        topic_a = self.unread_channel_message("topic a")
+        topic_b = self.unread_channel_message("topic b")
+
+        self.assertEqual(
+            self.call(token, "mark_read", {"channel_id": channel_id, "topic": "topic a"}),
+            {"marked_read": True},
+        )
+        self.assertTrue(self.is_read(topic_a))
+        self.assertFalse(self.is_read(topic_b))
+
+        self.assertEqual(
+            self.call(token, "mark_read", {"channel_id": channel_id}), {"marked_read": True}
+        )
+        self.assertTrue(self.is_read(topic_b))
+
+        direct = self.send_personal_message(sender, self.user, "Hello")
+        other_direct = self.send_personal_message(self.example_user("cordelia"), self.user, "Hi")
+        self.assertEqual(
+            self.call(token, "mark_read", {"user_ids": [sender.id]}),
+            {"marked_read": True, "more_unread": False},
+        )
+        self.assertTrue(self.is_read(direct))
+        self.assertFalse(self.is_read(other_direct))
+
+    def test_mark_read_needs_exactly_one_target(self) -> None:
+        token = self.manual(write=True)
+        channel_id = get_stream("Denmark", self.user.realm).id
+        othello_id = self.example_user("othello").id
+        bad_arguments: list[dict[str, object]] = [
+            {},
+            {"topic": "t"},
+            {"channel_id": channel_id, "user_ids": [othello_id]},
+            {"user_ids": [othello_id], "topic": "t"},
+            {"user_ids": []},
+        ]
+        for bad in bad_arguments:
+            self.assertTrue(self.call(token, "mark_read", bad)["isError"])
+
+    def test_a_read_only_connection_cannot_mark_read(self) -> None:
+        token = self.manual()
+        channel_id = get_stream("Denmark", self.user.realm).id
+        self.assertTrue(self.call(token, "mark_read", {"channel_id": channel_id})["isError"])
+
+    def test_a_read_only_connection_reads_without_marking_read(self) -> None:
+        token = self.manual()
+        message_id = self.unread_channel_message()
+        sender = self.example_user("othello")
+        direct = self.send_personal_message(sender, self.user, "Hello")
+        channel_id = get_stream("Denmark", self.user.realm).id
+
+        output = self.call(token, "get_messages", {"channel_id": channel_id, "topic": "reading"})
+        self.assertEqual(output["marked_read_count"], 0)
+        output = self.call(token, "get_direct_messages", {"user_ids": [sender.id]})
+        self.assertEqual(output["marked_read_count"], 0)
+        output = self.call(token, "fetch", {"id": f"message:{message_id}"})
+        self.assertEqual(output["metadata"]["marked_read_count"], 0)
+
+        self.assertFalse(self.is_read(message_id))
+        self.assertFalse(self.is_read(direct))
+
+    def test_reading_marks_read_only_when_mark_read_is_on_auto(self) -> None:
+        self.enforce()
+        token = self.manual(write=True)
+        message_id = self.unread_channel_message()
+        channel_id = get_stream("Denmark", self.user.realm).id
+        arguments = {"channel_id": channel_id, "topic": "reading"}
+        for policy in (OFF, ASK_FIRST):
+            set_policies(self.latest_grant(), self.user, {"mark_read": policy})
+            output = self.call(token, "get_messages", arguments)
+            self.assertEqual(output["marked_read_count"], 0)
+            self.assertFalse(self.is_read(message_id))
+
+        set_policies(self.latest_grant(), self.user, {"mark_read": AUTO})
+        output = self.call(token, "get_messages", arguments)
+        self.assertEqual(output["marked_read_count"], 1)
+        self.assertTrue(self.is_read(message_id))
+
+    def test_mark_read_rejects_an_empty_topic_and_marks_nothing(self) -> None:
+        token = self.manual(write=True)
+        message_id = self.unread_channel_message()
+        channel_id = get_stream("Denmark", self.user.realm).id
+
+        result = self.call(token, "mark_read", {"channel_id": channel_id, "topic": ""})
+
+        self.assertTrue(result["isError"])
+        self.assertFalse(self.is_read(message_id))

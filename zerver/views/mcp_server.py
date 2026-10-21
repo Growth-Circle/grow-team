@@ -16,6 +16,7 @@ from zerver.lib.mcp_access import VERSIONS, audit, digest, resource_url, valid_g
 from zerver.lib.mcp_pending import argument_digest, call_result, request_approval
 from zerver.lib.mcp_policy import evaluate, policy_enforced, stored_policies
 from zerver.lib.mcp_tools import (
+    READ_MARKING_TOOLS,
     TOOLS,
     ReadOnlyConnectionError,
     ToolInputError,
@@ -212,7 +213,19 @@ def mcp(request: HttpRequest) -> HttpResponse:
             call_digest = argument_digest(name, args)
             if decision == "ask":
                 return _finish(grant, request_id, call_result(request_approval(grant, name, args)))
-            output = execute_tool(request, grant.user, name, args)
+            # Reading marks messages read only for a connection that may also
+            # mark them read on its own, without asking.
+            marks_read = (
+                name in READ_MARKING_TOOLS
+                and evaluate(
+                    "mark_read",
+                    scopes=grant.scopes,
+                    mode=grant.policy_mode if managed else "legacy",
+                    stored=stored_policies(grant) if managed else {},
+                )
+                == "allow"
+            )
+            output = execute_tool(request, grant.user, name, args, marks_read=marks_read)
             result = {
                 "content": [{"type": "text", "text": json.dumps(output, ensure_ascii=False)}],
                 "isError": False,
