@@ -1031,6 +1031,11 @@ class EventTaskNotificationResolve(BaseEvent):
     task_id: int
 
 
+class EventNeedsUpdate(BaseEvent):
+    type: Literal["needs"]
+    op: Literal["update"]
+
+
 class EventTaskAdd(BaseEvent):
     type: Literal["task"]
     op: Literal["add"]

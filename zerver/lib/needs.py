@@ -62,6 +62,7 @@ from zerver.models import (
     agents,
 )
 from zerver.models.needs import NeedResolution, NeedSnooze
+from zerver.tornado.django_api import send_event_on_commit
 from zerver.views.agent_jobs import needs_my_action
 
 # Q-06 / Q-32: decisions and mentions keep a fixed display TTL. Approvals use
@@ -1247,7 +1248,13 @@ def list_agent_needs(
     return waiting[:item_limit], decided
 
 
-def resolve_mention(actor: UserProfile, message_id: int) -> None:
+def send_needs_update(actor: UserProfile) -> None:
+    """Tell the user's open sessions that their Needs you list changed, so
+    each one loads the list again."""
+    send_event_on_commit(actor.realm, {"type": "needs", "op": "update"}, [actor.id])
+
+
+def _resolve_mention(actor: UserProfile, message_id: int) -> None:
     # A plain transaction, not agent_transaction(): NeedResolution is not an
     # agent table, so this write must not wait on, or block, agent writes.
     with transaction.atomic(durable=True):
@@ -1269,6 +1276,11 @@ def resolve_mention(actor: UserProfile, message_id: int) -> None:
         )
 
 
+def resolve_mention(actor: UserProfile, message_id: int) -> None:
+    _resolve_mention(actor, message_id)
+    send_needs_update(actor)
+
+
 def resolve_card_notification(actor: UserProfile, notification_id: int) -> None:
     """Marking one card item done closes every open item on that card: the
     person has seen the card, whichever item brought them to it."""
@@ -1278,13 +1290,18 @@ def resolve_card_notification(actor: UserProfile, notification_id: int) -> None:
     do_resolve_task_notifications(user_profile=actor, task=notification.task)
 
 
-def unresolve_mention(actor: UserProfile, message_id: int) -> None:
+def _unresolve_mention(actor: UserProfile, message_id: int) -> None:
     # Deleting the user's own resolution needs no other check.
     with transaction.atomic(durable=True):
         # A superseded item is not the user's to reopen.
         NeedResolution.objects.filter(realm=actor.realm, user=actor, message_id=message_id).exclude(
             action="superseded"
         ).delete()
+
+
+def unresolve_mention(actor: UserProfile, message_id: int) -> None:
+    _unresolve_mention(actor, message_id)
+    send_needs_update(actor)
 
 
 def _split_need_id(need_id: str) -> tuple[str, str]:
@@ -1310,7 +1327,7 @@ def resolve_many(actor: UserProfile, need_ids: list[str]) -> BulkNeedsResult:
         try:
             kind, raw_id = _split_need_id(need_id)
             if kind == "mention":
-                resolve_mention(actor, int(raw_id))
+                _resolve_mention(actor, int(raw_id))
             elif kind in ("card_mention", "card_assigned"):
                 resolve_card_notification(actor, int(raw_id))
             else:
@@ -1319,10 +1336,12 @@ def resolve_many(actor: UserProfile, need_ids: list[str]) -> BulkNeedsResult:
             result["failed"].append(need_id)
         else:
             result["done"].append(need_id)
+    if result["done"]:
+        send_needs_update(actor)
     return result
 
 
-def unresolve_card_notification(actor: UserProfile, notification_id: int) -> None:
+def _unresolve_card_notification(actor: UserProfile, notification_id: int) -> None:
     """Reopen the items that closing this one closed with it: the user's
     items on the same card that were closed just now."""
     notification = TaskNotification.objects.get(id=notification_id, user=actor)
@@ -1331,6 +1350,11 @@ def unresolve_card_notification(actor: UserProfile, notification_id: int) -> Non
         task_id=notification.task_id,
         resolved_at__gte=timezone_now() - CARD_UNDO_WINDOW,
     ).update(resolved_at=None)
+
+
+def unresolve_card_notification(actor: UserProfile, notification_id: int) -> None:
+    _unresolve_card_notification(actor, notification_id)
+    send_needs_update(actor)
 
 
 def unresolve_many(actor: UserProfile, need_ids: list[str]) -> BulkNeedsResult:
@@ -1342,15 +1366,17 @@ def unresolve_many(actor: UserProfile, need_ids: list[str]) -> BulkNeedsResult:
         try:
             kind, raw_id = _split_need_id(need_id)
             if kind == "mention":
-                unresolve_mention(actor, int(raw_id))
+                _unresolve_mention(actor, int(raw_id))
             elif kind in ("card_mention", "card_assigned"):
-                unresolve_card_notification(actor, int(raw_id))
+                _unresolve_card_notification(actor, int(raw_id))
             else:
                 raise ValueError("Only mentions and card items resolve in bulk.")
         except (ValueError, ObjectDoesNotExist, JsonableError):
             result["failed"].append(need_id)
         else:
             result["done"].append(need_id)
+    if result["done"]:
+        send_needs_update(actor)
     return result
 
 
@@ -1380,10 +1406,15 @@ def snooze_many(actor: UserProfile, need_ids: list[str]) -> datetime:
             NeedSnooze.objects.update_or_create(
                 realm=actor.realm, user=actor, need_id=need_id, defaults={"until": until}
             )
+        send_needs_update(actor)
     return until
 
 
 def unsnooze_many(actor: UserProfile, need_ids: list[str]) -> None:
     _check_bulk_size(need_ids)
     with transaction.atomic(durable=True):
-        NeedSnooze.objects.filter(user=actor, need_id__in=need_ids).delete()
+        deleted_count, _details = NeedSnooze.objects.filter(
+            user=actor, need_id__in=need_ids
+        ).delete()
+        if deleted_count > 0:
+            send_needs_update(actor)

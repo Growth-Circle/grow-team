@@ -1,4 +1,4 @@
-// Fans out the eight Sanji realtime event types. server_events_dispatch.js
+// Fans out the nine Sanji realtime event types. server_events_dispatch.js
 // calls dispatch() once for each event of these types. A module that
 // needs one of them calls on() once while it initializes, so the
 // dispatcher does not have to import every such module.
@@ -10,6 +10,7 @@ export type LiveUpdateType =
     | "realm_permissions"
     | "agent_realm_settings"
     | "task_notification"
+    | "needs"
     | "playbook"
     | "routine";
 

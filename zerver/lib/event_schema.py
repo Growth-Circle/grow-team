@@ -55,6 +55,7 @@ from zerver.lib.event_types import (
     EventNavigationViewAdd,
     EventNavigationViewRemove,
     EventNavigationViewUpdate,
+    EventNeedsUpdate,
     EventOnboardingSteps,
     EventPlaybookAdd,
     EventPlaybookUpdate,
@@ -259,6 +260,7 @@ check_task_note_add = make_checker(EventTaskNoteAdd)
 check_task_note_remove = make_checker(EventTaskNoteRemove)
 check_task_notification_add = make_checker(EventTaskNotificationAdd)
 check_task_notification_resolve = make_checker(EventTaskNotificationResolve)
+check_needs_update = make_checker(EventNeedsUpdate)
 check_task_plan_add = make_checker(EventTaskPlanAdd)
 check_task_plan_remove = make_checker(EventTaskPlanRemove)
 check_task_plan_reorder = make_checker(EventTaskPlanReorder)

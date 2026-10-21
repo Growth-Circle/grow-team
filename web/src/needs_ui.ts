@@ -1013,6 +1013,9 @@ export function initialize(): void {
     // A note that mentions the person, a new responsibility, or opening
     // the card on another device changes the list.
     live_updates.on("task_notification", refresh_soon);
+    // Marking an item done, or snoozing it, on another device or through
+    // an agent changes the list.
+    live_updates.on("needs", refresh_soon);
     // Only a mention, a direct message, or a message in a followed topic
     // starts or ends a need, so a message in a room that mentions no one
     // does not load the list.

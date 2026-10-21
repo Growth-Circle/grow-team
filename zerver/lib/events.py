@@ -1848,6 +1848,10 @@ def apply_event(
         # The Scheduled page fetches its own list when it opens, so these
         # events only refresh an open page and carry no register state.
         pass
+    elif event["type"] == "needs":
+        # The Needs you page fetches its own list when it opens, so these
+        # events only refresh an open page and carry no register state.
+        pass
     elif event["type"] in ("task", "task_board", "task_note", "task_notification", "task_plan"):
         # The task board fetches its own cards when it opens, so these
         # events only refresh an open board and carry no register state.

@@ -35,6 +35,7 @@ from zerver.lib import agent_protocol as p
 from zerver.lib import needs
 from zerver.lib.agent_policy import AgentAccessDenied
 from zerver.lib.agent_results import store_artifact
+from zerver.lib.event_schema import check_needs_update
 from zerver.lib.mcp_pending import request_approval
 from zerver.lib.tasks import get_or_create_default_board
 from zerver.lib.test_classes import ZulipTestCase
@@ -1172,6 +1173,55 @@ class NeedsBulkTests(NeedsTestCase):
 
         self.assertEqual(result, {"done": ids, "failed": []})
         self.assertCountEqual(self._open_ids(cordelia), ids)
+
+    def _assert_one_needs_event(self, send_event: mock.MagicMock, user: UserProfile) -> None:
+        [call] = send_event.call_args_list
+        event = call.args[1]
+        check_needs_update("event", {**event, "id": 0})
+        self.assertEqual(event, {"type": "needs", "op": "update"})
+        self.assertEqual(call.args[2], [user.id])
+
+    def test_each_change_sends_one_needs_event_to_the_user(self) -> None:
+        cordelia = self.example_user("cordelia")
+        message_id = self._mention(cordelia, "ping")
+        need_id = f"mention:{message_id}"
+        changes = [
+            lambda: needs.resolve_mention(cordelia, message_id),
+            lambda: needs.unresolve_mention(cordelia, message_id),
+            lambda: needs.snooze_many(cordelia, [need_id]),
+            lambda: needs.unsnooze_many(cordelia, [need_id]),
+        ]
+        for change in changes:
+            with mock.patch("zerver.lib.needs.send_event_on_commit") as send_event:
+                change()
+            self._assert_one_needs_event(send_event, cordelia)
+
+    def test_unsnooze_of_an_item_that_is_not_snoozed_sends_nothing(self) -> None:
+        cordelia = self.example_user("cordelia")
+        with mock.patch("zerver.lib.needs.send_event_on_commit") as send_event:
+            needs.unsnooze_many(cordelia, ["mention:1"])
+        send_event.assert_not_called()
+
+    def test_bulk_calls_send_one_needs_event_for_the_whole_list(self) -> None:
+        cordelia = self.example_user("cordelia")
+        ids = [f"mention:{self._mention(cordelia, 'ping')}" for _ in range(2)]
+        with mock.patch("zerver.lib.needs.send_event_on_commit") as send_event:
+            needs.resolve_many(cordelia, ids)
+        self._assert_one_needs_event(send_event, cordelia)
+        with mock.patch("zerver.lib.needs.send_event_on_commit") as send_event:
+            needs.unresolve_many(cordelia, ids)
+        self._assert_one_needs_event(send_event, cordelia)
+
+    def test_bulk_calls_that_change_nothing_send_no_needs_event(self) -> None:
+        cordelia = self.example_user("cordelia")
+        unrelated_id = self.send_stream_message(
+            self.owner, "Denmark", "no mention", topic_name="mentions"
+        )
+        bad_ids = [f"mention:{unrelated_id}", "approval:x"]
+        with mock.patch("zerver.lib.needs.send_event_on_commit") as send_event:
+            self.assertEqual(needs.resolve_many(cordelia, bad_ids)["done"], [])
+            self.assertEqual(needs.unresolve_many(cordelia, ["approval:x"])["done"], [])
+        send_event.assert_not_called()
 
     def test_bulk_calls_reject_a_malformed_or_oversized_list(self) -> None:
         cordelia = self.example_user("cordelia")
