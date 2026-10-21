@@ -60,7 +60,7 @@ Akun atau workspace yang dinonaktifkan tidak dapat menggunakan token.
 | `edit_message` | Ubah isi pesan yang dikirim akun pemilik koneksi | Tulis |
 | `add_reaction` | Tambah reaksi emoji ke pesan | Tulis |
 | `remove_reaction` | Hapus reaksi emoji milik akun pemilik koneksi | Tulis |
-| `upload_file` | Unggah file hingga 5 MiB; hasil berisi `url` dan `markdown` siap tempel | Tulis |
+| `upload_file` | Unggah file hingga 15 MiB, atau batas unggah workspace bila lebih kecil; hasil berisi `url` dan `markdown` siap tempel | Tulis |
 | `delete_task` | Hapus tugas yang dapat diubah akun | Tulis |
 | `create_task` | Buat tugas | Tulis |
 | `update_task` | Ubah tugas yang dapat diakses | Tulis |
