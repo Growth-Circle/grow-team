@@ -593,7 +593,12 @@ def do_create_user(
         acting_user=acting_user,
     )
 
-    if user_profile.role == UserProfile.ROLE_MEMBER and not user_profile.is_provisional_member:
+    # Decided once: is_provisional_member depends on the current time, and the
+    # group event below must match the membership created here.
+    is_full_member = (
+        user_profile.role == UserProfile.ROLE_MEMBER and not user_profile.is_provisional_member
+    )
+    if is_full_member:
         full_members_system_group = NamedUserGroup.objects.get(
             name=SystemGroups.FULL_MEMBERS,
             realm_for_sharding=user_profile.realm,
@@ -616,7 +621,7 @@ def do_create_user(
     notify_created_user(user_profile, [])
 
     do_send_user_group_members_update_event("add_members", system_user_group, [user_profile.id])
-    if user_profile.role == UserProfile.ROLE_MEMBER and not user_profile.is_provisional_member:
+    if is_full_member:
         do_send_user_group_members_update_event(
             "add_members", full_members_system_group, [user_profile.id]
         )

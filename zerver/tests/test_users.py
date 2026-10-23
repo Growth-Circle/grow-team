@@ -1186,6 +1186,31 @@ class QueryCountTest(ZulipTestCase):
         )
 
 
+class CreateUserProvisionalMemberTest(ZulipTestCase):
+    def test_full_members_group_follows_one_provisional_check(self) -> None:
+        realm = get_realm("zulip")
+        # The property reads the clock, so two reads can disagree when the
+        # clock crosses the waiting period between them.
+        for reads in ([False, True], [True, False]):
+            with mock.patch.object(
+                UserProfile, "is_provisional_member", new_callable=mock.PropertyMock
+            ) as is_provisional_member:
+                is_provisional_member.side_effect = reads
+                user = do_create_user(
+                    email=f"flip{int(reads[0])}@zulip.com",
+                    password="password",
+                    realm=realm,
+                    full_name="Flip Flop",
+                    acting_user=None,
+                )
+            self.assertEqual(
+                UserGroupMembership.objects.filter(
+                    user_profile=user, user_group__named_user_group__name=SystemGroups.FULL_MEMBERS
+                ).exists(),
+                not reads[0],
+            )
+
+
 class BulkCreateUserTest(ZulipTestCase):
     def test_create_users(self) -> None:
         realm = get_realm("zulip")
