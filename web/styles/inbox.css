@@ -48,6 +48,13 @@
             }
         }
 
+        /* The button sits on its own row below the filters, so the filter
+           row keeps its layout at every width. */
+        .mark-stale-read {
+            /* 8px at 14px/1em */
+            margin-bottom: 0.5714em;
+        }
+
         .inbox-empty-text {
             display: none;
         }

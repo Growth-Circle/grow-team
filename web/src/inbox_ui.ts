@@ -36,6 +36,7 @@ import * as message_viewport from "./message_viewport.ts";
 import * as onboarding_steps from "./onboarding_steps.ts";
 import * as people from "./people.ts";
 import * as pm_list from "./pm_list.ts";
+import * as stale_unread from "./stale_unread.ts";
 import * as stream_color from "./stream_color.ts";
 import * as stream_data from "./stream_data.ts";
 import * as stream_list from "./stream_list.ts";
@@ -382,6 +383,7 @@ export function show(filter?: Filter): void {
         set_visible: inbox_util.set_visible,
         complete_rerender,
     });
+    void stale_unread.refresh();
 
     if (onboarding_steps.ONE_TIME_NOTICES_TO_DISPLAY.has("intro_inbox_view_modal")) {
         const modal_content_html = render_introduce_zulip_view_modal({
@@ -1320,6 +1322,7 @@ export function complete_rerender(coming_from_other_views = false): void {
             );
             show_empty_inbox_channel_view_text(false);
             show_empty_inbox_text(has_visible_unreads);
+            stale_unread.update_buttons();
             first_filter = filters.values().next();
         }
 

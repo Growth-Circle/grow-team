@@ -54,3 +54,4 @@ zerver/views/routines.py
 web/src/notification_check*.ts
 web/templates/settings/notification_check*.hbs
 zerver/views/notification_check.py
+web/src/stale_unread.ts

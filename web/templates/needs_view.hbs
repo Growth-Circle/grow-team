@@ -14,7 +14,7 @@ every room, in tabs, and what the person finished today. }}
         </div>
     {{/components/page_header}}
 
-    {{#if (or team_wide_toggle can_mark_all)}}
+    {{#if (or team_wide_toggle can_mark_all stale_unread_label)}}
         <div class="needs-filter">
             {{#if team_wide_toggle}}
                 <button
@@ -25,6 +25,9 @@ every room, in tabs, and what the person finished today. }}
             {{/if}}
             {{#if can_mark_all}}
                 <button type="button" class="needs-mark-all">{{t "Mark all done"}}</button>
+            {{/if}}
+            {{#if stale_unread_label}}
+                <button type="button" class="mark-stale-read needs-stale-read"><span class="mark-stale-read-label">{{stale_unread_label}}</span></button>
             {{/if}}
         </div>
     {{/if}}

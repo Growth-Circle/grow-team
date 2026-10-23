@@ -17,6 +17,7 @@ import type {NeedGroup, NeedItem, NeedKind, NeedTab} from "./needs_data.ts";
 import * as needs_data from "./needs_data.ts";
 import {page_params} from "./page_params.ts";
 import * as sanji_format from "./sanji_format.ts";
+import * as stale_unread from "./stale_unread.ts";
 import {realm} from "./state_data.ts";
 import * as stream_data from "./stream_data.ts";
 import * as unread_ui from "./unread_ui.ts";
@@ -428,6 +429,7 @@ function needs_view_context(): Record<string, unknown> {
                             ),
                   }
                 : undefined,
+        stale_unread_label: stale_unread.label_if_any(),
         // Handlebars tests only booleans.
         can_mark_all:
             loaded &&
@@ -472,6 +474,9 @@ function focus_selector(): string | undefined {
     }
     if (element.classList.contains("needs-mark-all")) {
         return ".needs-mark-all";
+    }
+    if (element.classList.contains("mark-stale-read")) {
+        return ".mark-stale-read";
     }
     const need_id = element.dataset["needId"];
     if (need_id !== undefined && element.classList.contains("needs-mcp-more")) {
@@ -1065,6 +1070,10 @@ export function show(args: string[]): void {
         complete_rerender();
     }
     refresh(true);
+    void (async () => {
+        await stale_unread.refresh();
+        complete_rerender();
+    })();
 }
 
 export function hide(): void {

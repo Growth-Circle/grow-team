@@ -1,0 +1,9 @@
+{
+  "frontend": {
+    "Mark read older than {days} days": "Tandai dibaca yang lebih dari {days} hari",
+    "Mark old messages as read?": "Tandai pesan lama sebagai dibaca?",
+    "{count, plural, one {# unread message} other {# unread messages}} older than {days} days will be marked as read.": "{count, plural, other {# pesan belum dibaca}} yang lebih dari {days} hari akan ditandai dibaca.",
+    "{count, plural, one {# message} other {# messages}} marked as read.": "{count, plural, other {# pesan}} ditandai dibaca."
+  },
+  "backend": {}
+}

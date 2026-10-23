@@ -13,6 +13,11 @@
         <span class="sidebar-menu-icon channel-folders-inbox-menu-icon hidden-for-spectators"><i class="zulip-icon zulip-icon-more-vertical" aria-label="{{t 'Show channel folders'}}"></i></span>
         {{/if}}
     </div>
+    {{#if normal_view}}
+    <button type="button" class="mark-stale-read hide action-button action-button-subtle-neutral" tabindex="0">
+        <span class="action-button-label mark-stale-read-label"></span>
+    </button>
+    {{/if}}
     <div id="inbox-empty-with-search" class="inbox-empty-text empty-list-message">
         {{t "No conversations match your filters."}}
     </div>

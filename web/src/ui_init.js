@@ -143,6 +143,7 @@ import * as settings_toggle from "./settings_toggle.ts";
 import * as sidebar_rooms from "./sidebar_rooms.ts";
 import * as sidebar_ui from "./sidebar_ui.ts";
 import * as spoilers from "./spoilers.ts";
+import * as stale_unread from "./stale_unread.ts";
 import * as starred_messages from "./starred_messages.ts";
 import * as starred_messages_ui from "./starred_messages_ui.ts";
 import {
@@ -588,6 +589,7 @@ export async function initialize_everything(state_data) {
             center_views.hide_others("recent");
         },
     });
+    stale_unread.initialize();
     inbox_ui.initialize({
         hide_other_views() {
             center_views.hide_others("inbox");
