@@ -89,7 +89,7 @@ class OpenGraphTest(ZulipTestCase):
             "Zulip API documentation",
             [
                 (
-                    "Zulip's APIs allow you to integrate other services with Zulip. This "
+                    "These APIs allow you to integrate other services with sanji. This "
                     "guide should help you find the API you need:"
                 )
             ],
@@ -105,7 +105,7 @@ class OpenGraphTest(ZulipTestCase):
             "No such article. | Zulip API documentation",
             [
                 "No such article.",
-                "Your feedback helps us make Zulip better for everyone! Please contact us",
+                "Your feedback helps us make sanji better for everyone! Please contact us",
             ],
             [],
             # Test that our open graph logic doesn't throw a 500

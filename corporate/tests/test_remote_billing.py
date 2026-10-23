@@ -114,7 +114,7 @@ class RemoteRealmBillingTestCase(BouncerTestCase):
                     f"{settings.SELF_HOSTING_MANAGEMENT_SUBDOMAIN}.{settings.EXTERNAL_HOST}"
                     r"(\S+)"
                 ),
-                email_body_contains="confirm your email and log in to Zulip plan management",
+                email_body_contains="confirm your email and log in to sanji plan management",
             )
             if return_without_clicking_confirmation_link:
                 return result
@@ -242,7 +242,7 @@ class SelfHostedBillingEndpointBasicTest(RemoteRealmBillingTestCase):
         ):
             result = self.client_get(self_hosted_billing_url)
             self.assertEqual(result.status_code, 403)
-            self.assert_in_response("Unexpected Zulip server registration", result)
+            self.assert_in_response("Unexpected sanji server registration", result)
 
             result = self.client_get(self_hosted_billing_json_url)
             self.assert_json_error(
