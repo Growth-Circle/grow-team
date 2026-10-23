@@ -341,7 +341,9 @@ Setelah verifikasi, skrip menghapus direktori di `/opt/grow-team/builds` kecuali
 Rollback: salin `compose.override.yaml.bak-<tag lama>` ke `compose.override.yaml`, lalu jalankan `compose.sh up -d --no-deps --no-build --wait --wait-timeout 300 zulip`.
 
 Disk `server-gteam` dipakai bersama tenant lain; cache build Go milik `hermesadmin` bisa tumbuh puluhan GB per hari.
-`grow-team-go-cache-trim.timer` setiap Senin 03:00 WIB menghapus entri cache yang tidak tersentuh lebih dari sehari.
+`grow-team-go-cache-trim.timer` setiap hari 03:00 WIB (20:00 UTC) menghapus entri cache yang tidak tersentuh lebih dari sehari.
+Dulu mingguan, tetapi cache tumbuh ±30 GB per hari dan disk sempat 82% pada 23 Okt 2026.
+Aturannya tidak berubah: entri yang disentuh build dalam sehari terakhir tidak dihapus.
 Jangan pakai `go clean -cache`, karena build tenant lain yang sedang jalan bisa gagal.
 `grow-team-disk-alert.timer` memeriksa disk tiap jam; pada 80% atau lebih, Notification Bot mengirim DM ke owner workspace, paling sering sekali per 12 jam.
 

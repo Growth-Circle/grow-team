@@ -223,7 +223,7 @@ class DiskGuardUnitsTest(unittest.TestCase):
         self.assertEqual(timer["Timer"]["OnCalendar"], "hourly")
         self.assertEqual(timer["Timer"]["Unit"], "grow-team-disk-alert.service")
 
-    def test_the_trim_runs_weekly_as_the_cache_owner(self) -> None:
+    def test_the_trim_runs_daily_as_the_cache_owner(self) -> None:
         service = read_unit("grow-team-go-cache-trim.service")
         timer = read_unit("grow-team-go-cache-trim.timer")
 
@@ -231,7 +231,7 @@ class DiskGuardUnitsTest(unittest.TestCase):
             service["Service"]["ExecStart"], "/opt/grow-team/deploy/disk-guard.sh trim-go-cache"
         )
         self.assertEqual(service["Service"]["User"], "hermesadmin")
-        self.assertEqual(timer["Timer"]["OnCalendar"], "Sun *-*-* 20:00:00 UTC")
+        self.assertEqual(timer["Timer"]["OnCalendar"], "*-*-* 20:00:00 UTC")
         self.assertEqual(timer["Timer"]["Persistent"], "yes")
 
 
