@@ -3,10 +3,13 @@
 import importlib
 import importlib.util
 import json
+import os
 from collections.abc import Iterator
 from typing import Any
+from unittest import skipUnless
 from uuid import UUID, uuid4
 
+from django.conf import settings
 from typing_extensions import override
 
 from zerver.actions.agents import create_profile, enable_profile, record_readiness
@@ -20,6 +23,9 @@ def card_widget(card: Message) -> dict[str, Any]:
     submessages = list(card.submessage_set.order_by("id"))
     data = json.loads(submessages[-1].content)
     return data["extra_data"] if len(submessages) == 1 else data
+
+
+RUNNER_DIST_CONFIG = os.path.join(settings.DEPLOY_ROOT, "services/grow-agent-runner/dist/config.js")
 
 
 class AgentLifecycleTests(ZulipTestCase):
@@ -3505,6 +3511,10 @@ class AgentLifecycleTests(ZulipTestCase):
                 setup.save(update_fields=["lease_expires_at"])
                 self.assertEqual(post(body).status_code, 400)
 
+    @skipUnless(
+        os.path.exists(RUNNER_DIST_CONFIG),
+        "needs the built runner: run `npm ci && npm run build` in services/grow-agent-runner",
+    )
     def test_typescript_callbacks_interleave_against_real_backend(self) -> None:
         import json
         import subprocess
