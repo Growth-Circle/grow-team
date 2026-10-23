@@ -54,6 +54,14 @@ paths:
                           Clients hide these behind a single row.
                         items:
                           type: integer
+                      workspace_timezone:
+                        type: string
+                        description: |
+                          The name of the time zone that the workspace chose,
+                          for example `Asia/Jakarta`. The new-task form uses it
+                          to pick the date a card is due by default.
+
+                          **Changes**: New in Zulip 12.0 (feature level ZF-b2d3e1).
               example:
                 result: success
                 msg: Msg

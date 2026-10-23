@@ -18,6 +18,7 @@ from zerver.actions.tasks import (
 )
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.message import access_message
+from zerver.lib.realm_clock import realm_timezone_name
 from zerver.lib.response import json_success
 from zerver.lib.streams import access_stream_by_id
 from zerver.lib.tasks import (
@@ -114,6 +115,7 @@ def get_task_board(
                 for task in tasks
             ],
             "folded_task_ids": sorted(hidden_ids),
+            "workspace_timezone": realm_timezone_name(user_profile.realm),
         },
     )
 

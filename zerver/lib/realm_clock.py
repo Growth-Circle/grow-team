@@ -10,9 +10,14 @@ from zerver.lib.timezone import canonicalize_timezone
 from zerver.models import AgentRealmSettings, Realm
 
 
-def realm_local_now(realm: Realm) -> datetime:
-    """The current time in the timezone that the workspace chose."""
+def realm_timezone_name(realm: Realm) -> str:
+    """The name of the timezone that the workspace chose."""
     tz_name = (
         AgentRealmSettings.objects.filter(realm=realm).values_list("timezone", flat=True).first()
     ) or "Asia/Jakarta"
-    return timezone_now().astimezone(zoneinfo.ZoneInfo(canonicalize_timezone(tz_name)))
+    return canonicalize_timezone(tz_name)
+
+
+def realm_local_now(realm: Realm) -> datetime:
+    """The current time in the timezone that the workspace chose."""
+    return timezone_now().astimezone(zoneinfo.ZoneInfo(realm_timezone_name(realm)))

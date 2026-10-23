@@ -75,6 +75,21 @@ class TaskBoardFetchTest(TaskBoardTestCase):
         self.client_get("/json/tasks")
         self.assertEqual(self.hamlet.realm.taskboard_set.count(), 1)
 
+    def test_board_tells_the_workspace_timezone(self) -> None:
+        self.login_user(self.hamlet)
+        self.assertEqual(
+            self.assert_json_success(self.client_get("/json/tasks"))["workspace_timezone"],
+            "Asia/Jakarta",
+        )
+
+        AgentRealmSettings.objects.update_or_create(
+            realm=self.hamlet.realm, defaults={"timezone": "Asia/Makassar"}
+        )
+        self.assertEqual(
+            self.assert_json_success(self.client_get("/json/tasks"))["workspace_timezone"],
+            "Asia/Makassar",
+        )
+
     def test_unknown_board_is_rejected(self) -> None:
         self.login_user(self.hamlet)
         result = self.client_get("/json/tasks", {"board_id": self.board.id + 999})
@@ -114,6 +129,18 @@ class TaskCreateTest(TaskBoardTestCase):
         history = TaskHistory.objects.filter(task=task)
         self.assert_length(history, 1)
         self.assertEqual(history[0].kind, TaskHistory.CREATED)
+
+    def test_create_card_without_a_due_date_is_accepted(self) -> None:
+        # The web form prefills a due date; the API does not, so a caller that
+        # sends none gets a card without one.
+        self.login_user(self.hamlet)
+
+        result = self.client_post(
+            "/json/tasks", {"title": "No deadline", "column_id": self.columns[0].id}
+        )
+        response = self.assert_json_success(result)
+
+        self.assertIsNone(Task.objects.get(id=response["task_id"]).due_at)
 
     def test_counter_never_repeats(self) -> None:
         first = self.create_card(title="First")

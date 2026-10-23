@@ -787,6 +787,19 @@ class MCPAccessTests(ZulipTestCase):
         self.assertEqual(card.title, "Iago card")
         self.assertEqual(card.column_id, columns[1].id)
 
+    def test_create_task_without_a_due_date_is_accepted(self) -> None:
+        from zerver.lib.tasks import get_or_create_default_board
+        from zerver.models import Task
+
+        board = get_or_create_default_board(self.user.realm)
+        column_id = board.columns.order_by("order")[0].id
+        token = self.manual(write=True)
+
+        created = self.call(token, "create_task", {"title": "No deadline", "column_id": column_id})
+
+        self.assertNotIn("isError", created)
+        self.assertIsNone(Task.objects.get(title="No deadline").due_at)
+
     def test_task_tools_take_priority_labels_and_due_date(self) -> None:
         from zerver.lib.tasks import get_or_create_default_board
         from zerver.models import Task
