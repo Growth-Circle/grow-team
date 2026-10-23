@@ -649,3 +649,43 @@ run_test("a planned card lands between the neighbors it was moved against", () =
     plan(TODAY);
     assert.equal(task_board_data.plan_position_for_slot(TODAY, [], 0, 1), 1000);
 });
+
+run_test("a new card is due three working days after today", () => {
+    const at = (iso) => Date.parse(iso);
+    // Mon 19 Oct 2026 -> Thu 22 Oct.
+    assert.equal(task_board_data.default_due_date(at("2026-10-19T05:00:00Z"), "UTC"), "2026-10-22");
+    // Wed 21 Oct -> Mon 26 Oct: Saturday and Sunday do not count.
+    assert.equal(task_board_data.default_due_date(at("2026-10-21T05:00:00Z"), "UTC"), "2026-10-26");
+    // Fri 23 Oct -> Wed 28 Oct.
+    assert.equal(task_board_data.default_due_date(at("2026-10-23T05:00:00Z"), "UTC"), "2026-10-28");
+    // Sat 24 Oct and Sun 25 Oct -> Wed 28 Oct.
+    assert.equal(task_board_data.default_due_date(at("2026-10-24T05:00:00Z"), "UTC"), "2026-10-28");
+    assert.equal(task_board_data.default_due_date(at("2026-10-25T05:00:00Z"), "UTC"), "2026-10-28");
+    // The first working day after New Year across a year boundary.
+    assert.equal(task_board_data.default_due_date(at("2026-12-30T05:00:00Z"), "UTC"), "2027-01-04");
+});
+
+run_test("today is the workspace's day, not the browser's", () => {
+    // 23:00 UTC on Fri 23 Oct is already Sat 24 Oct in Jakarta, so the
+    // three working days run from Saturday.
+    const now_ms = Date.parse("2026-10-23T23:00:00Z");
+    assert.equal(task_board_data.default_due_date(now_ms, "UTC"), "2026-10-28");
+    assert.equal(task_board_data.default_due_date(now_ms, "Asia/Jakarta"), "2026-10-28");
+    // 23:00 UTC on Wed 21 Oct is Thu 22 Oct in Jakarta: Mon 26 versus Tue 27.
+    const wednesday = Date.parse("2026-10-21T23:00:00Z");
+    assert.equal(task_board_data.default_due_date(wednesday, "UTC"), "2026-10-26");
+    assert.equal(task_board_data.default_due_date(wednesday, "Asia/Jakarta"), "2026-10-27");
+});
+
+run_test("the board tells the workspace time zone", () => {
+    task_board_data.set_board({
+        board,
+        columns,
+        tasks: [],
+        folded_task_ids: [],
+        workspace_timezone: "Asia/Makassar",
+    });
+    assert.equal(task_board_data.get_workspace_timezone(), "Asia/Makassar");
+    task_board_data.clear();
+    assert.equal(task_board_data.get_workspace_timezone(), undefined);
+});

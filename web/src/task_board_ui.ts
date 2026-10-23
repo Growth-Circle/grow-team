@@ -1257,6 +1257,10 @@ function launch_new_card_dialog(column_id: number): void {
                 .toSorted(people.compare_by_name)
                 .map((person) => ({user_id: person.user_id, full_name: person.full_name})),
             priorities: priority_options(task_board_data.PRIORITIES.NONE),
+            due_date: task_board_data.default_due_date(
+                Date.now(),
+                task_board_data.get_workspace_timezone() ?? timerender.display_time_zone,
+            ),
             channels: stream_data
                 .subscribed_subs()
                 .toSorted((a, b) => util.strcmp(a.name, b.name))
@@ -1268,6 +1272,10 @@ function launch_new_card_dialog(column_id: number): void {
         focus_submit_on_open: false,
         on_shown() {
             $("#task-board-new-title").trigger("focus");
+            $(".task-board-new-due-clear").on("click", (event) => {
+                event.preventDefault();
+                $("#task-board-new-due").val("").trigger("focus");
+            });
         },
         on_click() {
             const title = $<HTMLInputElement>("#task-board-new-title").val()?.trim() ?? "";

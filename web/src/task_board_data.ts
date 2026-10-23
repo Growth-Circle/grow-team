@@ -79,6 +79,7 @@ export const task_board_response_schema = z.object({
     columns: z.array(task_board_column_schema),
     tasks: z.array(task_schema),
     folded_task_ids: z.array(z.number()),
+    workspace_timezone: z.string(),
 });
 
 export type TaskBoard = z.infer<typeof task_board_schema>;
@@ -106,6 +107,7 @@ const tasks = new Map<number, Task>();
 // fetched are here; an event for any other day is ignored.
 const plan_by_date = new Map<string, TaskPlanEntry[]>();
 let folded_task_ids = new Set<number>();
+let workspace_timezone: string | undefined;
 
 export function set_board(response: TaskBoardResponse): void {
     board = response.board;
@@ -115,18 +117,25 @@ export function set_board(response: TaskBoardResponse): void {
         tasks.set(task.id, task);
     }
     folded_task_ids = new Set(response.folded_task_ids);
+    workspace_timezone = response.workspace_timezone;
 }
 
 export function clear(): void {
     board = undefined;
     columns = [];
     tasks.clear();
+    workspace_timezone = undefined;
     folded_task_ids = new Set();
     plan_by_date.clear();
 }
 
 export function get_board(): TaskBoard | undefined {
     return board;
+}
+
+// The time zone the workspace chose, which the server sends with the board.
+export function get_workspace_timezone(): string | undefined {
+    return workspace_timezone;
 }
 
 export function set_board_name(new_board: TaskBoard): void {
@@ -520,6 +529,26 @@ export function local_date(now_ms: number, time_zone: string): string {
 export function shift_date(date: string, days: number): string {
     const [year, month, day] = date.split("-").map(Number);
     return new Date(Date.UTC(year!, month! - 1, day! + days)).toISOString().slice(0, 10);
+}
+
+// How many working days after today a card is due, when the new-task form
+// fills in the date.
+const DEFAULT_DUE_WORKING_DAYS = 3;
+
+// The date a new card is due unless the person changes it: three working
+// days (Monday to Friday) after today in `time_zone`, as `YYYY-MM-DD`.
+export function default_due_date(now_ms: number, time_zone: string): string {
+    let date = local_date(now_ms, time_zone);
+    let working_days_left = DEFAULT_DUE_WORKING_DAYS;
+    while (working_days_left > 0) {
+        date = shift_date(date, 1);
+        const [year, month, day] = date.split("-").map(Number);
+        const weekday = new Date(Date.UTC(year!, month! - 1, day)).getUTCDay();
+        if (weekday !== 0 && weekday !== 6) {
+            working_days_left -= 1;
+        }
+    }
+    return date;
 }
 
 export function set_plan(date: string, entries: TaskPlanEntry[]): void {

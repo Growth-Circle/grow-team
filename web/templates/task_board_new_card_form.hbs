@@ -26,7 +26,12 @@
         </div>
         <div class="input-group">
             <label for="task-board-new-due" class="modal-field-label">{{t "Due date"}}</label>
-            <input type="date" id="task-board-new-due" class="modal_text_input" />
+            <div class="task-board-due-controls">
+                <input type="date" id="task-board-new-due" class="modal_text_input task-board-due-input" value="{{due_date}}" />
+                <button type="button" class="task-board-new-due-clear action-button action-button-subtle-neutral action-button-small">
+                    <span class="action-button-label">{{t "Clear"}}</span>
+                </button>
+            </div>
         </div>
         <div class="input-group">
             <label for="task-board-new-assignee" class="modal-field-label">{{t "Responsible"}}</label>
