@@ -5,5 +5,8 @@
     "{count, plural, one {# unread message} other {# unread messages}} older than {days} days will be marked as read.": "{count, plural, other {# pesan belum dibaca}} yang lebih dari {days} hari akan ditandai dibaca.",
     "{count, plural, one {# message} other {# messages}} marked as read.": "{count, plural, other {# pesan}} ditandai dibaca."
   },
-  "backend": {}
+  "backend": {
+    "{count} of your open tasks have no due date.": "{count} tugasmu yang belum selesai belum punya tenggat.",
+    "1 of your open tasks has no due date.": "1 tugasmu yang belum selesai belum punya tenggat."
+  }
 }

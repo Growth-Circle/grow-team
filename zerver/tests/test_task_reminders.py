@@ -353,3 +353,116 @@ class TaskReminderCommandTest(TaskReminderTestCase):
         with time_machine.travel(AT_SEVEN_JAKARTA, tick=False):
             self.assertEqual(self.run_reminders(), "Sent 1 reminder(s).")
         self.assertEqual(self.reminder_count(lear_user), 1)
+
+
+# 07:00 on Monday 19 Oct 2026 in Jakarta.
+MONDAY_AT_SEVEN_JAKARTA = AT_SEVEN_JAKARTA + timedelta(days=3)
+
+
+class TaskReminderNoDueDateTest(TaskReminderTestCase):
+    def reminders_of(self, user: UserProfile) -> list[str]:
+        return list(
+            Message.objects.filter(
+                sender=get_system_bot(settings.NOTIFICATION_BOT, user.realm_id),
+                usermessage__user_profile=user,
+                content__contains="/#tasks/mine/list",
+            )
+            .order_by("id")
+            .values_list("content", flat=True)
+        )
+
+    def test_monday_reminder_counts_the_open_tasks_without_a_due_date(self) -> None:
+        self.create_card("Send the invoice", jakarta(3, 10))
+        self.create_card("Someday", None)
+        self.create_card("Maybe later", None)
+        finished = self.create_card("Finished without a date", None)
+        Task.objects.filter(id=finished.id).update(completed_at=jakarta(2, 12))
+
+        with time_machine.travel(MONDAY_AT_SEVEN_JAKARTA, tick=False):
+            self.assertEqual(self.run_reminders(), "Sent 1 reminder(s).")
+
+        [content] = self.reminders_of(self.hamlet)
+        self.assertIn("Send the invoice", content)
+        self.assertIn("2 of your open tasks have no due date.", content)
+        self.assertEqual(content.count(f"{self.realm.url}/#tasks/mine/list"), 1)
+        self.assertLess(content.index("Send the invoice"), content.index("have no due date"))
+
+    def test_a_single_task_without_a_due_date_reads_in_the_singular(self) -> None:
+        self.create_card("Someday", None)
+
+        with time_machine.travel(MONDAY_AT_SEVEN_JAKARTA, tick=False):
+            self.run_reminders()
+
+        [content] = self.reminders_of(self.hamlet)
+        self.assertIn("1 of your open tasks has no due date.", content)
+
+    def test_a_member_with_nothing_due_still_gets_the_line_on_monday(self) -> None:
+        self.create_card("Someday", None)
+        self.create_card("Next week", jakarta(10, 10))
+
+        with time_machine.travel(MONDAY_AT_SEVEN_JAKARTA, tick=False):
+            self.assertEqual(self.run_reminders(), "Sent 1 reminder(s).")
+
+        [content] = self.reminders_of(self.hamlet)
+        self.assertNotIn("due today or overdue", content)
+        self.assertIn("1 of your open tasks has no due date.", content)
+        self.assertIn(f"{self.realm.url}/#tasks/mine/list", content)
+        self.assertEqual(
+            list(TaskReminderLog.objects.values_list("user_id", "date")),
+            [(self.hamlet.id, MONDAY_AT_SEVEN_JAKARTA.date())],
+        )
+
+    def test_the_line_goes_out_once_a_day_with_the_reminder(self) -> None:
+        self.create_card("Send the invoice", jakarta(3, 10))
+        self.create_card("Someday", None)
+
+        with time_machine.travel(MONDAY_AT_SEVEN_JAKARTA, tick=False):
+            self.run_reminders()
+        with time_machine.travel(MONDAY_AT_SEVEN_JAKARTA + timedelta(hours=2), tick=False):
+            self.assertEqual(self.run_reminders(), "Sent 0 reminder(s).")
+
+        self.assert_length(self.reminders_of(self.hamlet), 1)
+
+    def test_nothing_is_added_when_every_open_task_has_a_due_date(self) -> None:
+        self.create_card("Send the invoice", jakarta(3, 10))
+
+        with time_machine.travel(MONDAY_AT_SEVEN_JAKARTA, tick=False):
+            self.run_reminders()
+
+        [content] = self.reminders_of(self.hamlet)
+        self.assertNotIn("no due date", content)
+
+    def test_other_days_do_not_mention_tasks_without_a_due_date(self) -> None:
+        self.create_card("Send the invoice", jakarta(-1, 10))
+        self.create_card("Someday", None)
+
+        with time_machine.travel(AT_SEVEN_JAKARTA, tick=False):
+            self.run_reminders()
+        with time_machine.travel(AT_SEVEN_JAKARTA + timedelta(days=1), tick=False):
+            self.assertEqual(self.run_reminders(), "Sent 1 reminder(s).")
+
+        for content in self.reminders_of(self.hamlet):
+            self.assertNotIn("no due date", content)
+
+    def test_each_member_counts_only_their_own_tasks(self) -> None:
+        iago = self.example_user("iago")
+        self.create_card("Mine", None)
+        self.create_card("Iago one", None, assignee=iago)
+        self.create_card("Iago two", None, assignee=iago)
+        self.create_card("Nobody", None, assignee=self.example_user("cordelia"))
+        Task.objects.filter(title="Nobody").update(assignee=None)
+
+        with time_machine.travel(MONDAY_AT_SEVEN_JAKARTA, tick=False):
+            self.assertEqual(self.run_reminders(), "Sent 2 reminder(s).")
+
+        self.assertIn("1 of your open tasks has no due date.", self.reminders_of(self.hamlet)[0])
+        self.assertIn("2 of your open tasks have no due date.", self.reminders_of(iago)[0])
+        self.assertEqual(self.reminders_of(self.example_user("cordelia")), [])
+
+    def test_a_task_in_a_channel_the_member_cannot_read_is_not_counted(self) -> None:
+        private_stream = self.make_stream("secret-plan", invite_only=True)
+        self.subscribe(self.example_user("cordelia"), "secret-plan")
+        self.create_card("Secret", None, stream_id=private_stream.id)
+
+        with time_machine.travel(MONDAY_AT_SEVEN_JAKARTA, tick=False):
+            self.assertEqual(self.run_reminders(), "Sent 0 reminder(s).")
