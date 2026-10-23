@@ -25,6 +25,7 @@ from zproject.feature_routes import (
     rooms,
     routines,
     runner_install,
+    unread_backlog,
     whatsapp,
     workspace,
     workspace_members,
@@ -54,6 +55,7 @@ _MODULES = (
     oauth_callback,
     playbooks,
     routines,
+    unread_backlog,
 )
 
 API_PATTERNS: list[URLPattern] = [pattern for module in _MODULES for pattern in module.api_patterns]

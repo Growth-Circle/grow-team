@@ -1,0 +1,74 @@
+paths:
+  /messages/stale_unread:
+    get:
+      operationId: get-stale-unread-count
+      tags: ["messages"]
+      summary: Count your unread messages that are older than a week
+      description: |
+        Returns how many unread messages of the requesting user were sent
+        more than `days` days ago. The Inbox and Perlu kamu pages use it to
+        show the button that clears that backlog.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-b1a4c0).
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      count:
+                        type: integer
+                        description: |
+                          The number of unread messages older than `days` days.
+                      days:
+                        type: integer
+                        description: |
+                          The age, in days, from which an unread message counts.
+                    required:
+                      - count
+                      - days
+              example:
+                result: success
+                msg: ""
+                count: 12
+                days: 7
+    post:
+      operationId: mark-stale-unread-as-read
+      tags: ["messages"]
+      summary: Mark your unread messages that are older than a week as read
+      description: |
+        Marks as read every unread message of the requesting user that was
+        sent more than a week ago, and no other message. It changes only the
+        requesting user's own read flags, and sends the usual read events.
+
+        **Changes**: New in Zulip 12.0 (feature level ZF-b1a4c0).
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/JsonSuccessBase"
+                  - additionalProperties: false
+                    properties:
+                      result: {}
+                      msg: {}
+                      ignored_parameters_unsupported: {}
+                      count:
+                        type: integer
+                        description: |
+                          The number of messages that were marked as read.
+                    required:
+                      - count
+              example:
+                result: success
+                msg: ""
+                count: 12
