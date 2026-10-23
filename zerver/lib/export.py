@@ -48,11 +48,13 @@ from zerver.lib.timestamp import datetime_to_timestamp
 from zerver.lib.upload.s3 import get_bucket
 from zerver.lib.utils import get_fk_field_name
 from zerver.models import (
+    AgentRealmSettings,
     AlertWord,
     Attachment,
     BotConfigData,
     BotStorageData,
     ChannelFolder,
+    ChannelPin,
     Client,
     CustomProfileField,
     CustomProfileFieldValue,
@@ -63,8 +65,11 @@ from zerver.models import (
     MutedUser,
     NamedUserGroup,
     NavigationView,
+    NeedResolution,
     OnboardingStep,
     OnboardingUserMessage,
+    Playbook,
+    PlaybookRevision,
     Reaction,
     Realm,
     RealmAuditLog,
@@ -76,10 +81,19 @@ from zerver.models import (
     RealmPlayground,
     RealmUserDefault,
     Recipient,
+    RolePermission,
+    RoomMeta,
     ScheduledMessage,
     Service,
     Stream,
     Subscription,
+    Task,
+    TaskBoard,
+    TaskBoardColumn,
+    TaskHistory,
+    TaskNote,
+    TaskNotification,
+    TaskPlan,
     UserActivity,
     UserActivityInterval,
     UserGroup,
@@ -332,6 +346,104 @@ ANALYTICS_TABLES = {
     "analytics_usercount",
 }
 
+# The tables of the models that Sanji added to Zulip. Each one has a
+# decision here: the export carries it (SANJI_EXPORTED_TABLES), or it is
+# in EXCLUDED_SANJI_TABLES with the reason. sanity_check_output and
+# zerver/tests/test_export_sanji.py fail for a table that has neither, so
+# a new model cannot reach production without that decision.
+SANJI_EXPORTED_TABLES = {
+    "zerver_agentrealmsettings",
+    "zerver_channelpin",
+    "zerver_needresolution",
+    "zerver_playbook",
+    "zerver_playbookrevision",
+    "zerver_rolepermission",
+    "zerver_roommeta",
+    "zerver_task",
+    "zerver_taskboard",
+    "zerver_taskboardcolumn",
+    "zerver_taskhistory",
+    "zerver_tasknote",
+    "zerver_tasknotification",
+    "zerver_taskplan",
+}
+
+_EXCLUDED_SANJI_TABLES_BY_REASON = {
+    # A secret never leaves the server in an export, even encrypted: the
+    # key that opens it stays on this server.
+    "Holds a secret or a token (encrypted key, token hash, or one-time code).": [
+        "zerver_agentpairing",
+        "zerver_agentprobegrant",
+        "zerver_agentrunnercredential",
+        "zerver_agentrunnerregistrationtoken",
+        "zerver_agentsecret",
+        "zerver_mcpaccesstoken",
+        "zerver_mcpauthorizationcode",
+        # Its credential is a secret, and the account is only useful with it.
+        "zerver_externalaccount",
+        "zerver_mcpconnection",
+    ],
+    "Belongs to a client device, which has to subscribe again on the new server.": [
+        "zerver_webpushsubscription",
+    ],
+    "A connection to a runner, a model provider or another system that has to be set up "
+    "again on the new server, because its credentials are not exported.": [
+        "zerver_agentgrant",
+        "zerver_agentprovider",
+        "zerver_agentrepository",
+        "zerver_agentrunner",
+        "zerver_cloudrunnerinstance",
+        "zerver_drivefolderlink",
+        "zerver_mcpaccessaudit",
+        "zerver_mcpaccessgrant",
+        "zerver_mcpaccesstoolpolicy",
+        "zerver_mcpagentgrant",
+        "zerver_mcpclient",
+        "zerver_mcpserver",
+        "zerver_mcptoolpolicy",
+        "zerver_roomchannellink",
+    ],
+    "The setup of an agent, which names a runner and a provider that are not exported. "
+    "It is created again once a runner is paired.": [
+        "zerver_agentprofile",
+        "zerver_agentroutine",
+    ],
+    "Runtime state of a job on a runner of this server. A job cannot go on from another server.": [
+        "zerver_agentapproval",
+        "zerver_agentartifact",
+        "zerver_agentattempt",
+        "zerver_agentauditevent",
+        "zerver_agentcheckpoint",
+        "zerver_agentcontextref",
+        "zerver_agentconversation",
+        "zerver_agentdispatchreceipt",
+        "zerver_agentinput",
+        "zerver_agentjob",
+        "zerver_agentoperation",
+        "zerver_agentoutbox",
+        "zerver_agentroutinerun",
+        "zerver_agentsendintent",
+        "zerver_agentsetupoperation",
+        "zerver_agentverification",
+        "zerver_mcpjobplan",
+        "zerver_mcppendingcall",
+    ],
+    "Derived or short-lived: it is made again from the messages and the providers, or it "
+    "runs out by the next morning.": [
+        "zerver_meeting",
+        "zerver_needsnooze",
+        "zerver_roomdigest",
+        "zerver_taskreminderlog",
+    ],
+}
+
+EXCLUDED_SANJI_TABLES: dict[str, str] = {
+    table: reason for reason, tables in _EXCLUDED_SANJI_TABLES_BY_REASON.items() for table in tables
+}
+
+ALL_ZULIP_TABLES |= SANJI_EXPORTED_TABLES | EXCLUDED_SANJI_TABLES.keys()
+NON_EXPORTED_TABLES |= EXCLUDED_SANJI_TABLES.keys()
+
 
 @functools.cache
 def _date_fields_by_table() -> dict[str, list[Field]]:
@@ -360,6 +472,29 @@ def date_fields_for_table(table: TableName) -> list[Field]:
         table = "zerver_userprofile"
 
     return _date_fields_by_table().get(table, [])
+
+
+@functools.cache
+def _date_only_fields_by_table() -> dict[str, list[Field]]:
+    from django.db import models
+
+    result: dict[str, list[Field]] = {}
+    for model in apps.get_app_config("zerver").get_models():
+        result[model._meta.db_table] = [
+            f.name
+            for f in model._meta.get_fields()
+            if isinstance(f, models.DateField) and not isinstance(f, models.DateTimeField)
+        ]
+    return result
+
+
+def date_only_fields_for_table(table: TableName) -> list[Field]:
+    """
+    Return the DateField names, which hold a day and no time, for the given
+    table. The export writes them as `YYYY-MM-DD`, and Django reads that
+    back on import.
+    """
+    return _date_only_fields_by_table().get(table, [])
 
 
 def sanity_check_output(data: TableData) -> None:
@@ -531,6 +666,17 @@ def make_raw(query: Iterable[Any], exclude: list[Field] | None = None) -> Iterat
             data[field.name] = [row.id for row in value]
 
         yield data
+
+
+def isoformat_date_only_fields(item: Record, table: TableName) -> Record:
+    return {
+        **item,
+        **{
+            field: item[field].isoformat()
+            for field in date_only_fields_for_table(table)
+            if item[field] is not None
+        },
+    }
 
 
 def floatify_datetime_fields(item: Record, table: TableName) -> Record:
@@ -880,6 +1026,8 @@ def export_from_config(
             response[t] = custom_process_results(response[t], context)
         if date_fields_for_table(t):
             response[t] = (floatify_datetime_fields(r, t) for r in response[t])
+        if date_only_fields_for_table(t):
+            response[t] = (isoformat_date_only_fields(r, t) for r in response[t])
 
         if not config.use_iterator:
             response[t] = list(response[t])
@@ -990,6 +1138,8 @@ def get_realm_config() -> Config:
         virtual_parent=realm_config,
         custom_fetch=custom_fetch_onboarding_usermessage,
     )
+
+    add_sanji_realm_configs(realm_config)
 
     user_profile_config = Config(
         custom_tables=[
@@ -1144,6 +1294,7 @@ def get_realm_config() -> Config:
     )
 
     add_user_profile_child_configs(user_profile_config)
+    add_sanji_user_profile_child_configs(user_profile_config)
 
     return realm_config
 
@@ -1316,6 +1467,232 @@ def add_user_profile_child_configs(user_profile_config: Config) -> None:
         include_rows="user_id__in",
         limit_to_consenting_users=True,
     )
+
+
+def get_consenting_user_ids(context: Context) -> set[int] | None:
+    """The users whose private data this export may carry, or None when
+    it may carry the private data of every user."""
+    export_type = context["export_type"]
+    if export_type == RealmExport.EXPORT_PUBLIC:
+        return set()
+    if export_type == RealmExport.EXPORT_FULL_WITH_CONSENT:
+        return context["exportable_user_ids"]
+    return None
+
+
+def get_exportable_stream_ids(context: Context) -> set[int] | None:
+    """The channels whose content this export may carry, or None for all
+    of them. These are the channels whose messages the export carries,
+    except that a private channel with protected history is left out
+    for a consent export even when a member consents."""
+    export_type = context["export_type"]
+    if export_type == RealmExport.EXPORT_FULL_WITHOUT_CONSENT:
+        return None
+    streams = Stream.objects.filter(realm=context["realm"])
+    if export_type == RealmExport.EXPORT_PUBLIC:
+        return set(streams.filter(invite_only=False).values_list("id", flat=True))
+    consented_recipient_ids = Subscription.objects.filter(
+        user_profile_id__in=context["exportable_user_ids"], recipient__type=Recipient.STREAM
+    ).values_list("recipient_id", flat=True)
+    return set(
+        streams.filter(Q(invite_only=False) | Q(recipient_id__in=consented_recipient_ids))
+        .exclude(history_public_to_subscribers=False)
+        .values_list("id", flat=True)
+    )
+
+
+def custom_fetch_tasks(response: TableData, context: Context) -> None:
+    """A card that came from a channel goes only with that channel's content.
+    A card that came from no channel is visible to the whole workspace, so
+    it goes with every export."""
+    tasks = Task.objects.filter(realm=context["realm"])
+    stream_ids = get_exportable_stream_ids(context)
+    if stream_ids is not None:
+        tasks = tasks.filter(Q(stream_id__isnull=True) | Q(stream_id__in=stream_ids))
+
+    # The agent profile and job of a card are not exported (see
+    # EXCLUDED_SANJI_TABLES), so the card keeps its text and loses the link.
+    rows = [
+        {**row, "agent_profile": None, "agent_job": None}
+        for row in make_raw(tasks.order_by("id").iterator())
+    ]
+    context["exported_task_ids"] = {row["id"] for row in rows}
+    response["zerver_task"] = rows
+
+
+def only_exported_tasks(rows: Iterable[Record], context: Context) -> Iterator[Record]:
+    return (row for row in rows if row["task"] in context["exported_task_ids"])
+
+
+def custom_fetch_channel_pins(response: TableData, context: Context) -> None:
+    pins = ChannelPin.objects.filter(realm=context["realm"])
+    stream_ids = get_exportable_stream_ids(context)
+    if stream_ids is not None:
+        pins = pins.filter(stream_id__in=stream_ids)
+    response["zerver_channelpin"] = make_raw(pins.order_by("id").iterator())
+
+
+def custom_fetch_room_meta(response: TableData, context: Context) -> None:
+    meta = RoomMeta.objects.filter(stream__realm=context["realm"])
+    response["zerver_roommeta"] = make_raw(meta.order_by("id").iterator())
+
+
+def custom_fetch_playbooks(response: TableData, context: Context) -> None:
+    """A shared playbook belongs to the workspace. A personal playbook is
+    private to its owner."""
+    playbooks = Playbook.objects.filter(realm=context["realm"])
+    consenting_user_ids = get_consenting_user_ids(context)
+    if consenting_user_ids is not None:
+        playbooks = playbooks.filter(Q(scope=Playbook.SHARED) | Q(owner_id__in=consenting_user_ids))
+    response["zerver_playbook"] = make_raw(playbooks.order_by("id").iterator())
+
+
+def custom_fetch_agent_realm_settings(response: TableData, context: Context) -> None:
+    """The default agent, the work runner and the work provider are not
+    exported, so the settings come without them."""
+
+    def rows() -> Iterator[Record]:
+        for settings_row in AgentRealmSettings.objects.filter(realm=context["realm"]).iterator():
+            row = model_to_dict(settings_row)
+            # model_to_dict leaves out the id, which is not editable. The
+            # export writes every table sorted by id, and the import gives
+            # the row an id of its own.
+            row["id"] = str(settings_row.id)
+            yield {**row, "default_profile": None, "work_runner": None, "work_provider": None}
+
+    response["zerver_agentrealmsettings"] = rows()
+
+
+def add_sanji_realm_configs(realm_config: Config) -> None:
+    """The tables of Sanji that belong to the workspace. The cards go first,
+    because the tables of members that point at a card look at which
+    cards were exported."""
+
+    Config(
+        table="zerver_agentrealmsettings",
+        virtual_parent=realm_config,
+        custom_fetch=custom_fetch_agent_realm_settings,
+    )
+
+    Config(
+        table="zerver_rolepermission",
+        model=RolePermission,
+        normal_parent=realm_config,
+        include_rows="realm_id__in",
+    )
+
+    task_board_config = Config(
+        table="zerver_taskboard",
+        model=TaskBoard,
+        normal_parent=realm_config,
+        include_rows="realm_id__in",
+        use_iterator=False,
+    )
+
+    Config(
+        table="zerver_taskboardcolumn",
+        model=TaskBoardColumn,
+        normal_parent=task_board_config,
+        include_rows="board_id__in",
+    )
+
+    task_config = Config(
+        table="zerver_task",
+        model=Task,
+        virtual_parent=realm_config,
+        custom_fetch=custom_fetch_tasks,
+        use_iterator=False,
+    )
+
+    Config(
+        table="zerver_tasknote",
+        model=TaskNote,
+        normal_parent=task_config,
+        include_rows="task_id__in",
+    )
+
+    Config(
+        table="zerver_taskhistory",
+        model=TaskHistory,
+        normal_parent=task_config,
+        include_rows="task_id__in",
+    )
+
+    Config(
+        table="zerver_channelpin",
+        virtual_parent=realm_config,
+        custom_fetch=custom_fetch_channel_pins,
+        # fix_sanji_message_references drops the pins of messages that are
+        # not in the export.
+        use_iterator=False,
+    )
+
+    Config(
+        table="zerver_roommeta",
+        virtual_parent=realm_config,
+        custom_fetch=custom_fetch_room_meta,
+    )
+
+    playbook_config = Config(
+        table="zerver_playbook",
+        virtual_parent=realm_config,
+        custom_fetch=custom_fetch_playbooks,
+        use_iterator=False,
+    )
+
+    Config(
+        table="zerver_playbookrevision",
+        model=PlaybookRevision,
+        normal_parent=playbook_config,
+        include_rows="playbook_id__in",
+    )
+
+
+def add_sanji_user_profile_child_configs(user_profile_config: Config) -> None:
+    """The tables of Sanji that are private to a member. Like the tables of
+    add_user_profile_child_configs, they go only for consenting members.
+    This is not shared with the export of a single user."""
+
+    Config(
+        table="zerver_taskplan",
+        model=TaskPlan,
+        normal_parent=user_profile_config,
+        include_rows="user_id__in",
+        limit_to_consenting_users=True,
+        custom_process_results=only_exported_tasks,
+    )
+
+    Config(
+        table="zerver_tasknotification",
+        model=TaskNotification,
+        normal_parent=user_profile_config,
+        include_rows="user_id__in",
+        limit_to_consenting_users=True,
+        custom_process_results=only_exported_tasks,
+    )
+
+    Config(
+        table="zerver_needresolution",
+        model=NeedResolution,
+        normal_parent=user_profile_config,
+        include_rows="user_id__in",
+        limit_to_consenting_users=True,
+        # fix_sanji_message_references drops the rows of messages that are
+        # not in the export.
+        use_iterator=False,
+    )
+
+
+def fix_sanji_message_references(response: TableData, message_ids: set[int]) -> None:
+    """Cards, pins and resolved mentions point at messages. A message that
+    is not in this export is not there for them either: a card loses its
+    origin message, and a pin or a resolved mention is left out."""
+    response["zerver_task"] = [
+        {**row, "origin_message": None} if row["origin_message"] not in message_ids else row
+        for row in response["zerver_task"]
+    ]
+    for table in ("zerver_channelpin", "zerver_needresolution"):
+        response[table] = [row for row in response[table] if row["message"] in message_ids]
 
 
 # We exclude these fields for the following reasons:
@@ -2606,6 +2983,8 @@ def do_export_realm(
     fetch_client_data(response=response, client_ids=collected_client_ids)
 
     fetch_submessage_data(response=response, message_ids=message_ids)
+
+    fix_sanji_message_references(response=response, message_ids=message_ids)
 
     # Override the "deactivated" flag on the realm
     if export_as_active is not None:

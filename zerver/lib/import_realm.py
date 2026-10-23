@@ -75,11 +75,13 @@ from zerver.lib.user_message import UserMessageLite, bulk_insert_ums
 from zerver.lib.utils import assert_is_not_none, generate_api_key, process_list_in_batches
 from zerver.lib.zulip_update_announcements import send_zulip_update_announcements_to_realm
 from zerver.models import (
+    AgentRealmSettings,
     AlertWord,
     Attachment,
     BotConfigData,
     BotStorageData,
     ChannelFolder,
+    ChannelPin,
     Client,
     CustomProfileField,
     CustomProfileFieldValue,
@@ -90,8 +92,11 @@ from zerver.models import (
     MutedUser,
     NamedUserGroup,
     NavigationView,
+    NeedResolution,
     OnboardingStep,
     OnboardingUserMessage,
+    Playbook,
+    PlaybookRevision,
     Reaction,
     Realm,
     RealmAuditLog,
@@ -103,11 +108,20 @@ from zerver.models import (
     RealmPlayground,
     RealmUserDefault,
     Recipient,
+    RolePermission,
+    RoomMeta,
     SavedSnippet,
     ScheduledMessage,
     Service,
     Stream,
     Subscription,
+    Task,
+    TaskBoard,
+    TaskBoardColumn,
+    TaskHistory,
+    TaskNote,
+    TaskNotification,
+    TaskPlan,
     UserActivity,
     UserActivityInterval,
     UserGroup,
@@ -197,6 +211,19 @@ ID_MAP: dict[str, dict[int, int]] = {
     "submessage": {},
     "externalauthid": {},
     "realmexport": {},
+    "rolepermission": {},
+    "taskboard": {},
+    "taskboardcolumn": {},
+    "task": {},
+    "tasknote": {},
+    "taskhistory": {},
+    "taskplan": {},
+    "tasknotification": {},
+    "channelpin": {},
+    "roommeta": {},
+    "playbook": {},
+    "playbookrevision": {},
+    "needresolution": {},
 }
 
 id_map_to_list: dict[str, dict[int, list[int]]] = {
@@ -1340,6 +1367,164 @@ def disable_restricted_authentication_methods(data: ImportedTableData) -> None:
 # Because the Python object => JSON conversion process is not fully
 # faithful, we have to use a set of fixers (e.g. on DateTime objects
 # and foreign keys) to do the import correctly.
+def fix_task_history_ids(data: ImportedTableData) -> None:
+    """The extra_data of a history entry names the card, note, board and
+    channel that it is about, by the ids of the exported server."""
+    for key, related_table in (
+        ("task_id", "task"),
+        ("board_id", "taskboard"),
+        ("stream_id", "stream"),
+        ("note_id", "tasknote"),
+    ):
+        for entry in data["zerver_taskhistory"]:
+            old_id = entry["extra_data"].get(key)
+            if old_id in ID_MAP[related_table]:
+                entry["extra_data"][key] = ID_MAP[related_table][old_id]
+
+
+def import_sanji_tables(
+    data: ImportedTableData, *, realm: Realm, sender_map: dict[int, Record]
+) -> None:
+    """The tables of Sanji that SANJI_EXPORTED_TABLES in export.py lists.
+    An export from before a table existed has no data for it. This runs
+    after the messages, because cards, pins and resolved mentions point
+    at them."""
+    if "zerver_agentrealmsettings" in data:
+        fix_datetime_fields(data, "zerver_agentrealmsettings")
+        re_map_foreign_keys(data, "zerver_agentrealmsettings", "realm", related_table="realm")
+        re_map_foreign_keys(
+            data, "zerver_agentrealmsettings", "default_selected_by", related_table="user_profile"
+        )
+        for settings_row in data["zerver_agentrealmsettings"]:
+            # The row gets an id of its own, so that an import into a server
+            # that still holds the exported realm cannot clash with it.
+            del settings_row["id"]
+        for field_name in ("default_profile", "work_runner", "work_provider"):
+            convert_to_id_fields(data, "zerver_agentrealmsettings", field_name)
+        bulk_import_model(data, AgentRealmSettings)
+
+    if "zerver_rolepermission" in data:
+        re_map_foreign_keys(data, "zerver_rolepermission", "realm", related_table="realm")
+        update_model_ids(RolePermission, data, "rolepermission")
+        bulk_import_model(data, RolePermission)
+
+    if "zerver_taskboard" in data:
+        fix_datetime_fields(data, "zerver_taskboard")
+        re_map_foreign_keys(data, "zerver_taskboard", "realm", related_table="realm")
+        update_model_ids(TaskBoard, data, "taskboard")
+        bulk_import_model(data, TaskBoard)
+
+    if "zerver_taskboardcolumn" in data:
+        re_map_foreign_keys(data, "zerver_taskboardcolumn", "board", related_table="taskboard")
+        update_model_ids(TaskBoardColumn, data, "taskboardcolumn")
+        bulk_import_model(data, TaskBoardColumn)
+
+    if "zerver_task" in data:
+        fix_datetime_fields(data, "zerver_task")
+        re_map_foreign_keys(data, "zerver_task", "realm", related_table="realm")
+        re_map_foreign_keys(data, "zerver_task", "board", related_table="taskboard")
+        re_map_foreign_keys(data, "zerver_task", "column", related_table="taskboardcolumn")
+        re_map_foreign_keys(data, "zerver_task", "stream", related_table="stream")
+        re_map_foreign_keys(data, "zerver_task", "origin_message", related_table="message")
+        for field_name in ("creator", "assignee", "reviewer"):
+            re_map_foreign_keys(data, "zerver_task", field_name, related_table="user_profile")
+        for field_name in ("agent_profile", "agent_job"):
+            convert_to_id_fields(data, "zerver_task", field_name)
+        update_model_ids(Task, data, "task")
+        bulk_import_model(data, Task)
+
+    if "zerver_tasknote" in data:
+        fix_datetime_fields(data, "zerver_tasknote")
+        re_map_foreign_keys(data, "zerver_tasknote", "task", related_table="task")
+        re_map_foreign_keys(data, "zerver_tasknote", "author", related_table="user_profile")
+        fix_message_rendered_content(
+            realm=realm, sender_map=sender_map, messages=data["zerver_tasknote"]
+        )
+        update_model_ids(TaskNote, data, "tasknote")
+        bulk_import_model(data, TaskNote)
+
+    if "zerver_taskhistory" in data:
+        fix_datetime_fields(data, "zerver_taskhistory")
+        re_map_foreign_keys(data, "zerver_taskhistory", "task", related_table="task")
+        re_map_foreign_keys(data, "zerver_taskhistory", "acting_user", related_table="user_profile")
+        fix_task_history_ids(data)
+        update_model_ids(TaskHistory, data, "taskhistory")
+        bulk_import_model(data, TaskHistory)
+
+    if "zerver_taskplan" in data:
+        re_map_foreign_keys(data, "zerver_taskplan", "user", related_table="user_profile")
+        re_map_foreign_keys(data, "zerver_taskplan", "task", related_table="task")
+        update_model_ids(TaskPlan, data, "taskplan")
+        bulk_import_model(data, TaskPlan)
+
+    if "zerver_tasknotification" in data:
+        fix_datetime_fields(data, "zerver_tasknotification")
+        re_map_foreign_keys(data, "zerver_tasknotification", "user", related_table="user_profile")
+        re_map_foreign_keys(data, "zerver_tasknotification", "task", related_table="task")
+        re_map_foreign_keys(data, "zerver_tasknotification", "note", related_table="tasknote")
+        re_map_foreign_keys(data, "zerver_tasknotification", "actor", related_table="user_profile")
+        update_model_ids(TaskNotification, data, "tasknotification")
+        bulk_import_model(data, TaskNotification)
+
+    if "zerver_channelpin" in data:
+        fix_datetime_fields(data, "zerver_channelpin")
+        re_map_foreign_keys(data, "zerver_channelpin", "realm", related_table="realm")
+        re_map_foreign_keys(data, "zerver_channelpin", "stream", related_table="stream")
+        re_map_foreign_keys(data, "zerver_channelpin", "message", related_table="message")
+        re_map_foreign_keys(data, "zerver_channelpin", "pinned_by", related_table="user_profile")
+        update_model_ids(ChannelPin, data, "channelpin")
+        bulk_import_model(data, ChannelPin)
+
+    if "zerver_roommeta" in data:
+        fix_datetime_fields(data, "zerver_roommeta")
+        re_map_foreign_keys(data, "zerver_roommeta", "stream", related_table="stream")
+        re_map_foreign_keys(
+            data, "zerver_roommeta", "summary_enabled_by", related_table="user_profile"
+        )
+        update_model_ids(RoomMeta, data, "roommeta")
+        bulk_import_model(data, RoomMeta)
+
+    if "zerver_playbook" in data:
+        fix_datetime_fields(data, "zerver_playbook")
+        re_map_foreign_keys(data, "zerver_playbook", "realm", related_table="realm")
+        re_map_foreign_keys(data, "zerver_playbook", "owner", related_table="user_profile")
+        # A playbook and its latest revision point at each other, so the
+        # playbook goes in without it and gets it once the revisions are in.
+        old_latest_revision_ids = {
+            playbook["id"]: playbook.pop("latest_revision") for playbook in data["zerver_playbook"]
+        }
+        update_model_ids(Playbook, data, "playbook")
+        bulk_import_model(data, Playbook)
+
+        if "zerver_playbookrevision" in data:
+            fix_datetime_fields(data, "zerver_playbookrevision")
+            re_map_foreign_keys(
+                data, "zerver_playbookrevision", "playbook", related_table="playbook"
+            )
+            re_map_foreign_keys(
+                data, "zerver_playbookrevision", "author", related_table="user_profile"
+            )
+            fix_message_rendered_content(
+                realm=realm, sender_map=sender_map, messages=data["zerver_playbookrevision"]
+            )
+            update_model_ids(PlaybookRevision, data, "playbookrevision")
+            bulk_import_model(data, PlaybookRevision)
+
+        for old_playbook_id, old_revision_id in old_latest_revision_ids.items():
+            if old_revision_id in ID_MAP["playbookrevision"]:
+                Playbook.objects.filter(id=ID_MAP["playbook"][old_playbook_id]).update(
+                    latest_revision_id=ID_MAP["playbookrevision"][old_revision_id]
+                )
+
+    if "zerver_needresolution" in data:
+        fix_datetime_fields(data, "zerver_needresolution")
+        re_map_foreign_keys(data, "zerver_needresolution", "realm", related_table="realm")
+        re_map_foreign_keys(data, "zerver_needresolution", "user", related_table="user_profile")
+        re_map_foreign_keys(data, "zerver_needresolution", "message", related_table="message")
+        update_model_ids(NeedResolution, data, "needresolution")
+        bulk_import_model(data, NeedResolution)
+
+
 def do_import_realm(import_dir: Path, subdomain: str, processes: int = 1) -> Realm:
     logging.info("Importing realm dump %s", import_dir)
     if not os.path.exists(import_dir):
@@ -2005,6 +2190,8 @@ def do_import_realm(import_dir: Path, subdomain: str, processes: int = 1) -> Rea
         re_map_foreign_keys(data, "zerver_submessage", "sender", related_table="user_profile")
         update_model_ids(SubMessage, data, "submessage")
         bulk_import_model(data, SubMessage)
+
+    import_sanji_tables(data, realm=realm, sender_map=sender_map)
 
     # Similarly, we need to recalculate the first_message_id for stream objects.
     update_first_message_id_query = SQL(
