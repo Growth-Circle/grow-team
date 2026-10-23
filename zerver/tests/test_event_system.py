@@ -1557,7 +1557,7 @@ class FetchQueriesTest(ZulipTestCase):
         self.login_user(user)
 
         with (
-            self.assert_database_query_count(48),
+            self.assert_database_query_count(49),
             mock.patch("zerver.lib.events.always_want") as want_mock,
         ):
             fetch_initial_state_data(user, realm=user.realm)
@@ -1582,7 +1582,7 @@ class FetchQueriesTest(ZulipTestCase):
             # 2 of the 3 queries here are a single query that is used
             # for all the 'realm', 'stream', 'subscription'
             # and 'realm_user_groups' event types.
-            realm=3,
+            realm=4,
             # Similarly, this query is shared with the realm_user total.
             realm_billing=1,
             realm_bot=1,
