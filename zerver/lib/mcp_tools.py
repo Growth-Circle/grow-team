@@ -4,6 +4,8 @@ import base64
 import binascii
 import json
 import re
+import struct
+import zlib
 from collections.abc import Collection
 from copy import copy
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Self, cast
@@ -41,6 +43,7 @@ ShortText = Annotated[str, StringConstraints(min_length=1, max_length=200)]
 # inside both MAX_BODY_BYTES of the MCP view and DATA_UPLOAD_MAX_MEMORY_SIZE.
 MAX_FILE_MEBIBYTES = 15
 MAX_BASE64_LENGTH = 21_000_000
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 DATA_URL_PREFIX = re.compile(r"^data:[^,;]*(;[^,;]*)*;base64,", re.IGNORECASE)
 
 
@@ -479,6 +482,54 @@ def decode_upload(user: UserProfile, content_base64: str) -> bytes:
         ) from None
 
 
+def png_is_complete(raw: bytes) -> bool:
+    if not raw.startswith(PNG_SIGNATURE):
+        return False
+    offset = len(PNG_SIGNATURE)
+    first_chunk = True
+    while offset + 12 <= len(raw):
+        length, kind = struct.unpack(">I4s", raw[offset : offset + 8])
+        end = offset + 12 + length
+        if end > len(raw) or (first_chunk and kind != b"IHDR"):
+            return False
+        body = raw[offset + 4 : end - 4]
+        if struct.unpack(">I", raw[end - 4 : end])[0] != zlib.crc32(body):
+            return False
+        if kind == b"IEND":
+            return end == len(raw)
+        first_chunk = False
+        offset = end
+    return False
+
+
+def image_is_complete(raw: bytes, content_type: str) -> bool | None:
+    """Whether a file of this type ends where its format says; None if the type is not checked."""
+    match content_type.lower():
+        case "image/png":
+            return png_is_complete(raw)
+        case "image/jpeg" | "image/jpg":
+            return raw.startswith(b"\xff\xd8") and raw.rstrip(b"\x00").endswith(b"\xff\xd9")
+        case "image/gif":
+            return raw.startswith((b"GIF87a", b"GIF89a")) and raw.endswith(b";")
+        case "image/webp":
+            return (
+                raw[:4] == b"RIFF"
+                and raw[8:12] == b"WEBP"
+                and len(raw) >= 8 + int.from_bytes(raw[4:8], "little")
+            )
+    return None
+
+
+def check_image_is_complete(raw: bytes, content_type: str) -> None:
+    # A client that sends cut-off base64 would otherwise get a broken file stored
+    # that the thumbnail worker then fails on.
+    if image_is_complete(raw, content_type) is False:
+        raise ToolInputError(
+            f"The image looks cut off: it decodes to {len(raw)} bytes and ends early. "
+            "Send the whole file again."
+        )
+
+
 @sensitive_variables()
 def execute_tool(
     request: HttpRequest,
@@ -723,6 +774,7 @@ def execute_tool(
         )
     if name == "upload_file":
         raw = decode_upload(user, str(args["content_base64"]))
+        check_image_is_complete(raw, str(args["content_type"]))
         file = SimpleUploadedFile(str(args["filename"]), raw, str(args["content_type"]))
         try:
             result = _view(request, user, upload.upload_file_backend, {}, {"file": file})

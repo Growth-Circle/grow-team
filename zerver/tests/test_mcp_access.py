@@ -6,6 +6,7 @@ import struct
 import zlib
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
+from unittest import mock
 from urllib.parse import parse_qs, urlsplit
 
 from django.db import connection
@@ -240,7 +241,7 @@ class MCPAccessTests(ZulipTestCase):
 
     def test_upload_file_returns_url_and_markdown(self) -> None:
         token = self.manual(write=True)
-        png = base64.b64encode(b"\x89PNG\r\n\x1a\nchart").decode()
+        png = base64.b64encode(self.chart_png(1_000)).decode()
         output = self.call(
             token,
             "upload_file",
@@ -315,6 +316,51 @@ class MCPAccessTests(ZulipTestCase):
                     path_id=str(output["url"]).removeprefix("/user_uploads/")
                 )
                 self.assertEqual(attachment.size, len(png))
+
+    def test_upload_file_rejects_cut_off_images(self) -> None:
+        from zerver.models import Attachment
+
+        token = self.manual(write=True)
+        png = self.chart_png(19_000)
+        before = Attachment.objects.count()
+        for content in (png[: len(png) // 2], png[:100]):
+            message = self.upload_error(
+                token,
+                {
+                    "filename": "chart.png",
+                    "content_type": "image/png",
+                    "content_base64": base64.b64encode(content).decode(),
+                },
+            )
+            self.assertIn(f"decodes to {len(content)} bytes and ends early", message)
+        self.assertEqual(Attachment.objects.count(), before)
+
+        output = self.call(
+            token,
+            "upload_file",
+            {
+                "filename": "chart.png",
+                "content_type": "image/png",
+                "content_base64": base64.b64encode(png).decode(),
+            },
+        )
+        self.assertEqual(output["filename"], "chart.png")
+
+    def test_upload_file_does_not_decode_other_types(self) -> None:
+        token = self.manual(write=True)
+        cut_off = self.chart_png(19_000)[:100]
+        with mock.patch("zerver.lib.mcp_tools.png_is_complete") as check:
+            output = self.call(
+                token,
+                "upload_file",
+                {
+                    "filename": "notes.pdf",
+                    "content_type": "application/pdf",
+                    "content_base64": base64.b64encode(cut_off).decode(),
+                },
+            )
+        check.assert_not_called()
+        self.assertEqual(output["filename"], "notes.pdf")
 
     def test_upload_file_rejections_name_the_limit(self) -> None:
         token = self.manual(write=True)
