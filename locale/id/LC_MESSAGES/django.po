@@ -7879,6 +7879,13 @@ msgstr ""
 msgid "The push service refused the request."
 msgstr "Layanan push menolak permintaan ini."
 
+#, python-brace-format
+msgid "{count} of your open tasks have no due date."
+msgstr "{count} tugasmu yang belum selesai belum punya tenggat."
+
+msgid "1 of your open tasks has no due date."
+msgstr "1 tugasmu yang belum selesai belum punya tenggat."
+
 #~ msgid "Avatar"
 #~ msgstr "Avatar"
 
